@@ -1,6 +1,6 @@
 # PR #1153: fix(core): prevent path traversal in OpenStack API routes
 
-**Автор:** TilmanHaupt · **Статус:** open (готов к ревью, не draft; создан 07.08.2026)
+**Автор:** TilmanHaupt · **Статус:** смержен 12.08.2026 (коммит `9645ac6`; открыт 07.08.2026)
 **Ветки:** `til-sec-3` → `main` · **Файлов:** 11 (+311/-28)
 **Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1153
 

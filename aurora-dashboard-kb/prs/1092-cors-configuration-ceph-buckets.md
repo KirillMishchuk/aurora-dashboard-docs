@@ -1,6 +1,6 @@
 # PR #1092: feat(aurora): add CORS configuration management for Ceph/S3 buckets
 
-**Автор:** KirylSAP · **Статус:** открыт, черновик (draft), не смержен
+**Автор:** KirylSAP · **Статус:** смержен 12.08.2026 (коммит `b7576db`)
 **Ветки:** `kiryl-ceph-cors` → `main` · **Файлов:** 35 (+4643/-45, после раунда 4)
 **Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1092
 

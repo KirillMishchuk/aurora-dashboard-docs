@@ -37,7 +37,7 @@ Typed OpenStack HTTP client on undici. "Swiss Army knife" for OpenStack APIs.
 - **Token:** `authToken`, `tokenData`, `availableRegions`, `isExpired()`, `hasService()`, `hasRole()`, `serviceEndpoint(type, {region, interfaceName})`.
 - **Service:** `get/head/del/post/put/patch(path, {queryParams, headers, region, interfaceName, signal…})` → native `Response`; `getEndpoint()` (e.g. to hand the S3 endpoint to AWS SDK); `availableEndpoints()`.
 - Options cascade session → service → request. Structured colorized debug logging with automatic secret redaction (`logger`, `redactSensitiveData`). Proxy support for mitmproxy debugging (TLS validation auto-disabled; dev only).
-- Source: flat `src/` — `session.ts`, `token.ts`, `service.ts`, `client.ts`, `auth-config.ts`, `error.ts`, `responseErrorHandler.ts`, `logger.ts`; every module has a colocated test.
+- Source: flat `src/` — `session.ts`, `token.ts`, `service.ts`, `client.ts`, `auth-config.ts`, `error.ts`, `responseErrorHandler.ts`, `logger.ts`, `pathHelpers.ts` (added #1153 — path-traversal-safe segment encoding, see 02-architecture "Path & URL validation"); every module has a colocated test. `SignalOpenstackError` is exported as a class from `index.ts` (was type-only before #1153) so consumers can `instanceof`-check validation errors thrown by `pathHelpers`.
 
 ## packages/policy-engine — `@cobaltcore-dev/policy-engine`
 
