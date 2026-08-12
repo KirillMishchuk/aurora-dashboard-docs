@@ -1,6 +1,6 @@
 # Plan: CORS Rules UI — post-merge designer fixes
 
-**Date:** 2026-08-12 · **Status:** implemented 2026-08-12
+**Date:** 2026-08-12 · **Status:** implemented 2026-08-12 (1 follow-up pending — see Step 6 "Decision" / Q5: toolbar-zone spacing needs a corrective commit on `kiryl-ceph-cors-review-findings`)
 
 ## 📋 IMPLEMENTATION PLAN: CORS Rules UI — post-merge designer fixes
 
@@ -40,7 +40,7 @@ All files below are under:
 5. 🟢 **`variant="default"` is valid and is already the codebase convention.** `ButtonVariant = "primary" | "primary-danger" | "default" | "subdued"`, and `variant` already **defaults** to `"default"` — so passing it explicitly is a readability choice consistent with `DeleteRuleDialog.tsx`, `AddRuleModal.tsx`, `CreateSecurityGroupModal.tsx`, `DeleteImageModal.tsx`, `EditObjectMetadataModal.tsx:603`, etc.
 6. 🟢 **No latent submit bug in `TagInput`.** Juno `Button` defaults `type="button"`, so the Add button inside `<Form id="cors-rule-form">` never submits the CORS form. Don't "fix" this.
 7. ⚠️ **Removing item 3 orphans a chain of code**, all confirmed by grep to have no other consumer: `BucketHeaderActions.hasCors` prop → `BucketHeader`'s `corsData` destructure → `useBucketInfo`'s `corsData` field/query → `getCorsDeletedToast` / `getCorsDeleteErrorToast`. `storage.ceph.cors.delete` on the **server stays** — `DeleteCorsRuleModal.tsx:69` and `DeleteCorsRulesModal.tsx:76` both still call it (they use `cors.delete` when the last rule is removed, `cors.set` otherwise).
-8. 🟢 **Reference pattern for item 5** is `network/securitygroups/-components/SecurityGroupsList.tsx:231–299`: a fragment with Zone 1 as `<Stack … className="pb-2">` immediately followed by `<DataGridToolbar>` then the table — i.e. no `gap` between zones. `gap="0"` on the CORS tab's outer Stack lands in the same place. `StackGap` includes `"0"`.
+8. 🟢 **Reference pattern for item 5**, verified against **two** existing implementations — `network/securitygroups/-components/SecurityGroupsList.tsx:231–299` and `network/floatingips/-components/FloatingIpsList.tsx:180–252` (the latter is literally what PR #1099 "use DataGrid Header" introduced) — both use a fragment (`<>`) with **no outer wrapping Stack at all**: Zone 1 is its own `<Stack … className="pb-2">`, immediately followed by `<DataGridToolbar>` (Zone 2), then the table, as plain siblings. ⚠️ Correction from an earlier draft of this plan: simply setting `gap="0"` on the CORS tab's *existing* outer Stack is **not** equivalent — it would zero out Zone 1's own bottom spacing too (nothing else supplies it), unlike the reference pattern which keeps `pb-2` on Zone 1 specifically. The outer Stack needs to be removed, not just zeroed — see Step 6.
 9. 🟢 **`columns={8}` alone** yields `gridTemplateColumns: repeat(8, minmax(0px, auto))` (from `columnMinSize="0px"` / `columnMaxSize="auto"` defaults). Juno also offers `minContentColumns?: number[]` — used by `ImageListView.tsx:714` (`[0, 6]`) and `FlavorListContainer.tsx:142` (`[6]`) — which is the established escape hatch if the checkbox/kebab columns look too wide (see Mitigations).
 10. 🟢 **Locale files are git-tracked** (`src/locales/{en,de}/messages.{po,ts}`) and tests import the compiled `messages.ts`. String changes must be followed by `check-i18n` + committing the regenerated catalogs.
 
@@ -198,16 +198,68 @@ Should return only `DeleteCorsModal.tsx`-free results: `deleteCorsInputSchema` (
 
 **Files to modify:** `Buckets/CorsRulesTab.tsx`
 
+**Correction (2026-08-12, post-review):** the original version of this step just flipped the outer Stack's `gap="4"` to `gap="0"`. That's not what "the pattern" in the designer's note refers to — there's an actual established precedent already shipped in this codebase: `network/floatingips/-components/FloatingIpsList.tsx` (from PR #1099, "use DataGrid Header"), which has the *same* Zone 1 / Zone 2 / table structure as CORS rules. That reference implementation does **not** wrap the three regions in a shared Stack at all:
+
+```tsx
+// FloatingIpsList.tsx — the established pattern, verified in the current tree
+<div className="relative">
+  {/* Zone 1 — sort + create button, no background */}
+  <Stack distribution="end" alignment="center" gap="2" className="pb-2">
+    ...
+  </Stack>
+
+  {/* Zone 2 — filter + search + active filter pills */}
+  <DataGridToolbar>...</DataGridToolbar>
+
+  <FloatingIpListContainer ... />   {/* the table, plain sibling, zero gap */}
+</div>
+```
+
+Zone 1 carries its own `className="pb-2"` for breathing room under itself; Zone 2 and the table are plain adjacent siblings with no explicit gap. Blindly zeroing the CORS tab's outer Stack gap (the original Step 6) would leave Zone 1 with **no** bottom spacing at all — nothing else in `CorsRulesTab.tsx` supplies it — so the "Create CORS Rule" button would sit flush against the toolbar's top edge, unlike the reference pattern. Follow the corrected steps below instead.
+
 **What to do:**
 
-1. L221: `<Stack direction="vertical" gap="4">` → `<Stack direction="vertical" gap="0">`.
-2. Leave the inner Zone-1 `<Stack distribution="end" alignment="center" gap="2">` (L223) and the `gap="0.5"` sort wrapper (L224) exactly as they are — the designer's complaint is the inter-zone gap only.
-3. Leave the `<Stack direction="vertical" gap="2">` inside `DataGridToolbar` (L243) and the `<Divider />` at L257 alone.
-4. Note `CorsRulesTable` has its own `<Stack direction="vertical" gap="4">` wrapper (L101) with a single visible child — no change needed.
+1. `CorsRulesTab.tsx` L221: remove the outer `<Stack direction="vertical" gap="4">` wrapper entirely (and its matching closing tag around L344) — replace with a React fragment (`<>...</>`) or a plain `<div>` if a DOM node is needed for other styling; check for any parent relying on the Stack's own layout before choosing.
+2. Zone 1's Stack (currently `<Stack distribution="end" alignment="center" gap="2">`, L223): add `className="pb-2"`, mirroring `FloatingIpsList.tsx`'s Zone 1 exactly. Leave `gap="2"` and the inner `gap="0.5"` sort wrapper (L224) untouched — those control spacing *within* Zone 1, not between zones.
+3. Leave `DataGridToolbar` (Zone 2, L242) and `CorsRulesTable` (the table) as plain siblings immediately following Zone 1 — no wrapping Stack, no gap prop, matching the reference.
+4. Leave the `<Stack direction="vertical" gap="2">` inside `DataGridToolbar` (L243) and the `<Divider />` at L257 alone — those are internal to Zone 2.
+5. Note `CorsRulesTable` has its own `<Stack direction="vertical" gap="4">` wrapper (L101) with a single visible child — no change needed there.
 
-**Expected outcome:** Zone 1 (sort + create) sits directly on top of the `DataGridToolbar` block (which has its own `jn:py-2 jn:px-3` + `border-b`), which sits directly on top of the grid — one continuous header, matching `SecurityGroupsList.tsx:231–301`.
+**Expected outcome:** Zone 1 (sort + create) has a small `pb-2` gap under itself, then `DataGridToolbar` (Zone 2) and the grid form one continuous block with zero gap between them — pixel-identical spacing behavior to `FloatingIpsList.tsx`, which is the pattern already used elsewhere for this exact "DataGrid Header" composition.
 
-**Verification:** visual, per the Testing Plan. If the create button ends up visually touching the toolbar's top border, add `className="pb-2"` to the Zone-1 Stack (exactly what `SecurityGroupsList.tsx:232` does) rather than restoring a gap on the outer Stack.
+**Verification:** visual, per the Testing Plan — compare side-by-side against the Floating IPs list page, which uses the identical structure. If Zone 1 still looks too tight or too loose against Zone 2, adjust only the `pb-2` value on Zone 1's own Stack (e.g. `pb-4`) — do not reintroduce a shared outer gap.
+
+**⚠️ Post-implementation note (2026-08-12):** the version actually shipped on `kiryl-ceph-cors-review-findings` (commit `7ebafdc9`) did **not** apply this correction — it kept the pre-correction approach, just `gap="4"` → `gap="0"` on the original outer `<Stack direction="vertical">`, with Zone 1 unchanged (no `pb-2` added):
+
+```tsx
+// CorsRulesTab.tsx, as actually committed — verified in the working tree
+<Stack direction="vertical" gap="0">
+  <Stack distribution="end" alignment="center" gap="2">
+    ...
+    <Button variant="primary" onClick={handleAddRule}><Trans>Create CORS Rule</Trans></Button>
+  </Stack>
+  <DataGridToolbar>...</DataGridToolbar>
+  ...
+```
+
+Checked what this means without running the app, by reading the Juno component source directly (`@cloudoperators/juno-ui-components@9.1.0` build, `DataGridToolbar.component.tsx`):
+
+```
+var v_ = "\n\tjn:bg-theme-datagridtoolbar\n  jn:border-b\n  jn:border-theme-default\n\tjn:py-2\n\tjn:px-3\n"
+```
+
+`DataGridToolbar` renders as its own colored box (`bg-theme-datagridtoolbar`) with a bottom border and **8px internal top padding** (`jn:py-2`). With the outer `gap="0"`, Zone 1's "Create CORS Rule" button sits with **zero** px between itself and that box's top edge/border — it does not touch the search input inside (the toolbar's own `py-2` still separates them), but the button will visually abut the colored toolbar block directly, with no breathing room above it.
+
+By contrast, in both established references (`FloatingIpsList.tsx`, `SecurityGroupsList.tsx`) Zone 1 explicitly carries `className="pb-2"` (8px) for exactly this boundary — that value isn't incidental, it's the deliberate answer both prior implementations gave to "how much space between the button row and the toolbar box." The Zone 2 → table boundary (`DataGridToolbar` to `DataGrid`) *is* implemented correctly either way — both approaches produce zero gap there, matching precedent, since neither `DataGridToolbar` nor `CorsRulesTable`'s outer `Stack` (L101, single child, inert) add anything.
+
+**Net assessment, from code alone:** the shipped fix is a literal, defensible reading of the designer's instruction ("remove it / set it to zero") and is not wrong on its face — Juno's `DataGridToolbar` has its own visual boundary (background + border) that still visually separates Zone 1 from Zone 2 even at 0px gap, so this may well read as "clean" rather than "cramped." But it diverges from the only two precedents for this exact composition in the codebase, both of which chose to keep 8px there rather than 0px.
+
+**Decision (2026-08-12): align with the established pattern.** User confirmed — match `FloatingIpsList.tsx`/`SecurityGroupsList.tsx` rather than keep the literal `gap="0"` reading. **Follow-up code change still required** on `kiryl-ceph-cors-review-findings` (not yet applied — this plan update is documentation-only per user request):
+
+1. `CorsRulesTab.tsx` L221: change `<Stack direction="vertical" gap="0">` → remove the wrapping `Stack` entirely (swap for a fragment `<>...</>`, closing tag around L344).
+2. L223: `<Stack distribution="end" alignment="center" gap="2">` → add `className="pb-2"`.
+3. Leave everything else (Zone 2 / `DataGridToolbar`, the table, all inner gaps) untouched — they already match the reference pattern.
+4. Re-run `CorsRulesTab.test.tsx` (structural change only, no text/query changes expected) and do a visual pass once credentials/a browser session are available.
 
 ---
 
@@ -328,3 +380,5 @@ Should return only `DeleteCorsModal.tsx`-free results: `deleteCorsInputSchema` (
 **Q3 — Wrap `TagInput`'s `Add` in `<Trans>` while the file is open?** It is currently the only unlocalized user-facing label in the CORS UI. `eslint-plugin-lingui`'s `flat/recommended` (`packages/aurora/eslint.config.mjs:8`) does **not** enable `no-unlocalized-strings`, and `lingui extract` doesn't fail on it, so CI passes either way — this is a correctness/consistency call, not a blocker. Recommendation: yes, wrap it (one line + one import). Explicitly *not* proposing to localize `TagInput`'s validator error strings — that's a separate, larger change.
 
 **Q4 — Is losing the "delete the whole CORS configuration in one click" affordance acceptable long-term?** Confirmed in-session as the designer's intent, but worth restating in the PR description: with `DeleteCorsModal` gone, wiping a 40-rule config requires select-all → batch delete. Also note that the `storage.ceph.bucket.cors.delete.*` analytics events disappear with the modal.
+
+**Q5 — [RESOLVED 2026-08-12] `gap="0"` on the CORS tab's outer Stack (as actually shipped) vs. the `pb-2`-on-Zone-1 pattern used by `FloatingIpsList.tsx`/`SecurityGroupsList.tsx`.** Decision: align with the established pattern rather than keep the literal `gap="0"` reading — see the "Decision" block under Step 6 for the exact follow-up code change needed on `kiryl-ceph-cors-review-findings` (not yet applied as of this plan update).
