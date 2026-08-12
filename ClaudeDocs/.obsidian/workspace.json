@@ -1,0 +1,239 @@
+{
+  "main": {
+    "id": "c48d637c3795e0ab",
+    "type": "split",
+    "children": [
+      {
+        "id": "b40705f4ab1fbaaa",
+        "type": "tabs",
+        "dimension": 74.8798076923077,
+        "children": [
+          {
+            "id": "21faf72f29b05f3e",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "claude-code-commands.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "claude-code-commands"
+            }
+          },
+          {
+            "id": "b14656e59f2e48f3",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "claude-code-plugins.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "claude-code-plugins"
+            }
+          },
+          {
+            "id": "2787f6b4ea6f0717",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "claude-code-skills.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "claude-code-skills"
+            }
+          }
+        ]
+      },
+      {
+        "id": "7ce058a0b792c8ca",
+        "type": "tabs",
+        "dimension": 25.120192307692307,
+        "children": [
+          {
+            "id": "e921c198ce5e9d9a",
+            "type": "leaf",
+            "state": {
+              "type": "graph",
+              "state": {},
+              "icon": "lucide-git-fork",
+              "title": "Граф"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "9de4bba9d87d11d1",
+    "type": "split",
+    "children": [
+      {
+        "id": "f0303dfd7f56f6d0",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "4770be2bd7ae4f29",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Файловый менеджер"
+            }
+          },
+          {
+            "id": "2ef8f27f580ec367",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Поиск"
+            }
+          },
+          {
+            "id": "c225619f9c2cede8",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Закладки"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 211.5
+  },
+  "right": {
+    "id": "5acc3552bc13571b",
+    "type": "split",
+    "children": [
+      {
+        "id": "f2387f282d4cb5ab",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "743100c4ab0fce4e",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "claude-code-commands.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Обратные ссылки для claude-code-commands"
+            }
+          },
+          {
+            "id": "70238351594d269c",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "claude-code-commands.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Исходящие ссылки из claude-code-commands"
+            }
+          },
+          {
+            "id": "d6f2a6db61755e56",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Теги"
+            }
+          },
+          {
+            "id": "d8d666c01233a07c",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "Все свойства"
+            }
+          },
+          {
+            "id": "1cb602b638426ac9",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "claude-code-commands.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Структура claude-code-commands"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Меню быстрого перехода": false,
+      "graph:Граф": false,
+      "canvas:Создать новый холст": false,
+      "daily-notes:Сегодняшняя заметка": false,
+      "templates:Вставить шаблон": false,
+      "command-palette:Открыть палитру команд": false,
+      "bases:Создать новую базу": false
+    }
+  },
+  "active": "21faf72f29b05f3e",
+  "lastOpenFiles": [
+    "claude-code-plugins.md",
+    "claude-code-skills.md",
+    "claude-code-commands.md",
+    "Добро пожаловать.md"
+  ]
+}

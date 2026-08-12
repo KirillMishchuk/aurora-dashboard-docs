@@ -1,0 +1,207 @@
+{
+  "main": {
+    "id": "2993e5cadc2b4edd",
+    "type": "split",
+    "children": [
+      {
+        "id": "07dbd4cd105459ea",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "d551dddf93cb2da2",
+            "type": "leaf",
+            "state": {
+              "type": "markdown",
+              "state": {
+                "file": "2026-08-11-fix-pr1092-cors-review-findings.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "2026-08-11-fix-pr1092-cors-review-findings"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "vertical"
+  },
+  "left": {
+    "id": "645c2ac2d8b2cd62",
+    "type": "split",
+    "children": [
+      {
+        "id": "0a0d205b5fdf39d3",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "2efb751398770f39",
+            "type": "leaf",
+            "state": {
+              "type": "file-explorer",
+              "state": {
+                "sortOrder": "alphabetical",
+                "autoReveal": false
+              },
+              "icon": "lucide-folder-closed",
+              "title": "Файловый менеджер"
+            }
+          },
+          {
+            "id": "f5fdef2de900af20",
+            "type": "leaf",
+            "state": {
+              "type": "search",
+              "state": {
+                "query": "",
+                "matchingCase": false,
+                "explainSearch": false,
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical"
+              },
+              "icon": "lucide-search",
+              "title": "Поиск"
+            }
+          },
+          {
+            "id": "734384a7284f0f69",
+            "type": "leaf",
+            "state": {
+              "type": "bookmarks",
+              "state": {},
+              "icon": "lucide-bookmark",
+              "title": "Закладки"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300
+  },
+  "right": {
+    "id": "34ae1b1eccaef118",
+    "type": "split",
+    "children": [
+      {
+        "id": "ab83476117376bb4",
+        "type": "tabs",
+        "children": [
+          {
+            "id": "4c4419a2b6ede952",
+            "type": "leaf",
+            "state": {
+              "type": "backlink",
+              "state": {
+                "file": "2026-07-25-cors-manual-testing-scenarios.md",
+                "collapseAll": false,
+                "extraContext": false,
+                "sortOrder": "alphabetical",
+                "showSearch": false,
+                "searchQuery": "",
+                "backlinkCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-coming-in",
+              "title": "Обратные ссылки для 2026-07-25-cors-manual-testing-scenarios"
+            }
+          },
+          {
+            "id": "9b5915718a65df56",
+            "type": "leaf",
+            "state": {
+              "type": "outgoing-link",
+              "state": {
+                "file": "2026-07-25-cors-manual-testing-scenarios.md",
+                "linksCollapsed": false,
+                "unlinkedCollapsed": true
+              },
+              "icon": "links-going-out",
+              "title": "Исходящие ссылки из 2026-07-25-cors-manual-testing-scenarios"
+            }
+          },
+          {
+            "id": "69034c5aad05d368",
+            "type": "leaf",
+            "state": {
+              "type": "tag",
+              "state": {
+                "sortOrder": "frequency",
+                "useHierarchy": true,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-tags",
+              "title": "Теги"
+            }
+          },
+          {
+            "id": "d2f8d104b0eb4502",
+            "type": "leaf",
+            "state": {
+              "type": "all-properties",
+              "state": {
+                "sortOrder": "frequency",
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-archive",
+              "title": "Все свойства"
+            }
+          },
+          {
+            "id": "83166e28ab16dbe6",
+            "type": "leaf",
+            "state": {
+              "type": "outline",
+              "state": {
+                "file": "2026-07-25-cors-manual-testing-scenarios.md",
+                "followCursor": false,
+                "showSearch": false,
+                "searchQuery": ""
+              },
+              "icon": "lucide-list",
+              "title": "Структура 2026-07-25-cors-manual-testing-scenarios"
+            }
+          }
+        ]
+      }
+    ],
+    "direction": "horizontal",
+    "width": 300,
+    "collapsed": true
+  },
+  "left-ribbon": {
+    "hiddenItems": {
+      "switcher:Меню быстрого перехода": false,
+      "graph:Граф": false,
+      "canvas:Создать новый холст": false,
+      "daily-notes:Сегодняшняя заметка": false,
+      "templates:Вставить шаблон": false,
+      "command-palette:Открыть палитру команд": false,
+      "bases:Создать новую базу": false
+    }
+  },
+  "active": "2efb751398770f39",
+  "lastOpenFiles": [
+    "2026-08-12-ceph-bucket-empty-action-consistency.md",
+    "2026-08-07-ceph-bucket-details-tabs-cors-implemented.md",
+    "2026-08-11-fix-pr1092-cors-review-findings.md",
+    "2026-08-07-ceph-bucket-details-tabs-cors.md",
+    "2026-08-06-lifecycle-rules-implementation-comparison-ru.md",
+    "prd-bucket-tagging.md",
+    "2026-08-06-ceph-lifecycle-rules-remote-branch-fixes (1).md",
+    "2026-08-06-ceph-lifecycle-rules-remote-branch-fixes.md",
+    "2026-08-06-lifecycle-rules-implementation-comparison.md",
+    "tasks-bucket-tagging.md",
+    "2026-08-03-fix-deleteversionsbulk-partial-failure.md",
+    "2026-07-31-ceph-lifecycle-rules-crud.md",
+    "README.md",
+    "2026-07-23-ceph-lifecycle-policies-endpoint.md",
+    "2026-07-27-ceph-bulk-object-delete.md",
+    "2026-07-25-cors-manual-testing-scenarios.md",
+    "2026-07-25-cors-configuration-testing-plan.md",
+    "2026-07-23-security-groups-list-pagination.md"
+  ]
+}
