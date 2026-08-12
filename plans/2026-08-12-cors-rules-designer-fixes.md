@@ -1,6 +1,6 @@
 # Plan: CORS Rules UI — post-merge designer fixes
 
-**Date:** 2026-08-12 · **Status:** implemented 2026-08-12 (1 follow-up pending — see Step 6 "Decision" / Q5: toolbar-zone spacing needs a corrective commit on `kiryl-ceph-cors-review-findings`)
+**Date:** 2026-08-12 · **Status:** implemented 2026-08-12 (complete, including Step 6 follow-up correction — commit cf8ec618)
 
 ## 📋 IMPLEMENTATION PLAN: CORS Rules UI — post-merge designer fixes
 

@@ -2,7 +2,7 @@
 
 | Date | Task | Risks | Status | File |
 | --- | --- | --- | --- | --- |
-| 2026-08-12 | CORS Rules UI post-merge designer fixes: naming consistency, modal button variants, remove redundant "Delete CORS Rules" bucket-header action, default DataGrid layout, spacing cleanup (PR #1092) | 4 High, several Medium | implemented 2026-08-12 | [2026-08-12-cors-rules-designer-fixes.md](./2026-08-12-cors-rules-designer-fixes.md) |
+| 2026-08-12 | CORS Rules UI post-merge designer fixes: naming consistency, modal button variants, remove redundant "Delete CORS Rules" bucket-header action, default DataGrid layout, spacing cleanup (PR #1092) | 4 High, several Medium | implemented 2026-08-12 (complete) | [2026-08-12-cors-rules-designer-fixes.md](./2026-08-12-cors-rules-designer-fixes.md) |
 | 2026-08-12 | Ceph bucket list: gate row-level "Empty Bucket" action on emptiness + align row action naming with bulk/detail views (Issues #1107, #1109) | 1 Medium | not implemented | [2026-08-12-ceph-bucket-empty-action-consistency.md](./2026-08-12-ceph-bucket-empty-action-consistency.md) |
 | 2026-08-07 | Redesign Ceph bucket details page: Overview/Cors Rules tabs replacing button-driven CORS flow (builds on PR #1092) | 2 Medium | implemented 2026-08-08, fixes required (review 2026-08-10) | [2026-08-07-ceph-bucket-details-tabs-cors-implemented.md](./2026-08-07-ceph-bucket-details-tabs-cors-implemented.md) |
 | 2026-08-06 | Fix punch-list for `kiryl-ceph-lifecycle-rules` branch (remote-machine build): lint errors + manual-QA findings across the 4 lifecycle UI components | n/a (fix list, not a risk table) | implemented 2026-08-07 (Round 2 complete) | [<2026-08-06-ceph-lifecycle-rules-remote-branch-fixes (1).md>](<./2026-08-06-ceph-lifecycle-rules-remote-branch-fixes (1).md>) |
