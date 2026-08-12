@@ -45,6 +45,10 @@ Rules:
 - Custom/consumer routers **must** be created with `auroraRouter` (same initTRPC instance) or context types (`ctx.openstack`, `ctx.validateSession`, `ctx.rescopeSession`) break at runtime.
 - Typical pattern: `protectedProcedure.input(zodSchema).query/mutation` → `ctx.rescopeSession({ projectId })` → `session.service("compute").get("os-keypairs")` → parse with Zod (`safeParse`) → return typed data.
 
+### Error handling
+
+Two styles coexist. **Legacy** (some handlers, e.g. parts of `Compute/routers/serverRouter.ts`): try/catch the whole handler body, `schema.safeParse` with manual field-by-field logging, and on any failure — missing service, parse failure, thrown error — silently `return undefined`, pushing failure handling onto the client. **Generic wrapper, broadly adopted**: `withErrorHandling(operation, operationName)` (`server/helpers/errorHandling.ts`) runs an async operation and normalizes any non-`TRPCError` into a `TRPCError` (`INTERNAL_SERVER_ERROR`) via `wrapError`, rethrowing an already-thrown `TRPCError` as-is — used across Compute (images), Network (floating IP, RBAC policy, security group + rules), Services (PCA), and Storage (Swift) routers. **Network adds a further, narrower layer on top**: `parseOrThrow(schema, data, context)` (`Network/helpers/index.ts`) throws a `PARSE_ERROR` `TRPCError` instead of swallowing a Zod parse failure, and a per-resource `ErrorHandler(resourceName)` factory (`Network/helpers/errorHandling.ts`) maps HTTP status codes (400/401/403/404/409/412) to typed `TRPCError`s with resource-specific messages — currently wired up for floating IPs, with `pcaRouter.ts` reusing `parseOrThrow` on its own. The file's own comment marks this status-mapping layer `WORK_IN_PROGRESS`/prototype ("only used for list procedures in Port and Network helpers... goal is to extend this... in the future") — treat `withErrorHandling` as the actually-established convention to follow, and `parseOrThrow`/`ErrorHandler` as a newer pattern still confined to Network, not yet a repo-wide standard.
+
 ### Auth and token scoping
 
 - Login creates a Keystone session; the token is kept server-side, session tracked via cookie.
@@ -52,6 +56,8 @@ Rules:
 - A `useScope` hook (commit `c55b535`) combines URL params and auth context on the client.
 - **Client auth state** lives in `src/client/store/AuthProvider.tsx` (refactored in #1072): tRPC auth calls are centralized here; `login({ domain, user, password })` and `logout()` come from the context, which also exposes `isLoading`/`error`. A session-expiry timer auto-logs-out and redirects to login with a return-URL param (redirect back after re-login); manual logout does not save a return URL. `LoginForm` uses Juno FormRow/TextInput with uncontrolled inputs.
 - Projects list page uses optimistic rendering via Suspense + `useSuspenseQuery` (#1067).
+- **Two hooks read scope from different sources, deliberately** — `useDomainId()` (`client/hooks/useDomainId.ts`) reads the domain from the **session** (`useAuth().user.domain.id`), throwing if the user has no domain; `useProjectId()` (`client/hooks/useProjectId.ts`) reads the **URL** (`useParams({ strict: false })`, compatible with both the legacy `/accounts/:accountId/projects/:projectId` and current `/projects/:projectId` shapes), throwing outside a project-scoped route. Don't conflate them: domain scope is session-derived, project scope is URL-derived.
+- **Rescope deduplication** (`server/context.ts`): a module-level `Map<authToken, Map<scopeKey, Promise<string | null>>>` (`sessionRescopes`) coordinates concurrent requests from the same session so they don't each hit Keystone. `rescopeSession({ projectId, domainId })` first no-ops if the token is already scoped to the requested project/domain; otherwise it derives a `scopeKey` (`project:{id}` / `domain:{id}` / `unscoped`) and, if another request already has a rescope in flight for that exact key, awaits the same promise instead of re-rescoping — only the resulting **token string** is cached (never the session object), so each request still applies the result to its own `openstackSession`/cookie. If Keystone's rescope response changes the auth token itself, the pending-rescope map is migrated to the new token key (merged with any map already there) before the old key is dropped; a `finally` always removes the completed entry and prunes now-empty maps (both the original and, if migrated, the new key) to avoid a leak.
 
 ## Permissions & policy
 
@@ -78,6 +84,14 @@ Two layers, both driven by oslo.policy files from `policyDir` (JSON/YAML; the re
 
 - **Slots** — UI extension points without forking: `logo`, `sideNavBanner` (shadow DOM), `pageFooter`, `login` (for OIDC), `serviceBadge`, `servicePageActions`, `serviceBanner`, `projectsBanner`, `projectOverviewBanner`. Slots get `auroraContext` with a tRPC `client`; service-level slots also get `currentService`. Shadow-DOM slots must inline their styles. `slots.login` replaces the default `LoginForm` on the landing page (`/`) for unauthenticated users — it was silently dropped by the #1072 auth refactor and restored in #1079.
 - **Analytics** — `onTrackEvent(payload: {source, action, metadata})`; router navigation is auto-tracked (`source: "router"`, action = route ID, metadata includes pathname/search/section/service from route `staticData`). Custom events go through `useRouteContext().onTrackEvent`. See `packages/aurora/docs/0013_analytics-tracking.md`.
+
+### tRPC client link strategy (`client/trpcClient.ts`)
+
+`getLinks()` is a `splitLink` chain evaluated in order: subscriptions → `httpSubscriptionLink`; non-JSON-serializable input (FormData/Blob/ArrayBuffer) → plain `httpLink` (no batching); JSON procedures listed in the `STREAMING_PROCEDURES` set (currently `storage.swift.downloadObject`, `storage.ceph.objects.downloadObject`) → `httpBatchStreamLink`; everything else → `httpBatchLink`. `httpBatchStreamLink` is deliberately not the default link — it's incompatible with `@fastify/csrf-protection`'s cookie rotation on long-lived connections — so a new streaming procedure must be added to the allow-list explicitly rather than switching the default. A module-level `csrfCache` dedupes concurrent CSRF-token fetches (one in-flight request shared by all callers) and exposes `getCsrfToken`/`setCsrfToken` so a separate JS context — a Web Worker gets its own module instance of `trpcClient.ts` — can share the main thread's cached token instead of re-fetching.
+
+### Query cache isolation
+
+`QueryClient`'s `queryKeyHashFn` (set in `App.tsx`) reads `router.state.matches` directly (not React context) to find the deepest matched route carrying a `projectId` param, and prefixes that project id onto every query key before hashing. Switching projects therefore never returns cached data from a previous project — but only for query keys that go through the shared `queryClient`; ad-hoc caching bypasses this isolation.
 
 ## Cross-cutting mechanisms
 
