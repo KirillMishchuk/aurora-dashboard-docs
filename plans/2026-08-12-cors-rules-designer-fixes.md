@@ -1,6 +1,6 @@
 # Plan: CORS Rules UI — post-merge designer fixes
 
-**Date:** 2026-08-12 · **Status:** not implemented
+**Date:** 2026-08-12 · **Status:** implemented 2026-08-12
 
 ## 📋 IMPLEMENTATION PLAN: CORS Rules UI — post-merge designer fixes
 
