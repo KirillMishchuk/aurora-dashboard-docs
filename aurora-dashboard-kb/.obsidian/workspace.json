@@ -184,6 +184,7 @@
   },
   "active": "fe3740e8a74c8673",
   "lastOpenFiles": [
+    "prs/1153-prevent-path-traversal-openstack-routes.md",
     "prs/1155-swift-object-download-web-worker.md",
     "prs/1132-image-toasts-notification-manager.md",
     "prs/1120-generate-presigned-urls-for-objects.md",
