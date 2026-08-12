@@ -18,8 +18,6 @@ Do NOT inline these files here. Read the relevant file on demand before planning
 
 Aurora Dashboard is a web dashboard for managing OpenStack-based cloud infrastructure (compute, storage, networking, identity). It follows a Backend-for-Frontend (BFF) architecture: a Fastify + tRPC server abstracts OpenStack's REST APIs, and a React client consumes them through a fully typed tRPC client.
 
-For actionable patterns, where-to-look tables, and anti-patterns, see [docs/agent-patterns.md](./docs/agent-patterns.md).
-
 It's a **pnpm monorepo** orchestrated by **Turborepo**:
 
 ```
