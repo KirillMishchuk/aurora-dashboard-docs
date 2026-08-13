@@ -184,6 +184,7 @@
   },
   "active": "fe3740e8a74c8673",
   "lastOpenFiles": [
+    "prs/1176-cap-tempurl-lifetime-readonly.md",
     "prs/1172-cors-ui-design-review-fixes.md",
     "prs/1173-redact-swift-tempurl-sync-keys.md",
     "prs/1092-cors-configuration-ceph-buckets.md",
@@ -211,7 +212,6 @@
     "Без названия.canvas",
     "prs/1076-auth-provider-trpc-react.md",
     "Без названия.base",
-    "03-packages.md",
     "Без названия",
     "prs",
     "Без названия 1.canvas"
