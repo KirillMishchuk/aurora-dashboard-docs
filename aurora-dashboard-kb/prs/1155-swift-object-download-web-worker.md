@@ -1,6 +1,6 @@
 # PR #1155: feat(portal): offload Swift object downloads to a Web Worker
 
-**Автор:** mark-karnaukh-extern-sap · **Статус:** открыт, не смержен (создан 09.08.2026)
+**Автор:** mark-karnaukh-extern-sap · **Статус:** создан 09.08.2026 → смержен 13.08.2026
 **Ветки:** `mark-swift-download-improvements` → `main` · **Файлов:** 15 (+1271/-548)
 **Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1155
 
