@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "prs/1092-cors-configuration-ceph-buckets.md",
+                "file": "prs/1155-swift-object-download-web-worker.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "1092-cors-configuration-ceph-buckets"
+              "title": "1155-swift-object-download-web-worker"
             }
           }
         ]
@@ -94,7 +94,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "prs/1092-cors-configuration-ceph-buckets.md",
+                "file": "prs/1155-swift-object-download-web-worker.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -104,7 +104,7 @@
                 "unlinkedCollapsed": true
               },
               "icon": "links-coming-in",
-              "title": "Обратные ссылки для 1092-cors-configuration-ceph-buckets"
+              "title": "Обратные ссылки для 1155-swift-object-download-web-worker"
             }
           },
           {
@@ -184,6 +184,7 @@
   },
   "active": "fe3740e8a74c8673",
   "lastOpenFiles": [
+    "prs/1092-cors-configuration-ceph-buckets.md",
     "prs/1153-prevent-path-traversal-openstack-routes.md",
     "prs/1155-swift-object-download-web-worker.md",
     "prs/1132-image-toasts-notification-manager.md",
@@ -191,7 +192,6 @@
     "prs/1121-ceph-bulk-delete-objects.md",
     "prs/1123-custom-footer-height-storage-tables.md",
     "prs/952-security-group-permissions-datagrid.md",
-    "prs/1092-cors-configuration-ceph-buckets.md",
     "prs/1099-floating-ip-search-datagrid-header.md",
     "prs/1111-replace-datagrid-with-descriptionlist.md",
     "prs/README.md",
