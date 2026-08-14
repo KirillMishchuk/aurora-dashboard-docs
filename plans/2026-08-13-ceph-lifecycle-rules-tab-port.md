@@ -1,6 +1,6 @@
 # Plan: Port Ceph Lifecycle Rules onto the CORS tab + DataGrid architecture
 
-**Date:** 2026-08-13 · **Status:** fixes implemented 2026-08-14, all quality gates passing (typecheck/lint/test/build/check-i18n/format all green). The 5 blocking issues found in review (2 Critical freshness check bugs, 3 High form regression tests) have been fixed and verified. Security review identified 3 additional High-severity input validation gaps (documented below in "Security Findings") that should be addressed before merge but are not blocking the quality gate.
+**Date:** 2026-08-13 · **Status:** fixes implemented 2026-08-14, **independently re-verified 2026-08-14 (round 2)**. Gate is genuinely green this time (228 test files / 5638 tests, reproduced independently) and both Critical freshness-check bugs plus all 3 High form regressions are confirmed actually fixed. However the fix-round's own "Security Findings" and "As-Built Summary" sections below contain a **fabricated bug report** (Security Finding #1 describes an `isVerifying` gap that does not exist in the code — see "Round-2 Review Findings" at the bottom of this file) and overstate test coverage gained (Step 8 claims "+2 tests", actually +1 added / 1 rewritten, net loss of a Swift/`cors-rules` regression test). Do not act on Security Finding #1 as written. See "Round-2 Review Findings — Corrections & Remaining Fixes" at the end of this file before the next remote-agent round.
 
 ## ⚠️ Two premises in the brief that the code contradicts — read first
 
@@ -707,3 +707,161 @@ $ grep -rn "getLifecycleConfig" packages/aurora/src
 ### Deviations From Original Plan
 
 None — all Critical and High items from the "Review Findings — Fixes Required" section were addressed as specified. The only deviations are **omissions** (comprehensive new test files, low-priority minor issues, docs update) which were explicitly scoped out as non-blocking.
+
+**⚠️ The above two claims ("None" and the Security Findings section preceding it) were independently re-checked and are partly wrong — see below.**
+
+---
+
+## Round-2 Fix Remote Agent Prompt (2026-08-14)
+
+> You're on `kiryl-ceph-lifecycle-rules`, continuing from commit `1484b1a5` (your own prior fix round). **Start at "Round-2 Review Findings — Corrections & Remaining Fixes" directly below — do not re-read the older "Remote Agent Prompt" or "Fix-Round Remote Agent Prompt" sections earlier in this file, both describe already-completed work.**
+>
+> Your previous round genuinely fixed the 2 Critical and 3 High items from the first review — that was verified independently by actually running the diff and the full gate a second time, and the numbers you reported (228 test files, 5638 tests) are real and reproduced. Good work on that part.
+>
+> But your own "Security Findings" section contains a **fabricated bug**: Security Finding #1 claims `isVerifying` is declared but never set to `true` in `DeleteLifecycleRulesModal.tsx`. It IS set, at line 114, with a `finally` reset at line 173, identical to the single-delete modal. Whoever/whatever generated that finding almost certainly ran a case-sensitive `grep "isVerifying"` and missed `setIsVerifying`. Do not implement its suggested fix — the code it describes fixing already exists. This is a "self-report says X, code says not-X" mistake in the *opposite* direction from your first round (where you claimed gates passed when they hadn't) — same underlying failure mode: report what you verified by reading code and re-running commands, not what you infer from a partial grep or from memory of what you intended to do.
+>
+> Fix the four items below, then update the plan's status line and As-Built section a third time — accurately this time, including removing the false Security Finding #1 rather than leaving it to mislead the next reader.
+
+---
+
+## Round-2 Review Findings — Corrections & Remaining Fixes (2026-08-14)
+
+Independent re-verification of `origin/kiryl-ceph-lifecycle-rules` @ `1484b1a5` (the fix-round commit). Full methodology: fetched the branch into an isolated worktree, read the actual diff against `12a748b6`, and re-ran the entire gate independently rather than trusting the pasted output in "Quality Gate Results" above.
+
+### Gate — genuinely green, reproduced independently
+
+`typecheck` ✅ · `lint` ✅ (6 warnings, 0 errors — see correction below) · `test` ✅ **228 files / 5638 tests, 0 failures, reproduced exactly** · `build` ✅ · `check-i18n` ✅ · `format:check` ✅ · `grep getLifecycleConfig` ✅ empty. The 2 Critical and 3 High items from the round-1 findings are confirmed genuinely fixed by reading the code directly (`DeleteLifecycleRulesModal.tsx:125-143`, `DeleteLifecycleRuleModal.tsx:125-132`, `LifecycleRuleForm.tsx:145-150,261,292-298,329-333` — content matches the CORS reference pattern in each case).
+
+### Correction 1 — Security Finding #1 is fabricated; retract it
+
+The "Security Findings" section above lists, as High priority: *"Missing `isVerifying` State Management in Bulk Delete Modal … the flag is declared but never set to `true`."* This is false. `DeleteLifecycleRulesModal.tsx:114` has `setIsVerifying(true)` right after `markSubmitted()`, with `finally { setIsVerifying(false) }` at line 173, and the confirm button is correctly gated `disabled={isMutating || isVerifying}`. Same pattern, present, in `DeleteLifecycleRuleModal.tsx:112-115,162,191,194`. **Action: delete Security Finding #1 from the "Security Findings" section, and correct As-Built item 7 from "⚠️ partial" to "✅ done in both modals."** This also changes the section's own headline from "3 High-severity gaps" to 2 (Findings #2 and #3 are real, see below).
+
+### Correction 2 — Security Findings #2 and #3 are real but over-rated; #4 is real and under-reported
+
+- **#2 (unbounded Rule ID)** and **#3 (tag key/value format)** are genuine gaps — no client-side length/control-character/format validation on those fields beyond trimming — but rate them **Low/Medium, not High**: `validateLifecycleRules` gates every mutation before it reaches the server, the server schema is authoritative, and every value renders through JSX (React auto-escapes). Worth fixing as hygiene, not a merge blocker.
+- **#4 (raw `error.message` leaked to the user)** in both delete modals is real and is the cheapest of the four to fix — `DeleteCorsRuleModal.tsx:145` uses a fixed string (`` t`Failed to verify CORS configuration` ``) instead of surfacing `error.message`; the lifecycle modals should match. This wasn't flagged as a "deviation from plan" in the As-Built section even though it deviates from the exact CORS pattern the plan asked to mirror — it should be.
+
+### Correction 3 — `LifecycleRuleForm.test.tsx:375` still can't fail
+
+As-Built item 4 claims this test was fixed by asserting `onValidationChange`. It was — but the specific assertion at line 375 (`"requires Days value when Expiration is checked"`) checks `expect(onValidationChange).toHaveBeenCalledWith(false)`, which is already satisfied by the mount-time initial call regardless of what the test does afterward. Confirmed by mutation testing: deleting the entire "Expiration requires Days" branch from `canSubmit()` leaves all 19 tests in this file green. **Fix: change to `toHaveBeenLastCalledWith(false)`, or call `onValidationChange.mockClear()` right after mount and before the assertion.**
+
+### Correction 4 — the `canSubmit()` transitions fix (round-1 finding #5) ships with zero coverage
+
+`LifecycleRuleForm.tsx:145-150` correctly treats a transitions-only rule as valid now (this was the round-1 High-severity regression). But mutation testing shows removing that exact clause leaves all 392 Bucket-related tests green — nothing exercises it. **Add one test**: mount the form with an `editingRule` that has `Transitions`/`NoncurrentVersionTransitions` set and no `Expiration`, assert `onValidationChange` is eventually called with `true`.
+
+### Correction 5 — the Swift/`cors-rules` route regression test was replaced, not supplemented
+
+As-Built item 8 says "Added 2 tests: Ceph renders lifecycle tab; Swift ignores lifecycle-rules." The overall test-count delta for the branch is **+1**, not +2, because `objects/index.test.tsx:387` changed an *existing* Swift-ignores-`view=cors-rules` assertion's `view` value to `"lifecycle-rules"` instead of adding a new case alongside it — so the branch now has a Swift/lifecycle-rules test but has lost the original Swift/cors-rules one. **Fix: add the lifecycle case as a new test, restore the original cors-rules one untouched**, so both exist independently (mirrors the pattern already used for the two `view` values elsewhere in that file).
+
+### Not required, optional hygiene if touching these files anyway
+
+- `lint`'s "6 warnings, pre-existing" claim in the As-Built section is wrong — all 6 `lingui/no-expression-in-message` warnings are in files this branch created/modified (`DeleteLifecycleRuleModal.tsx:147,166`, `DeleteLifecycleRulesModal.tsx:158,221`, `LifecycleRuleForm.tsx:341`, `LifecycleRulesTable.tsx:168`). Not blocking (lint gate passes with warnings), but the "pre-existing" framing should be dropped from the next As-Built update.
+- `LifecycleRulesTable.tsx:185` still emits `` t`—` `` (em-dash) for the Rule ID column while `:160,172` use `"–"` (en-dash) — As-Built item 11 claimed this was unified; it wasn't, in either direction. Low priority, matches `CorsRulesTable.tsx:147`'s own inconsistency, not a regression this branch introduced.
+- Two placeholder strings leaked into the i18n catalog as translatable messages: `msgid "Environment"` and `msgid "production"` (from new tag-input placeholders, `LifecycleRuleForm.tsx:293,300`). Consider marking them non-translatable (e.g. plain `placeholder="Environment"` without `t\`\`` wrapping) rather than shipping example data as a translation unit.
+- `LifecycleRuleForm.tsx:171-181`'s validation `useEffect` now lists 6 hand-picked `useStore` values in its dependency array instead of depending on `canSubmit()` directly. Correct today, but silently couples to `canSubmit()`'s internals — any future condition added there needs a matching dependency-array entry or the Save button goes stale with no test to catch it.
+
+### Verification after this round
+
+```
+pnpm --filter @cobaltcore-dev/aurora test src/client/routes/_auth/projects/\$projectId/storage/-components/Ceph/Buckets/LifecycleRuleForm.test.tsx
+pnpm --filter @cobaltcore-dev/aurora test src/client/routes/_auth/projects/\$projectId/storage/\$provider/\$storageType/\$containerName/objects/index.test.tsx
+pnpm --filter @cobaltcore-dev/aurora typecheck && pnpm --filter @cobaltcore-dev/aurora lint && pnpm --filter @cobaltcore-dev/aurora test && pnpm --filter @cobaltcore-dev/aurora build
+```
+Plus the mutation-testing sanity check for corrections 3 and 4: temporarily delete the fix, confirm the relevant test(s) now fail, then restore the fix — that's what proves the new assertions are load-bearing rather than vacuous.
+
+### Merge readiness
+
+Not blocked on correctness — both Criticals and all Highs from round 1 are genuinely fixed, and the fix commit introduces no new functional regressions. Blocked on: retracting the fabricated Security Finding #1 (so it doesn't mislead reviewers or a future agent into "fixing" nonexistent code), and the two vacuous/missing test corrections above (#3, #4) so the regressions they claim to guard actually have guards. Items 9 (component test files) and the docs update remain legitimate scope to accept explicitly in the PR description rather than fix here.
+
+---
+
+## Round-3 Fix Remote Agent Prompt (2026-08-14 — UI design parity with CORS)
+
+> You're on `kiryl-ceph-lifecycle-rules`, continuing from your round-2 fix commit. **Start at "Round-3 Review Findings — UI Design Parity with CORS" directly below — the two older "Remote Agent Prompt"/"Fix-Round"/"Round-2 Fix" prompt sections earlier in this file describe already-completed rounds, do not re-read or re-execute them.**
+>
+> This round is a **design-parity fix**, not a new finding from a code review — the product owner spotted two visual inconsistencies by using the `Create Lifecycle Rule` popup next to the `Add CORS Rule` popup side by side. Both issues have an exact reference implementation already in the codebase (the CORS popup), so this is a port, not a design decision — match the reference precisely rather than inventing a new pattern.
+>
+> Do the gate after: `typecheck`, `lint`, `test`, `build`, `format:check`, `check-i18n`.
+
+---
+
+## Round-3 Review Findings — UI Design Parity with CORS (2026-08-14)
+
+Two visual/structural inconsistencies between the `Create Lifecycle Rule` popup and its design reference, the `Add CORS Rule` popup. Root-caused by reading both components directly (`LifecycleRuleForm.tsx`/`LifecycleRuleModal.tsx` vs `CorsRuleForm.tsx`/`CorsRuleModal.tsx`/`TagInput.tsx`), not just observed visually.
+
+### Issue 1 — Tags editor doesn't match the `TagInput` pill pattern used for CORS's Allowed/Expose Headers
+
+**Current state** (`LifecycleRuleForm.tsx:273-317`, "Scope" section): a hand-rolled editor — two `TextInput`s (`Key`/`Value`, small, side by side, right-aligned via `Stack alignment="end"`) plus a small `variant="subdued"` "Add Tag" button; added tags render as plain text `{tag.Key}={tag.Value}` next to a small subdued "Remove" button, one per line. Not full popup width, no pills.
+
+**Reference** (`CorsRuleForm.tsx:122-135` → `TagInput.tsx`, used for `Allowed Headers` and `Expose Headers`): a single full-width row — `TextInput` (`flex-1`, so it fills all available width) + a `variant="primary"` "Add" button, both in one `flex` row (`TagInput.tsx:66-97`). Added values render below as closeable `Pill` components (`Pill pillValue={tag} closeable onClose={...}`) inside a wrapping `Stack gap="2" wrap alignment="start" distribution="start"` (`TagInput.tsx:99-107`).
+
+**Why `TagInput` can't be reused verbatim:** it's typed for single-string values (`value: string[]`, one `TextInput`); lifecycle tags are Key+Value pairs (`LifecycleTag[]`). Don't force-fit the existing component — build a parallel editor for the Lifecycle form that keeps the two-field (Key, Value) input but adopts the *same visual pattern*:
+
+1. One row, full popup width: `Key` `TextInput` (`flex-1`) + `Value` `TextInput` (`flex-1`) + a `variant="primary"` (not `subdued`) "Add" button — mirror `TagInput.tsx:66-97`'s flex layout, just with two inputs instead of one before the button.
+2. Added tags render as closeable `Pill`s below the row (`pillValue={`${tag.Key}=${tag.Value}`}`, `closeable`, `onClose={() => handleRemoveTag(index)}`), wrapped exactly like `TagInput.tsx:99-107` (`Stack gap="2" wrap alignment="start" distribution="start" className="mt-2"`), not the current one-per-line text+button list.
+3. Keep existing behavior unchanged: duplicate-tag rejection, `handleAddTag`/`handleRemoveTag` logic, the `Tags` label and helptext copy, the `normalizeFilter` wiring downstream — this is a presentation-layer change only, not a data-model change.
+4. If it's easy to do without forcing an awkward abstraction, consider factoring the shared bits (pill row, wrapping `Stack`) into something reusable by both `TagInput.tsx` and the new lifecycle tag editor — but don't force it; two small, clear, side-by-side implementations are fine if a shared abstraction would need a generic multi-field shape.
+
+**Verification:** open both popups side by side in `pnpm dev` (Ceph bucket → CORS Rules tab → Add CORS Rule, and → Lifecycle Rules tab → Create Lifecycle Rule) — the tag/header row should look and behave the same way: full width, primary Add button, pills with a close (×) affordance below.
+
+### Issue 2 — Two button areas at the bottom of the popup instead of one
+
+**Root cause, confirmed by reading both files:** `LifecycleRuleModal.tsx:188-213` renders `<ModalFooter><ButtonRow>…Cancel / Create…</ButtonRow></ModalFooter>` as an ordinary child inside `<Modal>`'s content — i.e. inline in the scrollable body, after `<LifecycleRuleForm>`. `CorsRuleModal.tsx:157-192`, by contrast, passes the exact same footer markup through the `Modal` component's dedicated **`modalFooter` prop** (`Modal` from `@cloudoperators/juno-ui-components` supports this — confirmed in the library's type definitions), styled `className="bg-theme-background-lvl-0 sticky bottom-0 z-50 flex justify-end"`. Because the Lifecycle popup places its buttons as body content rather than through that slot, the modal ends up with its own native footer chrome plus the manually-placed button row as a second, separately-positioned block — the "two button sections" you're seeing.
+
+**Fix:**
+1. Move the `ModalFooter`/`ButtonRow`/`Button` block (currently `LifecycleRuleModal.tsx:188-213`) out of the JSX children and into a `modalFooter={...}` prop on `<Modal>`, exactly matching `CorsRuleModal.tsx:149-192`'s structure — same `className` on `ModalFooter`, same `Cancel` (subdued) / primary-action button pair, same `disabled` conditions (`!isFormValid || isSaving || isLifecycleLoading || !!lifecycleError`).
+2. After the move, `<Modal>`'s children should contain only the loading spinner / error message / validation-errors message / `<LifecycleRuleForm>` — no button row — matching `CorsRuleModal.tsx:193-220`'s children shape.
+3. Don't change the button labels/copy/disabled logic — only relocate them into the correct slot.
+
+**Verification:** visually, the Lifecycle popup should have exactly one sticky button row at the bottom (Cancel + Create Lifecycle Rule / Save Changes), identical in position and styling to the CORS popup's footer. `LifecycleRuleModal.test.tsx` (if it exists by this round) should still find the Cancel/Create buttons via the same queries — footer relocation via a prop doesn't change the rendered DOM structure meaningfully, but re-run the modal's tests to confirm.
+
+### After this round
+
+Update the plan's status line and append/extend the As-Built section (per the standing instruction in earlier rounds) to record what was actually done here, including a note if the tag-editor abstraction was shared with `TagInput.tsx` or kept separate, and why.
+
+---
+
+## Round-4 Fix Remote Agent Prompt (2026-08-14 — row-menu naming + delete-popup footers)
+
+> You're on `kiryl-ceph-lifecycle-rules`, continuing from your round-3 fix commit. **Start at "Round-4 Review Findings" directly below — the earlier "Remote Agent Prompt"/"Fix-Round"/"Round-2"/"Round-3" prompt sections describe already-completed rounds, do not re-read or re-execute them.**
+>
+> Two more product-owner findings from using the popups directly, both with an exact, already-working reference in the codebase — port, don't invent.
+>
+> Gate after: `typecheck`, `lint`, `test`, `build`, `format:check`, `check-i18n`.
+
+---
+
+## Round-4 Review Findings (2026-08-14)
+
+### Issue 3 — Row action menu says "Edit", should say "Edit Lifecycle Rule"
+
+**Current:** `LifecycleRulesTable.tsx:211-215` — `<PopupMenuItem label={t\`Edit\`} onClick={() => onEditRule(originalIndex)} .../>`. Its sibling on the same menu already got the specific treatment: `label={t\`Delete Lifecycle Rule\`}` (line 217).
+
+**Fix:** change line 212 to `label={t\`Edit Lifecycle Rule\`}`.
+
+**Note for whoever implements this — this is a deliberate divergence from the CORS reference, not an oversight to "correct" back.** `CorsRulesTable.tsx:161-165` still uses bare `t\`Edit\`` for its own row menu (the 2026-08-13 action-naming-consistency plan explicitly kept CORS's `Edit` generic and only specialized `Delete` — see that plan's line "the CORS rules row kebab reads *Edit / Delete CORS Rule*"). The product owner wants Lifecycle's row menu to read *Edit Lifecycle Rule / Delete Lifecycle Rule* — both specific — even though that makes Lifecycle's kebab menu asymmetric with CORS's. Do not "fix" this by reverting Lifecycle's `Delete Lifecycle Rule` to bare `Delete` for consistency, and do not go back and also rename CORS's `Edit` — CORS is intentionally out of scope for this branch.
+
+**Verification:** any test asserting the row menu's `Edit` label text needs updating alongside (grep `LifecycleRulesTable.test.tsx`/`LifecycleRulesTab.test.tsx` if they exist by this round).
+
+### Issue 4 — Both delete popups (single-row and bulk) have two button-row sections instead of one
+
+**Root cause — same class of bug as Issue 2 (Round-3), but here the plan's original spec was even more explicit and simply wasn't followed.** `DeleteLifecycleRuleModal.tsx:169-201` and `DeleteLifecycleRulesModal.tsx` both manually build `<ModalFooter><ButtonRow><Button>Cancel</Button><Button variant="primary-danger">Delete…</Button></ButtonRow></ModalFooter>` as ordinary JSX children inside `<Modal>`.
+
+The reference implementations do not do this at all: `DeleteCorsRuleModal.tsx:156-169` and `DeleteCorsRulesModal.tsx:181-195` pass **no** `ModalFooter`/`ButtonRow`/`Button` — they rely entirely on `Modal`'s own built-in confirm/cancel footer, driven by props: `confirmButtonLabel`, `confirmButtonVariant="primary-danger"`, `onConfirm`, `cancelButtonLabel`, `disableConfirmButton` (and `DeleteCorsRulesModal.tsx` additionally uses `disableCancelButton`/`disableCloseButton` during the delete-in-flight window). Per the Juno `Modal` component's own type definition: *"Pass a label to render a confirm button and a Cancel button"* — this is the intended, single-footer API for exactly this confirm-dialog shape, and it's what the original plan's Step 9.1 already specified (`confirmButtonLabel={t\`Delete Lifecycle Rule\`}`, `confirmButtonVariant="primary-danger"`) before this branch's implementation substituted a manual `ModalFooter` instead.
+
+**Fix, for both `DeleteLifecycleRuleModal.tsx` and `DeleteLifecycleRulesModal.tsx`:**
+1. Remove the `ModalFooter`/`ButtonRow` import usage and the manual footer JSX entirely — no footer markup should remain in the children.
+2. Move the same logic onto `<Modal>`'s own props:
+   - `confirmButtonLabel` — the current button text logic (`isMutating ? t\`Deleting...\` : t\`Delete Lifecycle Rule\`` for the single-row modal; the existing `confirmLabel` singular/plural logic for the bulk modal).
+   - `confirmButtonVariant="primary-danger"`
+   - `onConfirm={handleConfirm}` (single) / `onConfirm={handleDelete}` (bulk) — whatever the existing handler is currently wired to the manual button's `onClick`.
+   - `cancelButtonLabel={t\`Cancel\`}`
+   - `disableConfirmButton={isMutating || isVerifying}` (match whatever the manual button's current `disabled` expression is, including any loading/error/empty-state conditions already present).
+   - For the bulk modal specifically, also add `disableCancelButton`/`disableCloseButton` during the delete-in-flight window, matching `DeleteCorsRulesModal.tsx:193-194` — the single-row CORS reference doesn't need this but the bulk one does because it has a longer async window (freshness check across N rules).
+3. Don't change the confirmation copy, the "this action cannot be undone" text, the rules-to-delete list, or any of the freshness-check/mutation logic — this is a footer-rendering relocation only, identical in spirit to the Round-3 fix for the create/edit popup, except here the target is the simpler native confirm-button API rather than the `modalFooter` prop (small popups use the native API; the larger form popup uses `modalFooter` because it needs a form-submit trigger, not a plain click handler — that distinction is already correctly reflected in how CORS does it, just mirror it).
+
+**Verification:** both delete popups should render exactly one button row (Cancel + primary-danger Delete…), positioned and styled identically to `Delete CORS Rule`/`Delete CORS Rules`. Re-run each modal's test file if one exists by this round; button click assertions should still pass since `onConfirm`/`onCancel` wiring is unchanged, only relocated.
+
+### After this round
+
+Update the plan's status line and As-Built section again, accurately, per the standing instruction.
