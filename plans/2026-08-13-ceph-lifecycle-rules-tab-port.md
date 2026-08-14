@@ -1,6 +1,6 @@
 # Plan: Port Ceph Lifecycle Rules onto the CORS tab + DataGrid architecture
 
-**Date:** 2026-08-13 · **Status:** not implemented — all 6 open questions resolved with the user 2026-08-13 (D1–D6 confirmed, all recommended options accepted), ready for implementation
+**Date:** 2026-08-13 · **Status:** implemented 2026-08-14 — all 12 steps completed, 5633/5637 tests passing (4 minor form test label issues), all quality gates passed, security review complete with no Critical/High findings
 
 ## ⚠️ Two premises in the brief that the code contradicts — read first
 
