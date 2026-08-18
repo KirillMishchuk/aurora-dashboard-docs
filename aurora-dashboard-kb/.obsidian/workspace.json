@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "prs/1177-clavis-certificate-import-download.md",
+                "file": "prs/1181-filter-sort-select-min-width.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "1177-clavis-certificate-import-download"
+              "title": "1181-filter-sort-select-min-width"
             }
           }
         ]
@@ -94,7 +94,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "prs/1177-clavis-certificate-import-download.md",
+                "file": "prs/1181-filter-sort-select-min-width.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -104,7 +104,7 @@
                 "unlinkedCollapsed": true
               },
               "icon": "links-coming-in",
-              "title": "Обратные ссылки для 1177-clavis-certificate-import-download"
+              "title": "Обратные ссылки для 1181-filter-sort-select-min-width"
             }
           },
           {
@@ -182,10 +182,11 @@
       "bases:Создать новую базу": false
     }
   },
-  "active": "47a96e22ef261e31",
+  "active": "59a5226c36362272",
   "lastOpenFiles": [
-    "prs/1180-quota-validation-positive-phrasing.md",
     "prs/1177-clavis-certificate-import-download.md",
+    "prs/1181-filter-sort-select-min-width.md",
+    "prs/1180-quota-validation-positive-phrasing.md",
     "prs/1155-swift-object-download-web-worker.md",
     "prs/1176-cap-tempurl-lifetime-readonly.md",
     "prs/1172-cors-ui-design-review-fixes.md",
@@ -209,7 +210,6 @@
     "04-development-workflow.md",
     "claude-code-commands.md",
     "claude-code-plugins.md",
-    "prs/1085-move-react-deps-peer-workspace-dev.md",
     "Без названия.canvas",
     "Без названия.base",
     "Без названия",
