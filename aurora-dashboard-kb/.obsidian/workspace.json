@@ -182,8 +182,9 @@
       "bases:Создать новую базу": false
     }
   },
-  "active": "59a5226c36362272",
+  "active": "47a96e22ef261e31",
   "lastOpenFiles": [
+    "prs/1180-quota-validation-positive-phrasing.md",
     "prs/1177-clavis-certificate-import-download.md",
     "prs/1155-swift-object-download-web-worker.md",
     "prs/1176-cap-tempurl-lifetime-readonly.md",
@@ -209,7 +210,6 @@
     "claude-code-commands.md",
     "claude-code-plugins.md",
     "prs/1085-move-react-deps-peer-workspace-dev.md",
-    "claude-code-skills.md",
     "Без названия.canvas",
     "Без названия.base",
     "Без названия",
