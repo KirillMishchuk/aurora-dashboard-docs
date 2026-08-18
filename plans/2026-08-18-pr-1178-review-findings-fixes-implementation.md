@@ -1,16 +1,16 @@
 # Plan: Fix PR #1178 review findings (15 confirmed) — implementation
 
-**Date:** 2026-08-18 · **Status:** not implemented
+**Date:** 2026-08-18 · **Status:** implemented 2026-08-18
 
 ## Overview
 
-Implement all 15 confirmed findings from the completed triage at `/Users/kirylmishchuk/projects/SAP/DOCS/plans/2026-08-18-pr-1178-review-findings-fixes.md` against PR #1178 ("feat(aurora): add Ceph S3 bucket lifecycle configuration management"). The work spans two design-doc corrections, four server changes (Zod refinements, mapper typing, rate-limiter cleanup), eight client changes (validation mirrors, modal guards, form preservation, a11y labels, index derivation, i18n), and one test-determinism fix. Finding **5b is explicitly REJECTED** and must NOT be implemented — it stays documented as "not fixed, by design."
+Implement all 15 confirmed findings from the completed triage at `../DOCS/plans/2026-08-18-pr-1178-review-findings-fixes.md` against PR #1178 ("feat(aurora): add Ceph S3 bucket lifecycle configuration management"). The work spans two design-doc corrections, four server changes (Zod refinements, mapper typing, rate-limiter cleanup), eight client changes (validation mirrors, modal guards, form preservation, a11y labels, index derivation, i18n), and one test-determinism fix. Finding **5b is explicitly REJECTED** and must NOT be implemented — it stays documented as "not fixed, by design."
 
 ## Architecture Analysis
 
 **Current state (verified on disk, 2026-08-18):**
 
-- 🔴 **PR #1178's code is NOT in the working tree.** Branch `kirylDev` (== `main` + local commits) has no `lifecycleRouter.ts`, no `LifecycleRule*.tsx`, no lifecycle schemas in `ceph.ts`. The code exists only on the local branch `refs/heads/pr-1178-review` @ `75bec562`, which is byte-identical to origin's open PR branch `kiryl-ceph-lifecycle-rules` (verified via `git ls-remote`). Its merge-base with `main` is `0bfd055c` (PR #1172), so the PR **already contains** the current `CorsRulesTable.tsx`, `corsRouter.ts`, `bucketPolicyRouter.ts` that findings #7/#13 widen into. The PR branch is exactly **1 commit behind main** (`d00f84a2`, Swift TempURL — no file overlap, no conflict risk).
+- 🔴 **PR #1178's code is NOT in the working tree.** `kiryl-ceph-lifecycle-rules` (verified via `git ls-remote`). Its merge-base with `main` is `0bfd055c` (PR #1172), so the PR **already contains** the current `CorsRulesTable.tsx`, `corsRouter.ts`, `bucketPolicyRouter.ts` that findings #7/#13 widen into. The PR branch is exactly **1 commit behind main** (`d00f84a2`, Swift TempURL — no file overlap, no conflict risk).
 - Server domain code: `packages/aurora/src/server/Storage/` split into `routers/ceph/`, `types/ceph.ts` (Zod), `helpers/lifecycleMapper.ts`. Procedures built from `cephProtectedProcedure`.
 - Client: TanStack Query + tRPC utils; `-components/Ceph/Buckets/` holds the modals/tables; validation mirrored client-side in `utils/lifecycleUtils.ts`.
 - Tests colocated as `*.test.ts(x)`, vitest, **`environment: "jsdom"` for every test in `packages/aurora`, server tests included** (`packages/aurora/vitest.config.ts`).
@@ -23,18 +23,18 @@ Fix in dependency order — server schema/type changes first, then the client lo
 
 ## Potential Problems & Mitigations
 
-| Risk | Severity | Mitigation |
-| --- | --- | --- |
-| 🔴 PR code absent from `kirylDev` — implementer edits non-existent files | High | Prerequisite step 0: check out the PR branch first. Every path below only exists after checkout. |
-| ⚠️ #12: `toWireLifecycleRules(sdkRules)` is fed `toSdkLifecycleRules(...)` output in `lifecycleMapper.test.ts:137-138,163-164`. Changing only `toSdkLifecycleRules`'s return type to the AWS SDK's `LifecycleRule` **breaks `pnpm typecheck`** | High | Change **both** signatures in the same step: `toWireLifecycleRules(sdkRules: AwsSdkLifecycleRule[]): LifecycleRuleRead[]`. Its body already handles `Date` objects. |
-| ⚠️ #12: SDK types are stricter than our Zod types — `Transition.StorageClass?: TransitionStorageClass` (string-literal union) vs our `z.string()`; `LifecycleRule.Status: ExpirationStatus \| undefined` | Medium | `StorageClass` needs `as TransitionStorageClass` (import the type from `@aws-sdk/client-s3`); `Status` needs no cast (`ExpirationStatus` = `"Enabled" \| "Disabled"`, exactly our enum). Verified in `@aws-sdk/client-s3@3.1100.0` `dist-types/models/models_0.d.ts:6998` / `enums.d.ts:539,555`. |
-| ⚠️ #13: `setTimeout(...).unref()` in server code executed under vitest's **jsdom** environment | Medium — **de-risked** | Probed empirically in this repo: under vitest jsdom, `setTimeout` returns a Node `Timeout` **object** with a `unref` function, and `tsc --noEmit` accepts `.unref()` with the current tsconfig. Also verified under `vi.useFakeTimers()`: the faked handle still exposes `unref`, `vi.getTimerCount()` reports 1 → 0 across `advanceTimersByTime`. No defensive guard needed. |
-| ⚠️ #5a: removing the add-branch's use of `currentRules` leaves `const currentRules = ...` (LifecycleRuleModal.tsx:104) unused → `@typescript-eslint/no-unused-vars` lint failure | Medium | Delete line 104 as part of the same edit. |
-| #6/#7/#15 change Lingui message ids (`After {0} days` → `After {abortDays} days`; `Select rule {originalIndex}` → `Select rule {ruleLabel}`; removal of `"30"`/`"7"`/`"90"`) | Medium | One dedicated step runs `pnpm check-i18n` and commits regenerated `en|de/messages.po` + `messages.ts`. Verified both German entries are currently **empty** (`msgstr ""`) — no translation work is lost. |
-| #7/#13 widen the diff into 3 files owned by main (`CorsRulesTable.tsx`, `corsRouter.ts`, `bucketPolicyRouter.ts`) | Medium | Isolate them in their own commits (see Open Questions); before pushing, confirm no other in-flight PR is touching them. |
-| #9/#10 client validation may start blocking edits on buckets containing externally-authored malformed rules | Low | Intended: the server already rejects these; the client now names the offending rule instead of showing a generic mutation error. |
-| #11 loosens an over-strict check | Low | All 7 existing `lifecycleFilterSchema`/And tests (`ceph.test.ts:1355-1425`) were re-checked against the new formula — every pass/fail verdict is unchanged; only the previously-untested "2+ tags alone" case flips to `true`. |
-| No test file exists for `LifecycleRulesTable.tsx` / `LifecycleRulesTab.tsx` (confirmed absent from the PR diff) | Low | #7/#14 verified by typecheck + manual DOM check; adding suites is optional scope (see Open Questions). |
+| Risk                                                                                                                                                                                                                                           | Severity               | Mitigation                                                                                                                                                                                                                                                                                                                                                                    |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| 🔴 PR code absent from `kirylDev` — implementer edits non-existent files                                                                                                                                                                       | High                   | Prerequisite step 0: check out the PR branch first. Every path below only exists after checkout.                                                                                                                                                                                                                                                                              |
+| ⚠️ #12: `toWireLifecycleRules(sdkRules)` is fed `toSdkLifecycleRules(...)` output in `lifecycleMapper.test.ts:137-138,163-164`. Changing only `toSdkLifecycleRules`'s return type to the AWS SDK's `LifecycleRule` **breaks `pnpm typecheck`** | High                   | Change **both** signatures in the same step: `toWireLifecycleRules(sdkRules: AwsSdkLifecycleRule[]): LifecycleRuleRead[]`. Its body already handles `Date` objects.                                                                                                                                                                                                           |
+| ⚠️ #12: SDK types are stricter than our Zod types — `Transition.StorageClass?: TransitionStorageClass` (string-literal union) vs our `z.string()`; `LifecycleRule.Status: ExpirationStatus \| undefined`                                       | Medium                 | `StorageClass` needs `as TransitionStorageClass` (import the type from `@aws-sdk/client-s3`); `Status` needs no cast (`ExpirationStatus` = `"Enabled" \| "Disabled"`, exactly our enum). Verified in `@aws-sdk/client-s3@3.1100.0` `dist-types/models/models_0.d.ts:6998` / `enums.d.ts:539,555`.                                                                             |
+| ⚠️ #13: `setTimeout(...).unref()` in server code executed under vitest's **jsdom** environment                                                                                                                                                 | Medium — **de-risked** | Probed empirically in this repo: under vitest jsdom, `setTimeout` returns a Node `Timeout` **object** with a `unref` function, and `tsc --noEmit` accepts `.unref()` with the current tsconfig. Also verified under `vi.useFakeTimers()`: the faked handle still exposes `unref`, `vi.getTimerCount()` reports 1 → 0 across `advanceTimersByTime`. No defensive guard needed. |
+| ⚠️ #5a: removing the add-branch's use of `currentRules` leaves `const currentRules = ...` (LifecycleRuleModal.tsx:104) unused → `@typescript-eslint/no-unused-vars` lint failure                                                               | Medium                 | Delete line 104 as part of the same edit.                                                                                                                                                                                                                                                                                                                                     |
+| #6/#7/#15 change Lingui message ids (`After {0} days` → `After {abortDays} days`; `Select rule {originalIndex}` → `Select rule {ruleLabel}`; removal of `"30"`/`"7"`/`"90"`)                                                                   | Medium                 | One dedicated step runs `pnpm check-i18n` and commits regenerated `en                                                                                                                                                                                                                                                                                                         | de/messages.po`+`messages.ts`. Verified both German entries are currently **empty** (`msgstr ""`) — no translation work is lost. |
+| #7/#13 widen the diff into 3 files owned by main (`CorsRulesTable.tsx`, `corsRouter.ts`, `bucketPolicyRouter.ts`)                                                                                                                              | Medium                 | Isolate them in their own commits (see Open Questions); before pushing, confirm no other in-flight PR is touching them.                                                                                                                                                                                                                                                       |
+| #9/#10 client validation may start blocking edits on buckets containing externally-authored malformed rules                                                                                                                                    | Low                    | Intended: the server already rejects these; the client now names the offending rule instead of showing a generic mutation error.                                                                                                                                                                                                                                              |
+| #11 loosens an over-strict check                                                                                                                                                                                                               | Low                    | All 7 existing `lifecycleFilterSchema`/And tests (`ceph.test.ts:1355-1425`) were re-checked against the new formula — every pass/fail verdict is unchanged; only the previously-untested "2+ tags alone" case flips to `true`.                                                                                                                                                |
+| No test file exists for `LifecycleRulesTable.tsx` / `LifecycleRulesTab.tsx` (confirmed absent from the PR diff)                                                                                                                                | Low                    | #7/#14 verified by typecheck + manual DOM check; adding suites is optional scope (see Open Questions).                                                                                                                                                                                                                                                                        |
 
 ## Prerequisites
 
@@ -69,18 +69,20 @@ All line numbers below are verified against `pr-1178-review`. Do the edits **bot
 **What to do:**
 
 1. **(#1)** In the `#### delete` block (~lines 2399-2420), replace the `**Output:**` fenced block body `{\n  success: boolean\n}` with the single line `boolean`. Match the existing convention used by `cors.delete` at lines 1640-1653. Leave the `**Example:**` block untouched.
-2. **(#2.4)** Delete the re-inserted duplicate heading `### Problem: \`All input parsers did not resolve to an object\` when wiring an upload` at **line 2443** plus its trailing blank line, so the `**Cause:**` body at ~2445 reattaches to the original heading at line 2240.
+2. **(#2.4)** Delete the re-inserted duplicate heading `### Problem: \`All input parsers did not resolve to an object\` when wiring an upload`at **line 2443** plus its trailing blank line, so the`**Cause:**` body at ~2445 reattaches to the original heading at line 2240.
 3. **(#2.3)** Delete the spurious duplicate block at **lines 2431-2441**: `## Error Handling` → `### S3 Error Mapper` → intro sentence → `#### Mapped Error Codes` → the 1-row `NoSuchBucket` table (the complete 20-row version already lives at line 1693+). Also remove the now-dangling `---` separator that preceded it at ~line 2429.
-4. **(#2.1 + #2.2)** Cut lines **2242-2429** — the whole `### Lifecycle Configuration (\`storage.ceph.lifecycle\`)` section (from its heading through the end of the `#### delete` example, i.e. everything up to but excluding the `---` before the spurious `## Error Handling`) — and paste it into `## Available Procedures`, immediately **before** line 1693 (`## Error Handling`), i.e. right after the `### CORS Testing Notes` section ends at line 1691, preserving the `---` separator convention used between sibling sections.
+4. **(#2.1 + #2.2)** Cut lines **2242-2429** — the whole `### Lifecycle Configuration (\`storage.ceph.lifecycle\`)`section (from its heading through the end of the`#### delete`example, i.e. everything up to but excluding the`---`before the spurious`## Error Handling`) — and paste it into `## Available Procedures`, immediately **before** line 1693 (`## Error Handling`), i.e. right after the `### CORS Testing Notes`section ends at line 1691, preserving the`---` separator convention used between sibling sections.
 
 **Expected outcome:** exactly one `## Error Handling` and one `### Problem: All input parsers...` heading; `### Lifecycle Configuration` sits as a `###` sibling of `### CORS Configuration` under `## Available Procedures`; `lifecycle.delete`'s documented output is `boolean`.
 
 **Verification:**
+
 ```bash
 grep -n "^## \|^### " packages/aurora/docs/009_ceph_s3_bff.md | grep -c "^.*## Error Handling"   # → 1
 grep -n "### Problem: \`All input parsers" packages/aurora/docs/009_ceph_s3_bff.md               # → 1 hit
 pnpm --filter @cobaltcore-dev/aurora exec prettier --check docs/009_ceph_s3_bff.md
 ```
+
 Manually re-read the Troubleshooting section end-to-end: heading → Cause → Solution → `## References`. Confirm no code fence lost its closing ` ``` `.
 
 ---
@@ -115,11 +117,19 @@ Manually re-read the Troubleshooting section end-to-end: heading → Cause → S
 3. In `describe("lifecycleExpirationSchema")` (starts line 1204), after `it("should reject both Days and Date")` (line ~1225), add:
    ```ts
    it("should reject Days with ExpiredObjectDeleteMarker", () => {
-     expect(lifecycleExpirationSchema.safeParse({ Days: 30, ExpiredObjectDeleteMarker: true }).success).toBe(false)
+     expect(
+       lifecycleExpirationSchema.safeParse({
+         Days: 30,
+         ExpiredObjectDeleteMarker: true,
+       }).success
+     ).toBe(false)
    })
    it("should reject Date with ExpiredObjectDeleteMarker", () => {
      expect(
-       lifecycleExpirationSchema.safeParse({ Date: "2024-12-31T00:00:00.000Z", ExpiredObjectDeleteMarker: true }).success
+       lifecycleExpirationSchema.safeParse({
+         Date: "2024-12-31T00:00:00.000Z",
+         ExpiredObjectDeleteMarker: true,
+       }).success
      ).toBe(false)
    })
    ```
@@ -127,7 +137,12 @@ Manually re-read the Troubleshooting section end-to-end: heading → Cause → S
    ```ts
    it("should accept And with 2+ tags and nothing else", () => {
      const input = {
-       And: { Tags: [{ Key: "Type", Value: "Archive" }, { Key: "Team", Value: "Platform" }] },
+       And: {
+         Tags: [
+           { Key: "Type", Value: "Archive" },
+           { Key: "Team", Value: "Platform" },
+         ],
+       },
      }
      expect(lifecycleFilterSchema.safeParse(input).success).toBe(true)
    })
@@ -136,9 +151,11 @@ Manually re-read the Troubleshooting section end-to-end: heading → Cause → S
 **Expected outcome:** `{ And: { Tags: [t1, t2] } }` is accepted; `{ Days, ExpiredObjectDeleteMarker }` and `{ Date, ExpiredObjectDeleteMarker }` are rejected.
 
 **Verification:**
+
 ```bash
 pnpm --filter @cobaltcore-dev/aurora test src/server/Storage/types/ceph.test.ts
 ```
+
 All pre-existing And/filter tests (including `"should reject And with empty Tags array"` and `"should reject And with only 1 predicate"`) must still pass unchanged.
 
 ---
@@ -152,24 +169,31 @@ All pre-existing And/filter tests (including `"should reject And with empty Tags
 **What to do:**
 
 1. In `validateLifecycleRules` (starts line 128), inside the `for` loop (`ruleLabel` is already defined at line 147), insert after the existing "ExpiredObjectDeleteMarker cannot be combined with tag-based filters" block (lines 184-191):
+
    ```ts
    // ExpiredObjectDeleteMarker is a distinct action — mirrors lifecycleExpirationSchema (server)
    if (
      rule.Expiration?.ExpiredObjectDeleteMarker === true &&
      (rule.Expiration.Days !== undefined || rule.Expiration.Date !== undefined)
    ) {
-     errors.push(`${ruleLabel}: ExpiredObjectDeleteMarker cannot be combined with Days or Date`)
+     errors.push(
+       `${ruleLabel}: ExpiredObjectDeleteMarker cannot be combined with Days or Date`
+     )
    }
 
    // And filter must have ≥2 predicates — per-tag counting, mirrors lifecycleFilterAndSchema (server)
    if (rule.Filter?.And) {
      const predicateCount =
-       (rule.Filter.And.Prefix !== undefined && rule.Filter.And.Prefix !== "" ? 1 : 0) +
+       (rule.Filter.And.Prefix !== undefined && rule.Filter.And.Prefix !== ""
+         ? 1
+         : 0) +
        (rule.Filter.And.Tags?.length ?? 0) +
        (rule.Filter.And.ObjectSizeGreaterThan !== undefined ? 1 : 0) +
        (rule.Filter.And.ObjectSizeLessThan !== undefined ? 1 : 0)
      if (predicateCount < 2) {
-       errors.push(`${ruleLabel}: And filter must contain at least 2 predicates`)
+       errors.push(
+         `${ruleLabel}: And filter must contain at least 2 predicates`
+       )
      }
    }
 
@@ -181,14 +205,19 @@ All pre-existing And/filter tests (including `"should reject And with empty Tags
        rule.Filter.ObjectSizeGreaterThan !== undefined,
        rule.Filter.ObjectSizeLessThan !== undefined,
      ].filter(Boolean).length
-     if (topLevelConditions > 1 || (rule.Filter.And && topLevelConditions > 0)) {
+     if (
+       topLevelConditions > 1 ||
+       (rule.Filter.And && topLevelConditions > 0)
+     ) {
        errors.push(
          `${ruleLabel}: Multiple filter conditions (Prefix, Tag, ObjectSize) must be wrapped in an And clause`
        )
      }
    }
    ```
+
    Types are fine: `lifecycleRuleReadSchema`'s `Filter` is a structured (`.passthrough()`) object with typed `And.Tags`, so no casts are needed.
+
 2. Update the function's JSDoc validation-rules list (lines 113-123) with the three new checks.
 
 **File (tests):** `.../utils/lifecycleUtils.test.ts`, inside `describe("validateLifecycleRules")` (line 115), after `it("should reject Transition with both Days and Date")` (line 244):
@@ -198,7 +227,7 @@ All pre-existing And/filter tests (including `"should reject And with empty Tags
    - `{ Filter: { And: { Tags: [t1, t2] } } }` → **accepted** (locks in the #11 alignment).
    - `{ Filter: { Prefix: "logs/", Tag: { Key: "env", Value: "prod" } } }` → rejected with `/must be wrapped in an And clause/`.
    - `{ Expiration: { Days: 30, ExpiredObjectDeleteMarker: true } }` → rejected with `/ExpiredObjectDeleteMarker cannot be combined with Days or Date/`.
-   Each rule needs a valid `Status` and at least one action so the assertion targets the intended message.
+     Each rule needs a valid `Status` and at least one action so the assertion targets the intended message.
 
 **Expected outcome:** the client rejects the same filter/expiration shapes the server rejects, with a rule-labelled inline message.
 
@@ -209,6 +238,7 @@ All pre-existing And/filter tests (including `"should reject And with empty Tags
 ### Step 4 — Type `toSdkLifecycleRules` against the AWS SDK shape (#12)
 
 **Files:**
+
 - `/Users/kirylmishchuk/projects/SAP/aurora-dashboard/packages/aurora/src/server/Storage/helpers/lifecycleMapper.ts`
 - `/Users/kirylmishchuk/projects/SAP/aurora-dashboard/packages/aurora/src/server/Storage/routers/ceph/lifecycleRouter.ts`
 - `/Users/kirylmishchuk/projects/SAP/aurora-dashboard/packages/aurora/src/server/Storage/helpers/lifecycleMapper.test.ts`
@@ -217,7 +247,10 @@ All pre-existing And/filter tests (including `"should reject And with empty Tags
 
 1. In `lifecycleMapper.ts`, add:
    ```ts
-   import type { LifecycleRule as AwsSdkLifecycleRule, TransitionStorageClass } from "@aws-sdk/client-s3"
+   import type {
+     LifecycleRule as AwsSdkLifecycleRule,
+     TransitionStorageClass,
+   } from "@aws-sdk/client-s3"
    ```
 2. Change `toSdkLifecycleRules` (line 71) to `(wireRules: LifecycleRuleRead[]): AwsSdkLifecycleRule[]` and build the object directly as `AwsSdkLifecycleRule` — delete `const result: any`, the `eslint-disable @typescript-eslint/no-explicit-any`, and the trailing `return result as LifecycleRule`. Notes from the SDK type check:
    - `Status` needs no cast — SDK's `ExpirationStatus` is exactly `"Enabled" | "Disabled"`.
@@ -230,6 +263,7 @@ All pre-existing And/filter tests (including `"should reject And with empty Tags
 **Expected outcome:** no `any` in the mapper or in `lifecycleRouter.set`; the declared return type matches the runtime shape.
 
 **Verification:**
+
 ```bash
 pnpm --filter @cobaltcore-dev/aurora typecheck
 pnpm --filter @cobaltcore-dev/aurora test src/server/Storage/helpers/lifecycleMapper.test.ts src/server/Storage/routers/ceph/lifecycleRouter.test.ts
@@ -240,6 +274,7 @@ pnpm --filter @cobaltcore-dev/aurora test src/server/Storage/helpers/lifecycleMa
 ### Step 5 — O(1) rate-limiter cleanup in all three ceph routers (#13)
 
 **Files (all in `/Users/kirylmishchuk/projects/SAP/aurora-dashboard/packages/aurora/src/server/Storage/routers/ceph/`):**
+
 - `lifecycleRouter.ts` — `lifecycleSetRateLimits` / `checkLifecycleSetRateLimit`, lines 19-49 (in PR diff)
 - `corsRouter.ts` — `corsSetRateLimits` / `checkCorsSetRateLimit`, lines 8-38 (pre-existing, outside PR diff)
 - `bucketPolicyRouter.ts` — `policySetRateLimits` / `checkPolicySetRateLimit`, lines 15-45 (pre-existing, outside PR diff)
@@ -276,11 +311,16 @@ pnpm --filter @cobaltcore-dev/aurora test src/server/Storage/helpers/lifecycleMa
      try {
        mockSend.mockResolvedValue({})
        const bucket = "rate-limit-cleanup-bucket-unique"
-       await caller.set({ project_id: TEST_PROJECT_ID, bucketName: bucket,
-         lifecycleConfiguration: { Rules: [{ Status: "Enabled", Expiration: { Days: 30 } }] } })
-       expect(vi.getTimerCount()).toBeGreaterThan(0)   // cleanup timer scheduled
+       await caller.set({
+         project_id: TEST_PROJECT_ID,
+         bucketName: bucket,
+         lifecycleConfiguration: {
+           Rules: [{ Status: "Enabled", Expiration: { Days: 30 } }],
+         },
+       })
+       expect(vi.getTimerCount()).toBeGreaterThan(0) // cleanup timer scheduled
        vi.advanceTimersByTime(60 * 1000)
-       expect(vi.getTimerCount()).toBe(0)              // fired, nothing left pending
+       expect(vi.getTimerCount()).toBe(0) // fired, nothing left pending
      } finally {
        vi.useRealTimers()
      }
@@ -292,9 +332,11 @@ pnpm --filter @cobaltcore-dev/aurora test src/server/Storage/helpers/lifecycleMa
 **Expected outcome:** no full-map sweep on any `set`; external 429 behaviour, thresholds, and messages unchanged.
 
 **Verification:**
+
 ```bash
 pnpm --filter @cobaltcore-dev/aurora test src/server/Storage/routers/ceph/
 ```
+
 All existing rate-limit tests (`"should enforce rate limiting (10 changes per minute per bucket)"`, `"…different buckets have separate limits"`) must pass untouched.
 
 ---
@@ -316,11 +358,18 @@ All existing rate-limit tests (`"should enforce rate limiting (10 changes per mi
 2. Change `sortRules` to operate on `RuleWithOriginalIndex[]`, reading `a.rule.ID` / `a.rule.Status` / `a.rule.Expiration?.Days` — same three `switch` cases, same `lifecycleSortDirection` handling. Rename the parameter to `items` to stop shadowing the outer `rules`.
 3. Replace lines 178-184 with:
    ```tsx
-   const rulesWithOriginalIndices = rules.map((rule, originalIndex) => ({ rule, originalIndex }))
-   const filteredRulesWithIndices = sortRules(rulesWithOriginalIndices).filter(({ rule }) => {
-     if (!lifecycleSearch) return true
-     return (rule.ID || "").toLowerCase().includes(lifecycleSearch.toLowerCase())
-   })
+   const rulesWithOriginalIndices = rules.map((rule, originalIndex) => ({
+     rule,
+     originalIndex,
+   }))
+   const filteredRulesWithIndices = sortRules(rulesWithOriginalIndices).filter(
+     ({ rule }) => {
+       if (!lifecycleSearch) return true
+       return (rule.ID || "")
+         .toLowerCase()
+         .includes(lifecycleSearch.toLowerCase())
+     }
+   )
    ```
    `rules.indexOf(rule)` disappears entirely. `filteredIndices` (line 187) and the `<LifecycleRulesTable rulesWithIndices={filteredRulesWithIndices} />` prop (line 299) need no changes — the shape `{ rule, originalIndex }` is preserved and already matches `LifecycleRulesTable`'s `LifecycleRuleWithIndex` prop type.
 
@@ -333,6 +382,7 @@ All existing rate-limit tests (`"should enforce rate limiting (10 changes per mi
 ### Step 7 — Table a11y labels + Lingui member-expression (#6, #7)
 
 **Files:**
+
 - `/Users/kirylmishchuk/projects/SAP/aurora-dashboard/packages/aurora/src/client/routes/_auth/projects/$projectId/storage/-components/Ceph/Buckets/LifecycleRulesTable.tsx` (lines 167-182)
 - `/Users/kirylmishchuk/projects/SAP/aurora-dashboard/packages/aurora/src/client/routes/_auth/projects/$projectId/storage/-components/Ceph/Buckets/CorsRulesTable.tsx` (line 140) — **outside PR #1178's diff**, from PR #1172
 
@@ -354,10 +404,12 @@ All existing rate-limit tests (`"should enforce rate limiting (10 changes per mi
 **Expected outcome:** a screen reader announces the same identifier for a row in the table and in its delete modal (`rule.ID`, else 1-based position), consistently across the Lifecycle and CORS tables.
 
 **Verification:**
+
 ```bash
 git grep -n "Select rule" packages/aurora/src/client   # both files → `Select rule ${ruleLabel}`
 pnpm --filter @cobaltcore-dev/aurora lint              # lingui/no-expression-in-message warning for LifecycleRulesTable:168 gone
 ```
+
 No test file references the literal "Select rule 0"/`select-rule-N` strings (verified across the whole client tree), so no test updates are needed.
 
 ---
@@ -373,8 +425,10 @@ No test file references the literal "Select rule 0"/`select-rule-N` strings (ver
    if (value.hasNoncurrentExpiration && value.noncurrentDays) {
      newRule.NoncurrentVersionExpiration = {
        NoncurrentDays: parseInt(value.noncurrentDays, 10),
-       ...(editingRule?.NoncurrentVersionExpiration?.NewerNoncurrentVersions !== undefined && {
-         NewerNoncurrentVersions: editingRule.NoncurrentVersionExpiration.NewerNoncurrentVersions,
+       ...(editingRule?.NoncurrentVersionExpiration?.NewerNoncurrentVersions !==
+         undefined && {
+         NewerNoncurrentVersions:
+           editingRule.NoncurrentVersionExpiration.NewerNoncurrentVersions,
        }),
      }
    }
@@ -386,7 +440,9 @@ No test file references the literal "Select rule 0"/`select-rule-N` strings (ver
 
 3. Copy the template at `describe("Item 1: Transitions preservation")` → `test("preserves Transitions when editing unrelated field")` (lines 199-219). Add a fixture rule with `NoncurrentVersionExpiration: { NoncurrentDays: 30, NewerNoncurrentVersions: 3 }`, render with `editingRule`, change only `Status` to Disabled, submit, then assert:
    ```tsx
-   expect(submittedRule.NoncurrentVersionExpiration.NewerNoncurrentVersions).toBe(3)
+   expect(
+     submittedRule.NoncurrentVersionExpiration.NewerNoncurrentVersions
+   ).toBe(3)
    expect(submittedRule.NoncurrentVersionExpiration.NoncurrentDays).toBe(30)
    expect(submittedRule.Status).toBe("Disabled")
    ```
@@ -400,6 +456,7 @@ No test file references the literal "Select rule 0"/`select-rule-N` strings (ver
 ### Step 9 — Dismissal guards in both delete modals (#3a + #3b)
 
 **Files:**
+
 - `.../Ceph/Buckets/DeleteLifecycleRuleModal.tsx` (`<Modal>` at lines 172-179)
 - `.../Ceph/Buckets/DeleteLifecycleRulesModal.tsx` (`<Modal>` at lines 191-202)
 
@@ -472,13 +529,16 @@ No test file references the literal "Select rule 0"/`select-rule-N` strings (ver
    it("should format transition with Date", () => {
      const inputDate = "2026-12-31T00:00:00.000Z"
      const expectedDate = new Date(inputDate).toLocaleDateString()
-     const result = formatTransitions([{ Date: inputDate, StorageClass: "GLACIER" }])
+     const result = formatTransitions([
+       { Date: inputDate, StorageClass: "GLACIER" },
+     ])
      expect(result).toBe(`GLACIER after ${expectedDate}`)
    })
    ```
    Test-only change; `lifecycleUtils.ts:312,331` (`toLocaleDateString()` with no args) stays as is.
 
 **Per-step verification (the doc calls this out explicitly):**
+
 ```bash
 # Before the fix — must FAIL (US-behind timezone shifts the calendar day):
 TZ="America/New_York" pnpm --filter @cobaltcore-dev/aurora test src/client/.../lifecycleUtils.test.ts
@@ -498,6 +558,7 @@ pnpm check-i18n     # lingui extract --clean && lingui compile --typescript --ve
 ```
 
 **Expected diff in `packages/aurora/src/locales/{en,de}/messages.po` (+ generated `messages.ts`):**
+
 - removed: `msgid "30"`, `msgid "7"`, `msgid "90"` (en:214-224)
 - `msgid "After {0} days"` (en:353, with its `#. placeholder {0}: rule.AbortIncompleteMultipartUpload.DaysAfterInitiation` comment) → `msgid "After {abortDays} days"`
 - `msgid "Select rule {originalIndex}"` (en:3228) → `msgid "Select rule {ruleLabel}"`, still shared by both tables
@@ -505,6 +566,7 @@ pnpm check-i18n     # lingui extract --clean && lingui compile --typescript --ve
 All four German entries are currently empty (`msgstr ""`), so **no translation is lost** — no manual carry-over needed. Commit the regenerated `.po` and `.ts` files.
 
 **Verification:**
+
 ```bash
 grep -n 'msgid "30"\|msgid "7"\|msgid "90"\|Select rule {originalIndex}\|After {0} days' packages/aurora/src/locales/en/messages.po packages/aurora/src/locales/de/messages.po   # → no hits
 ```
@@ -584,17 +646,17 @@ The planning agent could not use `AskUserQuestion` (unavailable in that subagent
 1. **Branch/PR target — assumed:** work on the PR branch (`git checkout -b kiryl-ceph-lifecycle-rules pr-1178-review && git merge main`) and push to update the open PR #1178. Alternative, if isolated review of the fix pass is preferred: a separate branch off `pr-1178-review` with a second PR targeting it.
 2. **Packaging of the out-of-diff files** (`CorsRulesTable.tsx` from #7; `corsRouter.ts`, `bucketPolicyRouter.ts` from #13) — **assumed:** land them inside PR #1178 but in their **own clearly-labelled commits** (e.g. `fix(aurora): align CORS rules table checkbox label with delete modal`, `perf(aurora): replace O(n) rate-limit sweep with per-key cleanup`) so they can be cherry-picked or split out on request. Alternative: a standalone `fix(aurora)` PR off `main` with its own `patch` changeset.
 3. **Changeset wording/bump** for the shipped-code fixes (#7, #11, #13) — currently assumed folded into the PR's existing `minor` changeset.
-4. **Optional scope, not planned:** adding UI to *set* `NewerNoncurrentVersions` (#4 covers preservation only); adding `LifecycleRulesTable.test.tsx` / `LifecycleRulesTab.test.tsx` (none exist, so #7/#14 rely on typecheck + manual QA); adding rate-limit tests to `corsRouter.test.ts` / `bucketPolicyRouter.test.ts` (none exist today).
+4. **Optional scope, not planned:** adding UI to _set_ `NewerNoncurrentVersions` (#4 covers preservation only); adding `LifecycleRulesTable.test.tsx` / `LifecycleRulesTab.test.tsx` (none exist, so #7/#14 rely on typecheck + manual QA); adding rate-limit tests to `corsRouter.test.ts` / `bucketPolicyRouter.test.ts` (none exist today).
 
 ---
 
 ### Key files (absolute paths)
 
-**Triage source:** `/Users/kirylmishchuk/projects/SAP/DOCS/plans/2026-08-18-pr-1178-review-findings-fixes.md`
+**Triage source:** `/../DOCS/plans/2026-08-18-pr-1178-review-findings-fixes.md`
 
-**Server:** `/Users/kirylmishchuk/projects/SAP/aurora-dashboard/packages/aurora/src/server/Storage/types/ceph.ts` · `.../types/ceph.test.ts` · `.../helpers/lifecycleMapper.ts` · `.../helpers/lifecycleMapper.test.ts` · `.../routers/ceph/lifecycleRouter.ts` · `.../routers/ceph/lifecycleRouter.test.ts` · `.../routers/ceph/corsRouter.ts` · `.../routers/ceph/bucketPolicyRouter.ts`
+**Server:** `/aurora-dashboard/packages/aurora/src/server/Storage/types/ceph.ts` · `.../types/ceph.test.ts` · `.../helpers/lifecycleMapper.ts` · `.../helpers/lifecycleMapper.test.ts` · `.../routers/ceph/lifecycleRouter.ts` · `.../routers/ceph/lifecycleRouter.test.ts` · `.../routers/ceph/corsRouter.ts` · `.../routers/ceph/bucketPolicyRouter.ts`
 
-**Client** (all under `/Users/kirylmishchuk/projects/SAP/aurora-dashboard/packages/aurora/src/client/routes/_auth/projects/$projectId/storage/-components/Ceph/Buckets/`): `LifecycleRulesTab.tsx` · `LifecycleRulesTable.tsx` · `LifecycleRuleForm.tsx` · `LifecycleRuleForm.test.tsx` · `LifecycleRuleModal.tsx` · `DeleteLifecycleRuleModal.tsx` · `DeleteLifecycleRulesModal.tsx` · `CorsRulesTable.tsx` · `utils/lifecycleUtils.ts` · `utils/lifecycleUtils.test.ts`
+**Client** (all under `/aurora-dashboard/packages/aurora/src/client/routes/_auth/projects/$projectId/storage/-components/Ceph/Buckets/`): `LifecycleRulesTab.tsx` · `LifecycleRulesTable.tsx` · `LifecycleRuleForm.tsx` · `LifecycleRuleForm.test.tsx` · `LifecycleRuleModal.tsx` · `DeleteLifecycleRuleModal.tsx` · `DeleteLifecycleRulesModal.tsx` · `CorsRulesTable.tsx` · `utils/lifecycleUtils.ts` · `utils/lifecycleUtils.test.ts`
 
-**Docs/i18n/changeset:** `/Users/kirylmishchuk/projects/SAP/aurora-dashboard/packages/aurora/docs/009_ceph_s3_bff.md` · `/Users/kirylmishchuk/projects/SAP/aurora-dashboard/packages/aurora/src/locales/{en,de}/messages.po` · `/Users/kirylmishchuk/projects/SAP/aurora-dashboard/.changeset/nice-clouds-start.md`
+**Docs/i18n/changeset:** `aurora-dashboard/packages/aurora/docs/009_ceph_s3_bff.md` · `/aurora-dashboard/packages/aurora/src/locales/{en,de}/messages.po` · `/aurora-dashboard/.changeset/nice-clouds-start.md`
 </content>
