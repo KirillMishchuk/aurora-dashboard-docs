@@ -11,10 +11,14 @@
             "id": "59a5226c36362272",
             "type": "leaf",
             "state": {
-              "type": "empty",
-              "state": {},
+              "type": "markdown",
+              "state": {
+                "file": "prs/1177-clavis-certificate-import-download.md",
+                "mode": "source",
+                "source": false
+              },
               "icon": "lucide-file",
-              "title": "Новая вкладка"
+              "title": "1177-clavis-certificate-import-download"
             }
           }
         ]
@@ -90,6 +94,7 @@
             "state": {
               "type": "backlink",
               "state": {
+                "file": "prs/1177-clavis-certificate-import-download.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -99,7 +104,7 @@
                 "unlinkedCollapsed": true
               },
               "icon": "links-coming-in",
-              "title": "Обратные ссылки"
+              "title": "Обратные ссылки для 1177-clavis-certificate-import-download"
             }
           },
           {
@@ -179,6 +184,7 @@
   },
   "active": "59a5226c36362272",
   "lastOpenFiles": [
+    "prs/1177-clavis-certificate-import-download.md",
     "prs/1155-swift-object-download-web-worker.md",
     "prs/1176-cap-tempurl-lifetime-readonly.md",
     "prs/1172-cors-ui-design-review-fixes.md",
@@ -205,7 +211,6 @@
     "prs/1085-move-react-deps-peer-workspace-dev.md",
     "claude-code-skills.md",
     "Без названия.canvas",
-    "prs/1076-auth-provider-trpc-react.md",
     "Без названия.base",
     "Без названия",
     "prs",
