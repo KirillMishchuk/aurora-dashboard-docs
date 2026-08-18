@@ -1,6 +1,6 @@
 # PR #1173: fix(core): redact Swift TempURL and sync keys from metadata responses
 
-**Автор:** TilmanHaupt · **Статус:** открыт, не смержен (создан 12.08.2026)
+**Автор:** TilmanHaupt · **Статус:** смержен 14.08.2026 (коммит `2c7bd0e`; открыт 12.08.2026)
 **Ветки:** `til-sec-4` → `main` · **Файлов:** 10 (+224/-47)
 **Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1173
 

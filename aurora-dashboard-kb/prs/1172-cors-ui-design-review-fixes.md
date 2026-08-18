@@ -1,6 +1,6 @@
 # PR #1172: fix(aurora): apply design review fixes to bucket CORS rules UI
 
-**Автор:** KirylSAP · **Статус:** открыт, не смержен (создан 12.08.2026)
+**Автор:** KirylSAP · **Статус:** смержен 14.08.2026 (коммит `0bfd055`; открыт 12.08.2026)
 **Ветки:** `kiryl-ceph-cors-review-findings` → `main` · **Файлов:** 32 (+145/-390, из них 4 locale-файла: +26/-100)
 **Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1172
 

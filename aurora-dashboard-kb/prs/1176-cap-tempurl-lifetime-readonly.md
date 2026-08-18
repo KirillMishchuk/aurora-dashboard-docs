@@ -1,6 +1,6 @@
 # PR #1176: fix: cap TempURL lifetime and restrict to read-only by default
 
-**Автор:** TilmanHaupt · **Статус:** открыт, не смержен (создан и обновлён 13.08.2026, все 4 коммита в течение одного дня)
+**Автор:** TilmanHaupt · **Статус:** смержен 17.08.2026 (коммит `d00f84a`; открыт и обновлён 13.08.2026, все 4 коммита в течение одного дня)
 **Ветки:** `til-sec-5` → `main` · **Файлов:** 2 (+16/-2)
 **Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1176
 
