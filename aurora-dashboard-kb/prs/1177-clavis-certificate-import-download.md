@@ -1,105 +1,168 @@
 # PR #1177: feat(clavis): different changes(api/ui-ux) with downloading functionality
 
-**Автор:** vlad-schur-external-sap · **Статус:** открыт, не смержен (коммиты 13.08.2026–14.08.2026, ожидает ревью)
-**Ветки:** `clavis-ui-ux-changes-with-downloading` → `main` · **Файлов:** 21 (+391/-176), плюс `pnpm-lock.yaml` (регенерирован под апдейт `@cloudoperators/juno-ui-components`, не считается ниже)
+**Автор:** vlad-schur-external-sap · **Статус:** открыт, не смержен (коммиты 13.08.2026–19.08.2026, ожидает ревью) — **2-я версия отчёта**
+**Ветки:** `clavis-ui-ux-changes-with-downloading` → `main` · **Файлов:** 30 (+1204/-845 к текущему `main`, база `9cdf0ae`), из них `pnpm-lock.yaml` — техническая регенерация под апдейт `@cloudoperators/juno-ui-components`, не разбирается ниже
 **Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1177
 
-> Доступ к GitHub API/веб из этой сессии заблокирован (тот же 403 с `add_repo`, что и в прошлых отчётах): ни `gh`/`api.github.com` из облачного контейнера, ни `github.com` через `WebFetch` для диффа — не работают на уровне API/HTML-эндпоинтов. Заголовок PR, автор, статус и описание получены через `WebFetch` самой страницы PR (это единственный источник для них, не подтверждён вторым способом). Весь код, дифф и история коммитов проверены по анонимному `git`-клону (`refs/pull/1177/head`/`merge`, публичный репозиторий) — это надёжный источник для всего остального в отчёте. Ветка PR необычна: у неё долгая независимая история (534 коммита с октября 2024 без единого сквоша, включая множество "Merge branch main into..."), из-за чего `git log base..head` возвращает сотни нерелевантных исторических коммитов. Реальных коммитов, уникальных для этого PR, оказалось 4 (плюс 2 merge-коммита) — они выделены через `git log --all --grep=clavis` и подтверждены построчно построчным diff'ом каждого. Итоговый `git diff` к `main` (база `0bfd055`) и `git diff --stat` использовались как источник истины для "что изменилось", как и предписывает `document-pr`.
+> Доступ к GitHub REST/GraphQL API из этой сессии заблокирован (`gh`/`gh api` и прямой `curl` к `api.github.com`/`github.com/.../pull/1177.diff` возвращают 403 "GitHub access to this repository is not enabled for this session… Use add_repo…"). Заголовок PR, автор, статус, ветки и описание получены через `WebFetch` самой HTML-страницы PR — рабочий, но не подтверждённый вторым способом источник для этих полей. Весь код, дифф и история коммитов проверены анонимным `git clone` + `git fetch origin refs/pull/1177/head` (публичный репозиторий, git-протокол не подпадает под то же ограничение) — надёжный источник для всего остального. Это обновление отчёта от 14.08.2026 (коммит `0a1b61c`): с тех пор в PR добавлены 3 новых коммита (13:25→10:22, 19.08.2026) плюс один merge `main`, подтянувший #1176/#1181/#1184 — они не относятся к PR и не разбираются здесь. `git diff main...pr-1177-head` (актуальный `main`) — источник истины для всего отчёта, как и предписывает `document-pr`.
 
 ## Что сделано
 
-PR продолжает серию доработок Clavis (Private Certificate Authority) в `packages/aurora/src/client/routes/.../services/pca/` четырьмя последовательными коммитами одного дня (13.08.2026, 11:52→16:26) плюс два merge-коммита `main`, подтягивающих последние 12 PR (включая #1155, #1153, #1092):
+PR продолжает серию доработок Clavis (Private Certificate Authority) в `packages/aurora/src/client/routes/.../services/pca/` семью содержательными коммитами одного автора (13.08→19.08.2026) плюс три merge-коммита `main`:
 
-1. **`e3f051f` "remove unexpected states as its not available on the client"** — убирает `"UNEXPECTED"` из `CertificateAuthorityStateSchema` (сервер) и из обоих UI-маппингов состояний (`PcaDetailsView.tsx`, `PcaTableRow.tsx`), удаляет соответствующие тесты.
+1. **`e3f051f` "remove unexpected states as its not available on the client"** — убирает `"UNEXPECTED"` из `CertificateAuthorityStateSchema` (сервер) и из обоих UI-маппингов состояний, удаляет соответствующие тесты.
 2. **`d8a2186` "implement downloading"** — реализует скачивание PEM/CSR через `DetailsInfo`, поднимает `@cloudoperators/juno-ui-components` до `9.3.0` (нужна для `codeBlockFooter`).
-3. **`3485002` "update import-issue validation and upload logic"** — делает `parseCsrInfo` синхронной, добавляет разбор/валидацию цепочки сертификатов (`parseCertificateChain`, `isValidPem`, `isValidCertificateChain`) и подключает их как `zod`-`refine` в модалки импорта/выпуска сертификата; сужает загрузку файла до `.json`.
-4. **`3a91742` "change btn possition for creating certificates"** — переносит кнопку «Issue Self-Signed Certificate» из `PcaDetailsView` в `PcaCertificatesListContainer` (условие видимости `pca.state === "AWAITING_CERTIFICATE"` сохранено без изменений — это подтверждённая чистая перестановка, а не смена логики).
+3. **`3485002` "update import-issue validation and upload logic"** — делает `parseCsrInfo` синхронной, добавляет разбор/валидацию цепочки сертификатов, сужает загрузку файла импорта до `.json`.
+4. **`3a91742` "change btn possition for creating certificates"** — переносит кнопку «Issue Self-Signed Certificate» из `PcaDetailsView` в `PcaCertificatesListContainer` (чистая перестановка, условие видимости не изменилось).
+5. **`288977d` "fix(clavis): ai comments and typos"** (19.08, 09:25) — несмотря на название, содержательный коммит: переименовывает лейбл `"Subject"` → `"Subject Information"` (везде — `parseCsrInfo.ts`, `PcaDetailsView.tsx`, `PcaListContainer.tsx`), выделяет из `isValidPem` отдельную строгую `isValidCsr` (отклоняет вход, если это сертификат, а не CSR — раньше `IssueEndEntityCertificateModal` валидировал CSR-поле через `isValidPem`, который принимал и CSR, и сертификат), добавляет toast «Certificate Imported» при импорте и добавляет `getById`-инвалидацию после само-подписания CA.
+6. **`f9dc694` "fix(clavis): get-by-id invalidation and tests for parsing and importing"** (19.08, 09:56) — сужает инвалидацию `getById` после импорта сертификата с «инвалидировать все `getById`-запросы» до «инвалидировать конкретно `{project_id, certificate_authority_id}` этого CA».
+7. **`de468bd` "refactor(clavis): replace creating and awaiting icons"** (19.08, 10:22, самый свежий коммит) — заменяет иконки состояний `CREATING`/`AWAITING_CERTIFICATE` на `Spinner`/`Icon` из `juno-ui-components` вместо `react-icons/md`, попутно вносит регрессию — см. «Ревью».
 
-Заявленное в описании PR ("Fixed CSR/PEM validation and parsing, make parsing sync", "Added PEM downloads", "Removed the UNEXPECTED state", ссылка на #1160 про замену механизма скачивания на новый `CodeBlockFooter` API) соответствует диффу — за одним исключением, не упомянутым в описании: ужесточение загрузки файла до `.json` (см. «Что затронуло» и «Ревью»).
+Заявленное в описании PR ("Fixed CSR/PEM validation and parsing, make parsing sync", "Added PEM downloads", "Removed the UNEXPECTED state", ссылка на #1160) соответствует диффу, с тем же уточнением, что и в прошлой версии отчёта: сужение загрузки файла до `.json` не упомянуто явно. Чеклист в описании PR не отмечен ни одним пунктом (все 6 чекбоксов `- [ ]` не проставлены).
 
 ## Как это реализовано
 
-### Скачивание PEM — `DetailsInfo.tsx` + новый `codeBlockFooter` API juno
+### `getById`-инвалидация после мутаций CA — два целевых фикса этого раунда
+
+До сегодняшних коммитов `IssueSelfSignedCertificateModal` инвалидировал только список сертификатов, а `ImportExternallySignedCertificateModal` — весь кэш `getById` без фильтра по CA:
 
 ```tsx
-// DetailsInfo.tsx:18-33
-export const DetailsInfo = ({ basicInfo, heading, content, fileName }: DetailsInfoProps) => {
-  const downloadPem = () => {
-    const url = URL.createObjectURL(new Blob([content], { type: "application/x-pem-file" }))
-    const link = document.createElement("a")
-    link.href = url
-    link.download = fileName
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-    URL.revokeObjectURL(url)
+// IssueSelfSignedCertificateModal.tsx:20-25
+const { isPending, ...createCertificateMutation } = trpcReact.services.pca.createCertificate.useMutation({
+  onSettled: () => {
+    utils.services.pca.listCertificates.invalidate()
+    utils.services.pca.getById.invalidate({ project_id: projectId, certificate_authority_id: pca.id })
+  },
+})
+```
+
+```tsx
+// ImportExternallySignedCertificateModal.tsx:36-42
+const { isPending, ...importMutation } = trpcReact.services.pca.import.useMutation({
+  onSettled: () =>
+    utils.services.pca.getById.invalidate({
+      project_id: projectId,
+      certificate_authority_id: pcaId,
+    }),
+})
+```
+
+Оба места теперь целенаправленно инвалидируют `getById` конкретного CA (`$pcaId/index.tsx:23,57` кормит `PcaDetailsView` именно этим запросом) — до фикса страница деталей CA после самоподписания/импорта могла оставаться со старым бейджем состояния и старым содержимым `DetailsInfo` до ручного рефреша. Реальный, обоснованный багфикс, покрытый обновлёнными тестами.
+
+### Toast-уведомления на удаление и импорт
+
+Новый файл `PcaToastNotifications.tsx` (15 строк) — два билдера в том же стиле, что и в других частях приложения (`ImageToastNotifications`, `ObjectToastNotifications`):
+
+```tsx
+// PcaToastNotifications.tsx:7-15
+export const getPcaDeletedToast = (pcaName: string): ToastReturn => ({
+  message: <Trans>Certificate Authority Deleted</Trans>,
+  description: <Trans>Certificate Authority "{pcaName}" was successfully deleted.</Trans>,
+})
+
+export const getCertificateImportedToast = (): ToastReturn => ({
+  message: <Trans>Certificate Imported</Trans>,
+  description: <Trans>The externally signed certificate was successfully imported.</Trans>,
+})
+```
+
+Подключены в `DeletePcaModal.tsx:49-50` и `ImportExternallySignedCertificateModal.tsx:59-60` сразу после успешной мутации, до `handleClose()`. Обе строки корректно обёрнуты в `<Trans>` и присутствуют в диффе `messages.po`.
+
+### CSR vs сертификат — раздельная валидация вместо общей `isValidPem`
+
+```ts
+// parseCsrInfo.ts:96-119
+export const isValidPem = (pem: string) => {
+  try {
+    const sanitizedPem = cleanPem(pem)
+    if (sanitizedPem.includes("-----BEGIN CERTIFICATE-----")) {
+      parseCertificateChain(sanitizedPem)
+    } else {
+      new Pkcs10CertificateRequest(sanitizedPem)
+    }
+    return true
+  } catch {
+    return false
   }
+}
+
+export const isValidCsr = (pem: string) => {
+  try {
+    const sanitizedPem = cleanPem(pem)
+    if (sanitizedPem.includes("-----BEGIN CERTIFICATE-----")) return false
+    new Pkcs10CertificateRequest(sanitizedPem)
+    return true
+  } catch {
+    return false
+  }
+}
+```
+
+`IssueEndEntityCertificateModal.tsx:9,32` теперь валидирует CSR-поле через `isValidCsr` вместо `isValidPem` — реальное сужение: раньше в поле «Paste CSR code» можно было вставить полный сертификат и форма считала его валидным (`isValidPem` принимает и то, и то), теперь для этого поля принимается только настоящий CSR. Это скрыто под неинформативным названием коммита «ai comments and typos», хотя меняет поведение валидации формы. Побочный эффект — `isValidPem` остался экспортированным, но потерял единственного потребителя (см. «Ревью»).
+
+### Иконки состояний CA — переход на компоненты juno вместо `react-icons/md`
+
+```tsx
+// PcaTableRow.tsx:34-42
+const STATE_CONFIG = {
+  CREATING: {
+    text: t`Creating`,
+    icon: <Spinner size="18" />,
+  },
+  AWAITING_CERTIFICATE: {
+    text: t`Awaiting Certificate`,
+    icon: <Icon icon="accessTime" size={20} color="#FBC02D" />,
+  },
   ...
 ```
 
-`fileName` — новый обязательный проп; оба потребителя (`$certificateId.tsx:138`, `PcaDetailsView.tsx:89`) переданы явным именем (`${certificateIdValue}.pem`, `${pcaName}.pem`). `codeBlockFooter` — реальный, существующий проп `CodeBlockProps` в исходниках `@cloudoperators/juno-ui-components` (проверено по локальному чекауту juno-репозитория, не по published-пакету): добавлен в `9.2.0` (`cf79a1fa01`, тот же автор PR), API уточнён в `9.3.0` (`48dd344589`) — версия, на которую заведён `package.json`, соответствует тому, что реально нужно, не выше. `Icon` с `onClick`/`disabled` — тоже подтверждённый API (`Icon.component.tsx:971-1021`, рендерит `<button>`, когда передан `onClick`). Тест (`DetailsInfo.test.tsx`, новый кейс "downloads the displayed content as a PEM file") мокает `URL.createObjectURL`/`revokeObjectURL` и проверяет `click()` + `download`-атрибут — реализация покрыта корректно.
-
-### `parseCsrInfo.ts` — async → sync, плюс разбор цепочки сертификатов
-
-```ts
-// parseCsrInfo.ts:19-27
-const certificateBlockPattern = /-----BEGIN CERTIFICATE-----[\s\S]*?-----END CERTIFICATE-----/g
-
-const parseCertificateChain = (pem: string) => {
-  const certificateBlocks = pem.match(certificateBlockPattern)
-  if (!certificateBlocks || certificateBlocks.join("").replace(/\s/g, "") !== pem.replace(/\s/g, "")) {
-    throw new Error("Invalid PEM certificate chain")
-  }
-  return certificateBlocks.map((certificate) => new X509Certificate(certificate))
-}
-```
-
-Функция была `async` без единого `await` уже до этого PR (артефакт сигнатуры, не поведения) — перевод в sync ничего не ломает: единственный потребитель, `ParsedCertificateInfo.tsx:16`, оборачивает вызов в `queryFn: async () => parseCsrInfo(csrCode)`, так что синхронный throw всё равно превращается в rejected promise по семантике JS, и комментарий там же («Invalid/malformed CSR should quietly render no parsed info») продолжает выполняться. Синхронность была нужна, чтобы `isValidPem`/`isValidCertificateChain` можно было использовать в `zod`-`refine` с `onChange`-валидацией формы (`ImportExternallySignedCertificateModal.tsx:32`, `IssueEndEntityCertificateModal.tsx:32`) без async-`refine`.
-
-### Импорт сертификата — `.json`-only и жёсткая валидация вместо fallback на raw-текст
+В таблице (`PcaTableRow.tsx`) текст и иконка — раздельные поля, `t\`Creating\`` не тронут. Но на странице деталей та же замена внесла регрессию:
 
 ```tsx
-// ImportExternallySignedCertificateModal.tsx: handleFileChange (после PR)
-if (!file.name.toLowerCase().endsWith(".json")) {
-  setFileError(t`Only JSON certificate files are supported.`)
-  e.target.value = ""
-  return
-}
-...
-const parsed = JSON.parse(text)
-if (typeof parsed?.imported_certificate_chain !== "string") {
-  throw new Error(t`The JSON file must contain imported_certificate_chain.`)
-}
+// PcaDetailsView.tsx:45-56
+const STATE_CONFIG = {
+  CREATING: (
+    <Badge variant="info">
+      <Stack direction="horizontal" gap="1" alignment="center">
+        <Spinner size="18" /> Creating
+      </Stack>
+    </Badge>
+  ),
+  AWAITING_CERTIFICATE: <Badge icon="accessTime" variant="warning" text={t`Awaiting Certificate`} />,
+  READY: <Badge icon="checkCircle" variant="success" text={t`Ready`} />,
+  FAILED: <Badge icon="error" variant="error" text={t`Failed`} />,
+} as const
 ```
 
-До PR: `accept=".pem,.crt,.cer,.json"`, при неудачном `JSON.parse` или отсутствии поля — молчаливый fallback на использование сырого текста файла как есть. После: только `.json`, любое другое расширение — ошибка без загрузки; невалидный JSON/отсутствующее поле — ошибка с очисткой поля вместо fallback. Тест переименован из "handles file upload with text file" в "ignores non-JSON file uploads" — изменение осознанное и покрыто тестами (подробнее в «Что затронуло»/«Ревью»).
-
-### Убрано состояние `UNEXPECTED`
-
-```diff
-- const CertificateAuthorityStateSchema = z.enum(["CREATING", "AWAITING_CERTIFICATE", "READY", "FAILED", "UNEXPECTED"])
-+ const CertificateAuthorityStateSchema = z.enum(["CREATING", "AWAITING_CERTIFICATE", "READY", "FAILED"])
-```
-`pca.ts:54`. Убраны соответствующие ветки в `PcaTableRow.tsx` (иконка-бейдж) и `PcaDetailsView.tsx` (бейдж), а также два теста в `pca.test.ts`, явно проверявших это значение. Подробный разбор последствий — в «Ревью», это главная находка отчёта.
+Разбор последствий — в «Ревью», это главная находка этой версии отчёта.
 
 ## Что затронуло
 
-Блast-радиус проверен по каждому изменённому символу (`DetailsInfo`, `PcaCertificatesListContainer`, `parseCsrInfo`/`isValidPem`/`isValidCertificateChain`, `CertificateAuthorityStateSchema`) по всему монорепо на `pr-1177-head`:
+Блast-радиус проверен по каждому изменённому/новому символу по всему монорепо на `pr-1177-head`:
 
-- **`DetailsInfo`, `PcaCertificatesListContainer`** — потребители обновлены в том же PR (`$certificateId.tsx`, `PcaDetailsView.tsx`); других мест использования в репозитории нет.
-- **`parseCsrInfo`/`isValidPem`/`isValidCertificateChain`** — используются только внутри `pca/$pcaId/-components/-modals/`; единственный потребитель `parseCsrInfo` — `ParsedCertificateInfo.tsx` (не тронут этим PR, его собственный тест `ParsedCertificateInfo.test.tsx` продолжает мокать `parseCsrInfo` через `mockResolvedValue`/`mockRejectedValue`, как будто функция всё ещё async — это не баг: мок полностью заменяет модуль, реальная синхронная реализация не вызывается, тест валиден и проходит; сигнатура мока просто больше не отражает реальную).
-- **`CertificateAuthorityStateSchema`/`CertificateAuthorityState`** — экспортируются из `packages/aurora/src/server/Services/types/pca.ts`, но НЕ ре-экспортируются из публичных точек входа пакета (`server/index.ts`, `types/index.ts` — проверено `git grep`, совпадений нет), то есть контрактно это внутренний тип, не часть публичного API `@cobaltcore-dev/aurora` для внешних потребителей пакета. **Однако** внутри самого сервера эта схема используется как input-валидатор реальных ответов backend'а в `pcaRouter.ts` — `list`/`create`/`getById`/`import` все вызывают `parseOrThrow(CertificateAuthoritySchema/CertificateAuthoritiesListSchema, data, ...)`, которая бросает `TRPCError({ code: "PARSE_ERROR" })` при любом несовпадении со схемой. Значит сужение enum затрагивает не только UI — см. находку №1.
-- **`apps/dashboard`** не ссылается на `pca`-код напрямую (файловый роутинг инкапсулирован внутри `packages/aurora`) — изменение полностью внутреннее для пакета, ничего вовне не потребляет затронутые файлы.
-- **Версия `@cloudoperators/juno-ui-components`** поднята `9.1.0` → `9.3.0` (devDependency) — только для сборки `packages/aurora`, `apps/dashboard` эту версию не фиксирует отдельно (наследует через workspace).
+- **`isValidCsr`, `isValidCertificateChain`, `getCertificateImportedToast`, `getPcaDeletedToast`** — каждый используется ровно одним потребителем внутри того же PR (`IssueEndEntityCertificateModal`, `ImportExternallySignedCertificateModal` ×2, `DeletePcaModal` соответственно); других мест использования в репозитории нет.
+- **`isValidPem`** — экспортируется, но с коммита `288977d` не имеет ни одного потребителя в репозитории (проверено `git grep`); раньше был единственным валидатором CSR-поля. Не поймается линтом/тайпчеком (правило на неиспользуемые *экспорты* в конфиге ESLint пакета не включено — есть только `no-unused-vars` для локальных переменных).
+- **`CertificateAuthorityStateSchema`/`CertificateAuthorityState`** — как и в прошлой версии отчёта: не ре-экспортируется из публичных точек входа пакета (внутренний тип), но валидирует реальные ответы backend'а в `pcaRouter.ts` (`list`/`create`/`getById`/`import` все проходят через `parseOrThrow`, которая бросает `TRPCError({code: "PARSE_ERROR"})` на весь вызов при несовпадении схемы) — сужение enum остаётся тем же незакрытым вопросом, что и раньше (см. «Ревью»).
+- **`apps/dashboard`** не ссылается на `pca`-код напрямую — изменение полностью внутреннее для `packages/aurora`.
+- Новые/переименованные лейблы (`"Subject Information"`) синхронно обновлены в трёх местах (`parseCsrInfo.ts`, `PcaDetailsView.tsx`, `PcaListContainer.tsx`) — консистентно, отставших мест не найдено.
 
 ## Ревью
 
-**Проблем с уверенностью ≥80 не найдено.** Одна находка почти набрала порог, вторая — заметно ниже; обе приведены ниже как наблюдения, не как подтверждённые дефекты.
+Ревью прогнано 5 параллельными агентами (CLAUDE.md-комплаенс, беглый поиск багов, история/git blame, поиск фидбека по прошлым PR в этой же области, комплаенс с существующими код-комментариями) по актуальному диффу (`main...pr-1177-head`), затем каждая находка получила независимую оценку уверенности по шкале 0–100 (порог публикации — 80).
 
-- **[75/100, отклонено — порог не пройден] Удаление `"UNEXPECTED"` из `CertificateAuthorityStateSchema` — это не только UI-очистка, как описывает коммит, а сужение серверной входной схемы, которая валидирует реальные ответы backend'а.** `pcaRouter.list`/`create`/`getById`/`import` (`pcaRouter.ts:45,63,78,114`) все проходят через `parseOrThrow`, которая бросает `TRPCError({ code: "PARSE_ERROR" })` при несовпадении схемы (`Network/helpers/index.ts:36-46`). Если backend когда-либо вернёт CA в состоянии `"UNEXPECTED"` — раньше это отрисовывало бейдж "Unexpected" для одной строки; теперь `pcaRouter.list` целиком упадёт для всего проекта (не только для этой CA), `getById`/`import` на конкретной CA — тоже. Архитектурная документация репозитория `packages/aurora/docs/0011_clavis.md:69` (не тронута этим PR) продолжает перечислять `UNEXPECTED` в списке "Relevant PCA states"; состояние было осознанно добавлено в исходную схему в `034d591` (#761) и не имеет иной роли catch-all'а на уровне парсинга (это не "ловушка для неизвестных значений" — `z.enum` матчит только точный литерал). Два теста, явно проверявших это значение (`pca.test.ts`, "should validate UNEXPECTED state" / "...with minimal fields"), удалены вместо того чтобы быть переписанными в тест "теперь это невалидно намеренно". CI не поймает это в принципе — в репозитории нет интеграционных тестов против живого backend'а (E2E требует реальных OpenStack-креденшелов и не входит в обязательный CI). Порог 80 не пройден: остаётся открытым вопрос, действительно ли backend больше не может прислать это состояние (что и утверждает коммит-мессадж) — если автор PR это подтвердил на стороне backend/Clavis-команды, находка снимается полностью; отсюда 75, не выше.
-- **[50/100, отклонено] Загрузка файла сертификата теперь принимает только `.json`, тогда как раньше принимала `.pem`/`.crt`/`.cer` напрямую (с fallback на сырой текст при неудачном разборе JSON) — сужение не упомянуто в описании PR.** Поведение с `accept=".pem,.crt,.cer,.json"` существовало без изменений с момента создания модалки в отдельном PR (`fc861d5`, #901) и не менялось до этого PR. Изменение осознанное и покрыто тестом (переименован из "handles file upload with text file" в "ignores non-JSON file uploads"), возможность вставить PEM вручную в текстовое поле не тронута — так что функциональность не потеряна полностью, потерян только один UX-путь (выбор `.pem`-файла через диалог). Не поднято выше 50: это реальное и материальное изменение UX, но осознанное, протестированное и не являющееся дефектом — скорее вопрос к точности описания PR, чем к коду.
+**Прошло порог ≥80:**
 
-Остальное проверено и не поднято как находка: перемещение кнопки «Issue Self-Signed Certificate» из `PcaDetailsView` в `PcaCertificatesListContainer` (`3a91742`, "change btn possition") — сверено построчно с состоянием до PR: условие видимости `pca.state === "AWAITING_CERTIFICATE"` было идентичным до и после, это чистая перестановка компонента, а не скрытая смена поведения, несмотря на то что заголовок коммита можно было прочитать шире; отдельных находок по CLAUDE.md (роутинг, процедуры, permission-паттерны) не выявлено — PR не трогает роутеры/процедуры; переводы (`messages.po`) добавляют новые `msgid` с пустым `msgstr` для нового текста — это норма для lingui-воркфлоу в этом репозитории (не регрессия существующего перевода), CLAUDE.md не требует немедленного перевода в PR.
+- **[100/100] Бейдж состояния `CREATING` на странице деталей CA потерял перевод — единственная непереведённая строка среди всех статус-бейджей.** `PcaDetailsView.tsx:49`: было `<Badge icon="bolt" variant="info" text={t\`Creating\`} />`, стало `<Spinner size="18" /> Creating` — литеральная английская строка прямо в JSX, без `t`/`<Trans>`. Соседние состояния в том же объекте (`AWAITING_CERTIFICATE`, `READY`, `FAILED`) продолжают использовать `t`. Подтверждено диффом `messages.po`: строка `"Creating"` не появляется как новый `msgid` — значит `lingui extract` (`pnpm check-i18n`) её не увидел и никогда не увидит, она останется английской на любой локали, включая немецкую. Аналог в `PcaTableRow.tsx:36` (`text: t\`Creating\`,`) корректен — регрессия только в `PcaDetailsView`. Ничем в CI не ловится (макрос Lingui — этап компиляции строк, а не тип).
+
+**Не прошло порог (наблюдения, не находки):**
+
+- **[78, отклонено] Загрузка файла импорта сертификата теперь принимает только `.json`, тогда как раньше принимала `.pem`/`.crt`/`.cer` напрямую с fallback на сырой текст.** Тот же вопрос, что и в прошлой версии отчёта (было 50/100) — новый скоринг-агент поднял до 78 после того, как проверил историю: `accept=".pem,.crt,.cer,.json"` был добавлен осознанно в отдельном PR (`fc861d5`, #901) именно чтобы поддержать прямую загрузку сертификата, а не только JSON. Не прошло порог: изменение intentional и покрыто тестом (переименован в "ignores non-JSON file uploads"), вставка вручную в текстовое поле не тронута — это реальное, но осознанное и смягчённое сужение UX, а не дефект.
+- **[75, отклонено] Удаление `"UNEXPECTED"` из `CertificateAuthorityStateSchema` — та же находка, что в версии от 14.08, с усиленной доказательной базой.** Новые агенты подтвердили: состояние было в схеме с самого первого коммита файла (`034d591`, #761) — то есть заложено в исходный дизайн, а не добавлено позже как защита от конкретного инцидента; архитектурный документ `packages/aurora/docs/0011_clavis.md` (не тронут этим PR) до сих пор перечисляет `UNEXPECTED` в списке "Relevant PCA states". Если backend всё же может прислать это состояние, `pcaRouter.list`/`getById`/`import` упадут целиком через `parseOrThrow`. Порог не пройден по той же причине, что раньше: нет способа независимо проверить, подтверждено ли на стороне backend/Clavis-команды, что это состояние больше невозможно — если да, находка снимается полностью.
+- **[75, отклонено] Тултип `title="Download PEM file"` на новой кнопке скачивания не переведён.** `DetailsInfo.tsx:47`, `codeBlockFooter={<Icon icon="download" title="Download PEM file" .../>}` — единственный `Icon` с `title` во всём репозитории, и единственный непереведённый; файл не импортирует `useLingui`. Не поднято до 80: эта строка (в отличие от бейджа `CREATING`) была добавлена ещё в самом первом коммите PR (`d8a2186`, 13.08) и уже проверялась предыдущей версией этого отчёта без находки — по факту нативный HTML `title` тултипа, а не видимый текст интерфейса, что мягче по impact.
+- **[75, отклонено] `isValidPem` осталась мёртвым кодом** после того, как `288977d` переключил её единственного потребителя на `isValidCsr`. Подтверждено `git grep` — ни одного импорта в репозитории. Не ловится линтом/тайпчеком (unused-export правило не включено), но и не критично — просто неиспользуемый экспорт.
+- **[30, отклонено] Комментарий `"", // ... "Delete CA" button` в `PcaCertificatesListContainer.tsx:82` не соответствует реальному меню строки (`PcaCertificatesTableRow.tsx`, там только "Show Details", без удаления).** Комментарий существовал на `main` до этого PR (скопирован из соседнего `PcaListContainer.tsx`, где меню действительно содержит "Delete CA") — этот PR не вносил и не копипастил его, только не исправил. Чисто документационная неточность без функционального эффекта.
+
+Остальное проверено и не поднято как находка: переименование `"Subject"` → `"Subject Information"` — консистентно везде, корректно попало в `messages.po`; переход на `Spinner`/`Icon` из juno в `PcaTableRow.tsx` не потерял `t`-обёртку (только `PcaDetailsView.tsx` пострадал); `getById`-инвалидации в `IssueSelfSignedCertificateModal`/`ImportExternallySignedCertificateModal` корректны и адресны; тест `ParsedCertificateInfo.test.tsx` продолжает мокать `parseCsrInfo` как async-функцию (`mockResolvedValue`/`mockRejectedValue`) — не баг: мок подменяет модуль целиком, реальная синхронная реализация не вызывается, комментарий "Invalid/malformed CSR should quietly render no parsed info" в `ParsedCertificateInfo.tsx` продолжает соблюдаться (проверено по актуальному `QueryClient`-конфигу — ошибка парсинга тихо даёт `data: undefined` → `fields: []` → компонент рендерит `null`).
 
 ---
-Проанализировано: 14.08.2026 · коммит `0a1b61c`
+Проанализировано: 19.08.2026 · коммит `de468bd6`
