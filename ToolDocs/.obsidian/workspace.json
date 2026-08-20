@@ -11,10 +11,14 @@
             "id": "bbdd700a67441791",
             "type": "leaf",
             "state": {
-              "type": "graph",
-              "state": {},
-              "icon": "lucide-git-fork",
-              "title": "Граф"
+              "type": "markdown",
+              "state": {
+                "file": "README.md",
+                "mode": "source",
+                "source": false
+              },
+              "icon": "lucide-file",
+              "title": "README"
             }
           }
         ]
@@ -179,9 +183,37 @@
       "bases:Создать новую базу": false
     }
   },
-  "active": "f7980da6b71a049a",
+  "active": "bbdd700a67441791",
   "lastOpenFiles": [
+    "claude-config/aurora-dashboard-config/CLAUDE.md",
     "ClaudeDocs/claude-code-skills.md",
+    "claude-config/aurora-dashboard-config/specs/001-bucket-lifecycle-rules/contracts/lifecycle-trpc-contract.md",
+    "claude-config/aurora-dashboard-config/specs/001-bucket-lifecycle-rules/checklists/requirements.md",
+    "claude-config/aurora-dashboard-config/specs/001-bucket-lifecycle-rules/tasks.md",
+    "claude-config/aurora-dashboard-config/specs/001-bucket-lifecycle-rules/spec.md",
+    "claude-config/aurora-dashboard-config/specs/001-bucket-lifecycle-rules/research.md",
+    "claude-config/aurora-dashboard-config/specs/001-bucket-lifecycle-rules/quickstart.md",
+    "claude-config/aurora-dashboard-config/specs/001-bucket-lifecycle-rules/plan.md",
+    "claude-config/aurora-dashboard-config/specs/001-bucket-lifecycle-rules/data-model.md",
+    "claude-config/aurora-dashboard-config/specs/001-bucket-lifecycle-rules/contracts",
+    "claude-config/aurora-dashboard-config/specs/001-bucket-lifecycle-rules/checklists",
+    "claude-config/aurora-dashboard-config-remote/docs/semantic_release.md",
+    "claude-config/aurora-dashboard-config-remote/docs/release.png",
+    "claude-config/aurora-dashboard-config-remote/docs/overview.png",
+    "claude-config/aurora-dashboard-config-remote/docs/aurora_architecture_overview.md",
+    "claude-config/aurora-dashboard-config/docs/semantic_release.md",
+    "claude-config/aurora-dashboard-config/specs/001-bucket-lifecycle-rules",
+    "claude-config/aurora-dashboard-config/docs/release.png",
+    "claude-config/aurora-dashboard-config/docs/overview.png",
+    "claude-config/aurora-dashboard-config/docs/aurora_architecture_overview.md",
+    "claude-config/aurora-dashboard-config-remote/docs",
+    "claude-config/aurora-dashboard-config-remote/CLAUDE.md",
+    "claude-config/aurora-dashboard-config/specs",
+    "claude-config/aurora-dashboard-config/docs",
+    "claude-config/aurora-dashboard-config-remote",
+    "claude-config/aurora-dashboard-config",
+    "claude-config",
+    "README.md",
     "ClaudeDocs/claude-code-plugins.md",
     "ClaudeDocs/claude-code-commands.md",
     "ClaudeDocs",
