@@ -185,6 +185,9 @@
   },
   "active": "bbdd700a67441791",
   "lastOpenFiles": [
+    "GitDocs/git-commands.md",
+    "README.md",
+    "GitDocs",
     "claude-config/aurora-dashboard-config/CLAUDE.md",
     "ClaudeDocs/claude-code-skills.md",
     "claude-config/aurora-dashboard-config/specs/001-bucket-lifecycle-rules/contracts/lifecycle-trpc-contract.md",
@@ -213,10 +216,8 @@
     "claude-config/aurora-dashboard-config-remote",
     "claude-config/aurora-dashboard-config",
     "claude-config",
-    "README.md",
     "ClaudeDocs/claude-code-plugins.md",
     "ClaudeDocs/claude-code-commands.md",
-    "ClaudeDocs",
     "Добро пожаловать.md"
   ]
 }
