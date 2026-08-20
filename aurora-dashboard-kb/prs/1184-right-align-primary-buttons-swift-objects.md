@@ -1,6 +1,6 @@
 # PR #1184: fix(portal): right-align primary buttons / fix button order (#1183)
 
-**Автор:** mark-karnaukh-extern-sap · **Статус:** открыт, не смержен (создан 18.08.2026; запрошено ревью code owner'а, 0 из 2 требуемых аппрувов)
+**Автор:** mark-karnaukh-extern-sap · **Статус:** смержен 18.08.2026 (коммит `9cdf0ae`; создан 18.08.2026)
 **Ветки:** `mark-right-align-primary-buttons` → `main` · **Файлов:** 2 (+9/-3)
 **Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1184
 

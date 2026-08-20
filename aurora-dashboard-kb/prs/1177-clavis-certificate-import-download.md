@@ -1,6 +1,6 @@
 # PR #1177: feat(clavis): different changes(api/ui-ux) with downloading functionality
 
-**Автор:** vlad-schur-external-sap · **Статус:** открыт, не смержен (коммиты 13.08.2026–19.08.2026, ожидает ревью) — **2-я версия отчёта**
+**Автор:** vlad-schur-external-sap · **Статус:** смержен 19.08.2026 (коммит `35095b4`; коммиты 13.08.2026–19.08.2026) — **2-я версия отчёта**
 **Ветки:** `clavis-ui-ux-changes-with-downloading` → `main` · **Файлов:** 30 (+1204/-845 к текущему `main`, база `9cdf0ae`), из них `pnpm-lock.yaml` — техническая регенерация под апдейт `@cloudoperators/juno-ui-components`, не разбирается ниже
 **Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1177
 

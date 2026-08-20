@@ -1,6 +1,6 @@
 # PR #1181: fix(portal): add min-width to filter/sort selects app-wide
 
-**Автор:** mark-karnaukh-extern-sap · **Статус:** открыт, не смержен (создан 18.08.2026; 0 из 2 требуемых аппрувов)
+**Автор:** mark-karnaukh-extern-sap · **Статус:** смержен 18.08.2026 (коммит `2309942`; создан 18.08.2026)
 **Ветки:** `mark-fix-dropdown-select-min-width` → `main` · **Файлов:** 12 (+35/-6)
 **Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1181
 
