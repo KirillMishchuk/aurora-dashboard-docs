@@ -1,6 +1,6 @@
 # PR #1180: fix(portal): use positive phrasing for quota validation message
 
-**Автор:** mark-karnaukh-extern-sap · **Статус:** открыт, не смержен (создан 18.08.2026; 1 из 2 требуемых аппрувов получен — KirylSAP)
+**Автор:** mark-karnaukh-extern-sap · **Статус:** смержен 21.08.2026 (коммит `a7b73a1e`; создан 18.08.2026)
 **Ветки:** `mark-use-positive-quota-validation-message` → `main` · **Файлов:** 7 (+40/-16)
 **Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1180
 

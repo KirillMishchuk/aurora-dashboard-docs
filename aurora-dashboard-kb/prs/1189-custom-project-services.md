@@ -1,6 +1,6 @@
 # PR #1189: feat(aurora): allow consumers to register custom srevices
 
-**Автор:** taymoor89 (Taimoor Aslam) · **Статус:** открыт, не смержен (создан 20.08.2026)
+**Автор:** taymoor89 (Taimoor Aslam) · **Статус:** смержен 24.08.2026 (коммит `a9c257a1`; создан 20.08.2026)
 **Ветки:** `1102-support-custom-services` → `main` · **Файлов:** 61 (+840/-7582)
 **Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1189
 
