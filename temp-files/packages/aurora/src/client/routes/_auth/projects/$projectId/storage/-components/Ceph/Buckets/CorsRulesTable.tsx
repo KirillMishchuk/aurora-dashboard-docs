@@ -12,42 +12,35 @@ import {
   toast,
 } from "@cloudoperators/juno-ui-components"
 import { Trans, useLingui } from "@lingui/react/macro"
-import type { LifecycleRuleRead } from "@/server/Storage/types/ceph"
-import { DeleteLifecycleRuleModal } from "./DeleteLifecycleRuleModal"
-import { getLifecycleRuleDeletedToast, getLifecycleRuleDeleteErrorToast } from "./BucketToastNotifications"
-import {
-  formatFilter,
-  formatExpiration,
-  formatTransitions,
-  formatNoncurrentExpiration,
-  formatNoncurrentTransitions,
-} from "./utils/lifecycleUtils"
+import type { CorsRuleRead } from "@/server/Storage/types/ceph"
+import { DeleteCorsRuleModal } from "./DeleteCorsRuleModal"
+import { getCorsRuleDeletedToast, getCorsRuleDeleteErrorToast } from "./BucketToastNotifications"
 
-interface LifecycleRuleWithIndex {
-  rule: LifecycleRuleRead
+interface CorsRuleWithIndex {
+  rule: CorsRuleRead
   originalIndex: number
 }
 
-interface LifecycleRulesTableProps {
+interface CorsRulesTableProps {
   bucketName: string
-  rulesWithIndices: LifecycleRuleWithIndex[]
+  rulesWithIndices: CorsRuleWithIndex[]
   selectedIndices: number[]
   onToggleSelectRule: (index: number) => void
   onEditRule: (index: number) => void
   onDeleteRule?: (index: number) => void
   isMutating?: boolean
   isFiltered?: boolean
-  canUpdateLifecycle: boolean
-  canDeleteLifecycle: boolean
+  canUpdateCors: boolean
+  canDeleteCors: boolean
 }
 
 /**
- * Data grid for displaying and managing lifecycle rules
+ * Data grid for displaying and managing CORS rules
  *
  * Displays up to 100 rules (S3 limit) in a simple table.
  * Supports search/filter by Rule ID.
  */
-export function LifecycleRulesTable({
+export function CorsRulesTable({
   bucketName,
   rulesWithIndices,
   selectedIndices,
@@ -56,9 +49,9 @@ export function LifecycleRulesTable({
   onDeleteRule,
   isMutating = false,
   isFiltered = false,
-  canUpdateLifecycle,
-  canDeleteLifecycle,
-}: LifecycleRulesTableProps) {
+  canUpdateCors,
+  canDeleteCors,
+}: CorsRulesTableProps) {
   const { t } = useLingui()
 
   const [isRowDeleteMutating, setIsRowDeleteMutating] = useState(false)
@@ -90,47 +83,50 @@ export function LifecycleRulesTable({
   }
 
   const handleDeleteSuccess = (index: number) => {
-    const { message, ...options } = getLifecycleRuleDeletedToast(bucketName, deleteModalState.ruleId)
+    const { message, ...options } = getCorsRuleDeletedToast(bucketName, deleteModalState.ruleId)
     toast.success(message, options)
     // Call parent callback if provided (for draft state updates in parent)
     onDeleteRule?.(index)
   }
 
   const handleDeleteError = (_index: number, errorMessage: string) => {
-    const { message, ...options } = getLifecycleRuleDeleteErrorToast(bucketName, errorMessage, deleteModalState.ruleId)
+    const { message, ...options } = getCorsRuleDeleteErrorToast(bucketName, errorMessage, deleteModalState.ruleId)
     toast.error(message, options)
   }
 
   const effectiveIsMutating = isMutating || isRowDeleteMutating
 
   const isEmpty = rulesWithIndices.length === 0
+  const columnCount = canDeleteCors ? 8 : 7
 
   return (
     <Stack direction="vertical" gap="4">
       {/* Rules Table */}
-      <DataGrid columns={8} minContentColumns={[0, 7]}>
+      <DataGrid columns={columnCount}>
         <DataGridRow>
-          <DataGridHeadCell>
-            <span className="sr-only">
-              <Trans>Select</Trans>
-            </span>
-          </DataGridHeadCell>
+          {canDeleteCors && (
+            <DataGridHeadCell>
+              <span className="sr-only">
+                <Trans>Select</Trans>
+              </span>
+            </DataGridHeadCell>
+          )}
           <DataGridHeadCell>{t`Rule ID`}</DataGridHeadCell>
-          <DataGridHeadCell>{t`Status`}</DataGridHeadCell>
-          <DataGridHeadCell>{t`Scope`}</DataGridHeadCell>
-          <DataGridHeadCell>{t`Expiration`}</DataGridHeadCell>
-          <DataGridHeadCell>{t`Noncurrent Versions`}</DataGridHeadCell>
-          <DataGridHeadCell>{t`Other Actions`}</DataGridHeadCell>
+          <DataGridHeadCell>{t`Allowed Origins`}</DataGridHeadCell>
+          <DataGridHeadCell>{t`Allowed Methods`}</DataGridHeadCell>
+          <DataGridHeadCell>{t`Allowed Headers`}</DataGridHeadCell>
+          <DataGridHeadCell>{t`Expose Headers`}</DataGridHeadCell>
+          <DataGridHeadCell>{t`Max Age`}</DataGridHeadCell>
           <DataGridHeadCell></DataGridHeadCell>
         </DataGridRow>
         {isEmpty ? (
           <DataGridRow>
-            <DataGridCell colSpan={8}>
+            <DataGridCell colSpan={columnCount}>
               <p className="text-theme-light py-8 text-center">
                 {isFiltered ? (
-                  <Trans>No lifecycle rules matching the current search criteria.</Trans>
+                  <Trans>No CORS rules matching the current search criteria.</Trans>
                 ) : (
-                  <Trans>There are no lifecycle rules for this bucket</Trans>
+                  <Trans>There are no CORS rules for this bucket</Trans>
                 )}
               </p>
             </DataGridCell>
@@ -141,78 +137,46 @@ export function LifecycleRulesTable({
             // ID field is optional and may be absent or duplicated.
             // originalIndex is the contract with parent's onEditRule(index) / onDeleteRule(index).
             const key = originalIndex
-
-            // Format noncurrent versions column (merge expiration + transitions)
-            const noncurrentExpirationText = formatNoncurrentExpiration(
-              rule.NoncurrentVersionExpiration as unknown as {
-                NoncurrentDays: number
-                NewerNoncurrentVersions?: number
-              }
-            )
-            const noncurrentTransitionsText = formatNoncurrentTransitions(
-              rule.NoncurrentVersionTransitions as unknown as {
-                NoncurrentDays: number
-                StorageClass: string
-                NewerNoncurrentVersions?: number
-              }[]
-            )
-            const noncurrentText =
-              noncurrentExpirationText === "–" && noncurrentTransitionsText === "–"
-                ? "–"
-                : [noncurrentExpirationText, noncurrentTransitionsText].filter((t) => t !== "–").join("; ")
-
-            // Format other actions column (transitions + abort)
-            const transitionsText = formatTransitions(
-              rule.Transitions as unknown as { StorageClass: string; Days?: number; Date?: string }[]
-            )
-            const abortDays = rule.AbortIncompleteMultipartUpload?.DaysAfterInitiation
-            const abortText = abortDays !== undefined ? t`After ${abortDays} days` : "–"
-            const otherActionsText =
-              transitionsText === "–" && abortText === "–"
-                ? "–"
-                : [transitionsText, abortText].filter((t) => t !== "–").join("; ")
-
             const ruleLabel = rule.ID || String(originalIndex + 1)
-
-            const hasAnyRowAction = canUpdateLifecycle || canDeleteLifecycle
+            const hasAnyRowAction = canUpdateCors || canDeleteCors
 
             return (
-              <DataGridRow key={key} data-testid={`lifecycle-rule-row-${originalIndex}`}>
-                <DataGridCell onClick={(e) => e.stopPropagation()}>
-                  {canDeleteLifecycle && (
+              <DataGridRow key={key} data-testid={`cors-rule-row-${originalIndex}`}>
+                {canDeleteCors && (
+                  <DataGridCell onClick={(e) => e.stopPropagation()}>
                     <Checkbox
                       checked={selectedIndices.includes(originalIndex)}
                       onChange={() => onToggleSelectRule(originalIndex)}
                       aria-label={t`Select rule ${ruleLabel}`}
                       data-testid={`select-rule-${originalIndex}`}
                     />
-                  )}
-                </DataGridCell>
+                  </DataGridCell>
+                )}
                 <DataGridCell>{rule.ID || t`—`}</DataGridCell>
-                <DataGridCell>{rule.Status}</DataGridCell>
-                <DataGridCell className="break-all">{formatFilter(rule.Filter, rule.Prefix)}</DataGridCell>
+                <DataGridCell className="break-all">{rule.AllowedOrigins.join(", ")}</DataGridCell>
+                <DataGridCell>{rule.AllowedMethods.join(", ")}</DataGridCell>
                 <DataGridCell>
-                  {formatExpiration(
-                    rule.Expiration as unknown as { Days?: number; Date?: string; ExpiredObjectDeleteMarker?: boolean }
-                  )}
+                  {rule.AllowedHeaders && rule.AllowedHeaders.length > 0 ? rule.AllowedHeaders.join(", ") : t`—`}
                 </DataGridCell>
-                <DataGridCell>{noncurrentText}</DataGridCell>
-                <DataGridCell>{otherActionsText}</DataGridCell>
+                <DataGridCell>
+                  {rule.ExposeHeaders && rule.ExposeHeaders.length > 0 ? rule.ExposeHeaders.join(", ") : t`—`}
+                </DataGridCell>
+                <DataGridCell>{rule.MaxAgeSeconds !== undefined ? rule.MaxAgeSeconds : t`—`}</DataGridCell>
                 <DataGridCell onClick={(e) => e.stopPropagation()} className="justify-end pr-0">
                   {hasAnyRowAction && (
                     <div className="flex h-full items-center justify-end">
                       <PopupMenu>
                         <PopupMenuOptions>
-                          {canUpdateLifecycle && (
+                          {canUpdateCors && (
                             <PopupMenuItem
-                              label={t`Edit Lifecycle Rule`}
+                              label={t`Edit`}
                               onClick={() => onEditRule(originalIndex)}
                               disabled={effectiveIsMutating}
                             />
                           )}
-                          {canDeleteLifecycle && (
+                          {canDeleteCors && (
                             <PopupMenuItem
-                              label={t`Delete Lifecycle Rule`}
+                              label={t`Delete CORS Rule`}
                               onClick={() => handleOpenDeleteModal(originalIndex, rule.ID)}
                               disabled={effectiveIsMutating}
                             />
@@ -228,8 +192,8 @@ export function LifecycleRulesTable({
         )}
       </DataGrid>
 
-      {/* Delete Lifecycle Rule Modal */}
-      <DeleteLifecycleRuleModal
+      {/* Delete CORS Rule Modal */}
+      <DeleteCorsRuleModal
         isOpen={deleteModalState.isOpen}
         bucketName={bucketName}
         ruleIndex={deleteModalState.ruleIndex}
