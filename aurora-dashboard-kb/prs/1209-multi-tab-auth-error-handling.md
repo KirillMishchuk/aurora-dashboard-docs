@@ -1,119 +1,84 @@
 # PR #1209: fix(aurora): improve multi-tab auth error handling (#1128)
 
-**Автор:** andypf · **Статус:** open (не смержен; создан 26.08.2026)
-**Ветки:** `andypf/fix-multi-tab-auth-error-1128` → `main` · **Файлов:** 17 (+388/-502)
+**Автор:** andypf · **Статус:** open (не смержен; создан 26.08.2026, обновлён 27.08.2026)
+**Ветки:** `andypf/fix-multi-tab-auth-error-1128` → `main` · **Файлов:** 18 (+434/-521)
 **Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1209
 
-> PR открыт и активно ревьюится (CodeRabbit + Copilot уже оставили 7 комментариев на момент анализа, часть — на более раннем коммите `e1374ba5` и с тех пор устарела/исправлена). Этот отчёт документирует PR по состоянию головного коммита `c44278f3`.
+> 2-я версия отчёта. Автор запушил фикс-коммиты в ответ на находки 1-й версии (все они также независимо всплыли в автоматическом ревью Copilot/CodeRabbit на этом же PR). Головной коммит сменился `c44278f3` → `6c2fedef`; база (`main`) не изменилась. Сравнение ниже — именно между этими двумя версиями PR, не PR целиком.
 
-## Что сделано
+## Что изменилось со времени первой версии
 
-Закрывает #1128: если пользователь открывает второй таб с другим доменом/проектом, первый таб продолжает работать со старой session-cookie, которая при следующем запросе больше не соответствует текущему scope на бэкенде. Раньше это приводило к нераспознанной ошибке rescope'а и общему краху UI ("Unable to load content"). PR делает две связанные вещи: на сервере — централизует превращение ошибок OpenStack API в осмысленные tRPC-коды; на клиенте — ловит эти коды в роуте `$projectId` и показывает дружелюбный экран через компонент `Status` из Juno вместо самодельного `StatusError`.
+Все 4 находки уровня ≥80 из 1-й версии отчёта закрыты точечными фикс-коммитами; проверено построчно по факту, не со слов PR-описания (которое осталось нетронутым и всё ещё показывает старый текст "Session Changed" в разделе "User Experience" — устарело).
 
-Заодно PR полностью выпиливает два внутренних куска инфраструктуры, которые раньше решали смежные задачи: `resolveProjectScope` (сверял результат rescope с фактическим проектом) и `StatusError` (кастомный компонент экрана ошибки, замененный на `Status` из `@cloudoperators/juno-ui-components@9.4.0`).
+1. **`sessionRouter.ts` — добавлена проверка на `null`.** Ветки `domain`/`project` в `setCurrentScope` теперь кидают `TRPCError({ code: "NOT_FOUND" })`, если `token?.tokenData.domain`/`token?.tokenData.project` не установлены после rescope:
+   ```ts
+   // packages/aurora/src/server/Authentication/routers/sessionRouter.ts:36-43
+   if (!token?.tokenData.project) {
+     throw new TRPCError({ code: "NOT_FOUND", message: "Failed to rescope to the requested project." })
+   }
+   ```
+   `sessionRouter.test.ts` обновлён в этом же коммите — тест "should handle null session from rescopeSession" теперь проверяет `rejects.toThrow(TRPCError)` вместо прежнего `expect(result).toEqual({project: undefined, ...})`. Закрывает находку №1 (было 95/100).
 
-## Как это реализовано
+2. **`context.ts` — `pendingRescopes` теперь хранит исходный (реджектящийся) промис, а не safe-обёртку.** Вместо `rescopeTokenPromise.catch(() => null).finally(...)`, положенного в карту, теперь:
+   ```ts
+   // packages/aurora/src/server/context.ts:370-393
+   const cleanupPromise = rescopeTokenPromise.finally(() => { /* очистка pendingRescopes/sessionRescopes, без изменений */ })
+   pendingRescopes.set(scopeKey, rescopeTokenPromise)     // ← исходный промис, не .catch(() => null)
+   cleanupPromise.catch(() => {})                          // ← unhandled rejection гасится на ОТДЕЛЬНОМ производном промисе
+   ```
+   Проверено: ветка дедупликации конкурентных запросов (`await cachedTokenPromise`, чуть выше в этой же функции) по-прежнему не оборачивает `await` в try/catch — то есть при ошибке она теперь честно реджектится и пробрасывает `SignalOpenstackApiError` дальше в `openstackErrorMiddleware`, как и вызов-инициатор. Комментарий "Prevent unhandled rejection on the cleanup promise" теперь корректно описывает, что именно он гасит (в 1-й версии комментарий указывал не на тот промис). Закрывает находку №2 (было 90/100).
 
-### Серверная сторона — `openstackErrorMiddleware`
+3. **`$projectId.tsx` — сообщение для `UNAUTHORIZED` переписано, чтобы не подразумевать неверное восстановление.** Вместо «Session Changed... Please select a project from your current domain» (с кнопкой «Go to Projects») теперь:
+   ```tsx
+   // packages/aurora/src/client/routes/_auth/projects/$projectId.tsx:106-119
+   title={t`Session Expired`}
+   body={t`Your session has expired. Please log in again. This may have occurred because you logged out or switched domains in another browser tab.`}
+   action={<Button variant="primary" onClick={() => navigate({ to: "/" })}><Trans>Log In</Trans></Button>}
+   ```
+   Сервер по-прежнему не различает "сессия правда истекла" и "невалидна из-за смены домена в другом табе" (оба случая — 401 → один и тот же `UNAUTHORIZED`), но теперь единственное действие, которое предлагается ("Log In" → `/`), одинаково корректно работает для обоих сценариев — в отличие от прежнего "выберите проект", которое было бесполезно при реально истёкшей сессии. Закрывает находку №3 (было 85/100).
 
-Новое центральное middleware в `packages/aurora/src/server/trpc.ts:15-64`, подключенное ко всем процедурам через `publicProcedure`:
+4. **`trpc.ts` — 400 выделен в отдельную ветку `BAD_REQUEST`, больше не смешивается с 404/`NOT_FOUND`.**
+   ```ts
+   // packages/aurora/src/server/trpc.ts:34-43
+   if (cause.statusCode === 400) {
+     return { ...result, error: new TRPCError({ code: "BAD_REQUEST", message: "The OpenStack request was invalid.", cause }) }
+   }
+   if (cause.statusCode === 404) {
+     return { ...result, error: new TRPCError({ code: "NOT_FOUND", message: "Resource not found or not accessible. This can happen if you switched domains in another tab.", cause }) }
+   }
+   ```
+   Закрывает находку №4 (было 82/100).
 
-```ts
-export const publicProcedure = t.procedure.use(openstackErrorMiddleware)
-```
+**Не тронуто с 1-й версии** (те же файлы, тот же код): `__root.tsx`, `$flavorId.tsx`, `packages/signal-openstack/src/index.ts` — байт в байт совпадают с коммитом `c44278f3`.
 
-поскольку `protectedProcedure`/`projectScopedProcedure`/`domainScopedProcedure` в этом же файле все построены поверх `publicProcedure`, middleware действует **на весь API repo-wide**, а не только на поток rescope. Механика (tRPC v11): `next()` не бросает исключение, а возвращает `{ ok: boolean, error?: TRPCError }`; middleware читает `result.error.cause`, и если это `SignalOpenstackApiError`, подменяет `TRPCError` на статически заданное безопасное сообщение по коду:
+## Что сделано (актуально для v2, без изменений в сути)
 
-```ts
-// packages/aurora/src/server/trpc.ts:23-44
-if (cause instanceof SignalOpenstackApiError) {
-  if (cause.statusCode === 401) { code: "UNAUTHORIZED", message: "Session expired or invalid..." }
-  if (cause.statusCode === 404 || cause.statusCode === 400) { code: "NOT_FOUND", message: "Resource not found or not accessible. This can happen if you switched domains in another tab." }
-  if (cause.statusCode === 403) { code: "FORBIDDEN", message: "Access denied..." }
-  // иначе INTERNAL_SERVER_ERROR, "An unexpected OpenStack error occurred"
-}
-```
-
-Чтобы `cause instanceof SignalOpenstackApiError` вообще работало снаружи пакета `signal-openstack`, PR меняет `packages/signal-openstack/src/index.ts:2,8` — раньше тип экспортировался только как `export type { SignalOpenstackApiError }`, теперь и как значение: `export { SignalOpenstackError, SignalOpenstackApiError } from "./error"`. До этой правки `instanceof`-проверка в новом middleware физически не могла бы скомпилироваться/сработать.
-
-### Серверная сторона — `context.ts`: убран try/catch вокруг rescope
-
-`packages/aurora/src/server/context.ts:326-396` (кэширование rescope-промисов, `pendingRescopes`/`sessionRescopes`) раньше оборачивал вызов `openstackSession.rescope(...)` в try/catch, логировал ошибку и возвращал `null`, чтобы вызывающая сторона (`projectScopedProcedure`/`domainScopedProcedure`) кидала общий `UNAUTHORIZED`. Теперь try/catch снят — ошибка `rescope()` пробрасывается наружу как есть, чтобы её мог поймать и типизировать `openstackErrorMiddleware`. Чтобы не потерять поведение для **конкурентных** запросов (несколько вызовов, дедуплицируемых через `pendingRescopes` по одному и тому же scope-ключу), в карту кладётся не сам промис, а его safe-обёртка:
-
-```ts
-pendingRescopes.set(
-  scopeKey,
-  rescopeTokenPromise
-    .catch(() => null) // чтобы конкурентные читатели получали null, а не unhandled rejection
-    .finally(() => { /* очистка pendingRescopes/sessionRescopes */ })
-)
-// ...
-const newAuthToken = await rescopeTokenPromise   // ⚠️ исходный, необёрнутый промис
-```
-
-Это два разных промиса. Инициирующий запрос ждёт `rescopeTokenPromise` напрямую — он реджектится и долетает до `openstackErrorMiddleware` с полным кодом ошибки. Конкурентные запросы читают из `pendingRescopes` обёрнутую версию, которая при ошибке всегда резолвится в `null` — см. "Ревью" ниже, для них `openstackErrorMiddleware` эту ошибку никогда не увидит.
-
-### Клиентская сторона — `$projectId.tsx`
-
-Раньше (`packages/aurora/src/client/routes/_auth/projects/$projectId.tsx`) loader ловил только `TRPCClientError` с кодом `NOT_FOUND` из `setCurrentScope.mutate(...)`, а после успешного вызова сверял результат через `resolveProjectScope` (сравнение `scopeData.project.id` с `params.projectId` и отдельно зафетченным `project`), кидая `"scope_failed"`/404 при расхождении.
-
-Теперь loader ловит **любой** `TRPCClientError` из `setCurrentScope.mutate(...)`, дополнительно пытается зафетчить `auth.getCurrentScope.query()`, чтобы показать имя текущего домена в сообщении, и возвращает ошибку как **данные** (`scopeError`), а не бросает исключение:
-
-```tsx
-// packages/aurora/src/client/routes/_auth/projects/$projectId.tsx:33-70
-} catch (error) {
-  if (error instanceof TRPCClientError) {
-    let currentDomain
-    try {
-      const currentScope = await context.trpcClient?.auth.getCurrentScope.query()
-      if (currentScope?.domain?.id && currentScope?.domain?.name) currentDomain = { ... }
-    } catch { /* игнорируется */ }
-    scopeError = { type: "scope_error", code: error.data?.code || "UNKNOWN", message: error.message, currentDomain }
-  } else {
-    throw error
-  }
-}
-```
-
-`RouteComponent` рендерит по `scopeError.code` три сценария через `Status` (`UNAUTHORIZED` → «Session Changed», `NOT_FOUND` → «Project Not Accessible», `FORBIDDEN` → «Access Denied»), с fallback на общий `RouteError` для всего остального (в т.ч. буквально для `"UNKNOWN"` — значения по умолчанию, если `error.data?.code` не задан).
-
-### Клиентская сторона — унификация вокруг `Status`
-
-`__root.tsx` (`PageNotFound`), `$projectId.tsx` (`ProjectErrorComponent`, 404-ветка) и `$projectId/compute/flavors/$flavorId.tsx` мигрируют с самодельного `StatusError` (`packages/aurora/src/client/components/Error/StatusError.tsx`, удалён вместе с тестами) на `Status` из Juno — тот же визуальный язык, но через библиотечный компонент вместо форкнутого. Ради `Status` поднят `@cloudoperators/juno-ui-components` 9.3.0 → 9.4.0 (`packages/aurora/package.json:86`, `pnpm-lock.yaml`). Добавленные строки локализованы (`en`/`de` `messages.po`/`.ts`) — механическая правка, замечаний нет.
+Закрывает #1128: если пользователь открывает второй таб с другим доменом/проектом, первый таб продолжает работать со старой session-cookie, которая при следующем запросе больше не соответствует текущему scope на бэкенде. PR централизует превращение ошибок OpenStack API в осмысленные tRPC-коды на сервере (`openstackErrorMiddleware` в `trpc.ts`, действует на `publicProcedure` и, транзитивно, на весь API) и показывает дружелюбный экран через `Status` из Juno на клиенте (`$projectId.tsx`) вместо краха. Заодно удаляет `resolveProjectScope.ts` (сверял результат rescope с фактическим проектом) и `StatusError.tsx` (кастомный компонент экрана ошибки, заменён на `Status` из `@cloudoperators/juno-ui-components@9.4.0`).
 
 ## Что затронуло
 
-**`openstackErrorMiddleware` — самое широкое изменение в PR.** Он навешан на `publicProcedure`, то есть действует на *весь* API поверхности (`Authentication`, `Compute`, `Network`, `Project`, `Services`, `Storage`), а не только на поток rescope из #1128 — любая необработанная `SignalOpenstackApiError` из любой процедуры теперь получает эти четыре сообщения. Проверено, что это не приводит к двойной обработке ошибок изображений/Swift: `imageHelpers.ts`/`swiftHelpers.ts`'s собственные `mapErrorResponseToTRPCError` (уже маппят 400/403/404/409/413/415 в свои специфичные `TRPCError` с точными сообщениями) **не** проставляют `cause` при конструировании `TRPCError`, так что `cause instanceof SignalOpenstackApiError` для них ложно — middleware их не перезаписывает. Но любой другой роутер, который раньше отдавал `SignalOpenstackApiError` наружу необработанной (а таких в кодовой базе, судя по `git grep`, немало за пределами Compute/Storage), теперь молча получает 400→404-ремаппинг миддлвари — см. находку №4 в "Ревью".
-
-**`SignalOpenstackApiError` теперь экспортируется как значение, не только тип.** Проверено `git grep` по всему репозиторию на головном коммите: единственное место, где `instanceof SignalOpenstackApiError` используется через публичный импорт пакета — новый `trpc.ts`. Остальные потребители (`imageHelpers.ts`, `imageRouter.ts`, `swiftHelpers.ts`) используют его только как тип аннотации, так что смена типа экспорта на value-экспорт им ничем не грозит.
-
-**`resolveProjectScope`/`StatusError` — удалены без остатка.** `git grep` по головному коммиту не находит ни одной ссылки ни на то, ни на другое имя — устаревших потребителей не осталось. Но `resolveProjectScope` не был случайным легаси: он был добавлен целенаправленно в PR #1035 ("improve project not found error handling") и доработан в PR #1061 ("avoid fetching all projects on project detail page") — то есть решал реальные прошлые баги. Его удаление без прямой замены разбирается в "Ревью" (находка №1).
+Актуально по-прежнему: `openstackErrorMiddleware` действует на весь API repo-wide через `publicProcedure`, а не только на поток rescope. Подтверждено (см. v1 отчёта), что это не приводит к двойной обработке ошибок в `imageHelpers.ts`/`swiftHelpers.ts` — их `mapErrorResponseToTRPCError` не проставляет `cause`, так что `cause instanceof SignalOpenstackApiError` для них ложно. `SignalOpenstackApiError`-value-экспорт и удаление `resolveProjectScope`/`StatusError` — без изменений, детали см. в v1 (сохранён в истории файла).
 
 ## Ревью
 
-**Найдено (confidence ≥ 80):**
+**Найдено в 1-й версии (confidence ≥ 80) — все 4 закрыты в этой версии:**
 
-1. **`sessionRouter.ts:41` `setCurrentScope` — нет проверки на `null`; вместе с удалением `resolveProjectScope` неудачный rescope молча репортится как успех.** (confidence 95)
-   Все три ветки (`domain`/`project`/`unscoped`) в `setCurrentScope` делают `const session = await ctx.rescopeSession(...)` и сразу используют `session?.getToken()` через опциональную цепочку — нет `if (!session) throw`. `rescopeSession` **может** резолвиться в `null` без исключения (не залогиненный пользователь, а с находкой №2 ниже — ещё и конкурентный запрос с проваленным rescope). Раньше это ловилось за счёт `resolveProjectScope`, сравнивавшего `scopeData.project.id` с запрошенным `projectId` уже *после* успешного (не кинувшего исключение) `mutate()`; теперь эта проверка удалена без замены. Итог: `setCurrentScope.mutate(...)` в loader'е `$projectId.tsx` резолвится успешно с `{project: undefined, domain: undefined}`, `scopeError` не выставляется, и роут рендерится дальше как обычно — тот самый "friendly error UI", который PR добавляет, в этом случае не покажется вообще, хотя scope фактически не установлен. Подтверждено независимо: тот же вывод сделал автоматический ревью Copilot на этом PR на этой же строке (комментарий от 27.08, на головном коммите `c44278f3`).
-   Файл: `packages/aurora/src/server/Authentication/routers/sessionRouter.ts:28-52`.
+1. ~~`sessionRouter.ts:41` — нет проверки на `null`, неудачный rescope молча репортится как успех~~ (было 95/100) — **закрыто**, см. "Что изменилось" п.1.
+2. ~~`context.ts` — конкурентные запросы теряют статус ошибки rescope~~ (было 90/100) — **закрыто**, см. п.2.
+3. ~~`$projectId.tsx` — `UNAUTHORIZED` всегда показывает нарратив про смену домена, даже при реальном истечении сессии~~ (было 85/100) — **закрыто**, см. п.3.
+4. ~~`trpc.ts` — 400 бланково маппится в `NOT_FOUND`~~ (было 82/100) — **закрыто**, см. п.4.
 
-2. **`context.ts:373-390` — конкурентные (дедуплицированные) запросы теряют статус ошибки rescope: `openstackErrorMiddleware` их не видит.** (confidence 90)
-   Как описано в "Как это реализовано", в `pendingRescopes` кладётся `rescopeTokenPromise.catch(() => null).finally(...)` — промис, который **никогда не реджектится**. Инициирующий запрос ждёт исходный `rescopeTokenPromise` и корректно долетает до middleware с `SignalOpenstackApiError` в `cause`. Но конкурентный запрос (другой таб/запрос с тем же scope-ключом, попавший в ветку дедупликации раньше в этой же функции) дожидается именно обёрнутой версии из карты — при ошибке получает голый `null`, что приводит к generic `throw new TRPCError({ code: "UNAUTHORIZED", message: "Failed to scope session..." })` двумя строками ниже в `trpc.ts` (`projectScopedProcedure`/`domainScopedProcedure`), а не к точной 401/403/404-специфичной ошибке из middleware. Учитывая, что PR называется "multi-tab auth error handling" — это ровно тот сценарий с несколькими конкурентными запросами, который он должен покрывать. Подтверждено независимо тем же выводом в комментарии Copilot на этом PR (`context.ts:377`, головной коммит).
-   Файлы: `packages/aurora/src/server/context.ts:355-396`, `packages/aurora/src/server/trpc.ts:151-165, 263-277`.
+**Новое в этой версии (confidence ≥ 80): не найдено.**
 
-3. **`$projectId.tsx` — ветка `UNAUTHORIZED` всегда показывает нарратив "сессия сменилась из-за другого таба", даже если сессия истекла по-настоящему.** (confidence 85)
-   `openstackErrorMiddleware` мапит **любой** 401 от OpenStack (и просроченный/невалидный токен, и токен, ставший невалидным из-за смены scope в другом табе) в один и тот же код `UNAUTHORIZED` со статическим сообщением "Session expired or invalid. Please log in again." Клиент же, поймав `code === "UNAUTHORIZED"`, безусловно рендерит «Session Changed» / «Your session context has changed, possibly because you switched domains in another browser tab... Please select a project from your current domain to continue» — с кнопкой «Go to Projects», а не предложением перелогиниться. Для пользователя с реально истёкшей сессией (сервер восстановить которую не может в принципе) это вводящая в заблуждение инструкция — выбор проекта её не починит, нужен повторный логин. Сервер и клиент вместе не различают эти два принципиально разных случая, хотя оба возможны под одним и тем же кодом ошибки.
-   Файлы: `packages/aurora/src/server/trpc.ts:27-33` (маппинг 401), `packages/aurora/src/client/routes/_auth/projects/$projectId.tsx:111-127` (безусловный рендер "Session Changed" для любого `UNAUTHORIZED`).
+**Также замечено (confidence 50-79, ниже порога включения):**
+- **[65]** `sessionRouter.ts` case `"unscoped"` (строки 76-81) остаётся без проверки результата: `await ctx.rescopeSession({})` вызывается, но возвращаемое значение никуда не сохраняется и не проверяется — мутация безусловно возвращает `{project: null, domain: null}` независимо от того, удался rescope или нет. Та же категория проблемы, что и закрытая находка №1, но для ветки `unscoped`. Confidence снижен относительно найденного ранее для `domain`/`project`, потому что `git grep` по головному коммиту не находит ни одного клиентского вызова `setCurrentScope` с `type: "unscoped"` — путь существует в роутере, но сейчас не достижим ни из одного известного UI-сценария, так что реального пользовательского impact на сегодня нет.
+- **[70]** Copilot-комментарий на `$projectId.tsx:63` про параллельное выполнение loader'ов дочерних роутов в TanStack Router (friendly-экран родителя не останавливает дочерние scoped-запросы) — без изменений с 1-й версии, не адресовано в этом обновлении.
+- **[55]** Отсутствие кнопки "Back" в `PageNotFound` (`__root.tsx`) и 404-ветке `ProjectErrorComponent` (`$projectId.tsx`) при миграции на `Status`, при том что `$flavorId.tsx` в том же PR кнопку сохранил — без изменений с 1-й версии, не адресовано.
+- **[15, отклонено]** Комментарий CodeRabbit на `trpc.ts:71` (текущий головной коммит `6c2fedef`), повторяющий claim из 1-й версии про "raw cause.message reaches the UI" — перепроверено против актуального кода: fallback-ветка `INTERNAL_SERVER_ERROR` (`trpc.ts:64-71`) по-прежнему использует статическую строку `"An unexpected OpenStack error occurred"`, `cause.message` нигде не используется как значение `message`. Похоже, это залипший/неточный шаблонный комментарий бота, не привязанный к фактическому содержимому строки — тот же вывод, что и в 1-й версии.
 
-4. **`trpc.ts:33` — статус 400 от OpenStack бланково маппится в `NOT_FOUND` для *всех* процедур репозитория, не только для потока rescope.** (confidence 82)
-   `if (cause.statusCode === 404 || cause.statusCode === 400) { code: "NOT_FOUND", message: "...This can happen if you switched domains in another tab." }` — сообщение сформулировано специально под сценарий #1128, но применяется middleware'ом ко всем `publicProcedure`-процедурам без разбора. 400 от OpenStack в общем случае означает невалидный payload (например, при создании/обновлении ресурса), а не "не найдено" — для любой такой процедуры, не имеющей собственного явного перехвата `SignalOpenstackApiError` (что подтверждено верно для Compute-image/Swift, но не проверялось для всей остальной поверхности API), пользователь теперь увидит вводящее в заблуждение "not found... possibly switched domains" вместо ошибки валидации. Подтверждено независимо тем же выводом в комментарии Copilot на этом PR (`trpc.ts:43`, головной коммит).
-   Файл: `packages/aurora/src/server/trpc.ts:33-41`.
+## Что сделано хорошо
 
-**Проверено и отклонено как false positive:** комментарий CodeRabbit на этом PR (`trpc.ts:61`, "raw OpenStack error text reaches the UI... middleware fallback copies the upstream cause.message into the client-visible TRPCError") не подтверждается кодом на головном коммите — все четыре ветки `openstackErrorMiddleware` используют статически заданные безопасные сообщения (например, `"An unexpected OpenStack error occurred"` для fallback-ветки, `trpc.ts:60`), нигде не подставляя `cause.message`. Кастомного `errorFormatter` в `initTRPC.create()` нет, так что `TRPCError.cause` в принципе не сериализуется клиенту напрямую (см. прецедент в отчёте по PR #1073, где эта же тема разбиралась для `s3ErrorMapper.ts` — там утечка была реальной именно потому, что raw-текст попадал в `.message`, а не в `.cause`; здесь такого нет).
-
-**Также замечено (confidence 50-79, не набрало полной уверенности):**
-- **[70]** Copilot-комментарий на `$projectId.tsx:63` указывает, что TanStack Router выполняет loader'ы дочерних роутов параллельно с родительским, а не последовательно — то есть возврат `scopeError` как данных (вместо throw) в `$projectId.tsx` не останавливает дочерние scoped-запросы (например, во вложенных роутах `compute`/`network`/`storage`), которые могут упасть сами и показать грубый error boundary поверх дружелюбного экрана. Правдоподобно и согласуется с общей архитектурой TanStack Router, но не проверено пошагово по фактическому дереву роутов в рамках этого разбора.
-- **[55]** `PageNotFound` (`__root.tsx`) и 404-ветка `ProjectErrorComponent` (`$projectId.tsx`) при миграции со `StatusError` на `Status` потеряли кнопку "Back" (`router.history.back()`, вместе с неиспользуемым теперь импортом `useRouter`) — остался только "Go to Home"/"Go to Projects". При этом соседняя миграция в `$flavorId.tsx` в том же PR кнопку "Back" сохранила — несогласованность наводит на мысль, что это недосмотр, а не осознанное решение. Небольшая, легко обратимая UX-регрессия.
+Все 4 находки были устранены точечными, минимальными коммитами (не переписыванием заново), с обновлением сопутствующего теста там, где было нужно (`sessionRouter.test.ts`). Комментарий в `context.ts` про "Prevent unhandled rejection" при этом стал более точным, а не просто был удалён — фикс не просто убрал внешние симптомы, а действительно исправил семантику двух разных промисов.
 
 ---
-Проанализировано: 27.08.2026 · коммит `c44278f3`
+Проанализировано: 27.08.2026 (v1: коммит `c44278f3`, v2: коммит `6c2fedef`)
