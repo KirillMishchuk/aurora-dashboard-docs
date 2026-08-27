@@ -1,6 +1,6 @@
 # Plan: Epic #608 Section 15 — Permission gating for Ceph/S3 Object Storage
 
-**Date:** 2026-08-21 · **Revised:** 2026-08-24 (step-by-step review with user) · **Status:** not implemented
+**Date:** 2026-08-21 · **Revised:** 2026-08-24 (step-by-step review with user) · **Status:** implemented 2026-08-24 (security review clean, no findings)
 
 > This plan was walked through step-by-step with the user after the initial draft. Several
 > proposed mechanisms were rejected or trimmed during review — see **Decisions Made** at the
@@ -120,17 +120,19 @@ in the file's current style. Every entry uses `engine: "storage"`.
 | `storage:objects:share` | `storage:object_share` |
 | `storage:object_versions:delete` | `storage:object_version_delete` |
 | `storage:object_versions:restore` | `storage:object_version_restore` |
-| `storage:containers:update_versioning` | `storage:container_update_versioning` |
-| `storage:bucket_policies:update` | `storage:bucket_policy_update` |
-| `storage:bucket_policies:delete` | `storage:bucket_policy_delete` |
-| `storage:cors_rules:update` | `storage:cors_update` |
-| `storage:cors_rules:delete` | `storage:cors_delete` |
-| `storage:lifecycle_rules:update` | `storage:lifecycle_update` |
-| `storage:lifecycle_rules:delete` | `storage:lifecycle_delete` |
+| `storage:containers:update_versioning` | `storage:container_versioning_update` |
+| `storage:container_policies:update` | `storage:container_policy_update` |
+| `storage:container_policies:delete` | `storage:container_policy_delete` |
+| `storage:container_cors_rules:update` | `storage:container_cors_update` |
+| `storage:container_cors_rules:delete` | `storage:container_cors_delete` |
+| `storage:container_lifecycle_rules:update` | `storage:container_lifecycle_update` |
+| `storage:container_lifecycle_rules:delete` | `storage:container_lifecycle_delete` |
 | `storage:s3_credentials:create` | `storage:s3_credential_create` |
 
 Naming rationale to put in the file header comment: resources stay plural snake_case and
-backend-agnostic (`bucket_policies`, not `s3_bucket_policies`); the bucket-level versioning
+backend-agnostic (`container_policies`, not `bucket_policies`/`s3_bucket_policies` — "container"
+is used everywhere, matching the Swift-derived `containers` resource, never "bucket"); the
+bucket-level versioning
 *toggle* has no Swift analogue and stays on the `containers` resource with a compound action
 (`update_versioning`), mirroring the existing `update_acls`. Also add a short note that these
 checks are UX-only and Ceph independently enforces via EC2 credentials + bucket policy, and that
@@ -138,8 +140,9 @@ checks are UX-only and Ceph independently enforces via EC2 credentials + bucket 
 `useSecurityGroupPermissions`, whose `canView` is fetched but never consumed for hiding).
 
 ⚠️ `storage:s3_credentials:delete` and every *read*-flavored variant of these 11 keys
-(`object_versions:list`, `containers:read_versioning`, `bucket_policies:read`, `cors_rules:read`,
-`lifecycle_rules:read`, `s3_credentials:list`) were considered and deliberately **not** added —
+(`object_versions:list`, `containers:read_versioning`, `container_policies:read`,
+`container_cors_rules:read`, `container_lifecycle_rules:read`, `s3_credentials:list`) were
+considered and deliberately **not** added —
 see Decisions Made §2 and §4.
 
 **Expected outcome:** `trpc.storage.canUser` accepts all 11 new keys; unknown keys still
@@ -160,9 +163,9 @@ existing roles. Keep the file's flat alphabetical-ish grouping style (append aft
 
 - `rule:storage_viewer` → `storage:object_share`, `storage:s3_credential_create`
 - `rule:storage_admin` → `storage:object_version_delete`, `storage:object_version_restore`,
-  `storage:container_update_versioning`, `storage:bucket_policy_update`,
-  `storage:bucket_policy_delete`, `storage:cors_update`, `storage:cors_delete`,
-  `storage:lifecycle_update`, `storage:lifecycle_delete`
+  `storage:container_versioning_update`, `storage:container_policy_update`,
+  `storage:container_policy_delete`, `storage:container_cors_update`, `storage:container_cors_delete`,
+  `storage:container_lifecycle_update`, `storage:container_lifecycle_delete`
 
 Do **not** add a `_default` rule (it would silently change behavior for every unknown rule across
 the file).
@@ -172,30 +175,14 @@ the file).
 
 ---
 
-### Step 3: Add server tests for the Storage permission router
+### Step 3: ~~Add server tests for the Storage permission router~~ (removed 2026-08-25)
 
-**Files to create:**
-- `packages/aurora/src/server/Storage/routers/permissionRouter.test.ts`
-
-**What to do:**
-
-1. Model it on `packages/aurora/src/server/Compute/routers/permissionRouter.test.ts` (mock
-   `@/server/policies/policyEngineLoader`, `createCallerFactory(router(buildStoragePermissionRouter("/mock/policies")))`,
-   mock context with `rescopeSession`/`openstack.getToken`). Cover: unknown key → `BAD_REQUEST`;
-   each of the 11 new keys resolves without throwing; array input returns `boolean[]` of matching
-   length; empty array → `[]`.
-2. **Add a real-file guard test** (the highest-value one): import `createPolicyEngineFromFile`
-   from `@cobaltcore-dev/policy-engine`, load `apps/dashboard/src/policies/storage.json` by path
-   from the test, and assert for every entry of the exported mappings that
-   `engine.getRuleMetadata(rule) !== null`. This requires exporting `STORAGE_MAPPINGS` from
-   `permissionRouter.ts` (add `export` to the const — safe, additive).
-
-⚠️ Resolve the JSON path relative to the test file
-(`path.resolve(__dirname, "../../../../../../apps/dashboard/src/policies/storage.json")`) and
-assert the file exists first, so the test fails loudly rather than silently passing if the layout
-moves.
-
-**Verification:** `pnpm --filter @cobaltcore-dev/aurora test src/server/Storage/routers/permissionRouter.test.ts`
+This step originally added `packages/aurora/src/server/Storage/routers/permissionRouter.test.ts`
+(key-acceptance tests plus a real-file guard test resolving every `STORAGE_MAPPINGS` entry against
+`storage.json`) and exported `STORAGE_MAPPINGS` from `permissionRouter.ts` to make that guard test
+possible. Removed at the user's explicit request post-implementation — see Decisions Made §9. The
+`export` on `STORAGE_MAPPINGS` was reverted to a plain `const` at the same time, since the test was
+its only consumer.
 
 ---
 
@@ -203,7 +190,7 @@ moves.
 
 **Files to create:**
 - `packages/aurora/src/client/routes/_auth/projects/$projectId/storage/-components/Ceph/hooks/useCephPermissions.ts`
-- `.../Ceph/hooks/useCephPermissions.test.ts`
+- ~~`.../Ceph/hooks/useCephPermissions.test.ts`~~ (removed 2026-08-25, see Decisions Made §9)
 
 **What to do:**
 
@@ -223,9 +210,9 @@ moves.
    `canShareObject` (`storage:objects:share`), `canCreateFolder` (`storage:folders:create`),
    `canDeleteFolder` (`storage:folders:delete`), `canDeleteVersion`
    (`storage:object_versions:delete`), `canRestoreVersion` (`storage:object_versions:restore`),
-   `canUpdatePolicy` (`storage:bucket_policies:update`), `canDeletePolicy` (`…:delete`),
-   `canUpdateCors` (`storage:cors_rules:update`), `canDeleteCors` (`…:delete`),
-   `canUpdateLifecycle` (`storage:lifecycle_rules:update`), `canDeleteLifecycle` (`…:delete`),
+   `canUpdatePolicy` (`storage:container_policies:update`), `canDeletePolicy` (`…:delete`),
+   `canUpdateCors` (`storage:container_cors_rules:update`), `canDeleteCors` (`…:delete`),
+   `canUpdateLifecycle` (`storage:container_lifecycle_rules:update`), `canDeleteLifecycle` (`…:delete`),
    `canCreateCredential` (`storage:s3_credentials:create`).
 
    No read/list/view/download field exists on this interface — those actions are never gated, so
@@ -233,9 +220,10 @@ moves.
 3. `useProjectId()` throws outside a project route, so call it inside the hook exactly like
    `useSecurityGroupPermissions(projectId)`'s callers do — take `projectId` as an argument, don't
    call `useProjectId` in the hook, to keep it testable.
-4. Test: mock `@/client/trpcClient`, assert (a) all-false defaults when `data` is `undefined`,
+4. ~~Test: mock `@/client/trpcClient`, assert (a) all-false defaults when `data` is `undefined`,
    (b) `select` maps positionally to the right names using a distinguishable pattern (e.g. only
-   index 3 true), (c) query disabled when `projectId` is empty.
+   index 3 true), (c) query disabled when `projectId` is empty.~~ (removed 2026-08-25, see
+   Decisions Made §9)
 
 **Expected outcome:** One cached permission query serves every Ceph screen, covering mutations
 only.
@@ -322,9 +310,9 @@ this plan — those stay always-visible/always-enabled, consistent with reads ne
 ### Step 8: Gate the Lifecycle Rules tab
 
 **Files to modify:**
-- `.../Ceph/Buckets/LifecycleRulesTab.tsx` (+ new colocated test if none exists — there is
-  currently no `LifecycleRulesTab.test.tsx`)
-- `.../Ceph/Buckets/LifecycleRulesTable.tsx` (+ new test)
+- `.../Ceph/Buckets/LifecycleRulesTab.tsx` (~~+ new colocated test~~ — a `LifecycleRulesTab.test.tsx`
+  was created and then deleted at the user's explicit request, 2026-08-25; see Decisions Made §9)
+- `.../Ceph/Buckets/LifecycleRulesTable.tsx` (~~+ new test~~ — same for `LifecycleRulesTable.test.tsx`)
 
 **What to do:** Identical shape to Step 7 with `canUpdateLifecycle` / `canDeleteLifecycle` (no
 read gate, tab always renders). ⚠️ Preserve the existing `mutationsBlocked`
@@ -387,7 +375,11 @@ mutationsBlocked` plus a permission-based hide of the surrounding control.
 5. Tests: both files already have large suites that construct props — add the new required props
    to their fixture builders (one place each) plus 2-3 focused cases (viewer sees only
    Download/View Versions on a normal row; `canShareObject: false` hides `share-url-action-*`;
-   `canDeleteObject: false` hides delete but keeps download).
+   `canDeleteObject: false` hides delete but keeps download). ⚠️ For
+   `ObjectVersionHistoryModal.test.tsx`, the required-prop fixture update (`defaultProps.canRestoreVersion`
+   / `canDeleteVersion`) must stay — the component won't typecheck without it — but its dedicated
+   `describe("Permission gating")` block (4 tests) was removed at the user's request, 2026-08-26;
+   see Decisions Made §9.
 
 ---
 
@@ -435,15 +427,16 @@ an allow-listed scope in `commitlint.config.mjs`).
 
 **Unit tests (server):**
 
-- [ ] `buildStoragePermissionRouter`: each of the 11 new keys accepted; unknown key ⇒
-      `BAD_REQUEST`; `boolean[]` shape and length; empty array ⇒ `[]`
-- [ ] Guard test: every mapping in `STORAGE_MAPPINGS` resolves against the real
-      `apps/dashboard/src/policies/storage.json`
+- [x] ~~`buildStoragePermissionRouter`: each of the 11 new keys accepted; unknown key ⇒
+      `BAD_REQUEST`; `boolean[]` shape and length; empty array ⇒ `[]`~~ (removed 2026-08-25,
+      see Step 3 / Decisions Made §9)
+- [x] ~~Guard test: every mapping in `STORAGE_MAPPINGS` resolves against the real
+      `apps/dashboard/src/policies/storage.json`~~ (removed 2026-08-25, see Step 3 / Decisions Made §9)
 
 **Unit tests (client):**
 
-- [ ] `useCephPermissions`: all-false default while loading/errored; positional `select` mapping
-      correctness; query disabled without `projectId`
+- [x] ~~`useCephPermissions`: all-false default while loading/errored; positional `select` mapping
+      correctness; query disabled without `projectId`~~ (removed 2026-08-25, see Decisions Made §9)
 - [ ] Per component (mock `useCephPermissions`): admin sees every action; viewer sees only reads
       plus whatever mutations their role grants; no empty `PopupMenu` ever renders where every item
       in it is gated (assert the toggle itself is absent, not just the items)
@@ -515,7 +508,8 @@ later and wondering why it doesn't match a first-draft instinct:
    change things, not who can see things (Keystone project membership already gates access to the
    page at all). This dropped 7 of the original 18 keys entirely
    (`storage:object_versions:list`, `storage:containers:read_versioning`,
-   `storage:bucket_policies:read`, `storage:cors_rules:read`, `storage:lifecycle_rules:read`,
+   `storage:container_policies:read`, `storage:container_cors_rules:read`,
+   `storage:container_lifecycle_rules:read`,
    `storage:s3_credentials:list`) and removed all "hide tab / show insufficient-permissions
    message on read-denial" logic from Steps 6-8 and 10 of the original draft, including the
    `?view=cors-rules` deep-link mitigation (no longer applicable — there's nothing to bypass).
@@ -541,3 +535,39 @@ later and wondering why it doesn't match a first-draft instinct:
    actions this plan doesn't gate.
 8. KB (`../DOCS/aurora-dashboard-kb/`) was pinned at `35095b4` as of the original draft date; its
    permissions section will need an `update-kb` pass after this lands, same as noted originally.
+9. **Both new test files removed post-implementation (2026-08-25), at the user's explicit
+   request, after the plan had already been implemented and reviewed clean:**
+   - `packages/aurora/src/server/Storage/routers/permissionRouter.test.ts` (Step 3) — including
+     its highest-value real-file guard test, which resolved every `STORAGE_MAPPINGS` entry against
+     the real `storage.json`. The `export` added to `STORAGE_MAPPINGS` solely to make that guard
+     test possible was reverted to a plain `const` in the same pass, since nothing else in the
+     codebase consumed the export.
+   - `.../Ceph/hooks/useCephPermissions.test.ts` (Step 4, item 4) — the hook's own unit tests
+     (all-false default, positional `select` mapping, `enabled: Boolean(projectId)`).
+   - `.../Ceph/Buckets/LifecycleRulesTab.test.tsx` and `LifecycleRulesTable.test.tsx` (Step 8) —
+     unlike the two files above, these covered more than just permission gating: loading spinner,
+     error state, empty state, opening the add-rule modal, rendering multiple rules, table
+     headers, row action-menu rendering, and `isMutating` behavior, in addition to their
+     `describe("Permission gating")` blocks. Neither file existed before this plan created them
+     (confirmed via `git log` — no history, `??` in `git status`); deleting them leaves
+     `LifecycleRulesTab`/`LifecycleRulesTable` with **zero** automated test coverage of any kind,
+     unlike `CorsRulesTab`/`CorsRulesTable`, whose pre-existing test files were only extended (and
+     therefore retain their non-permission coverage).
+   - `.../Ceph/Objects/ObjectVersionHistoryModal.test.tsx`'s `describe("Permission gating")` block
+     (Step 10, item 5) — removed 2026-08-26, at the user's request, but narrower than the three
+     items above: this file **already existed** before this plan and the diff was purely additive
+     (+37 lines, 0 deletions), so only the 4 new tests were removed. The `canRestoreVersion: true,
+     canDeleteVersion: true` added to `defaultProps` in the same original diff were **kept** —
+     `ObjectVersionHistoryModal.tsx`'s props interface requires both as non-optional booleans, so
+     removing them from the shared fixture would break every pre-existing test in the file at
+     typecheck time, not just the permission-specific ones.
+
+   Net effect: neither the server-side mapping-to-policy-file wiring nor the client-side hook's
+   query/mapping logic has dedicated automated coverage anymore, the Lifecycle Rules tab has no
+   test coverage at all, and the version-history modal's permission gating is untested (though its
+   pre-existing non-permission tests are intact). These classes of regression (a `storage.json`
+   rule renamed without updating `permissionRouter.ts` or vice versa; a broken positional `select`
+   mapping silently shifting which boolean means what; a Lifecycle Rules UI regression of any kind;
+   Restore/Delete showing for a version-history row that shouldn't have it) are now only caught by
+   manual review or transitively by the ~40 Ceph component test files that mock
+   `useCephPermissions` and therefore never exercise its real implementation.
