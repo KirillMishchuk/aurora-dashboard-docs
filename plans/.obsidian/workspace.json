@@ -185,6 +185,7 @@
   },
   "active": "2f24445bdd85e7d5",
   "lastOpenFiles": [
+    "2026-08-28-pr-1207-review-feedback-fixes.md",
     "2026-08-26-ceph-permissions-review-fixes.md",
     "2026-08-21-ceph-s3-permissions-gating.md",
     "prd-bucket-tagging.md",
@@ -210,7 +211,6 @@
     "2026-07-23-ceph-lifecycle-policies-endpoint.md",
     "2026-07-27-ceph-bulk-object-delete.md",
     "2026-07-25-cors-manual-testing-scenarios.md",
-    "2026-07-25-cors-configuration-testing-plan.md",
-    "2026-07-23-security-groups-list-pagination.md"
+    "2026-07-25-cors-configuration-testing-plan.md"
   ]
 }
