@@ -1,0 +1,334 @@
+import { useEffect, useState } from "react"
+import { useNavigate, useParams } from "@tanstack/react-router"
+import {
+  Checkbox,
+  DataGrid,
+  DataGridHeadCell,
+  DataGridRow,
+  DataGridCell,
+  PopupMenu,
+  PopupMenuItem,
+  PopupMenuOptions,
+} from "@cloudoperators/juno-ui-components"
+import { Trans, useLingui } from "@lingui/react/macro"
+import { ContainerSummary } from "@/server/Storage/types/swift"
+import { formatBytesBinary } from "@/client/utils/formatBytes"
+import { useVirtualizedTableBody } from "@/client/hooks/useVirtualizedTableBody"
+import { CreateContainerModal } from "./CreateContainerModal"
+import { EmptyContainerModal } from "./EmptyContainerModal"
+import { DeleteContainerModal } from "./DeleteContainerModal"
+import { EditContainerMetadataModal } from "./EditContainerMetadataModal"
+import { ManageContainerAccessModal } from "./ManageContainerAccessModal"
+
+interface ContainerTableViewProps {
+  containers: ContainerSummary[]
+  createModalOpen: boolean
+  setCreateModalOpen: (open: boolean) => void
+  maxContainerNameLength?: number
+  onCreateSuccess: (containerName: string) => void
+  onCreateError: (containerName: string, errorMessage: string) => void
+  onEmptySuccess: (containerName: string, deletedCount: number) => void
+  onEmptyError: (containerName: string, errorMessage: string) => void
+  onDeleteSuccess: (containerName: string) => void
+  onDeleteError: (containerName: string, errorMessage: string) => void
+  onPropertiesSuccess: (containerName: string) => void
+  onPropertiesError: (containerName: string, errorMessage: string) => void
+  onAclSuccess: (containerName: string) => void
+  onAclError: (containerName: string, errorMessage: string) => void
+  selectedContainers: string[]
+  setSelectedContainers: (containers: string[]) => void
+  // When false, the row-selection column (header checkbox + per-row checkboxes)
+  // is dropped entirely and the grid renders one fewer column. Defaults to true
+  // so existing callers that don't pass it keep the selectable layout.
+  hasAnyBulkAction?: boolean
+}
+
+export const ContainerTableView = ({
+  containers,
+  createModalOpen,
+  setCreateModalOpen,
+  maxContainerNameLength,
+  onCreateSuccess,
+  onCreateError,
+  onEmptySuccess,
+  onEmptyError,
+  onDeleteSuccess,
+  onDeleteError,
+  onPropertiesSuccess,
+  onPropertiesError,
+  onAclSuccess,
+  onAclError,
+  selectedContainers,
+  setSelectedContainers,
+  hasAnyBulkAction = true,
+}: ContainerTableViewProps) => {
+  const { projectId, provider, storageType } = useParams({
+    from: "/_auth/projects/$projectId/storage/$provider/$storageType/",
+  })
+
+  const { t } = useLingui()
+  const navigate = useNavigate()
+
+  const [scrollbarWidth, setScrollbarWidth] = useState(0)
+  const [emptyModalContainer, setEmptyModalContainer] = useState<ContainerSummary | null>(null)
+  const [deleteModalContainer, setDeleteModalContainer] = useState<ContainerSummary | null>(null)
+  const [propertiesModalContainer, setPropertiesModalContainer] = useState<ContainerSummary | null>(null)
+  const [accessControlModalContainer, setAccessControlModalContainer] = useState<ContainerSummary | null>(null)
+
+  // Height measured from the space actually left below the table, plus a
+  // virtualizer that stays silent until that height is known.
+  const {
+    ref: tableBodyRef,
+    elementRef: parentRef,
+    height: bodyHeight,
+    virtualItems,
+    totalSize,
+    measureElement,
+  } = useVirtualizedTableBody({ count: containers.length })
+
+  // Calculate scrollbar width
+  useEffect(() => {
+    if (parentRef.current) {
+      const width = parentRef.current.offsetWidth - parentRef.current.clientWidth
+      setScrollbarWidth(width)
+    }
+  }, [containers.length, bodyHeight])
+
+  // Format date to localized string
+  const formatDate = (dateString: string): string => {
+    try {
+      const date = new Date(dateString)
+      return date.toLocaleString()
+    } catch {
+      return t`N/A`
+    }
+  }
+
+  const handleSelectContainer = (containerName: string) => {
+    if (selectedContainers.includes(containerName)) {
+      setSelectedContainers(selectedContainers.filter((name) => name !== containerName))
+    } else {
+      setSelectedContainers([...selectedContainers, containerName])
+    }
+  }
+  if (!containers || containers.length === 0) {
+    return (
+      <>
+        <DataGrid columns={4} className="containers" data-testid="no-containers">
+          <DataGridRow>
+            <DataGridCell colSpan={4}>
+              <div className="py-8 text-center">
+                <h3 className="text-lg font-semibold">
+                  <Trans>No containers found</Trans>
+                </h3>
+                <p className="text-theme-light mt-2">
+                  <Trans>
+                    There are no containers available with the current search criteria. Try adjusting your search term.
+                  </Trans>
+                </p>
+              </div>
+            </DataGridCell>
+          </DataGridRow>
+        </DataGrid>
+
+        <CreateContainerModal
+          isOpen={createModalOpen}
+          onClose={() => setCreateModalOpen(false)}
+          onSuccess={onCreateSuccess}
+          onError={onCreateError}
+          maxContainerNameLength={maxContainerNameLength}
+        />
+      </>
+    )
+  }
+
+  // Column count and template depend on whether the selection column is shown.
+  // With selection: checkbox, name, count, last modified, size, actions menu (6).
+  // Without selection: the leading 40px checkbox column is dropped (5).
+  const columnCount = hasAnyBulkAction ? 6 : 5
+  const gridColumnTemplate = hasAnyBulkAction
+    ? "40px minmax(200px, 2fr) minmax(100px, 1fr) minmax(180px, 2fr) minmax(100px, 1fr) 60px"
+    : "minmax(200px, 2fr) minmax(100px, 1fr) minmax(180px, 2fr) minmax(100px, 1fr) 60px"
+
+  return (
+    <>
+      <div className="relative">
+        {/* Table Header with scrollbar padding */}
+        <div style={{ paddingRight: `${scrollbarWidth}px` }}>
+          <DataGrid
+            columns={columnCount}
+            gridColumnTemplate={gridColumnTemplate}
+            className="containers"
+            data-testid="containers-table-header"
+          >
+            <DataGridRow>
+              {hasAnyBulkAction && <DataGridHeadCell />}
+              <DataGridHeadCell>
+                <Trans>Container Name</Trans>
+              </DataGridHeadCell>
+              <DataGridHeadCell>
+                <Trans>Object Count</Trans>
+              </DataGridHeadCell>
+              <DataGridHeadCell>
+                <Trans>Last Modified</Trans>
+              </DataGridHeadCell>
+              <DataGridHeadCell>
+                <Trans>Total Size</Trans>
+              </DataGridHeadCell>
+              <DataGridHeadCell style={{ marginRight: `-${scrollbarWidth}px` }} />
+            </DataGridRow>
+          </DataGrid>
+        </div>
+
+        {/* Virtualized Table Body — sized to the space actually left below the
+            table, so banners above it shrink the table instead of growing the
+            page. */}
+        <div
+          ref={tableBodyRef}
+          className="overflow-auto"
+          style={{ height: `${bodyHeight ?? 0}px` }}
+          data-testid="containers-table-body"
+        >
+          <div
+            style={{
+              height: `${totalSize}px`,
+              width: "100%",
+              position: "relative",
+            }}
+          >
+            {virtualItems.map((virtualRow) => {
+              const container = containers[virtualRow.index]
+              const isSelected = selectedContainers.includes(container.name)
+
+              const handleRowNavigate = () =>
+                navigate({
+                  to: "/projects/$projectId/storage/$provider/$storageType/$containerName/objects",
+                  params: { projectId, provider, storageType, containerName: container.name },
+                })
+
+              return (
+                <div
+                  key={container.name}
+                  data-index={virtualRow.index}
+                  ref={measureElement}
+                  className="juno-datagrid group hover:bg-theme-background-lvl-1 cursor-pointer"
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    transform: `translateY(${virtualRow.start}px)`,
+                    display: "grid",
+                    gridTemplateColumns: gridColumnTemplate,
+                    alignItems: "stretch",
+                  }}
+                  data-testid={`container-row-${container.name}`}
+                  role="link"
+                  tabIndex={0}
+                  onClick={handleRowNavigate}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault()
+                      handleRowNavigate()
+                    }
+                  }}
+                >
+                  {hasAnyBulkAction && (
+                    <DataGridCell
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.stopPropagation()
+                        }
+                      }}
+                    >
+                      <Checkbox
+                        checked={isSelected}
+                        onChange={() => handleSelectContainer(container.name)}
+                        data-testid={`select-container-${container.name}`}
+                      />
+                    </DataGridCell>
+                  )}
+                  <DataGridCell className="min-w-0 overflow-hidden">
+                    <span className="block truncate" title={container.name}>
+                      {container.name}
+                    </span>
+                  </DataGridCell>
+                  <DataGridCell>{container.count.toLocaleString()}</DataGridCell>
+                  <DataGridCell>{container.last_modified ? formatDate(container.last_modified) : t`N/A`}</DataGridCell>
+                  <DataGridCell>{formatBytesBinary(container.bytes)}</DataGridCell>
+                  <DataGridCell onClick={(e) => e.stopPropagation()}>
+                    <PopupMenu>
+                      <PopupMenuOptions>
+                        <PopupMenuItem
+                          label={t`Manage Access`}
+                          onClick={() => setAccessControlModalContainer(container)}
+                          data-testid={`access-control-action-${container.name}`}
+                        />
+                        <PopupMenuItem
+                          label={t`Preview and Edit metadata`}
+                          onClick={() => setPropertiesModalContainer(container)}
+                          data-testid={`properties-action-${container.name}`}
+                        />
+                        <PopupMenuItem
+                          label={t`Empty Container`}
+                          onClick={() => setEmptyModalContainer(container)}
+                          data-testid={`empty-action-${container.name}`}
+                        />
+                        <PopupMenuItem
+                          label={t`Delete Container`}
+                          onClick={() => setDeleteModalContainer(container)}
+                          data-testid={`delete-action-${container.name}`}
+                        />
+                      </PopupMenuOptions>
+                    </PopupMenu>
+                  </DataGridCell>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </div>
+
+      <CreateContainerModal
+        isOpen={createModalOpen}
+        onClose={() => setCreateModalOpen(false)}
+        onSuccess={onCreateSuccess}
+        onError={onCreateError}
+        maxContainerNameLength={maxContainerNameLength}
+      />
+
+      <EmptyContainerModal
+        isOpen={emptyModalContainer !== null}
+        container={emptyModalContainer}
+        onClose={() => setEmptyModalContainer(null)}
+        onSuccess={onEmptySuccess}
+        onError={onEmptyError}
+      />
+
+      <DeleteContainerModal
+        isOpen={deleteModalContainer !== null}
+        container={deleteModalContainer}
+        onClose={() => setDeleteModalContainer(null)}
+        onSuccess={onDeleteSuccess}
+        onError={onDeleteError}
+      />
+
+      <EditContainerMetadataModal
+        isOpen={propertiesModalContainer !== null}
+        container={propertiesModalContainer}
+        onClose={() => setPropertiesModalContainer(null)}
+        onSuccess={onPropertiesSuccess}
+        onError={onPropertiesError}
+      />
+
+      <ManageContainerAccessModal
+        isOpen={accessControlModalContainer !== null}
+        container={accessControlModalContainer}
+        onClose={() => setAccessControlModalContainer(null)}
+        onSuccess={onAclSuccess}
+        onError={onAclError}
+      />
+    </>
+  )
+}
