@@ -1,6 +1,6 @@
 # PR #1209: fix(aurora): improve multi-tab auth error handling (#1128)
 
-**Автор:** andypf · **Статус:** open (не смержен; создан 26.08.2026, обновлён 27.08.2026)
+**Автор:** andypf · **Статус:** создан 26.08.2026, обновлён 27.08.2026, смержен 27.08.2026 (коммит `9796a71b`)
 **Ветки:** `andypf/fix-multi-tab-auth-error-1128` → `main` · **Файлов:** 18 (+434/-521)
 **Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1209
 
