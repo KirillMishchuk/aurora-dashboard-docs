@@ -1,41 +1,53 @@
 # PR #1207 Code Review — Ceph Lifecycle Rules Management & Permission Controls
 
 Repo: `cobaltcore-dev/aurora-dashboard`
-Head SHA: `7edcce6754996071bed6f09f7789aa08a0ce78e4`
-Reviewed: 2026-08-26
-Posted to PR: https://github.com/cobaltcore-dev/aurora-dashboard/pull/1207#issuecomment-5424819707
+Head SHA: `d01e15c4d7da21e0d0e73366ec2390f775da92ad`
+Reviewed: 2026-08-28
+Posted to PR: not posted — this run was requested as a local review only (see note at bottom)
 
-Generated via the `code-review` plugin skill (5 parallel Sonnet reviewers — CLAUDE.md compliance, shallow bug scan, git-history context, prior-PR-comment carryover, code-comment compliance — followed by independent Haiku confidence scoring of every candidate finding; only findings scoring ≥80/100 were posted).
+Generated via the repo's `code-review` plugin methodology, replicated for this session: parallel Sonnet-equivalent reviewers (CLAUDE.md compliance, shallow bug scan, git-history context, code-comment compliance, prior-PR-feedback carryover) plus a dedicated security pass — using the repo's own `security-reviewer` persona — given this PR's stated purpose is permission controls. Every candidate finding was independently re-verified against the actual code before being kept; only findings that survived that verification and clear a high-confidence bar are reported below.
 
-## Findings posted (2)
+## This review supersedes the 2026-08-26 review at head `7edcce6754996071bed6f09f7789aa08a0ce78e4`
 
-1. **Editing a lifecycle rule silently drops its object-size filter** (confidence 100/100)
-   `packages/aurora/src/client/routes/_auth/projects/$projectId/storage/-components/Ceph/Buckets/LifecycleRuleForm.tsx:40-58`
-   `getInitialValues()` only extracts `Prefix`/`Tag` from `editingRule.Filter` — never `ObjectSizeGreaterThan`/`ObjectSizeLessThan`, even though `normalizeFilter`'s own docblock (`utils/lifecycleUtils.ts:21`) says single-condition filters should include `ObjectSize*`. On submit (`LifecycleRuleForm.tsx:82`), `normalizeFilter(prefix, tags)` rebuilds the filter from only those two args — its signature has no size parameters at all.
-   *Failure:* Editing any externally-authored (AWS CLI/console) rule that has a size-based filter and saving it through this UI silently removes the size restriction, widening what objects the rule expires/transitions.
-   *Origin:* independently raised by the prior-PR-comment-history reviewer (carried over from unresolved CodeRabbit feedback on sibling PR #1178) and cross-verified fresh against PR #1207's current head.
+The PR moved on since then (`67b55149`, `3e6f9666` merges of `main`, plus `d01e15c4` "refactor(aurora): fixing AI issues"). Status of the two previously-posted findings:
 
-2. **"Create Lifecycle Rule" can silently delete rules that failed to load** (confidence 100/100)
-   `packages/aurora/src/client/routes/_auth/projects/$projectId/storage/-components/Ceph/Buckets/LifecycleRulesTab.tsx:233-241` (button gate) + `LifecycleRuleModal.tsx:104-114` (add path)
-   `mutationsBlocked` (`skippedRuleCount > 0`, `LifecycleRulesTab.tsx:158-159`) correctly disables the bulk Actions button (`:274`) and row Edit/Delete (`isMutating` at `:314`), but the "Create Lifecycle Rule" button is gated only by `permissions.canUpdateLifecycle`. `lifecycle.get` silently drops unparseable rules (only counted via `skippedRuleCount`), and the modal's add-path builds its full-replace `lifecycle.set` payload from that already-filtered fetch (`freshData?.rules`).
-   *Failure:* Creating a new rule while any existing rule is unreadable permanently deletes that unreadable rule from the bucket on save. `LifecycleRulesTab.test.tsx`'s "mutationsBlocked (skipped rules)" block only asserts the bulk Actions button is disabled — never the Create button — confirming this path was missed rather than intentionally exempted.
-   *Origin:* independently raised by both the prior-PR-comment-history reviewer and the code-comment-compliance reviewer (the latter caught it via the `LifecycleRulesTab.tsx:155-159` comment describing the invariant `mutationsBlocked` is supposed to enforce).
+- **"Create Lifecycle Rule" could silently delete unreadable rules"** (was Critical, confidence 100) — **FIXED.** `LifecycleRulesTab.tsx`'s Create button is now `disabled={mutationsBlocked}`, and a new warning `<Message>` explains why when it's blocked.
+- **"Editing a lifecycle rule silently drops its object-size filter"** (was Critical, confidence 100) — still true in the codebase, but **out of scope for this PR**: `LifecycleRuleForm.tsx` no longer appears in PR #1207's diff against `main` at all (it's identical to `main` now — the file must have been touched by a different, already-merged PR, and this branch picked that state up by merging `main` in). This PR doesn't touch that file, so it can't be reviewed as part of it. Worth a separate fix, just not blocking this PR.
+
+## Findings (confidence ≥ 80)
+
+**1. This PR's own new documentation overstates the protection its permission checks provide — the underlying Ceph mutations have no matching server-side authorization** (confidence 80)
+`packages/aurora/src/server/Storage/routers/permissionRouter.ts:23-24` (new doc comment, added by this PR)
+
+The PR adds this comment to `permissionRouter.ts`:
+> "These checks are UX-only: Ceph independently enforces access via EC2 credentials and bucket policy, so this gating never substitutes for real authorization."
+
+That's an accurate description of the *client* side (the new `storage:*` checks only drive what buttons render), but the claimed backstop doesn't hold up under inspection. Every Ceph mutation router (`bucketPolicyRouter.ts`, `corsRouter.ts`, `lifecycleRouter.ts`, `versioningRouter.ts`, `ec2CredentialRouter.ts`, and the object router's `generatePresignedUrl`) is gated server-side only by `cephProtectedProcedure`, which checks *"does this user have some valid EC2 credential for this project"* — not the viewer/admin distinction the new permission map implies. Grepped every file under `Storage/routers/ceph/` and `Storage/cephProcedure.ts` for any policy/permission check inside a mutation handler: zero matches.
+
+The comment's fallback — "bucket policy" — is opt-in and per-bucket. A bucket has no restricting policy by default, and this very PR is what makes bucket-policy and lifecycle management self-service in the UI. So for the common case (no custom bucket policy configured), there is no real enforcement distinguishing `storage_viewer` from `storage_admin` for: setting/deleting a bucket policy, setting/deleting CORS rules, setting/deleting lifecycle rules, toggling bucket versioning, or deleting/restoring an object version. Any authenticated user who can obtain an EC2 credential — itself gated at viewer tier, by design, per this same PR's doc comment — can call these tRPC mutations directly (devtools/curl with a valid session) and bypass every admin-only gate the UI now shows.
+
+*Scope note:* the underlying routers and the `cephProtectedProcedure`-only gate predate this PR (they're not part of its diff) — this isn't a new hole introduced by the diff's own lines. What *is* new is the PR's own doc comment asserting an equivalence to real authorization that doesn't hold, for exactly the operations this PR's stated purpose is to protect ("permission controls"). Worth an explicit decision from the team: either the comment should be corrected to say plainly "no server-side enforcement exists yet for these operations," or (better, given the PR's own goal) the higher-blast-radius mutations added here — bucket policy, CORS, lifecycle, versioning, permanent version delete/restore — should get an actual `canUser`/policy check in the router, not just a client-side hint.
 
 ## Findings raised but filtered out (score < 80)
 
 | Finding | File | Score | Why filtered |
 | --- | --- | --- | --- |
-| Project-scoped tRPC calls (`storage.canUser`, `lifecycle.get`) invoked directly from components/hooks instead of route loaders, per CLAUDE.md | `useCephPermissions.ts`, `LifecycleRulesTab.tsx` | 0 | Pre-existing codebase convention (`CorsRulesTab.tsx` on `main`, `useSecurityGroupPermissions`) — PR extends it, doesn't introduce it |
-| No server-side concurrency control (ETag/revision check) on `lifecycle.set`'s full-replace write | `lifecycleRouter.ts` | 0 | Pre-existing architectural tradeoff shared identically by `corsRouter.ts`/`bucketPolicyRouter.ts`/`versioningRouter.ts`; not introduced or worsened by this PR |
-| Inconsistent `.max()` bound — `Expiration.Days` has `.max(3650)` but `NoncurrentDays`/`DaysAfterInitiation`/`Transition.Days` don't | `types/ceph.ts` | 50 | Real gap, but AWS S3 rejects out-of-range values anyway; UX nitpick, not a functional bug |
-| Docblock claims "Transitions must be ordered by increasing days" but no `.refine()` enforces it | `types/ceph.ts:946` | 50 | Real doc/code mismatch, but the UI never lets users author `Transitions` (read-only, preserved verbatim) — unreachable in practice |
-| `toWireLifecycleRules` docblock says "used before sending rules to S3 SDK" but the function does the opposite conversion and is dead code (test-only) | `lifecycleMapper.ts:207` | 75 | Verified backwards comment, but describes genuinely unused code — the production path (`toSdkLifecycleRules`) is correctly documented and used |
+| New doc comment claims read/list/view actions are "deliberately never gated anywhere in this file" / "the app" — contradicted by `SecurityGroupDetailsView.tsx` (`canViewRBAC`) and the flavors route (`canListSpecs`), which do gate view-only UI today | `PERMISSION_KEY_PATTERN.md`, `useCephPermissions.ts`, `permissionRouter.ts` | 50 | Real doc/code mismatch, but comment-only — doesn't change any actual gating behavior in this PR |
+| No client-side mirror of server-side value bounds (tag Key ≤128/Value ≤256 chars, `Expiration.Days` ≤3650) — a rejected save surfaces a raw Zod error instead of inline validation | `lifecycleUtils.ts` | 30 | Already flagged by CodeRabbit on this PR as "Minor"; UX nitpick, not a correctness or security issue |
+| `sortRules`/`rulesWithOriginalIndices`/`filteredRulesWithIndices` still computed inline every render, no `useMemo` | `LifecycleRulesTab.tsx:167-193` | 25 | Carryover from the #1178 review (tracked, "not started"); this PR rewrote parts of this file without addressing it, but the inefficiency itself predates this PR |
+| "Download Object and View Versions are never gated" comment is slightly imprecise — View Versions is also conditioned on `versioningEnabled`, a feature-availability check, not a permission gate | `ObjectsTableView.tsx:159-160` | 25 | Accurate in the context it's written (a permissions docblock); minor wording nuance, not misleading in practice |
+| `hasAnyBulkAction = permissions.canEmptyBucket` only (not `canDeleteBucket`) looked at first glance like it could hide bulk delete for admins who can delete but not empty | `Buckets/index.tsx:59` | 0 (false positive — verified and ruled out) | The bulk-actions menu this flag gates contains only "Empty Bucket(s)" — there is no bulk delete action anywhere in this menu. Per-row delete is gated independently on `canDeleteBucket` and unaffected. Confirmed by reading `BucketTableView.tsx` directly. |
+| `storage:objects:create` and `storage:objects:update` both map to the same underlying `storage:object_update` policy rule | `permissionRouter.ts` | 0 | Pre-existing on `main`, unrelated to this PR's changes |
 
 ## Reviewers with no findings
 
-- **Shallow bug scan** (large logic/mapping/race-condition bugs in the diff itself): none found — explicitly checked and ruled out index-desync in `useCephPermissions`, `STORAGE_MAPPINGS`↔`storage.json` key parity, `normalizeFilter` branch exhaustiveness, freshness-check-by-`originalIndex` correctness, `minContentColumns` index-shift math, and the rate-limiter self-cleaning-timer guard.
-- **Git-history context**: none found — explicitly verified the PR doesn't revert prior design-review fixes (`0bfd055c`), doesn't interfere with the empty-bucket-list fix (`45e8c437`) or the Swift/Ceph terminology unification (`3536c95e`), and in two places actually *resolves* pre-existing `TODO(perms)` comments left on `main`.
+- **CLAUDE.md compliance**: clean. Permission router stays inside the `createPermissionRouter` factory, no ad-hoc policy code; `apps/dashboard` only gained data (a `storage.json` policy entry), no logic; server domain folder structure untouched; all new user-facing strings go through `t`/`<Trans>` and are extracted into `en`/`de` locale files; every touched component has a colocated test file.
+- **Shallow bug scan**: all 21 `PERMISSION_MAP` entries in `useCephPermissions.ts` cross-checked against `STORAGE_MAPPINGS` (`permissionRouter.ts`) and `storage.json` — no typos, no silent fallthrough. Every `canX` prop traced from hook to JSX gate across all ~12 touched components — no copy-paste mix-ups (e.g. a delete button gated on a create/update flag). `ObjectsTableView.tsx`'s 256-line refactor and the `lifecycleRouter.ts` rate-limit boundary fix (`>` → `>=`) both verified correct.
+- **Git-history context**: no reverted fixes, no regressions against recent Ceph commits (`16a5a52d`, `0bfd055c`, prior #1178 fix batch). The new `useCephPermissions` hook actually improves on the only prior permission-hook pattern in the codebase (`useSecurityGroupPermissions`) by deriving the request/response arrays from one source-of-truth map instead of two independently-ordered lists.
+- **Code-comment compliance**: this PR is unusually well-commented, and every checked claim (the `PERMISSION_MAP` "single source of truth" claim, the rate-limiter's "O(1), no full-map scan" claim, the "viewer-tier" rationale comments, the various "menu hidden when nothing is available" invariants) matches the code exactly — aside from finding #1 above and the minor doc-overclaim noted in the filtered table.
 
 ---
 
-*Generated via the `code-review` plugin skill against PR #1207 (`kiryl-ceph-permissions` branch vs `main`). All posted findings independently score-verified ≥80/100.*
+*Note: this review was generated in a local/Cowork session at the user's request ("put the result of review into pr-reviews folder") and, unlike the 2026-08-26 review, has not been posted as a PR comment. Let the user know if they'd like it posted to GitHub.*
+
+*Analyzed: 2026-08-28 · commit `d01e15c4d7da21e0d0e73366ec2390f775da92ad`*
