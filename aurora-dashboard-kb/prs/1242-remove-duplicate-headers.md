@@ -1,6 +1,6 @@
 # PR #1242: refactor(dashboard): remove duplicate breadcrumbs and old headers
 
-**Автор:** vlad-schur-external-sap · **Статус:** open (не смержен; создан 01.09.2026)
+**Автор:** vlad-schur-external-sap · **Статус:** смержен 01.09.2026 (создан 01.09.2026)
 **Ветки:** `vlad-1134-issue` → `main` · **Файлов:** 16 (+151/-186)
 **Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1242
 

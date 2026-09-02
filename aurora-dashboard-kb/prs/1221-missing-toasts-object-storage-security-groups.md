@@ -1,6 +1,6 @@
 # PR #1221: feat(dashboard): add missing toasts for object-storage and security-groups
 
-**Автор:** vlad-schur-external-sap · **Статус:** open (создан 28.08.2026, не смержен)
+**Автор:** vlad-schur-external-sap · **Статус:** смержен 31.08.2026 (создан 28.08.2026)
 **Ветки:** `vlad-missing-toasts-for-secgroups-and-storages` → `main` · **Файлов:** 19 (+1068/-101)
 **Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1221
 

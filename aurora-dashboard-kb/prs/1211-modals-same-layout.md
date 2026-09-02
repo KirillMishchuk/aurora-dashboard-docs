@@ -1,6 +1,6 @@
 # PR #1211: refactor(portal): refactor all modals to the same layout
 
-**Автор:** TilmanHaupt · **Статус:** open (не смержен; создан 27.08.2026)
+**Автор:** TilmanHaupt · **Статус:** смержен 01.09.2026 (создан 27.08.2026)
 **Ветки:** `til-modal` → `main` · **Файлов:** 51 (+1593/-1257)
 **Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1211
 

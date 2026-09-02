@@ -1,6 +1,6 @@
 # PR #1245: refactor(aurora): move compute components to their feature directories
 
-**Автор:** andypf · **Статус:** open (не смержен; создан 01.09.2026)
+**Автор:** andypf · **Статус:** смержен 01.09.2026 (создан 01.09.2026)
 **Ветки:** `andypf/refactor-compute-components-1244` → `main` · **Файлов:** 80 (+37/-810)
 **Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1245
 
