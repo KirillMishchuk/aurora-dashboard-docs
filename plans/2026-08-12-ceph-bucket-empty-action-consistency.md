@@ -1,6 +1,6 @@
 # Plan: Ceph bucket list — gate the row-level "Empty" action + align row action naming (Issues #1107, #1109)
 
-**Date:** 2026-08-12 · **Status:** not implemented
+**Date:** 2026-08-12 · **Status:** implemented 2026-09-01 (naming/#1109 had already landed separately via PR #1207's Ceph permission-controls work; this pass added the remaining #1107 emptiness gate — `canEmptyBucket && !bucketHasNoContent` — plus test coverage. typecheck/lint/tests/check-i18n all green, security review clean — no findings, `EmptyBucketModal`/server `deleteAll` confirmed to independently re-validate state so this gate is UI-only as designed)
 
 ## 📋 IMPLEMENTATION PLAN: Ceph Bucket List Row Actions — Empty-state Gating & Naming Consistency
 
@@ -39,7 +39,9 @@ Both fixes touch the same three `PopupMenuItem`s in the same file and are implem
 | Existing tests assert on the old labels/behavior and break | Medium | Grepped `BucketTableView.test.tsx`: no existing test asserts the literal text "Empty"/"Delete" or exercises the row popup's contents (current test only checks rows exist, explicitly noting "PopupMenu items are hidden until menu is opened"); no e2e specs under `apps/dashboard/e2e` reference `empty-action`/`delete-action` or the bare strings. Add new coverage per the Testing Plan below rather than relying on absence of breakage |
 | Scope creep vs. issue text | Low | User explicitly confirmed extending #1109's fix to "Delete" → "Delete Bucket" in addition to "Empty" → "Empty Bucket", to fully match the noun rule the issue argues for |
 
-**Informational, out of scope:** the identical "Empty"/"Delete" (no-noun) pattern exists in the analogous Swift container list row menu (`Swift/Containers/ContainerTableView.tsx`, ~line 274/279). Both filed issues are explicitly labeled `[Bug](ceph)`/`(Ceph)`, so this plan does not touch Swift. Worth a follow-up issue if the same consistency is wanted there — flagged in Open Questions.
+**Informational, out of scope:** the identical "Empty"/"Delete" (no-noun) pattern exists in the analogous Swift container list row menu (`Swift/Containers/ContainerTableView.tsx`, ~line 274/279). Both filed issues are explicitly labeled `[Bug](ceph)`/`(Ceph)`, so this plan does not touch Swift.
+
+**Follow-up checked 2026-09-01 — no Swift fix needed for #1107's underlying issue:** Swift's row menu still shows "Empty" unconditionally (no `count === 0 && bytes === 0` gate), but `EmptyContainerModal.tsx` (lines 100-169) independently re-checks real state on open (`isTrulyEmpty` / `isConsistencyDelay`) and swaps to an info-only "This container is already empty" view with only a Close button when the container has nothing to empty — no `onConfirm` is wired in that branch, so the mutation can't fire. This differs from Ceph's `EmptyBucketModal`, which only special-cases the "empty-with-only-delete-markers" state and falls through to the normal destructive-confirm UI for a truly empty/unversioned bucket (the actual gap #1107 fixed via the row-menu gate). Swift already prevents the no-op/confusing action, just at the modal layer instead of the menu layer — the remaining "Empty"/"Delete" naming inconsistency there is cosmetic (#1109-equivalent), not a safety or UX-correctness bug, so no follow-up issue is warranted for #1107 specifically.
 
 ### Prerequisites
 
