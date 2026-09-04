@@ -1,0 +1,65 @@
+# Run it locally with act
+#  1. Install act:
+#     `brew install act`
+#  2. Create a .secret file with the following content:
+#     `GITHUB_TOKEN=your_github_token`
+#  PULL REQUEST
+#  1. Create a act_pull_request.json file in case of a pull request with the following content:
+#     `{"pull_request": {"number": <PR number>, "head": {"ref": "<PR branch name>", "sha": "PR commit sha"}, "base": {"ref": "main"}}, "repository": {"name": "juno", "owner": {"login": "cloudoperators"}}}`
+#  2. Run the following command:
+#     `act pull_request --container-architecture linux/amd64 -P default=catthehacker/ubuntu:act-latest -e act_pull_request.json -W .github/workflows/deploy-pr-preview.yaml`
+
+name: Storybook to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - packages/ui-components/CHANGELOG.md
+
+permissions:
+  contents: write
+
+env:
+  NODE_VERSION: "22.22.2"
+
+jobs:
+  build-and-deploy:
+    concurrency: deploy-gh-pages-${{ github.ref }}
+    runs-on: [ubuntu-latest]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        with:
+          version: 11.20.0
+
+      - name: Cache \ store
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.pnpm-store
+          key: ${{ runner.os }}-pnpm-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build storybook
+        run: pnpm --filter @cloudoperators/juno-ui-components build-storybook
+
+      - name: Add .nojekyll
+        run: echo > packages/ui-components/storybook-static/.nojekyll
+
+      - name: Deploy 🚀
+        uses: JamesIves/github-pages-deploy-action@fa24774553152dd7873cd16ebd8d959b010c5445 # v4.9.0
+        with:
+          folder: packages/ui-components/storybook-static
+          clean-exclude: pr-preview/
+          force: false

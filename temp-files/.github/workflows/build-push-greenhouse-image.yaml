@@ -1,0 +1,197 @@
+# Run it locally with act
+#  1. Install act: https://github.com/nektos/act/releases
+#  2. Create a .secret file in the root of this repository with the following content:
+#     `GITHUB_TOKEN=your_github_token` and `ACT=true`
+#     Note: to create a token...
+#      * Log in to your GitHub account and go to your profile settings.
+#      * In the left sidebar, click on "Developer settings".
+#      * Select "Personal access tokens" from the menu.
+#      * Click on "Generate new token" (classic or fine-grained). and choose `public_repoAccess`
+#      * Copy the token and use it in the .secrets file
+#  3. Trigger the workflow with act:
+#     `act workflow_dispatch --container-architecture linux/amd64 -P default=catthehacker/ubuntu:act-latest -W .github/workflows/build-push-greenhouse-image.yaml`
+
+name: Build Greenhouse Dashboard 💚
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches:
+      - main
+    paths:
+      - apps/greenhouse/CHANGELOG.md
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: "juno-app-greenhouse"
+  PACKAGE_PATH: "apps/greenhouse"
+  DESCRIPTION: "This is the shell app for Project Greenhouse. It is the host for all apps that are part of Greenhouse."
+
+jobs:
+  build-and-push:
+    name: Build and Push Greenhouse Dashboard Image
+    runs-on: [ubuntu-latest]
+    outputs:
+      failed: ${{ steps.set-failure-output.outputs.failed }}
+    permissions:
+      contents: read
+      packages: write
+      # This is used to complete the identity challenge
+      # with sigstore/fulcio when running outside of PRs.
+      id-token: write
+      security-events: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Read version from package.json
+        id: read_version
+        working-directory: ${{ env.PACKAGE_PATH }}
+        run: |
+          # Extract the first version number that appears after "## "
+          GREENHOUSE_VERSION=$(jq -r '.version' package.json)
+          echo "Greenhouse version is $GREENHOUSE_VERSION"
+          echo "IMAGE_VERSION=$GREENHOUSE_VERSION" >> $GITHUB_OUTPUT
+
+      # Login against a Docker registry except on PR
+      # https://github.com/docker/login-action
+      - name: Log into registry ${{ env.REGISTRY }}
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # and check if the image with the same version already exists
+      - name: Check if image exists ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ steps.read_version.outputs.IMAGE_VERSION }} in registry
+        id: check-image
+        run: |
+          # If the image with this tag already exists, this command will exit with status code 1.
+          if docker pull ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ steps.read_version.outputs.IMAGE_VERSION }}; then
+            echo "Image ${{ env.IMAGE_NAME }}:${{ steps.read_version.outputs.IMAGE_VERSION }} already exists in the registry"
+            exit 1
+          fi
+
+      # This action enables you to SIGN and VERIFY container images using cosign
+      - name: Install cosign
+        uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      # Set up BuildKit Docker container builder to be able to build MULTI-platform images and export cache
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@37fe631027851001ddb9b187196cc803df7f5f0e # v4.3.0
+        with:
+          driver-opts: |
+            image=moby/buildkit:latest
+
+      - name: Generate Docker metadata
+        id: meta
+        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{major}}.{{minor}}.{{patch}},value=${{ steps.read_version.outputs.IMAGE_VERSION }}
+            type=sha,enable=true,format=short,prefix=
+            type=raw,value=${{ github.sha }}
+          labels: |
+            org.opencontainers.image.description=${{env.DESCRIPTION}}
+            org.opencontainers.image.title=Greenhouse-UI
+            org.opencontainers.image.url=https://github.com/cloudoperators/juno/tree/main/apps/greenhouse
+            org.opencontainers.image.source=https://github.com/cloudoperators/juno/tree/main/apps/greenhouse
+          annotations: |
+            manifest:org.opencontainers.image.description=${{env.DESCRIPTION}}
+            manifest:org.opencontainers.image.title=Greenhouse-UI
+            manifest:org.opencontainers.image.source=https://github.com/cloudoperators/juno/tree/main/apps/greenhouse
+            manifest:org.opencontainers.image.url=https://github.com/cloudoperators/juno/tree/main/apps/greenhouse
+
+      # Build and push to Docker
+      - name: Build and push Docker image ${{ steps.meta.outputs.tags }}
+        id: build-image
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          file: ${{ env.PACKAGE_PATH }}/docker/Dockerfile
+          # remove untagged images produced for multi platform builds
+          provenance: false
+
+      - name: Sign the published Docker image
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+          DIGEST: ${{ steps.build-image.outputs.digest }}
+        # This step uses the identity token to provision an ephemeral certificate
+        # against the sigstore community Fulcio instance.
+        run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
+
+      - name: Set failure output
+        id: set-failure-output
+        if: failure()
+        run: echo "failed=build-and-push" >> $GITHUB_OUTPUT
+
+  vulnerability-scan:
+    permissions:
+      contents: read
+      packages: read
+      security-events: write
+    name: Vulnerability Scan
+    needs: build-and-push
+    runs-on: [ubuntu-latest]
+    outputs:
+      failed: ${{ steps.set-failure-output.outputs.failed }}
+    steps:
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:latest
+          ignore-unfixed: true
+          format: "sarif"
+          output: "trivy-results.sarif"
+          severity: "CRITICAL,HIGH,MEDIUM"
+
+      - name: Trivy vulnerability scanner (table output)
+        id: table-trivy
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        env:
+          TRIVY_SKIP_DB_UPDATE: true
+          TRIVY_SKIP_JAVA_DB_UPDATE: true
+          TRIVY_FORMAT: "table"
+          TRIVY_OUTPUT: ""
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ github.repository_owner }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          format: "table"
+          ignore-unfixed: true
+          severity: "CRITICAL,HIGH,MEDIUM"
+          skip-setup-trivy: true
+
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4.37.7
+        if: always()
+        with:
+          sarif_file: trivy-results.sarif
+
+      - name: Set failure output
+        id: set-failure-output
+        if: failure()
+        run: echo "failed=vulnerability-scan" >> $GITHUB_OUTPUT
+
+  notify-on-failure:
+    if: failure()
+    permissions:
+      contents: read
+    needs: [build-and-push, vulnerability-scan]
+    uses: cloudoperators/juno/.github/workflows/shared-slack-notification.yaml@b8382a8dec33f3d69f3b127dfea652682f7df0fd # main
+    with:
+      title: "🚨 JUNO Greenhouse Image Failed 🚨"
+      body: |
+        An error occurred while building the Greenhouse image for the branch `${{ github.head_ref || github.ref_name }}`.
+
+        ❌ Failing jobs:
+        - ${{ needs.build-and-push.outputs.failed }}
+        - ${{ needs.vulnerability-scan.outputs.failed }}
+
+        <${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|Check the logs>
+    secrets:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
