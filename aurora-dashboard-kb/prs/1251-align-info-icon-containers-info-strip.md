@@ -1,6 +1,6 @@
 # PR #1251: fix(aurora): align the info icon in the containers info strip (#1229)
 
-**Автор:** mark-karnaukh-extern-sap · **Статус:** open (создан 01.09.2026, не смержен)
+**Автор:** mark-karnaukh-extern-sap · **Статус:** создан 01.09.2026 → смержен 02.09.2026
 **Ветки:** `mark-fix-align-info-icon` → `main` · **Файлов:** 2 (+7/-1)
 **Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1251
 

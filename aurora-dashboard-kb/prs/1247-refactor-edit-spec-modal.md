@@ -1,6 +1,6 @@
 # PR #1247: feat(aurora): refactor EditSpecModal to match EditImageMetadataModal design
 
-**Автор:** andypf · **Статус:** open (не смержен), создан 01.09.2026
+**Автор:** andypf · **Статус:** создан 01.09.2026 → смержен 02.09.2026
 **Ветки:** `andypf/refactor-edit-spec-modal` → `main` · **Файлов:** 11 (+980/-868)
 **Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1247
 

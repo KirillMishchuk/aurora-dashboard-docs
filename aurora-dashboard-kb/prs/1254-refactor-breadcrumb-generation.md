@@ -1,6 +1,6 @@
 # PR #1254: feat(aurora): refactor breadcrumb generation
 
-**Автор:** taymoor89 · **Статус:** open (не смержен), создан 02.09.2026
+**Автор:** taymoor89 · **Статус:** создан 02.09.2026 → смержен 02.09.2026
 **Ветки:** `1252-refactor-breadcrumbs` → `main` · **Файлов:** 35 (+1129/-727)
 **Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1254
 

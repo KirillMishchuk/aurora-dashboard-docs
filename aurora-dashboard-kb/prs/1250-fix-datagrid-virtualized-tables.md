@@ -1,6 +1,6 @@
 # PR #1250: fix(aurora): incorrect DataGrid usage in virtualized tables (Swift, Ceph) (#1223)
 
-**Автор:** mark-karnaukh-extern-sap · **Статус:** open (не смержен), создан 01.09.2026
+**Автор:** mark-karnaukh-extern-sap · **Статус:** создан 01.09.2026 → смержен 02.09.2026
 **Ветки:** `mark-fix-datagrid-virtualized-tables` → `main` · **Файлов:** 9 (+79/-27)
 **Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1250
 

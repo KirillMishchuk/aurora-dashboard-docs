@@ -2,14 +2,14 @@
 
 ## packages/aurora — `@cobaltcore-dev/aurora` (the product)
 
-Published npm library (v0.23.x, public). Peer deps: `react`, `react-dom`, `fastify`, `@headlessui/react`, `@lingui/core`, `@lingui/react`, `@tanstack/react-form`, `@tanstack/react-query`, `@tanstack/react-router`, `@tanstack/react-virtual`, `@trpc/react-query`, `focus-trap-react`, `react-error-boundary`, `react-icons` — anything that renders React components or uses hooks/context must be a peer, not a private dependency, to avoid duplicate-React issues in consumers (#1085; classification rules in `docs/0014_dependency_classification.md`).
+Published npm library (v1.1.0 at the current pin, public). Peer deps: `react`, `react-dom`, `fastify`, `@headlessui/react`, `@lingui/core`, `@lingui/react`, `@tanstack/react-form`, `@tanstack/react-query`, `@tanstack/react-router`, `@tanstack/react-virtual`, `@trpc/react-query`, `focus-trap-react`, `react-error-boundary`, `react-icons` — anything that renders React components or uses hooks/context must be a peer, not a private dependency, to avoid duplicate-React issues in consumers (#1085; classification rules in `docs/0014_dependency_classification.md`).
 
 **Entry points** (package.json `exports`):
 
 | Export | Contents |
 | --- | --- |
 | `@cobaltcore-dev/aurora/server` | `createServer(config)`, `auroraRouter`, procedure builders (`publicProcedure`, `protectedProcedure`, `projectScopedProcedure`, `domainScopedProcedure`), scoped input schemas |
-| `@cobaltcore-dev/aurora/client` | `<AuroraApp />`, `SlotProps`, `TrackEventPayload`, tRPC client hooks |
+| `@cobaltcore-dev/aurora/client` | `<AuroraApp />`, `SlotProps`, `TrackEventPayload`, tRPC client hooks, `useDomainId`/`useProjectId`/`useScope`, `servicesRoute`, `isRouteInfo` + `RouteInfo`/`Crumb` types, and — since #1254 (02.09.2026) — the breadcrumb primitives `useBreadcrumbs` (+ `BreadcrumbItem` type), `useSetBreadcrumb`, `usePushBreadcrumbs`, `DynamicBreadcrumbContext`/`DynamicBreadcrumbProvider` (5 new exports, for embedded SCI sub-apps that run their own `RouterProvider` — see 02-architecture "Breadcrumbs"). **`packages/aurora/README.md` documents none of the new exports** — the same omission already flagged for `additionalProjectServices` in #1189 (`prs/1254-…md`, `prs/1189-…md`); CLAUDE.md names that README the source of truth for the package's public surface, so it is drifting. |
 | `@cobaltcore-dev/aurora/types` | shared types |
 
 **Build:** two-step — `tsup` for the server (CJS, node18 target, dts; bundles `policy-engine` + `signal-openstack` via `noExternal`, path alias `@` → `./src`) and `vite build` for the client. i18n via Lingui (`extract`/`compile`, checked in CI with `check-i18n`).
