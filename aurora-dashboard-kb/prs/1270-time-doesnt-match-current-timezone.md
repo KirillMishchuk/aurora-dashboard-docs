@@ -1,6 +1,6 @@
 # PR #1270: fix(aurora): time doesn't match current timezone (#1236)
 
-**Автор:** mark-karnaukh-extern-sap · **Статус:** 03.09.2026 (открыт, не смержен)
+**Автор:** mark-karnaukh-extern-sap · **Статус:** 03.09.2026 → смержен 04.09.2026
 **Ветки:** `mark-fix-parse-timestamps-as-utc` → `main` · **Файлов:** 8 (+159/-26)
 **Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1270
 

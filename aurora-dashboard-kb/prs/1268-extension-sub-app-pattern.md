@@ -1,6 +1,6 @@
 # PR #1268: feat(aurora): replace route-injection with standalone extension sub-app pattern
 
-**Автор:** taymoor89 · **Статус:** 03.09.2026 (открыт, не смержен; approved andypf 04.09.2026)
+**Автор:** taymoor89 · **Статус:** 03.09.2026 → смержен 04.09.2026 (approved andypf 04.09.2026)
 **Ветки:** `1253-change-additional-services-integration` → `main` · **Файлов:** 18 (+305/-87)
 **Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1268
 
