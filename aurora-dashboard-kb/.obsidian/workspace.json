@@ -184,6 +184,8 @@
   },
   "active": "78d365ef0c76de1c",
   "lastOpenFiles": [
+    "prs/1268-extension-sub-app-pattern.md",
+    "prs/1270-time-doesnt-match-current-timezone.md",
     "prs/1251-align-info-icon-containers-info-strip.md",
     "prs/1250-fix-datagrid-virtualized-tables.md",
     "prs/1254-refactor-breadcrumb-generation.md",
@@ -208,8 +210,6 @@
     "prs/1099-floating-ip-search-datagrid-header.md",
     "prs/1111-replace-datagrid-with-descriptionlist.md",
     "prs/README.md",
-    "README.md",
-    "02-architecture.md",
     "Без названия.canvas",
     "Без названия.base",
     "Без названия",
