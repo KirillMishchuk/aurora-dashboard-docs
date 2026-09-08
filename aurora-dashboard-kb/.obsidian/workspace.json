@@ -184,6 +184,7 @@
   },
   "active": "78d365ef0c76de1c",
   "lastOpenFiles": [
+    "prs/1263-floating-ips-go-live-fixes.md",
     "prs/1268-extension-sub-app-pattern.md",
     "prs/1270-time-doesnt-match-current-timezone.md",
     "prs/1251-align-info-icon-containers-info-strip.md",
@@ -209,7 +210,6 @@
     "prs/952-security-group-permissions-datagrid.md",
     "prs/1099-floating-ip-search-datagrid-header.md",
     "prs/1111-replace-datagrid-with-descriptionlist.md",
-    "prs/README.md",
     "Без названия.canvas",
     "Без названия.base",
     "Без названия",
