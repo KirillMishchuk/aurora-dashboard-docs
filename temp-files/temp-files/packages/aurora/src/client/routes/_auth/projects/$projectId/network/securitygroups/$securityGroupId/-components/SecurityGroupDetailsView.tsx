@@ -1,0 +1,102 @@
+import { Container, Stack } from "@cloudoperators/juno-ui-components"
+import { useState } from "react"
+import type {
+  SecurityGroup,
+  SecurityGroupRule,
+  CreateSecurityGroupRuleInput,
+} from "@/server/Network/types/securityGroup"
+import type { FilterSettings, SortSettings } from "@/client/components/ListToolbar/types"
+import type { ListSortConfig } from "@/client/utils/useListWithFiltering"
+import type { SecurityGroupPermissions } from "../../-components/SecurityGroupTableRow"
+import { SecurityGroupBasicInfo, SecurityGroupTabs, type TabType } from "./-details"
+import { SecurityGroupRulesTable } from "./-details"
+import { SecurityGroupRBACPolicies } from "./-details/SecurityGroupRBACPolicies"
+
+export interface RulesFilterControls {
+  searchTerm: string
+  onSearchChange: (term: string | number | string[] | undefined) => void
+  sortSettings: ListSortConfig<"direction" | "protocol" | "description">
+  onSortChange: (settings: SortSettings) => void
+  filterSettings: FilterSettings
+  onFilterChange: (settings: FilterSettings) => void
+}
+
+interface SecurityGroupDetailsViewProps {
+  securityGroup: SecurityGroup
+  filteredAndSortedRules: SecurityGroupRule[]
+  onDeleteRule: (ruleId: string) => void
+  isDeletingRule?: boolean
+  deleteRuleError?: string | null
+  filterControls: RulesFilterControls
+  // Add rule functionality - passed through to SecurityGroupRulesTable
+  onCreateRule?: (ruleData: Omit<CreateSecurityGroupRuleInput, "project_id">) => Promise<void>
+  isCreatingRule?: boolean
+  createRuleError?: string | null
+  availableSecurityGroups?: Array<{ id: string; name: string | null }>
+  currentProjectId: string
+  permissions: SecurityGroupPermissions
+}
+
+export function SecurityGroupDetailsView({
+  securityGroup,
+  filteredAndSortedRules,
+  onDeleteRule,
+  isDeletingRule = false,
+  deleteRuleError = null,
+  filterControls,
+  onCreateRule,
+  isCreatingRule = false,
+  createRuleError = null,
+  availableSecurityGroups = [],
+  currentProjectId,
+  permissions,
+}: SecurityGroupDetailsViewProps) {
+  const [activeTab, setActiveTab] = useState<TabType>("rules")
+
+  // Determine if this is a shared security group (not owned by current project)
+  const isOwner = securityGroup.project_id === currentProjectId
+  const showRBACTab = isOwner && permissions.canViewRBAC
+
+  return (
+    <Container px={false} py>
+      <Stack direction="vertical" gap="4">
+        {/* Basic Info Section */}
+        <SecurityGroupBasicInfo securityGroup={securityGroup} />
+
+        {/* Tabs Navigation - Show rules tab always, RBAC only if owner and has permission */}
+        <SecurityGroupTabs activeTab={activeTab} onTabChange={setActiveTab} showRBACTab={showRBACTab} />
+
+        {/* Tab Content */}
+        <div className="mt-6">
+          {activeTab === "rules" && (
+            <SecurityGroupRulesTable
+              rules={filteredAndSortedRules}
+              onDeleteRule={onDeleteRule}
+              isDeletingRule={isDeletingRule}
+              deleteError={deleteRuleError}
+              searchTerm={filterControls.searchTerm}
+              onSearchChange={filterControls.onSearchChange}
+              sortSettings={filterControls.sortSettings}
+              onSortChange={filterControls.onSortChange}
+              filterSettings={filterControls.filterSettings}
+              onFilterChange={filterControls.onFilterChange}
+              securityGroupId={securityGroup.id}
+              onCreateRule={permissions.canCreateRule ? onCreateRule : undefined}
+              isCreatingRule={isCreatingRule}
+              createRuleError={createRuleError}
+              availableSecurityGroups={availableSecurityGroups}
+              canCreateRule={permissions.canCreateRule}
+              canDeleteRule={permissions.canDeleteRule}
+            />
+          )}
+          {activeTab === "rbac" && (
+            <SecurityGroupRBACPolicies
+              securityGroupId={securityGroup.id}
+              canManageAccess={permissions.canManageAccess}
+            />
+          )}
+        </div>
+      </Stack>
+    </Container>
+  )
+}

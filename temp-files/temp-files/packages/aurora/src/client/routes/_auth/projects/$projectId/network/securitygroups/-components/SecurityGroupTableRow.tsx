@@ -1,0 +1,98 @@
+import {
+  DataGridCell,
+  DataGridRow,
+  PopupMenu,
+  PopupMenuItem,
+  PopupMenuOptions,
+  Checkbox,
+} from "@cloudoperators/juno-ui-components"
+import { useLingui, Trans } from "@lingui/react/macro"
+import type { SecurityGroup } from "@/server/Network/types/securityGroup"
+
+export interface SecurityGroupPermissions {
+  canView: boolean
+  canCreate: boolean
+  canUpdate: boolean
+  canDelete: boolean
+  canCreateRule: boolean
+  canDeleteRule: boolean
+  canManageAccess: boolean
+  canViewRBAC: boolean
+}
+
+interface SecurityGroupTableRowProps {
+  securityGroup: SecurityGroup
+  permissions: SecurityGroupPermissions
+  onEdit: (sg: SecurityGroup) => void
+  onDelete: (sg: SecurityGroup) => void
+  onViewDetails?: (sg: SecurityGroup) => void
+  isReadOnly?: boolean
+  showSelectColumn?: boolean
+  isSelected?: boolean
+  onSelect?: (sg: SecurityGroup) => void
+}
+
+export function SecurityGroupTableRow({
+  securityGroup: sg,
+  permissions,
+  onEdit,
+  onDelete,
+  onViewDetails,
+  isReadOnly = false,
+  showSelectColumn = false,
+  isSelected = false,
+  onSelect,
+}: SecurityGroupTableRowProps) {
+  const { t } = useLingui()
+
+  const BooleanValue = ({ value }: { value: boolean | undefined }) => <span>{value ? t`Yes` : t`No`}</span>
+
+  const handleShowDetails = () => {
+    if (onViewDetails) {
+      onViewDetails(sg)
+    }
+  }
+
+  return (
+    <DataGridRow
+      key={sg.id}
+      data-testid={`security-group-row-${sg.id}`}
+      onClick={handleShowDetails}
+      className="hover:bg-theme-background-lvl-2 cursor-pointer"
+    >
+      {showSelectColumn && (
+        <DataGridCell onClick={(e) => e.stopPropagation()}>
+          <Checkbox checked={isSelected} onChange={() => onSelect?.(sg)} />
+        </DataGridCell>
+      )}
+      <DataGridCell>
+        <div>
+          <p className="text-md">{sg.name}</p>
+        </div>
+      </DataGridCell>
+      <DataGridCell>{sg.description || t`—`}</DataGridCell>
+      <DataGridCell>
+        <BooleanValue value={sg.shared} />
+        {sg.shared && (
+          <p>
+            <Trans>Owner</Trans>: <span className="text-theme-light text-xs">{sg.project_id}</span>
+          </p>
+        )}
+      </DataGridCell>
+      <DataGridCell>
+        <BooleanValue value={sg.stateful} />
+      </DataGridCell>
+      <DataGridCell onClick={(e) => e.stopPropagation()} className="items-end pr-0">
+        <PopupMenu>
+          <PopupMenuOptions>
+            <PopupMenuItem label={t`Show Details`} onClick={() => handleShowDetails()} />
+            {permissions.canUpdate && !isReadOnly && <PopupMenuItem label={t`Edit Group`} onClick={() => onEdit(sg)} />}
+            {permissions.canDelete && !isReadOnly && (
+              <PopupMenuItem label={t`Delete Group`} onClick={() => onDelete(sg)} />
+            )}
+          </PopupMenuOptions>
+        </PopupMenu>
+      </DataGridCell>
+    </DataGridRow>
+  )
+}
