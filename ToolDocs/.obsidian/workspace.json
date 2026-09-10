@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "README.md",
+                "file": "ClaudeDocs/claude-code-commands.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "README"
+              "title": "claude-code-commands"
             }
           }
         ]
@@ -185,11 +185,13 @@
   },
   "active": "bbdd700a67441791",
   "lastOpenFiles": [
-    "GitDocs/git-commands.md",
+    "ClaudeDocs/claude-code-plugins.md",
+    "ClaudeDocs/claude-code-skills.md",
+    "ClaudeDocs/claude-code-commands.md",
     "README.md",
+    "GitDocs/git-commands.md",
     "GitDocs",
     "claude-config/aurora-dashboard-config/CLAUDE.md",
-    "ClaudeDocs/claude-code-skills.md",
     "claude-config/aurora-dashboard-config/specs/001-bucket-lifecycle-rules/contracts/lifecycle-trpc-contract.md",
     "claude-config/aurora-dashboard-config/specs/001-bucket-lifecycle-rules/checklists/requirements.md",
     "claude-config/aurora-dashboard-config/specs/001-bucket-lifecycle-rules/tasks.md",
@@ -216,8 +218,6 @@
     "claude-config/aurora-dashboard-config-remote",
     "claude-config/aurora-dashboard-config",
     "claude-config",
-    "ClaudeDocs/claude-code-plugins.md",
-    "ClaudeDocs/claude-code-commands.md",
     "Добро пожаловать.md"
   ]
 }

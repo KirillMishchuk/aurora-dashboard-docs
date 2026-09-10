@@ -18,13 +18,13 @@ Published npm library (v1.2.0 at the current pin, public). Peer deps: `react`, `
 
 ```
 src/
-├── server/          # BFF: domain folders (Authentication, Project, Compute, Network, Storage, Services),
+├── server/          # BFF: domain folders (Authentication, Project, Compute, Network, Storage) — no Services folder anymore, removed in #1189,
 │                    # policies/ (permission router factory), aurora-fastify-plugins/, trpc.ts, routers.ts
 ├── client/          # AuroraApp, routes/ (file-based), components/, hooks/ (e.g. useAvailableViewportHeight,
 │                    #   useVirtualizedTableBody — see 02-architecture "Cross-cutting mechanisms"), trpcClient
 ├── types/           # shared types
 ├── locales/en, de   # Lingui PO catalogs
-└── docs/ → ../docs/ # design docs 001–0013 (see 05-domain-map.md)
+└── docs/ → ../docs/ # design docs 001–0014 (numbering has a collision: two files share 009 — 009_ceph_s3_bff.md and 009_playwright_e2e_testing.md; see 05-domain-map.md)
 ```
 
 **Testing:** vitest, jsdom environment, colocated `*.test.ts(x)`. Run a single package: `pnpm --filter @cobaltcore-dev/aurora test [path]`.
@@ -63,7 +63,7 @@ Owns only:
 - `vite.config.mjs` — dev alias of `@cobaltcore-dev/aurora/client` to package source (instant HMR into the library), `@fastify/vite` integration, static copy of policies.
 - `e2e/` — Playwright suite (see 04-development-workflow.md).
 
-**Env vars** (`.env.example`): `IDENTITY_ENDPOINT` (required), `VITE_BFF_ENDPOINT` (`/polaris-bff`), `PORT`, `DEFAULT_ENDPOINT_INTERFACE`, `VITE_APP_TITLE`, `VITE_ENABLED_SERVICES`, `CEPH_REGION`, `IMAGE_METADATA_EXCLUDED_PROPERTIES`, `DASHBOARD_COOKIE_NAME`, `COOKIE_DOMAIN`, `INSECURE_COOKIES`, `GLOBAL_AGENT_HTTP_PROXY` (mitmproxy, dev only), plus `TEST_*`/`PLAYWRIGHT_BASE_URL` for e2e.
+**Env vars** (`.env.example`): `IDENTITY_ENDPOINT` (required), `VITE_BFF_ENDPOINT` (`/polaris-bff`), `PORT`, `DEFAULT_ENDPOINT_INTERFACE`, `VITE_APP_TITLE`, `VITE_ENABLED_SERVICES`, `CEPH_REGION`, `IMAGE_METADATA_EXCLUDED_PROPERTIES`, `DASHBOARD_COOKIE_NAME`, `INSECURE_COOKIES`, `GLOBAL_AGENT_HTTP_PROXY` (mitmproxy, dev only), plus `TEST_*`/`PLAYWRIGHT_BASE_URL` for e2e. Note: `.env.example` has no `COOKIE_DOMAIN` — it ships a commented-out `ENABLE_CROSS_DASHBOARD_COOKIE`, which is dead (0 references in code, a leftover from before the `crossDomainCookie` config key was removed, see 02-architecture.md). `cookieDomain` is only ever set directly in `apps/dashboard/src/server/server.ts`, not via an env var.
 
 ## Dependency graph
 

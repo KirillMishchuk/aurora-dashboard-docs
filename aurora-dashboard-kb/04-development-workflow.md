@@ -10,7 +10,7 @@ cp apps/dashboard/.env.example apps/dashboard/.env
 pnpm dev            # dashboard on http://localhost:4005 (README) / PORT from .env
 ```
 
-Dev mode runs `tsx watch` on `apps/dashboard/src/server/server.ts` with `@fastify/vite`; the aurora client package is aliased to source, so library edits hot-reload without a rebuild. Since #1085, `tsx watch` also passes `--tsconfig tsconfig.server.json --watch-kill-signal=SIGKILL` and explicit `--include` globs for `packages/aurora/src/{server,types}`, `packages/policy-engine/src`, `packages/signal-openstack/src` (excluding `*.test.ts`), so server-side workspace-package edits restart the dev server directly from source too — `turbo.json`'s `dev` task no longer depends on `@cobaltcore-dev/aurora#build` first.
+Dev mode runs `tsx watch` on `apps/dashboard/src/server/server.ts` with `@fastify/vite`; the aurora client package is aliased to source, so library edits hot-reload without a rebuild. Since #1085, `tsx watch` also passes `--tsconfig tsconfig.server.json --watch-kill-signal=SIGKILL` and explicit `--include` globs for `packages/aurora/src/{server,types}`, `packages/policy-engine/src`, `packages/signal-openstack/src` (excluding `*.test.ts`), so server-side workspace-package edits restart the dev server directly from source too. Note: `turbo.json`'s `dev` task still declares `dependsOn: ["^build"]` — that dependency was not actually removed; the tsx watch include-globs above just make it unnecessary to wait for it during dev.
 
 ## Commands (root, turbo-orchestrated)
 

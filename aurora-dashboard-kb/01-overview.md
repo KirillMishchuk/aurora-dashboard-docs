@@ -26,7 +26,7 @@ The core architectural idea is a **Backend-for-Frontend (BFF)**: a Fastify serve
 | Build / dev | Vite 8, tsup (server build), tsx (dev runner), pnpm 11, Turborepo 2 |
 | Tests | Vitest 4 (unit, colocated `*.test.ts(x)`), Playwright (e2e) |
 | Quality | ESLint 10, Prettier, Husky, commitlint + commitizen (Conventional Commits) |
-| Node | v24 (`.nvmrc`; CI uses Node 24, packages declare `>=18`) |
+| Node | v24 (`.nvmrc`; CI uses Node 24, packages declare `>=24.15.0` in `engines` — don't confuse with tsup's build `target: "node18"` in 03-packages.md, a different, unrelated setting) |
 
 ## Monorepo layout
 
