@@ -1,6 +1,6 @@
 # Plan: Swift in-container actions menu (issue #1196)
 
-**Date:** 2026-08-28 · **Status:** implemented 2026-08-28
+**Date:** 2026-08-28 · **Status:** implemented 2026-08-28; post-implementation review 2026-09-01 (core plan confirmed correct; test fixes applied; undocumented scope creep flagged, not reverted — see bottom of file)
 
 ## Overview
 
