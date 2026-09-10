@@ -420,7 +420,7 @@ export const SwiftContainers = () => {
         createModalOpen={createModalOpen}
         setCreateModalOpen={setCreateModalOpen}
         maxContainerNameLength={serviceInfo?.swift?.max_container_name_length}
-        existingContainerNames={(containers || []).map((c) => c.name)}
+        existingContainers={containers}
         onCreateSuccess={handleCreateSuccess}
         onCreateError={handleCreateError}
         onEmptySuccess={handleEmptySuccess}

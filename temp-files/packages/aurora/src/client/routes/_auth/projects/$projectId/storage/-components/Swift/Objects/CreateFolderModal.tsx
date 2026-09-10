@@ -4,6 +4,7 @@ import { trpcReact } from "@/client/trpcClient"
 import { useProjectId } from "@/client/hooks/useProjectId"
 import { Modal, TextInput, Stack } from "@cloudoperators/juno-ui-components"
 import { useParams } from "@tanstack/react-router"
+import { FolderRow } from "./"
 
 interface CreateFolderModalProps {
   isOpen: boolean
@@ -11,10 +12,10 @@ interface CreateFolderModalProps {
   onClose: () => void
   onSuccess?: (folderName: string) => void
   onError?: (folderName: string, errorMessage: string) => void
-  // Full paths (with trailing slash) of folders already present at the current level —
-  // from the already-loaded object listing. Lets us reject an obviously-taken name instantly,
-  // without waiting on the mutation; mirrors the Ceph CreateFolderModal's duplicate check.
-  existingFolderNames?: string[]
+  // Folder rows already present at the current level — from the already-loaded object listing.
+  // Lets us reject an obviously-taken name instantly, without waiting on the mutation; mirrors
+  // the Ceph CreateFolderModal's duplicate check.
+  existingFolders?: FolderRow[]
 }
 
 export const CreateFolderModal = ({
@@ -23,7 +24,7 @@ export const CreateFolderModal = ({
   onClose,
   onSuccess,
   onError,
-  existingFolderNames = [],
+  existingFolders = [],
 }: CreateFolderModalProps) => {
   const { t } = useLingui()
   const projectId = useProjectId()
@@ -78,7 +79,7 @@ export const CreateFolderModal = ({
     // Check against existing folders at the current level — same duplicate-detection
     // rule as the Ceph CreateFolderModal (utils/objectValidation.ts's validateFolderName).
     const newPath = `${currentPrefix}${trimmed}/`
-    if (existingFolderNames.includes(newPath)) {
+    if (existingFolders.some((f) => f.name === newPath)) {
       setNameError(t`A folder with this name already exists`)
       return false
     }

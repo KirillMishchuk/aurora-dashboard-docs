@@ -3,6 +3,7 @@ import { Trans, useLingui } from "@lingui/react/macro"
 import { trpcReact } from "@/client/trpcClient"
 import { Modal, TextInput, Stack } from "@cloudoperators/juno-ui-components"
 import { useProjectId } from "@/client/hooks/useProjectId"
+import { ContainerSummary } from "@/server/Storage/types/swift"
 
 interface CreateContainerModalProps {
   isOpen: boolean
@@ -10,11 +11,11 @@ interface CreateContainerModalProps {
   onSuccess?: (containerName: string) => void
   onError?: (containerName: string, errorMessage: string) => void
   maxContainerNameLength?: number
-  // Names of containers already known on the current page (from the already-loaded list query).
-  // Lets us reject an obviously-taken name instantly, without a server round trip; the server
-  // still enforces uniqueness authoritatively (see the CONFLICT handling below) for names this
-  // list doesn't cover — e.g. a stale page or a container created outside this list's filter.
-  existingContainerNames?: string[]
+  // Containers already known on the current page (from the already-loaded list query). Lets us
+  // reject an obviously-taken name instantly, without a server round trip; the server still
+  // enforces uniqueness authoritatively (see the CONFLICT handling below) for names this list
+  // doesn't cover — e.g. a stale page or a container created outside this list's filter.
+  existingContainers?: ContainerSummary[]
 }
 
 export const CreateContainerModal = ({
@@ -23,7 +24,7 @@ export const CreateContainerModal = ({
   onSuccess,
   onError,
   maxContainerNameLength = 256,
-  existingContainerNames = [],
+  existingContainers = [],
 }: CreateContainerModalProps) => {
   const { t } = useLingui()
   const projectId = useProjectId()
@@ -80,7 +81,7 @@ export const CreateContainerModal = ({
 
     // Fast path against the already-loaded container list — catches the common case
     // instantly, without waiting on the server's authoritative CONFLICT response.
-    if (existingContainerNames.includes(trimmed)) {
+    if (existingContainers.some((c) => c.name === trimmed)) {
       setNameError(t`"${trimmed}" is already taken.`)
       return false
     }

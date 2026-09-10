@@ -27,10 +27,10 @@ interface ContainerTableViewProps {
   createModalOpen: boolean
   setCreateModalOpen: (open: boolean) => void
   maxContainerNameLength?: number
-  // Full, unfiltered list of existing container names (not the search-filtered `containers`
+  // Full, unfiltered list of existing containers (not the search-filtered `containers`
   // prop above), so the create modal's client-side dedup check isn't blind to containers
   // hidden by the current search term.
-  existingContainerNames?: string[]
+  existingContainers?: ContainerSummary[]
   onCreateSuccess: (containerName: string) => void
   onCreateError: (containerName: string, errorMessage: string) => void
   onEmptySuccess: (containerName: string, deletedCount: number) => void
@@ -54,7 +54,7 @@ export const ContainerTableView = ({
   createModalOpen,
   setCreateModalOpen,
   maxContainerNameLength,
-  existingContainerNames = [],
+  existingContainers = [],
   onCreateSuccess,
   onCreateError,
   onEmptySuccess,
@@ -275,7 +275,7 @@ export const ContainerTableView = ({
         onSuccess={onCreateSuccess}
         onError={onCreateError}
         maxContainerNameLength={maxContainerNameLength}
-        existingContainerNames={existingContainerNames}
+        existingContainers={existingContainers}
       />
 
       <EmptyContainerModal

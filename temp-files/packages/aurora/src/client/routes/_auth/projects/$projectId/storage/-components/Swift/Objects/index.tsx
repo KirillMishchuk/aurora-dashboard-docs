@@ -589,7 +589,7 @@ export const SwiftObjects = ({ provider, containerName }: { provider: string; co
         onClose={() => setCreateFolderModalOpen(false)}
         onSuccess={handleCreateFolderSuccess}
         onError={handleCreateFolderError}
-        existingFolderNames={allRows.filter((row) => row.kind === "folder").map((row) => row.name)}
+        existingFolders={allRows.filter((row): row is FolderRow => row.kind === "folder")}
       />
 
       <UploadObjectModal

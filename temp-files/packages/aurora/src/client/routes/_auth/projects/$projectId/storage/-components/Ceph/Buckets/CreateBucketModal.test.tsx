@@ -106,7 +106,7 @@ const renderModal = ({
           onClose={onClose}
           onSuccess={onSuccess}
           onError={onError}
-          existingBucketNames={existingBucketNames}
+          existingBuckets={existingBucketNames.map((name) => ({ name, count: 0, bytes: 0 }))}
         />
       </PortalProvider>
     </I18nProvider>

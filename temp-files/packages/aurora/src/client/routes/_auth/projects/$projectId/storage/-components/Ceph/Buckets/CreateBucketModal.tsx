@@ -4,17 +4,18 @@ import { trpcReact } from "@/client/trpcClient"
 import { Modal, TextInput, Stack, Checkbox } from "@cloudoperators/juno-ui-components"
 import { useProjectId } from "@/client/hooks/useProjectId"
 import { useModalTracking } from "@/client/hooks/useModalTracking"
+import { Bucket } from "@/server/Storage/types/ceph"
 
 interface CreateBucketModalProps {
   isOpen: boolean
   onClose: () => void
   onSuccess?: (bucketName: string) => void
   onError?: (bucketName: string, errorMessage: string) => void
-  // Names of buckets already known on the current page (from the already-loaded list query).
-  // Lets us reject an obviously-taken name instantly, without a server round trip; the server
-  // still enforces uniqueness authoritatively (see the CONFLICT handling below) for names this
-  // list doesn't cover — e.g. a stale page or a bucket created outside this list's filter.
-  existingBucketNames?: string[]
+  // Buckets already known on the current page (from the already-loaded list query). Lets us
+  // reject an obviously-taken name instantly, without a server round trip; the server still
+  // enforces uniqueness authoritatively (see the CONFLICT handling below) for names this list
+  // doesn't cover — e.g. a stale page or a bucket created outside this list's filter.
+  existingBuckets?: Bucket[]
 }
 
 // S3 bucket naming validation patterns
@@ -28,7 +29,7 @@ export const CreateBucketModal = ({
   onClose,
   onSuccess,
   onError,
-  existingBucketNames = [],
+  existingBuckets = [],
 }: CreateBucketModalProps) => {
   const { t } = useLingui()
   const projectId = useProjectId()
@@ -135,7 +136,7 @@ export const CreateBucketModal = ({
 
     // Fast path against the already-loaded bucket list — catches the common case
     // instantly, without waiting on the server's authoritative CONFLICT response.
-    if (existingBucketNames.includes(trimmed)) {
+    if (existingBuckets.some((b) => b.name === trimmed)) {
       setNameError(t`"${trimmed}" is already taken.`)
       return false
     }
