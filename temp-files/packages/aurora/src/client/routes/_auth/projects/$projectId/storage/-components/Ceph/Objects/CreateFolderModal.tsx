@@ -1,0 +1,180 @@
+import { useState } from "react"
+import { Trans, useLingui } from "@lingui/react/macro"
+import { Modal, TextInput, Stack, Message } from "@cloudoperators/juno-ui-components"
+import { trpcReact } from "@/client/trpcClient"
+import { useProjectId } from "@/client/hooks/useProjectId"
+import { useModalTracking } from "@/client/hooks/useModalTracking"
+import { validateFolderName } from "./utils/objectValidation"
+
+interface CreateFolderModalProps {
+  bucketName: string
+  currentPrefix: string
+  isOpen: boolean
+  onClose: () => void
+  onSuccess: (folderPath: string) => void
+}
+
+export function CreateFolderModal({ bucketName, currentPrefix, isOpen, onClose, onSuccess }: CreateFolderModalProps) {
+  const { t } = useLingui()
+  const projectId = useProjectId()
+  const [folderName, setFolderName] = useState("")
+  const [validationError, setValidationError] = useState<string | null>(null)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const utils = trpcReact.useUtils()
+
+  const { trackClose, markSubmitted, resetTracking } = useModalTracking({
+    isOpen,
+    actionPrefix: "storage.ceph.folder.create",
+  })
+
+  // Fetch existing folders for duplicate detection
+  const { data: objectsData } = trpcReact.storage.ceph.objects.list.useQuery(
+    {
+      project_id: projectId ?? "",
+      containerName: bucketName,
+      prefix: currentPrefix || undefined,
+      delimiter: "/",
+      maxKeys: 1000,
+    },
+    { enabled: isOpen && !!projectId && !!bucketName }
+  )
+
+  const createFolderMutation = trpcReact.storage.ceph.objects.createFolder.useMutation({
+    onSuccess: (_data, variables) => {
+      // Invalidate all object list queries to refresh the view
+      utils.storage.ceph.objects.list.invalidate()
+      // Invalidate bucket list to update object count
+      utils.storage.ceph.containers.list.invalidate()
+      // Use the exact path that was submitted (with trailing slash for display)
+      const submittedFullPath = variables.folderPath.endsWith("/") ? variables.folderPath : `${variables.folderPath}/`
+      onSuccess(submittedFullPath)
+      handleClose()
+    },
+    onError: (error) => {
+      // The server's If-None-Match check can reject a name the client's own (paginated,
+      // possibly stale) existingFolders check let through - surface that the same way as
+      // a client-side duplicate instead of the raw server error string.
+      if (error.data?.code === "CONFLICT") {
+        setValidationError(t`A folder with this name already exists`)
+        setSubmitError(null)
+      } else {
+        setSubmitError(error.message || t`The folder could not be created. Try again.`)
+      }
+      // The modal stays open on failure (no handleClose here), so undo markSubmitted's
+      // effect - otherwise a later Cancel would be silently untracked (trackClose no-ops
+      // once hasSubmitted is set).
+      resetTracking()
+    },
+  })
+
+  const handleClose = () => {
+    setFolderName("")
+    setValidationError(null)
+    setSubmitError(null)
+    createFolderMutation.reset()
+    resetTracking()
+    onClose()
+  }
+
+  const handleFolderNameChange = (value: string) => {
+    setFolderName(value)
+    setSubmitError(null)
+
+    if (validationError) {
+      const existingFolders = objectsData?.folders.map((f) => f.prefix) ?? []
+      const error = validateFolderName(value, existingFolders, currentPrefix)
+      setValidationError(error ? t(error.message) : null)
+    }
+  }
+
+  const handleCreate = () => {
+    if (!projectId) return
+
+    const existingFolders = objectsData?.folders.map((f) => f.prefix) ?? []
+    const error = validateFolderName(folderName, existingFolders, currentPrefix)
+    if (error) {
+      setValidationError(t(error.message))
+      return
+    }
+
+    setSubmitError(null)
+    markSubmitted()
+    const fullPath = currentPrefix + folderName.trim()
+
+    createFolderMutation.mutate({
+      project_id: projectId,
+      containerName: bucketName,
+      folderPath: fullPath,
+    })
+  }
+
+  return (
+    <Modal
+      open={isOpen}
+      onCancel={() => {
+        trackClose()
+        handleClose()
+      }}
+      title={<Trans>Create New Folder</Trans>}
+      size="large"
+      confirmButtonLabel={createFolderMutation.isPending ? t`Creating...` : t`Create Folder`}
+      onConfirm={handleCreate}
+      confirmButtonVariant="primary"
+      cancelButtonLabel={t`Cancel`}
+      disableConfirmButton={createFolderMutation.isPending || !folderName.trim()}
+      disableCancelButton={createFolderMutation.isPending}
+      disableCloseButton={createFolderMutation.isPending}
+    >
+      <Stack direction="vertical" gap="4">
+        {/* Stack's gap already provides spacing; no extra margin needed on the banner. */}
+        {submitError && (
+          <Message
+            variant="error"
+            dismissible
+            onDismiss={() => setSubmitError(null)}
+            role="alert"
+            aria-live="assertive"
+            data-testid="create-folder-error"
+          >
+            {submitError}
+          </Message>
+        )}
+        <p>
+          <Trans>Enter a name for the new folder.</Trans>
+        </p>
+
+        {currentPrefix && (
+          <div className="bg-theme-background-lvl-2 rounded p-3">
+            <span className="text-theme-light text-sm">
+              <Trans>Current location:</Trans>
+            </span>
+            <div className="mt-1 text-sm">{currentPrefix}</div>
+          </div>
+        )}
+
+        <TextInput
+          label={t`Folder Name`}
+          value={folderName}
+          onChange={(e) => handleFolderNameChange(e.target.value)}
+          placeholder="my-folder"
+          autoFocus
+          invalid={!!validationError}
+          errortext={validationError || undefined}
+          disabled={createFolderMutation.isPending}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !createFolderMutation.isPending) {
+              handleCreate()
+            }
+          }}
+        />
+
+        <div className="bg-theme-background-lvl-1 rounded p-3">
+          <span className="text-theme-light text-sm">
+            <Trans>Full path:</Trans>
+          </span>
+          <div className="mt-1 text-sm break-all">{currentPrefix + folderName.trim() + "/"}</div>
+        </div>
+      </Stack>
+    </Modal>
+  )
+}
