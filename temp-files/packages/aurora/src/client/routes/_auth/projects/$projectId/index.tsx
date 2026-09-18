@@ -1,0 +1,133 @@
+import { createFileRoute, useLoaderData, useNavigate } from "@tanstack/react-router"
+import { Card, Stack } from "@cloudoperators/juno-ui-components"
+import { getServiceIndex } from "@/server/Authentication/helpers"
+import { Trans } from "@lingui/react/macro"
+import { useLingui } from "@lingui/react/macro"
+import { useRouteContext } from "@tanstack/react-router"
+import { ContentHeader } from "@/client/components/ContentHeader/ContentHeader"
+import { Slot } from "@/client/components/Slot"
+import type { RouteInfo } from "@/client/routes/routeInfo"
+import { hasServiceByName } from "@/client/utils/serviceCatalog"
+import { STORAGE_PROVIDER, STORAGE_TYPE_BY_PROVIDER } from "@/client/utils/storageProviders"
+
+export const Route = createFileRoute("/_auth/projects/$projectId/")({
+  staticData: {
+    analytics: {
+      name: "projects.detail",
+    },
+  } satisfies RouteInfo,
+  component: RouteComponent,
+})
+
+interface ServiceCardProps {
+  group: string
+  label: string
+  to: string
+  service: string
+}
+
+function ServiceCard({ group, label, to, service }: ServiceCardProps) {
+  const navigate = useNavigate()
+  const { slots } = useRouteContext({ strict: false })
+
+  return (
+    <Card
+      onClick={() => navigate({ to: to as never })}
+      className="flex min-h-40 flex-col gap-4 px-3 pt-2 pb-3"
+      data-testid="service-card"
+    >
+      <div className="flex min-w-0 flex-col">
+        <p className="text-theme-light text-xs leading-5 font-medium">{group}</p>
+        <div className="flex items-center gap-2">
+          <p className="text-theme-high text-lg leading-7 font-bold" data-testid="service-card-label">
+            {label}
+          </p>
+          {slots?.serviceBadge && <Slot component={slots.serviceBadge} useShadowDOM={false} currentService={service} />}
+        </div>
+      </div>
+      <div className="flex-1" />
+    </Card>
+  )
+}
+
+function RouteComponent() {
+  const { crumbProject, availableServices, projectId, description } = useLoaderData({
+    from: "/_auth/projects/$projectId",
+  })
+  const { t } = useLingui()
+  const { enabledServices, serviceExtensions } = useRouteContext({ strict: false })
+  const isEnabled = (service: string) => !enabledServices || enabledServices.includes(service)
+
+  const serviceIndex = getServiceIndex(availableServices ?? [])
+  const base = `/projects/${projectId}`
+
+  const cards: ServiceCardProps[] = []
+
+  if (serviceIndex["image"]?.["glance"] && isEnabled("images"))
+    cards.push({ group: t`Compute`, label: t`Images`, to: `${base}/compute/images`, service: "images" })
+  if (serviceIndex["compute"]?.["nova"] && isEnabled("flavors"))
+    cards.push({ group: t`Compute`, label: t`Flavors`, to: `${base}/compute/flavors`, service: "flavors" })
+  if (serviceIndex["network"]) {
+    if (isEnabled("securitygroups"))
+      cards.push({
+        group: t`Network`,
+        label: t`Security Groups`,
+        to: `${base}/network/securitygroups`,
+        service: "securitygroups",
+      })
+    if (isEnabled("floatingips"))
+      cards.push({
+        group: t`Network`,
+        label: t`Floating IPs`,
+        to: `${base}/network/floatingips`,
+        service: "floatingips",
+      })
+  }
+  // `service` / `isEnabled` take nav service keys ("containers", "ceph-containers"),
+  // a different vocabulary from the `$storageType` URL nouns — see STORAGE_TYPE.
+  if (hasServiceByName(serviceIndex, STORAGE_PROVIDER.SWIFT) && isEnabled("containers"))
+    cards.push({
+      group: t`Storage`,
+      label: t`Object Storage (Swift)`,
+      to: `${base}/storage/${STORAGE_PROVIDER.SWIFT}/${STORAGE_TYPE_BY_PROVIDER[STORAGE_PROVIDER.SWIFT]}`,
+      service: "containers",
+    })
+  if (hasServiceByName(serviceIndex, STORAGE_PROVIDER.CEPH) && isEnabled("ceph-containers"))
+    cards.push({
+      group: t`Storage`,
+      label: t`Object Storage (Ceph)`,
+      to: `${base}/storage/${STORAGE_PROVIDER.CEPH}/${STORAGE_TYPE_BY_PROVIDER[STORAGE_PROVIDER.CEPH]}`,
+      service: "ceph-containers",
+    })
+
+  for (const extension of serviceExtensions ?? []) {
+    // if the extension's service is in the catalog and enabled, display a card for it
+    if (
+      serviceIndex[extension.serviceType]?.[extension.serviceName] &&
+      (!enabledServices || enabledServices.includes(extension.serviceType))
+    )
+      cards.push({
+        group: t`Services`,
+        label: extension.label,
+        to: `/projects/${projectId}/services/${extension.serviceType}`,
+        service: extension.serviceType,
+      })
+  }
+
+  return (
+    <Stack direction="vertical">
+      <ContentHeader title={crumbProject?.name ?? t`Project`} projectId={projectId} description={description} />
+      {cards.length > 0 ? (
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
+          {cards.map((card) => (
+            <ServiceCard key={card.to} {...card} />
+          ))}
+        </div>
+      ) : (
+        <p className="text-theme-light text-sm">
+          <Trans>No services available for this project.</Trans>
+        </p>
+      )}
+    </Stack>
+  )
+}
