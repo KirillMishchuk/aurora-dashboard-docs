@@ -1,6 +1,6 @@
 # PR #1263: fix(network): issues to fix before Floating IPs Go-Live
 
-**Автор:** vlad-schur-external-sap · **Статус:** open (создан 03.09.2026)
+**Автор:** vlad-schur-external-sap · **Статус:** смержен 08.09.2026 (создан 03.09.2026)
 **Ветки:** `vlad-floatingips-issues-before-go-live` → `main` · **Файлов:** 27 (+395/-282)
 **Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1263
 
