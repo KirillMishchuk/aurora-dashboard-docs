@@ -22,4 +22,4 @@ git apply <путь к DOCS>/transfer/<файл>.patch
 
 | Патч | База | Что внутри |
 | --- | --- | --- |
-| `1081-on-9775e4bb.patch` | `9775e4bb` | Ветка `kiryl-storage-type-404-1081`, issue #1081: 404 для storage-провайдера/типа. 45 файлов. |
+| `1004-on-dc918d47.patch` | `dc918d47` | Ветка `kiryl-issue-1004-s3-version-pagination`, issue #1004: ограничение пагинации S3-версий и серверное определение состояния бакета (`containers.getState`, `checkDeletedContent` одним сканом префикса), плюс фикс «Delete Versions», сносившего весь бакет (`objects.deleteNonCurrentVersions`). 50 файлов, из них 6 новых и 1 удалённый. |

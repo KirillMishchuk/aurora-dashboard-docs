@@ -33,7 +33,6 @@ import { BucketPolicyModal } from "../Buckets/BucketPolicyModal"
 import { DeleteBucketPolicyModal } from "../Buckets/DeleteBucketPolicyModal"
 import { EmptyBucketModal } from "../Buckets/EmptyBucketModal"
 import { DeleteBucketModal } from "../Buckets/DeleteBucketModal"
-import { DeleteVersionsModal } from "../Buckets/DeleteVersionsModal"
 import { useNavigate } from "@tanstack/react-router"
 import { Route } from "@/client/routes/_auth/projects/$projectId/storage/$provider/$storageType/$containerName/objects"
 import type { S3Object, S3FolderPrefix, S3ObjectVersion } from "@/server/Storage/types/ceph"
@@ -76,7 +75,6 @@ export function ObjectBrowserView({ bucketName }: ObjectBrowserViewProps) {
   const { prefix: encodedPrefix, sortBy, sortDirection, search: searchParam = "", tab = "all" } = Route.useSearch()
   const currentPrefix = decodePrefix(encodedPrefix)
 
-  // storageType is always derived from the resolved provider, never defaulted independently.
   const resolvedProvider = asStorageProvider(provider, STORAGE_PROVIDER.CEPH)
   const resolvedStorageType = storageTypeFor(resolvedProvider)
 
@@ -95,7 +93,6 @@ export function ObjectBrowserView({ bucketName }: ObjectBrowserViewProps) {
   const [isDeletePolicyModalOpen, setIsDeletePolicyModalOpen] = useState(false)
   const [isEmptyBucketModalOpen, setIsEmptyBucketModalOpen] = useState(false)
   const [isDeleteBucketModalOpen, setIsDeleteBucketModalOpen] = useState(false)
-  const [isDeleteVersionsModalOpen, setIsDeleteVersionsModalOpen] = useState(false)
 
   const [selectedItems, setSelectedItems] = useState<{ key: string; versionId?: string }[]>([])
   const [isDeleteObjectsModalOpen, setIsDeleteObjectsModalOpen] = useState(false)
@@ -144,11 +141,19 @@ export function ObjectBrowserView({ bucketName }: ObjectBrowserViewProps) {
 
   // Query to check which folders contain deleted content
   // Need this in both tabs: "deleted" to show deleted folders, "all" to hide deleted folders
+  //
+  // Sends the current directory's prefix rather than the accumulated folder array: the BFF
+  // scans that whole prefix in one paginated pass and attributes results to child folders
+  // itself, so this input never grows with "Load more" and the query key stays stable across
+  // pages — a fan-out keyed on `allFolders` used to restart the whole scan on every page.
   const { data: folderDeletedStatus } = trpcReact.storage.ceph.versioning.checkDeletedContent.useQuery(
     {
       project_id: projectId ?? "",
       bucket: bucketName,
-      folders: allFolders.map((f) => f.prefix),
+      // Sent as-is, including the empty string: "" is the bucket root, a real prefix the server
+      // resolves with `??`. Collapsing it to undefined would read as "no prefix given", which
+      // this query's input schema rejects - and the root is the default view.
+      prefix: currentPrefix,
     },
     {
       enabled: !!projectId && versioningStatus?.status === "Enabled" && allFolders.length > 0,
@@ -156,10 +161,6 @@ export function ObjectBrowserView({ bucketName }: ObjectBrowserViewProps) {
     }
   )
 
-  // Everything this component accumulates belongs to one folder: the pages loaded so far,
-  // the cursors that produced them, and the selection made inside it. Leaving the folder has
-  // to drop all of it — a selection that outlives its folder still aims the bulk actions at
-  // objects that are no longer on screen.
   const resetFolderState = useCallback(() => {
     setContinuationToken(undefined)
     setKeyMarker(undefined)
@@ -171,21 +172,6 @@ export function ObjectBrowserView({ bucketName }: ObjectBrowserViewProps) {
     setSelectedItems([])
   }, [])
 
-  // The folder also changes without going through `navigateToPrefix`: browser back/forward, a
-  // deep link, a hand-edited `?prefix=`. Those paths reach this component as nothing but a new
-  // prefix, so the reset has to happen here too. (Swift does the same, for its selection — see
-  // Swift/Objects/index.tsx.)
-  //
-  // Done while rendering rather than in an effect, which matters twice over:
-  //   - the listing query right below reads `continuationToken` as it renders, so a reset that
-  //     waits for an effect arrives one step late: the render in between asks the server to
-  //     continue the *previous* folder's listing inside the new folder. Resetting here makes
-  //     React re-run this component before anything commits, so that request is never sent.
-  //   - the accumulation effect further down writes this same state. As an effect, this reset
-  //     had to be declared ahead of it to win — and that ordering broke once already: when the
-  //     new folder's listing is already cached its data arrives in the same commit, so whoever
-  //     ran last decided between showing the page and showing an empty browser. Off the effect
-  //     queue there is no ordering left to get wrong.
   const [lastPrefix, setLastPrefix] = useState(currentPrefix)
   if (lastPrefix !== currentPrefix) {
     setLastPrefix(currentPrefix)
@@ -247,9 +233,6 @@ export function ObjectBrowserView({ bucketName }: ObjectBrowserViewProps) {
   }, [data, continuationToken, keyMarker, currentPrefix, tab])
 
   const navigateToPrefix = (prefix: string) => {
-    // Kept alongside the render-phase reset above, which would catch the new prefix anyway:
-    // this one runs before `navigate` is even called, so the outgoing folder's rows are gone
-    // for certain by the time the URL changes.
     resetFolderState()
     navigate({
       search: (prev) => ({
@@ -291,8 +274,25 @@ export function ObjectBrowserView({ bucketName }: ObjectBrowserViewProps) {
     stripPrefix(obj.key).toLowerCase().includes(searchParam.toLowerCase().trim())
   )
 
+  /**
+   * Folder status by prefix.
+   *
+   * `checkDeletedContent` returns one entry per folder it discovered under the scanned prefix,
+   * which is bounded by the bucket's contents rather than by what this view has loaded - a deep
+   * prefix can come back with thousands. A linear `.find` per rendered folder made that
+   * folders x statuses on every render, including every keystroke in the search box, since the
+   * lists below are plain expressions rather than memos.
+   */
+  const statusByPrefix = useMemo(
+    // The Array.isArray guard matches the one the lists below already apply: this query's shape
+    // is distrusted deliberately, since a failed or still-settling query must render as "no
+    // status known" rather than throw inside a memo.
+    () => new Map(Array.isArray(folderDeletedStatus) ? folderDeletedStatus.map((s) => [s.prefix, s]) : []),
+    [folderDeletedStatus]
+  )
+
   // When showing deleted files: show the last real version before delete marker (the version we can restore)
-  const deletedFilesList = (() => {
+  const deletedFilesList = useMemo(() => {
     if (tab !== "deleted") return []
 
     // Group versions by key
@@ -331,23 +331,28 @@ export function ObjectBrowserView({ bucketName }: ObjectBrowserViewProps) {
     })
 
     return deletedFiles
-  })()
+  }, [tab, allVersions])
 
   // Filter folders based on deleted content check from BFF
   // Also add isDeleted flag to folders whose marker is deleted
   const deletedFoldersList: Array<
     S3FolderPrefix & { isDeleted?: boolean; deleteMarkerVersionId?: string; folderMarkerVersionId?: string }
-  > = (() => {
+  > = useMemo(() => {
     if (tab !== "deleted") {
       // In "All" tab, exclude folders that are deleted (have delete marker as latest version)
       // or have no versions at all (permanently deleted)
       if (!folderDeletedStatus || !Array.isArray(folderDeletedStatus)) return allFolders // Show all while loading or if no data
 
       const filtered = allFolders.filter((folder) => {
-        const status = folderDeletedStatus.find((s) => s.prefix === folder.prefix)
+        const status = statusByPrefix.get(folder.prefix)
         // No status? Show folder (we don't know if it's deleted)
         if (!status) return true
-        // Has status? Show only if not deleted AND has versions
+        // Scan didn't fully cover this folder (page ceiling or abort)? Show it — an incomplete
+        // scan can only miss a delete marker, never invent one, so we must not treat "unknown"
+        // as "deleted" here. Hiding a live folder because of a partial scan would be worse than
+        // occasionally showing a deleted one a beat too long.
+        if (status.isPartialScan) return true
+        // Has status and the scan was complete? Show only if not deleted AND has versions
         // If folderMarkerVersionId is undefined, the folder has no versions (was permanently deleted)
         return !status.isFolderDeleted && status.folderMarkerVersionId !== undefined
       })
@@ -357,14 +362,15 @@ export function ObjectBrowserView({ bucketName }: ObjectBrowserViewProps) {
 
     if (!folderDeletedStatus || !Array.isArray(folderDeletedStatus)) return allFolders // Show all while loading or if no data
 
-    // In "Deleted" tab: Filter folders that have deleted content or are themselves deleted
+    // In "Deleted" tab: Filter folders that have deleted content or are themselves deleted.
+    // Deliberately does NOT special-case `isPartialScan` here: a positive `hasDeletedContent`
+    // is trustworthy even from an incomplete scan (it can only miss content, never invent it),
+    // and a negative result under `isPartialScan` correctly stays hidden rather than being
+    // guessed into "has deleted content" — do not "fix" this to key off `isPartialScan`.
     const foldersWithDeleted = allFolders
-      .filter((folder) => {
-        const status = folderDeletedStatus.find((s) => s.prefix === folder.prefix)
-        return status?.hasDeletedContent ?? false
-      })
+      .filter((folder) => statusByPrefix.get(folder.prefix)?.hasDeletedContent ?? false)
       .map((folder) => {
-        const status = folderDeletedStatus.find((s) => s.prefix === folder.prefix)
+        const status = statusByPrefix.get(folder.prefix)
         return {
           ...folder,
           isDeleted: status?.isFolderDeleted ?? false, // Add isDeleted flag for badge
@@ -374,7 +380,7 @@ export function ObjectBrowserView({ bucketName }: ObjectBrowserViewProps) {
       })
 
     return foldersWithDeleted
-  })()
+  }, [tab, allFolders, folderDeletedStatus, statusByPrefix])
 
   const filteredFolders = deletedFoldersList.filter((folder) =>
     stripPrefix(folder.prefix).toLowerCase().includes(searchParam.toLowerCase().trim())
@@ -625,33 +631,6 @@ export function ObjectBrowserView({ bucketName }: ObjectBrowserViewProps) {
     return <Status status="error" title={t`Failed to Load Objects`} body={errorMessage} />
   }
 
-  /**
-   * A non-empty prefix in the URL is a claim that such a folder exists, and the listing we
-   * already have settles it — no second request needed. S3 returns every key starting with
-   * the prefix, so an answer with no objects and no sub-folders means nothing in the bucket
-   * starts with it.
-   *
-   * Read the *raw* response rather than the rows below it: an empty folder is a zero-byte
-   * marker object whose key is the prefix itself (`CreateFolderModal` writes it), and the row
-   * builder filters that marker out of the table — it is precisely the evidence that the
-   * folder is real.
-   *
-   * Returning before the toolbar matters as much as the message: Upload and Create Folder
-   * write to `currentPrefix + name`, so leaving them on screen would let an invented path be
-   * turned into a real one, and let a folder be created several levels deep at once,
-   * bypassing the "no slashes in a folder name" rule.
-   *
-   * Only the All tab can answer this: the Deleted tab lists versions, and a folder that is
-   * alive can legitimately have none. A truncated or paginated response is left alone too —
-   * an empty page is not an empty listing.
-   *
-   * The flip side, in a versioned bucket: an *implicit* prefix — one with no marker object,
-   * so it exists only for as long as some key starts with it — reads as missing once its last
-   * live object is deleted, while its versions are still restorable. Nothing is stranded. The
-   * tab switch above resets the prefix to the bucket root by design, so the route to those
-   * versions is the same one it would be with the tabs on screen: root, then Deleted, then
-   * into the folder, which is listed there by `hasDeletedContent`.
-   */
   const folderIsMissing =
     tab === "all" &&
     currentPrefix !== "" &&
@@ -668,7 +647,6 @@ export function ObjectBrowserView({ bucketName }: ObjectBrowserViewProps) {
         errorTitle={t`Folder Not Found`}
         errorDescription={t`This folder does not exist or is not accessible in this bucket.`}
         action={
-          // The bucket itself is fine, so the exit stays inside it.
           <Button variant="primary" onClick={() => navigateToPrefix("")}>
             {t`Back to Bucket Root`}
           </Button>
@@ -1062,26 +1040,6 @@ export function ObjectBrowserView({ bucketName }: ObjectBrowserViewProps) {
         }}
         onError={(bucketName, errorMessage) => {
           toast.error(t`Failed to delete bucket "${bucketName}": ${errorMessage}`)
-        }}
-      />
-
-      <DeleteVersionsModal
-        isOpen={isDeleteVersionsModalOpen}
-        bucket={{
-          name: bucketName,
-          count: 0,
-          bytes: 0,
-        }}
-        onClose={() => setIsDeleteVersionsModalOpen(false)}
-        onSuccess={(bucketName, deletedCount) => {
-          setIsDeleteVersionsModalOpen(false)
-          toast.success(
-            t`Successfully deleted ${deletedCount} versions and delete markers from bucket "${bucketName}".`
-          )
-        }}
-        onError={(bucketName, errorMessage) => {
-          setIsDeleteVersionsModalOpen(false)
-          toast.error(t`Failed to delete versions from bucket "${bucketName}": ${errorMessage}`)
         }}
       />
     </div>
