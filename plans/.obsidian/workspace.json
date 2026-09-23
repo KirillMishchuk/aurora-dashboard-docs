@@ -41,7 +41,9 @@
               "type": "file-explorer",
               "state": {
                 "sortOrder": "alphabetical",
-                "autoReveal": false
+                "autoReveal": false,
+                "showSearch": false,
+                "searchQuery": ""
               },
               "icon": "lucide-folder-closed",
               "title": "Файловый менеджер"
@@ -185,6 +187,15 @@
   },
   "active": "2f24445bdd85e7d5",
   "lastOpenFiles": [
+    "2026-09-22-issue-1004-comments/comment-3-out-of-scope.md",
+    "2026-09-22-issue-1004-comments/comment-2-implementation.md",
+    "2026-09-22-issue-1004-comments/comment-1-verification.md",
+    "2026-09-22-issue-1004-comments",
+    "2026-09-22-issue-1004-s3-version-pagination-bucket-state.md",
+    "2026-09-14-storage-type-404-issue-1081.md",
+    "2026-09-11-pr-1288-copilot-round-3.md",
+    "2026-09-10-pr-1288-copilot-round-2.md",
+    "2026-09-10-pr-1288-copilot-findings.md",
     "2026-09-09-security-groups-bulk-actions.md",
     "2026-09-07-security-groups-go-live-fixes.md",
     "2026-08-28-swift-in-container-actions-menu.md",
@@ -203,14 +214,6 @@
     "2026-08-12-cors-rules-designer-fixes.md",
     "2026-08-12-ceph-bucket-empty-action-consistency.md",
     "2026-08-07-ceph-bucket-details-tabs-cors-implemented.md",
-    "2026-08-07-ceph-bucket-details-tabs-cors.md",
-    "2026-08-06-lifecycle-rules-implementation-comparison-ru.md",
-    "2026-08-06-ceph-lifecycle-rules-remote-branch-fixes (1).md",
-    "2026-08-06-lifecycle-rules-implementation-comparison.md",
-    "tasks-bucket-tagging.md",
-    "2026-08-03-fix-deleteversionsbulk-partial-failure.md",
-    "2026-07-31-ceph-lifecycle-rules-crud.md",
-    "README.md",
-    "2026-07-23-ceph-lifecycle-policies-endpoint.md"
+    "2026-08-07-ceph-bucket-details-tabs-cors.md"
   ]
 }
