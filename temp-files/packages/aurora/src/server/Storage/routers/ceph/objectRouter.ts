@@ -834,16 +834,11 @@ export const objectRouter = {
       type VersionEntry = { Key: string; VersionId?: string; IsLatest: boolean; isDeleteMarker: boolean }
       type KeyGroup = { key: string; items: VersionEntry[] }
 
-      // No per-key `deleted` list: this scans the whole bucket, so that array would grow with
-      // the bucket rather than with the caller's input, and the modal only ever reads counts.
       const errors: DeleteObjectError[] = []
       let deletedCount = 0
       let errorCount = 0
-      // The wipe stopped before reaching the end of the bucket, so versions may survive. Every
-      // path that sets this must, or a bare success count would claim an exhaustive wipe.
       let isPartial = false
 
-      // `errorCount` stays exact; only the itemised list is capped.
       const recordErrors = (newErrors: DeleteObjectError[]) => {
         errorCount += newErrors.length
         for (const error of newErrors) {
@@ -854,21 +849,10 @@ export const objectRouter = {
 
       let keyMarker: string | undefined
       let versionIdMarker: string | undefined
-
-      // Carry-over from the previous page: the last key-group on a truncated
-      // page, whose records might continue on the next page (see the
-      // IsLatest-correctness note above). Merged into the next page's
-      // leading group before either is decided on.
       let pendingKey: string | undefined
       let pendingItems: VersionEntry[] = []
-
-      // Safety net mirroring `deleteAll`'s MAX_SAME_MARKER: stop rather than
-      // loop forever if S3 ever returns pagination markers that don't advance.
       let sameMarkerCount = 0
       const MAX_SAME_MARKER = 5
-
-      // Set when a key's records overflow the buffer below: every further page of that same key
-      // is discarded rather than accumulated, until the key ends.
       let skipKey: string | undefined
 
       while (true) {
@@ -882,8 +866,6 @@ export const objectRouter = {
           response = await s3.send(
             new ListObjectVersionsCommand({
               Bucket: containerName,
-              // No Prefix/Delimiter: this deletes non-current versions across the
-              // whole bucket, mirroring deleteAll's full-wipe scan.
               MaxKeys: S3_MAX_KEYS_PER_REQUEST,
               KeyMarker: keyMarker,
               VersionIdMarker: versionIdMarker,
@@ -901,16 +883,6 @@ export const objectRouter = {
           })
         }
 
-        // Versions and DeleteMarkers arrive as separate arrays, each already
-        // sorted by key ascending; merging and re-sorting by key interleaves
-        // them into per-key groups without needing to know their relative
-        // order within a key (IsLatest alone decides that).
-        //
-        // The comparator must NOT be localeCompare: S3 orders keys by raw byte
-        // value ("A" < "a"), while locale collation orders them the other way
-        // round. Using collation here would reorder the groups relative to the
-        // page S3 actually returned, and the deferral below would then hold
-        // back the wrong key.
         const combined: VersionEntry[] = [
           ...(response.Versions ?? []).map((v) => ({
             Key: v.Key ?? "",
@@ -936,9 +908,6 @@ export const objectRouter = {
           }
         }
 
-        // Merge the previous page's deferred group into this page's leading
-        // group (same key), or - if the key didn't actually continue - treat
-        // it as its own, now-complete, leading group.
         if (pendingItems.length > 0) {
           if (pageGroups.length > 0 && pageGroups[0].key === pendingKey) {
             pageGroups[0].items = [...pendingItems, ...pageGroups[0].items]
@@ -949,8 +918,6 @@ export const objectRouter = {
           pendingKey = undefined
         }
 
-        // A key whose records overflowed the buffer is abandoned for the rest of its run: it
-        // stays unprocessed until a page arrives that no longer carries it.
         if (skipKey !== undefined) {
           const remaining = pageGroups.filter((group) => group.key !== skipKey)
           if (remaining.length === pageGroups.length) skipKey = undefined
@@ -958,19 +925,6 @@ export const objectRouter = {
           pageGroups.push(...remaining)
         }
 
-        // Defer the group that may continue on the next page: its IsLatest is
-        // not trustworthy yet. On a truncated response S3 sets NextKeyMarker to
-        // the last key it returned, so that name identifies the group exactly -
-        // more reliably than "whatever sorted last" on our side. Fall back to
-        // the last group if the marker matches nothing.
-        //
-        // The guard mirrors the loop's exit condition below exactly, and must
-        // keep doing so: deferring a group on a page after which the loop
-        // stops would drop it silently - its old versions would survive and
-        // never show up in `errors`, so the mutation would report success on
-        // an incomplete wipe. A truncated page without a NextKeyMarker is
-        // malformed (S3 always sends one), but Ceph RGW is not AWS, so this
-        // stays a structural guarantee rather than an assumption.
         let groupsToProcess = pageGroups
         if (response.IsTruncated && response.NextKeyMarker && pageGroups.length > 0) {
           const markerIndex = pageGroups.findIndex((group) => group.key === response.NextKeyMarker)
@@ -979,10 +933,6 @@ export const objectRouter = {
           groupsToProcess = pageGroups.filter((_, i) => i !== index)
 
           if (deferredGroup.items.length > S3_MAX_BUFFERED_VERSIONS_PER_KEY) {
-            // Deciding this group needs all of it in memory at once, and it no longer fits.
-            // Abandoning it loses nothing that was already deleted and - unlike guessing which
-            // of its records is current - cannot delete the live object. It is reported both
-            // ways: an error names the key, `isPartial` denies the wipe was exhaustive.
             console.error(
               `[deleteNonCurrentVersions] Abandoning key with more than ${S3_MAX_BUFFERED_VERSIONS_PER_KEY} versions in bucket ${containerName}`
             )
@@ -1005,13 +955,6 @@ export const objectRouter = {
         for (const group of groupsToProcess) {
           const current = group.items.find((item) => item.IsLatest)
           if (current === undefined) {
-            // A complete key group always contains exactly one record flagged IsLatest - the
-            // deferral above is what makes "complete" true. Without that record there is no way
-            // to tell the live version from the old ones, and the default direction matters
-            // enormously: treating the group as having no current version would queue every
-            // record for deletion, live object included, by explicit VersionId and therefore
-            // with no delete marker to restore from. That is the exact opposite of this
-            // procedure's contract, so an unreadable group is skipped and reported instead.
             console.error(`[deleteNonCurrentVersions] Skipping key with no current version in bucket ${containerName}`)
             recordErrors([
               {
@@ -1025,13 +968,8 @@ export const objectRouter = {
           }
           const keepCurrentVersion = !current.isDeleteMarker
           for (const item of group.items) {
-            if (keepCurrentVersion && item === current) continue // the live, current version - keep it
+            if (keepCurrentVersion && item === current) continue
             if (!item.VersionId) {
-              // A DeleteObjects entry without a VersionId does not remove a
-              // version on a versioned bucket - it creates a new delete marker,
-              // hiding a live object. S3 always reports a VersionId here (the
-              // literal "null" for pre-versioning objects), so this only guards
-              // against a malformed response; skipping is the safe direction.
               console.error(`[deleteNonCurrentVersions] Skipping item without VersionId in bucket ${containerName}`)
               recordErrors([
                 {
@@ -1060,10 +998,12 @@ export const objectRouter = {
         }
 
         if (!response.IsTruncated || !response.NextKeyMarker) {
-          // Truncated but with nowhere to continue from: S3 always sends a marker, so this is a
-          // malformed response rather than the end of the bucket. Stopping is right; calling it
-          // a complete wipe is not.
-          if (response.IsTruncated) isPartial = true
+          // Truncated without a usable continuation marker, or aborted while this page's
+          // deletes were in flight. bulkDeleteItems breaks out silently on abort — no
+          // deletion recorded, no error recorded — so this is the last place that can say
+          // the run did not cover the bucket. A false positive is harmless: isPartial means
+          // "not vouching for completeness", and the cost is one re-run.
+          if (response.IsTruncated || ctx.req.signal?.aborted) isPartial = true
           break
         }
 

@@ -25,6 +25,7 @@ import {
   type BucketState,
 } from "../../types/ceph"
 import { S3_MAX_KEYS_PER_REQUEST, S3_MAX_SCAN_PAGES } from "../../constants"
+import { filterBySearchParams } from "@/server/helpers/filterBySearchParams"
 
 export const containerRouter = {
   status: cephProcedure.input(projectScopedInputSchema).query(async ({ ctx }): Promise<S3Status> => {
@@ -42,14 +43,14 @@ export const containerRouter = {
    */
   list: cephProtectedProcedure.input(listContainersInputSchema).query(async ({ input, ctx }): Promise<Bucket[]> => {
     const s3 = ctx.getCephClient()
-    const { includeMetadata } = input
+    const { includeMetadata, searchTerm } = input
     try {
       const response = await s3.send(new ListBucketsCommand({}))
       const buckets = response.Buckets ?? []
 
       // If metadata not requested, return buckets with basic info only (fast path)
       if (!includeMetadata) {
-        return buckets.map((bucket) =>
+        const basicBuckets = buckets.map((bucket) =>
           containerSchema.parse({
             name: bucket.Name ?? "",
             count: 0,
@@ -58,6 +59,7 @@ export const containerRouter = {
             creationDate: bucket.CreationDate?.toISOString(),
           })
         )
+        return filterBySearchParams(basicBuckets, searchTerm, ["name"])
       }
 
       // Fetch metadata for each bucket with controlled concurrency (slow path)
@@ -130,7 +132,13 @@ export const containerRouter = {
         bucketsWithMetadata.push(...batchResults)
       }
 
-      return bucketsWithMetadata
+      return filterBySearchParams(bucketsWithMetadata, searchTerm, [
+        "name",
+        "count",
+        "bytes",
+        "last_modified",
+        "creationDate",
+      ])
     } catch (error) {
       throw mapS3ErrorToTRPCError(error, { operation: "list containers" })
     }
@@ -206,13 +214,6 @@ export const containerRouter = {
   getState: cephProtectedProcedure.input(bucketStateInputSchema).query(async ({ ctx, input }): Promise<BucketState> => {
     const s3 = ctx.getCephClient()
     const { bucketName } = input
-
-    // Two independent facts that nothing else depends on: neither the versioning status nor
-    // emptiness is derived from the other, so they go out together rather than as a waterfall.
-    //
-    // ListObjectsV2 lists current objects only - a key hidden behind a delete marker is not
-    // returned - so "no keys" is exactly "no current objects". One key is all we need to tell
-    // those two cases apart.
     let status: "Enabled" | "Suspended" | "Unversioned"
     let isVersioningEnabled: boolean
     let isEmpty: boolean
@@ -221,7 +222,6 @@ export const containerRouter = {
         s3.send(new GetBucketVersioningCommand({ Bucket: bucketName }), { abortSignal: ctx.req.signal }),
         s3.send(new ListObjectsV2Command({ Bucket: bucketName, MaxKeys: 1 }), { abortSignal: ctx.req.signal }),
       ])
-      // S3 omits Status entirely when versioning was never configured.
       status = (versioningResponse.Status as "Enabled" | "Suspended" | undefined) ?? "Unversioned"
       isVersioningEnabled = status === "Enabled" || status === "Suspended"
       isEmpty = (currentObjectsResponse.KeyCount ?? currentObjectsResponse.Contents?.length ?? 0) === 0
@@ -233,11 +233,6 @@ export const containerRouter = {
       throw mapS3ErrorToTRPCError(error, { operation: "get bucket state", bucket: bucketName })
     }
 
-    // An unversioned bucket has no version history to scan: S3 cannot hold a non-current version
-    // or a delete marker for it. Both history flags are false by definition, and scanning would
-    // only page through current objects to re-learn what ListObjectsV2 just answered. A
-    // "Suspended" bucket does not qualify - it keeps whatever history it accumulated while
-    // enabled - which is why `isVersioningEnabled` covers both Enabled and Suspended.
     if (!isVersioningEnabled) {
       return bucketStateOutputSchema.parse({
         status,
@@ -268,9 +263,6 @@ export const containerRouter = {
         response = await s3.send(
           new ListObjectVersionsCommand({
             Bucket: bucketName,
-            // No Prefix/Delimiter: this is a bucket-wide scan, and a delimiter would make the
-            // client-side "direct children only" filter in objectRouter's `list` applicable -
-            // not wanted here, and not needed since we only ever read flags, not keys.
             MaxKeys: S3_MAX_KEYS_PER_REQUEST,
             KeyMarker: keyMarker,
             VersionIdMarker: versionIdMarker,
@@ -301,19 +293,20 @@ export const containerRouter = {
 
       pages++
 
-      // Both history flags are settled once we have seen an old version or delete marker (which
-      // proves `hasOldVersionsOrDeleteMarkers`) and a real version (which disproves
-      // `hasOnlyDeleteMarkers`). Nothing a later page could contain would change either.
-      //
-      // A versioned bucket with a clean history satisfies neither, so it scans to the end or to
-      // the ceiling. That is inherent: proving "no old versions anywhere" means looking
-      // everywhere. It is no longer a dead end, though - `isEmpty` is established separately and
-      // exactly, so an unconfirmed history never leaves the bucket unactionable.
       if (hasOldVersionOrDeleteMarker && hasRealVersion) {
         break
       }
 
-      if (!response.IsTruncated || !response.NextKeyMarker) {
+      if (!response.IsTruncated) {
+        break
+      }
+
+      // Truncated, but S3 handed back no continuation marker. Stopping is mandatory —
+      // resuming from the same marker would loop on the same page forever — but it is a
+      // stop, not a completed scan: the history past this page stays unread. Collapsing
+      // the two left hasOnlyDeleteMarkers below asserted off a single page.
+      if (!response.NextKeyMarker) {
+        isPartialScan = true
         break
       }
 
@@ -330,10 +323,6 @@ export const containerRouter = {
       status,
       isVersioningEnabled,
       isEmpty,
-      // A truncated scan that happened to see only delete markers cannot distinguish "this
-      // bucket holds nothing but delete markers" from "the real versions are on a page we never
-      // read". Reporting `true` there would tell EmptyBucketModal the bucket is safe to treat as
-      // already-emptied, so the unknown collapses to the safe answer instead.
       hasOnlyDeleteMarkers: !isPartialScan && anyEntrySeen && !hasRealVersion,
       hasOldVersionsOrDeleteMarkers: hasOldVersionOrDeleteMarker,
       isPartialScan,

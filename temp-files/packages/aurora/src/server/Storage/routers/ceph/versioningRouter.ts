@@ -21,7 +21,7 @@ import {
   type CheckDeletedContentOutput,
 } from "../../types/versioning"
 import { mapS3ErrorToTRPCError } from "../../helpers/s3ErrorMapper"
-import { folderPrefixOf, isFolderCovered, longestCommonPrefix } from "../../helpers/versionScan"
+import { folderPrefixOf, greatestKeyOnPage, isFolderCovered, longestCommonPrefix } from "../../helpers/versionScan"
 import { S3_MAX_KEYS_PER_REQUEST, S3_MAX_SCAN_PAGES } from "../../constants"
 
 /**
@@ -399,14 +399,6 @@ export const versioningRouter = {
       let keyMarker: string | undefined
       let versionIdMarker: string | undefined
       let pages = 0
-      // Key the scan stopped at before covering the whole prefix, or undefined if the scan
-      // ran to completion. Used to compute per-folder `isPartialScan` via `isFolderCovered`.
-      //
-      // On abort, this must be `keyMarker ?? ""` rather than plain `keyMarker`: if we abort
-      // before ever fetching a page, `keyMarker` is still `undefined`, which `isFolderCovered`
-      // reads as "scan finished" (fully covered) — exactly backwards when nothing was scanned
-      // at all. "" sorts before every real key, so `isFolderCovered` correctly reports every
-      // folder as uncovered.
       let stoppedAtKey: string | undefined
 
       while (true) {
@@ -428,8 +420,6 @@ export const versioningRouter = {
             { abortSignal: ctx.req.signal }
           )
         } catch (error) {
-          // Client navigated away mid-scan: return what we have rather than surfacing an
-          // AbortError as a failure.
           if (ctx.req.signal?.aborted) {
             stoppedAtKey = keyMarker ?? ""
             break
@@ -451,8 +441,6 @@ export const versioningRouter = {
           const folder = folderPrefixOf(key, scanPrefix)
           if (!folder) continue
           if (key === folder) {
-            // Folder marker version — accumulate the most recent LastModified across pages
-            // rather than only trusting whichever page happened to see it first.
             const entry = getOrCreate(folder)
             const lastModified = v.LastModified?.getTime() ?? 0
             if (entry.folderMarkerVersionId === undefined || lastModified > (entry.folderMarkerLastModified ?? -1)) {
@@ -473,16 +461,30 @@ export const versioningRouter = {
               entry.folderDeleteMarkerVersionId = dm.VersionId
             }
           } else if (dm.IsLatest === true) {
-            // Only IsLatest=true delete markers count — a restored object leaves a
-            // non-latest delete marker behind in its version history.
             entry.hasDeletedNested = true
           }
         }
 
         pages++
 
-        if (!response.IsTruncated || !response.NextKeyMarker) {
+        if (!response.IsTruncated) {
           stoppedAtKey = undefined
+          break
+        }
+
+        // Truncated with no continuation marker: stop, but report the stop point honestly.
+        // Reporting `undefined` here claimed the scan had run to the end, so every folder came
+        // back isPartialScan: false — including folders whose nested delete markers were on a
+        // page that was never fetched.
+        //
+        // The bound is the greatest key this page actually delivered, not the marker the page
+        // started from: everything on it has already been folded into `acc`, so coverage really
+        // does extend that far, and on a first-page truncation there is no marker to fall back
+        // to at all — `""` would mark every folder partial. `isFolderCovered` still excludes the
+        // folder containing that key, so the key group straddling the page boundary cannot be
+        // mistaken for covered. Same tightness as the page-ceiling branch below.
+        if (!response.NextKeyMarker) {
+          stoppedAtKey = greatestKeyOnPage(response.Versions, response.DeleteMarkers) ?? keyMarker ?? ""
           break
         }
 
@@ -497,10 +499,6 @@ export const versioningRouter = {
 
       const folders = input.folders ?? [...acc.keys()]
 
-      // Parsed rather than returned raw, like every sibling procedure in this domain. The
-      // contract `isPartialScan` carries - "this folder's answer is reliable" - is only worth
-      // anything if it is actually present on every element, and the schema is the only thing
-      // that keeps a future early-return honest about that.
       return checkDeletedContentOutputSchema.parse(
         folders.map((prefix) => {
           const entry = acc.get(prefix)

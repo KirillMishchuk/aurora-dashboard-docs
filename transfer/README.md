@@ -22,4 +22,4 @@ git apply <путь к DOCS>/transfer/<файл>.patch
 
 | Патч | База | Что внутри |
 | --- | --- | --- |
-| `1004-on-dc918d47.patch` | `dc918d47` | Ветка `kiryl-issue-1004-s3-version-pagination`, issue #1004: ограничение пагинации S3-версий и серверное определение состояния бакета (`containers.getState`, `checkDeletedContent` одним сканом префикса), плюс фикс «Delete Versions», сносившего весь бакет (`objects.deleteNonCurrentVersions`). 50 файлов, из них 6 новых и 1 удалённый. |
+| `s3-version-pagination-on-1602891d.patch` | `1602891d` | Ветка `kiryl-s3-version-pagination`, issue #1004, PR #1331 — ответ на шесть замечаний Copilot-ревью плюс правки по triple-review: три серверных цикла пагинации S3 перестали выдавать усечённый ответ без курсора за завершённый скан, `deleteNonCurrentVersions` помечает `isPartial` при аборте на последней странице, `DeleteVersionsModal` считает пропущенные ключи и незавершённый скан независимо (раньше первый глушил второй и терялась фраза «запустите ещё раз»), тост о частичном удалении стал структурированным, нередким и с устойчивым id, снято «Please» из трёх строк `EmptyBucketModal`. 21 файл. |

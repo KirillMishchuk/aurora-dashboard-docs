@@ -25,14 +25,14 @@ Authoritative bucket state in one call, replacing three independent client-side 
 - `status` — the raw three-way `"Enabled" | "Suspended" | "Unversioned"`, alongside the collapsed `isVersioningEnabled`, so the bucket header no longer needs a second `GetBucketVersioning`;
 - `isEmpty` — from a dedicated one-key `ListObjectsV2`, exact on a bucket of any size and never affected by `isPartialScan`;
 - `hasOldVersionsOrDeleteMarkers` / `hasOnlyDeleteMarkers` — from a bounded version scan, with an early return on unversioned buckets that skips the scan entirely;
-- `isPartialScan` — set when the ceiling was reached; `hasOnlyDeleteMarkers` is forced to `false` under it, because a truncated scan cannot tell "no real versions exist" from "none seen yet".
+- `isPartialScan` — set when the ceiling was reached, when the run was aborted, or when a truncated page carried no continuation marker (stopping is mandatory there, but it is a stop, not a completed scan); `hasOnlyDeleteMarkers` is forced to `false` under it, because a truncated scan cannot tell "no real versions exist" from "none seen yet".
 
 ### Updated `storage.ceph.versioning.checkDeletedContent`
 
 - One paginated scan of the parent `prefix` instead of N unbounded per-folder scans running in parallel. The previous early-exit required the folder's own marker to be deleted, so for a live folder it never fired and a full scan of the prefix was the normal case, not the worst one.
 - Accepts a new optional `prefix` input; `folders` stays optional and its cap is raised from 100 to 1000. The client now sends the prefix alone, which also keeps the query key stable across "Load more" — the old `folders`-keyed input restarted the whole scan on every page, and an uncut list of more than 100 folders was rejected outright, silently killing the indicators.
 - Honours `ctx.req.signal` and pages at the standard `S3_MAX_KEYS_PER_REQUEST` instead of a hardcoded 100.
-- Returns a per-folder `isPartialScan` instead of guessing completeness.
+- Returns a per-folder `isPartialScan` instead of guessing completeness. A truncated page with no continuation marker reports the greatest key that page actually delivered as the stop point, rather than claiming the scan ran to the end — folders sorting entirely before it stay honestly covered, and the folder holding that key does not, since its range may continue on the page that never arrived.
 - Surfaces S3 errors as tRPC errors; the previous empty `catch` swallowed `AccessDenied`, throttling and timeouts alike and reported "no deleted content".
 
 ## Core Infrastructure
@@ -42,11 +42,11 @@ Authoritative bucket state in one call, replacing three independent client-side 
 - **`hooks/useBucketInfo.ts`** — now reads `containers.getState` instead of `containers.list` + a truncation-prone `objects.list` probe; the separate `versioning.getStatus` query is gone, since `getState` already has that value in hand.
 - **`hooks/bucketStateHelpers.ts`** — deleted. Its `calculateBucketState` had no truncation parameter, and its `bucketObjectCount` guard never worked: `containers.list` was called without `includeMetadata`, whose default is `false`, so the count was hardcoded `0` on the server's fast path.
 - **`constants.ts`** — adds `S3_MAX_SCAN_PAGES` (20), `S3_CONNECTION_TIMEOUT_MS` (5000), `S3_MAX_BUFFERED_VERSIONS_PER_KEY`, `MAX_REPORTED_DELETE_ERRORS`. The scan page size reuses the existing `S3_MAX_KEYS_PER_REQUEST`.
-- **`clients/s3Client.ts`** — adds a 5 s `connectionTimeout` so an unreachable endpoint fails fast. `requestTimeout` and `maxAttempts` are deliberately left at SDK defaults; the file documents what that does and does not bound.
+- **`clients/s3Client.ts`** — adds a 5 s `connectionTimeout` so an unreachable endpoint fails fast. `requestTimeout` and `maxAttempts` are deliberately left at SDK defaults; the file documents what that does and does not bound. The SDK resolves the `requestHandler` options object through `NodeHttpHandler.create()`, so the timeout does reach the handler; a regression test now resolves the handler and asserts it, so an SDK release that narrowed the accepted shapes would fail the suite instead of silently dropping the timeout.
 
 ## Component Updates
 
-- **`DeleteVersionsModal`** — calls `deleteNonCurrentVersions`, reports partial per-key failures as errors, and warns when `isPartial` says the bucket was not processed to the end.
+- **`DeleteVersionsModal`** — calls `deleteNonCurrentVersions` and splits the outcome three ways: a clean run reports success; a run that deleted nothing, hit per-key failures and did finish scanning is an error; anything else is a partial result, reported through a new required `onPartial` callback as a "Versions Partially Deleted" warning notification that stays on screen until dismissed, because it asks the user to run the action again and the 4 s default is not long enough to read it. `errorCount` and `isPartial` are weighed independently rather than as alternatives — the server records an error and sets `isPartial` for the same skipped key, so the ordinary partial run carries both, and testing one before the other dropped whichever came second. The notification takes the counts and the error list as structured data and owns the copy, so each sentence is translated whole; it spells out the first few failures, counts the rest, and carries a per-bucket id so a re-run replaces the previous report instead of stacking another permanent toast.
 - **`EmptyBucketModal`** — takes its version state from `containers.getState` instead of its own probe.
 - **`DeleteBucketModal`** — takes bucket contents from `containers.getState`, and the blocking checklist now has a third, independent reason: an incomplete scan blocks the delete (fail-closed) rather than letting an unverified bucket through.
 - **`BucketHeaderActions` / `BucketHeader`** — "Empty Bucket" and "Delete Versions" visibility now follows the server's flags, so the actions no longer disappear on a bucket whose first 100 versions happened not to show any.
@@ -62,12 +62,15 @@ Authoritative bucket state in one call, replacing three independent client-side 
 
 New suites for `versionScan`, `invalidateBucketQueries` and `useBucketInfo` — none of which had any coverage — plus new cases in `containerRouter`, `objectRouter`, `versioningRouter` and the six affected modal suites: truncation, the page ceiling, abort mid-scan, S3 errors, the lexicographic position of a folder's own marker, and more than 100 folders. `mockContext` now carries a real `signal`, without which an abort test passes for the wrong reason.
 
+Also covered: a truncated page carrying no continuation marker in all three scan loops (`containers.getState`, `checkDeletedContent`, `deleteNonCurrentVersions`), including the counter-case that folders closed out before such a stop stay `isPartialScan: false` and that a first page truncating with no marker still credits the keys it delivered; an abort landing while the last page's `DeleteObjects` is in flight; the `connectionTimeout` actually reaching the resolved S3 request handler; the delete-versions modal's failure / partial / success split, including a run that carries per-key failures and an unfinished scan at once; and the notification's error cap and stable id.
+
 # Behaviour and Contract Changes
 
 Two of these narrow an existing contract. No in-repo caller is affected, but a consumer of the BFF outside this repo would be:
 
 - `versioning.checkDeletedContent` now rejects a request that carries neither `prefix` nor `folders`, and rejects `folders` entries that fall outside `prefix`. The previously accepted `{ folders: [...] }` without `prefix` still works and is covered by a test, but degenerates: the scan scope collapses to the folders' longest common prefix, so nested content is not attributed.
 - `versioning.checkDeletedContent` now surfaces S3 errors as tRPC errors. A caller that relied on the old silent `hasDeletedContent: false` will start seeing failures it was previously blind to.
+- `isPartialScan` (`checkDeletedContent`, `containers.getState`) and `isPartial` (`objects.deleteNonCurrentVersions`) now also cover a truncated page that carried no continuation marker, and `isPartial` additionally covers an abort that lands while the last page is being deleted. External consumers will see `true` in situations that previously reported `false` — those answers were wrong before, not newly uncertain.
 
 Not breaking, listed for the reviewer's benefit:
 
