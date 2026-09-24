@@ -926,6 +926,13 @@ export const objectRouter = {
         }
 
         let groupsToProcess = pageGroups
+        // Deliberately scoped to the truncated (deferred) group only: this is the group that
+        // gets carried into `pendingItems` below, so this check is exactly what keeps the
+        // invariant `pendingItems.length <= S3_MAX_BUFFERED_VERSIONS_PER_KEY` true. Once a
+        // group is no longer deferred — the last page for that key — it's processed below
+        // regardless of size: every record is already in hand, the decision is correct, and
+        // abandoning it here would permanently deny service to the key that most needs the
+        // cleanup (see the doc on `S3_MAX_BUFFERED_VERSIONS_PER_KEY`).
         if (response.IsTruncated && response.NextKeyMarker && pageGroups.length > 0) {
           const markerIndex = pageGroups.findIndex((group) => group.key === response.NextKeyMarker)
           const index = markerIndex >= 0 ? markerIndex : pageGroups.length - 1
