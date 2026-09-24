@@ -186,6 +186,8 @@
   },
   "active": "78d365ef0c76de1c",
   "lastOpenFiles": [
+    "prs/1330-search-architecture-consistency-ux.md",
+    "prs/1320-search-all-visible-columns.md",
     "prs/1254-refactor-breadcrumb-generation.md",
     "prs/1304-centralize-client-error-handling.md",
     "prs/1303-fix-images-and-flavor.md",
@@ -210,8 +212,6 @@
     "prs/1132-image-toasts-notification-manager.md",
     "prs/1120-generate-presigned-urls-for-objects.md",
     "prs/1121-ceph-bulk-delete-objects.md",
-    "prs/1123-custom-footer-height-storage-tables.md",
-    "prs/952-security-group-permissions-datagrid.md",
     "Без названия.canvas",
     "Без названия.base",
     "Без названия",
