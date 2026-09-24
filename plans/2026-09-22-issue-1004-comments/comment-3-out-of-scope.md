@@ -185,3 +185,22 @@ them at once.
 **`nextContinuationToken` is conflated with `NextKeyMarker`.** In the `showVersions` branch, `objectRouter.ts` assigns `nextContinuationToken: response.NextKeyMarker` while also assigning the same value to `nextKeyMarker`. Related: when a `delimiter` is set, versions are filtered client-side *after* S3 has already cut the page at `MaxKeys`, so a page can come back visually empty with `isTruncated: true`. Neither is triggered by the call sites involved here (they use `delimiter: ""`), and the object browser's current tab-based branching stays consistent.
 
 **No request timeout or retry tuning on the shared S3 client.** `s3Client.ts` sets no `requestTimeout` and leaves `maxAttempts` at the SDK default of 3, multiplying every listing loop by up to 3×. `connectionTimeout: 5000` was added here because it only bounds TCP connection establishment and is safe for streams. `requestTimeout` was deliberately not changed: in `@smithy/node-http-handler` it is a socket-inactivity timeout, and the same client is shared with the streaming upload/download paths. Narrowing `maxAttempts` globally would likewise make object transfers less resilient. Both deserve their own investigation against the installed SDK version rather than a drive-by change.
+
+**Two more from the manual verification pass, both pre-existing on `dc918d47`.**
+
+- **`DeleteVersionModal` is always titled "Delete Version", including for a delete marker.** The
+  menu item that opens it gets this right — `ObjectVersionHistoryModal` renders
+  ``label={isDeleteMarker ? t`Delete Marker` : t`Delete Version`}`` — and the modal does receive
+  `isDeleteMarker`, using it to hide the Date and Size rows that a marker has no values for. It is
+  simply never consulted for the wording: the title, the confirm button and the body text all
+  branch on `isDeletingAllVersions` alone, so clicking "Delete Marker" opens a dialog offering to
+  delete a "version" that does not exist. A ten-minute fix (the same ternary in three more places,
+  plus `pnpm check-i18n` for the new strings), but this branch touched only the invalidation block
+  in that file and the defect predates it.
+- **`GetBucketVersioning` is still issued twice per bucket page load.** `containers.getState` needs
+  it to decide whether there is any history worth scanning; `ObjectBrowserView` separately queries
+  `versioning.getStatus` to decide whether to enable `checkDeletedContent`. The round-3 cleanup
+  collapsed this for the bucket header and the empty-bucket modal, both of which went through
+  `useBucketInfo` — the object browser holds its own `useQuery` and was not reached. `getState`
+  already returns the three-way `status`, so the same substitution applies; it is just outside what
+  #1004 asked for.

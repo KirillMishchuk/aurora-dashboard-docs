@@ -1,6 +1,6 @@
 # Plan: Issue #1004 — S3 version pagination & bucket-state detection
 
-**Date:** 2026-09-22 · **Status:** implemented 2026-09-22 на ветке `kiryl-issue-1004-s3-version-pagination` (не закоммичено — коммитит пользователь). 14 из 15 шагов; шаг 4 не применим при выбранном Варианте B.
+**Date:** 2026-09-22 · **Status:** implemented 2026-09-22 · PR [#1331](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1331) (draft) — ветка `kiryl-s3-version-pagination`, коммит `1a3c2818` + merge main `1602891d`, 50 файлов. 14 из 15 шагов; шаг 4 не применим при выбранном Варианте B. Ручная проверка на реальном Ceph RGW — passed 2026-09-24, см. [2026-09-23-issue-1004-manual-test-cases.md](./2026-09-23-issue-1004-manual-test-cases.md).
 
 > **Отклонения:** (1) исправлен баг самого плана — `stoppedAtKey = keyMarker` при abort до первой страницы даёт `undefined`, что `isFolderCovered` трактует как полное покрытие; заменено на `keyMarker ?? ""`, закреплено тестом. (2) тест на abort переписан с одной папки на две (с одной папкой он был бы зелёным по неверной причине). (3) зафиксирована тестом граница обратной совместимости: старый вход `{folders:['folder1/']}` без `prefix` вырождается — LCP равен самой папке, вложенное не атрибутируется, возвращается `hasDeletedContent: false`. (4) сверх плана добавлена i18n-строка и третья причина блокировки в `DeleteBucketModal` (fail-closed при `isPartialScan`).
 >
