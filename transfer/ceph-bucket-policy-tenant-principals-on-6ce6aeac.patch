@@ -1,0 +1,350 @@
+diff --git a/.changeset/ceph-bucket-policy-tenant-principals.md b/.changeset/ceph-bucket-policy-tenant-principals.md
+new file mode 100644
+index 00000000..237eab1e
+--- /dev/null
++++ b/.changeset/ceph-bucket-policy-tenant-principals.md
+@@ -0,0 +1,5 @@
++---
++"@cobaltcore-dev/aurora": patch
++---
++
++Fix the Ceph bucket policy editor rejecting and hiding policies that use Ceph's multi-tenancy principals. Principal ARNs were validated against the AWS grammar, which requires a 12-digit account ID, while RGW puts a tenant (the Keystone project UUID), an RGW account ID or nothing in that position — so no real principal passed. Because the same validation also ran when reading, an existing, actively enforced policy failed to load at all and the editor showed an error instead of the document. Reads now always return the stored policy text, principal syntax is left to RGW, and Resource ARNs may be tenant-qualified (`arn:aws:s3::TENANT:bucket`).
+diff --git a/packages/aurora/src/server/Storage/routers/ceph/bucketPolicyRouter.test.ts b/packages/aurora/src/server/Storage/routers/ceph/bucketPolicyRouter.test.ts
+index 2e835d53..cd4ce263 100644
+--- a/packages/aurora/src/server/Storage/routers/ceph/bucketPolicyRouter.test.ts
++++ b/packages/aurora/src/server/Storage/routers/ceph/bucketPolicyRouter.test.ts
+@@ -34,6 +34,30 @@ const VALID_POLICY = {
+ 
+ const VALID_POLICY_JSON = JSON.stringify(VALID_POLICY)
+ 
++// A policy of the shape RGW actually stores in a Keystone-backed deployment: the principal is
++// qualified by a tenant (the project UUID), not by a 12-digit AWS account id.
++const TENANT_PRINCIPAL_POLICY = {
++  Version: "2012-10-17",
++  Statement: [
++    {
++      Sid: "GrantOtherProject",
++      Effect: "Allow",
++      Principal: {
++        AWS: [
++          "arn:aws:iam::941afaee693a4155ac815be75f17b259:user/941afaee693a4155ac815be75f17b259",
++          "arn:aws:iam::usfolks:user/fred:subuser",
++          "arn:aws:iam:::user/anonymous",
++          "arn:aws:iam::RGW33567154695143645:user/rgwuser",
++        ],
++      },
++      Action: ["s3:GetObject", "s3:ListBucket"],
++      Resource: ["arn:aws:s3:::my-test-bucket", "arn:aws:s3:::my-test-bucket/*"],
++    },
++  ],
++}
++
++const TENANT_PRINCIPAL_POLICY_JSON = JSON.stringify(TENANT_PRINCIPAL_POLICY)
++
+ const COMPLEX_POLICY = {
+   Version: "2012-10-17",
+   Id: "MyBucketPolicy",
+@@ -130,6 +154,58 @@ describe("bucketPolicyRouter", () => {
+       expect(result.policyText).toBeNull()
+     })
+ 
++    it("should return a policy whose principals are tenant-qualified RGW ARNs", async () => {
++      mockSend.mockResolvedValueOnce({
++        Policy: TENANT_PRINCIPAL_POLICY_JSON,
++      })
++
++      const result = await caller.get({
++        project_id: TEST_PROJECT_ID,
++        bucketName: TEST_BUCKET_NAME,
++      })
++
++      expect(result.policy).not.toBeNull()
++      expect(result.policyText).toBe(TENANT_PRINCIPAL_POLICY_JSON)
++    })
++
++    it("should still return the raw text when the stored policy does not fit our schema", async () => {
++      // RGW accepted and is enforcing this document; a field we don't model must not make the
++      // policy invisible to the editor.
++      const unknownShape = JSON.stringify({
++        Version: "2012-10-17",
++        Statement: [
++          {
++            Effect: "Allow",
++            Principal: "*",
++            Action: "s3:GetObject",
++            Resource: "arn:aws:s3:::my-test-bucket/*",
++            SomeFutureRGWField: "value",
++          },
++        ],
++      })
++      mockSend.mockResolvedValueOnce({ Policy: unknownShape })
++
++      const result = await caller.get({
++        project_id: TEST_PROJECT_ID,
++        bucketName: TEST_BUCKET_NAME,
++      })
++
++      expect(result.policy).toBeNull()
++      expect(result.policyText).toBe(unknownShape)
++    })
++
++    it("should still return the raw text when the stored policy is not valid JSON", async () => {
++      mockSend.mockResolvedValueOnce({ Policy: "{ not json" })
++
++      const result = await caller.get({
++        project_id: TEST_PROJECT_ID,
++        bucketName: TEST_BUCKET_NAME,
++      })
++
++      expect(result.policy).toBeNull()
++      expect(result.policyText).toBe("{ not json")
++    })
++
+     it("should return null when policy is empty", async () => {
+       mockSend.mockResolvedValueOnce({
+         Policy: null,
+@@ -212,6 +288,75 @@ describe("bucketPolicyRouter", () => {
+       expect(mockSend).toHaveBeenCalledOnce()
+     })
+ 
++    it("should set a policy with tenant-qualified principal ARNs", async () => {
++      // Own bucket name: checkPolicySetRateLimit counts every attempt on a project+bucket key,
++      // so adding calls on TEST_BUCKET_NAME would starve the tests further down this describe.
++      const bucket = "tenant-principal-set-bucket"
++      mockSend.mockResolvedValueOnce({})
++
++      const result = await caller.set({
++        project_id: TEST_PROJECT_ID,
++        bucketName: bucket,
++        policy: JSON.stringify({
++          ...TENANT_PRINCIPAL_POLICY,
++          Statement: [
++            {
++              ...TENANT_PRINCIPAL_POLICY.Statement[0],
++              Resource: [`arn:aws:s3:::${bucket}`, `arn:aws:s3:::${bucket}/*`],
++            },
++          ],
++        }),
++      })
++
++      expect(result).toBe(true)
++      expect(mockSend).toHaveBeenCalledOnce()
++    })
++
++    it("should accept a tenant-qualified Resource ARN for this bucket", async () => {
++      const bucket = "tenant-resource-set-bucket"
++      mockSend.mockResolvedValueOnce({})
++
++      const result = await caller.set({
++        project_id: TEST_PROJECT_ID,
++        bucketName: bucket,
++        policy: JSON.stringify({
++          Version: "2012-10-17",
++          Statement: [
++            {
++              Effect: "Allow",
++              Principal: { AWS: "arn:aws:iam::usfolks:user/fred" },
++              Action: "s3:GetObject",
++              Resource: `arn:aws:s3::941afaee693a4155ac815be75f17b259:${bucket}/*`,
++            },
++          ],
++        }),
++      })
++
++      expect(result).toBe(true)
++      expect(mockSend).toHaveBeenCalledOnce()
++    })
++
++    it("should still reject a tenant-qualified Resource ARN naming a different bucket", async () => {
++      await expect(
++        caller.set({
++          project_id: TEST_PROJECT_ID,
++          bucketName: "tenant-resource-mismatch-bucket",
++          policy: JSON.stringify({
++            Version: "2012-10-17",
++            Statement: [
++              {
++                Effect: "Allow",
++                Principal: "*",
++                Action: "s3:GetObject",
++                Resource: "arn:aws:s3::usfolks:someone-elses-bucket/*",
++              },
++            ],
++          }),
++        })
++      ).rejects.toThrow(TRPCError)
++      expect(mockSend).not.toHaveBeenCalled()
++    })
++
+     it("should throw BAD_REQUEST with invalid JSON", async () => {
+       const invalidJson = '{ "Version": "2012-10-17", "Statement": [invalid] }'
+ 
+diff --git a/packages/aurora/src/server/Storage/routers/ceph/bucketPolicyRouter.ts b/packages/aurora/src/server/Storage/routers/ceph/bucketPolicyRouter.ts
+index f4c46ab4..f6d03aab 100644
+--- a/packages/aurora/src/server/Storage/routers/ceph/bucketPolicyRouter.ts
++++ b/packages/aurora/src/server/Storage/routers/ceph/bucketPolicyRouter.ts
+@@ -58,15 +58,19 @@ function validateResourceARNsMatchBucket(policy: BucketPolicyDocument, bucketNam
+     const resources = Array.isArray(statement.Resource) ? statement.Resource : [statement.Resource]
+ 
+     for (const resource of resources) {
+-      // ARN format: arn:aws:s3:::bucket-name or arn:aws:s3:::bucket-name/*
+-      const arnRegex = /^arn:aws:s3:::([^/]+)/
++      // ARN format: arn:aws:s3:::bucket-name or arn:aws:s3:::bucket-name/*, and — because RGW
++      // buckets live in a tenant — arn:aws:s3::tenant:bucket-name. The tenant segment itself is
++      // not checked against this project: the policy is attached to *this* bucket, so a resource
++      // naming another tenant's bucket grants nothing here, and hard-coding what a tenant looks
++      // like is exactly the assumption that broke principal validation.
++      const arnRegex = /^arn:aws:s3::[^:/]*:([^/]+)/
+       const match = resource.match(arnRegex)
+ 
+       // Reject resources that don't match S3 bucket ARN pattern (includes "*" and non-S3 ARNs)
+       if (!match) {
+         throw new TRPCError({
+           code: "BAD_REQUEST",
+-          message: `Policy Resource '${resource}' is not a valid S3 bucket ARN for bucket '${bucketName}'. Expected: arn:aws:s3:::${bucketName} or arn:aws:s3:::${bucketName}/*`,
++          message: `Policy Resource '${resource}' is not a valid S3 bucket ARN for bucket '${bucketName}'. Expected: arn:aws:s3:::${bucketName}, arn:aws:s3:::${bucketName}/* or arn:aws:s3::TENANT:${bucketName}`,
+         })
+       }
+ 
+@@ -109,6 +113,24 @@ function validatePolicySemantics(policy: BucketPolicyDocument): void {
+   }
+ }
+ 
++/**
++ * Best-effort parse of a policy document RGW has already accepted and stored.
++ *
++ * Reading is not the place to enforce our schema. Whatever is in the bucket is live and
++ * enforced by RGW right now; failing the read over a shape we don't recognise would hide a
++ * working policy from the very editor meant to fix it. So the raw text is always returned and
++ * this only decides whether a structured view is available alongside it.
++ */
++function parseStoredPolicy(policyText: string): BucketPolicyDocument | null {
++  try {
++    const result = bucketPolicyDocumentSchema.safeParse(JSON.parse(policyText))
++    return result.success ? result.data : null
++  } catch {
++    // Not JSON at all — still the user's document to see and repair.
++    return null
++  }
++}
++
+ /**
+  * tRPC router for S3 bucket policy operations.
+  *
+@@ -123,8 +145,9 @@ export const bucketPolicyRouter = {
+   /**
+    * Get the current bucket policy.
+    *
+-   * Returns the policy as both a parsed object and raw JSON string.
+-   * Returns null if no policy is set (not an error).
++   * Returns the policy as both a parsed object and raw JSON string. `policyText` is always the
++   * document exactly as RGW stored it; `policy` is null when no policy is set, and also when the
++   * stored document doesn't fit our schema — the editor shows the raw text either way.
+    *
+    * @throws TRPCError NOT_FOUND - bucket does not exist
+    * @throws TRPCError FORBIDDEN - no credentials or access denied
+@@ -149,11 +172,7 @@ export const bucketPolicyRouter = {
+           return { policy: null, policyText: null }
+         }
+ 
+-        // Parse and validate
+-        const policyObj = JSON.parse(policyText)
+-        const policy = bucketPolicyDocumentSchema.parse(policyObj)
+-
+-        return { policy, policyText }
++        return { policy: parseStoredPolicy(policyText), policyText }
+       } catch (error) {
+         // NoSuchBucketPolicy is not an error - it means no policy set
+         const s3Error = error as { name?: string; Code?: string }
+diff --git a/packages/aurora/src/server/Storage/types/ceph.test.ts b/packages/aurora/src/server/Storage/types/ceph.test.ts
+index 1e30fd99..9549a157 100644
+--- a/packages/aurora/src/server/Storage/types/ceph.test.ts
++++ b/packages/aurora/src/server/Storage/types/ceph.test.ts
+@@ -926,10 +926,43 @@ describe("Ceph Object Storage Schema Validation", () => {
+         expect(bucketPolicyStatementSchema.safeParse(input).success).toBe(true)
+       })
+ 
+-      it("should reject a Principal object with an invalid AWS ARN format", () => {
++      // RGW principals are not AWS principals: the account field holds a tenant, an RGW account
++      // id, or nothing at all, and a :subuser suffix is allowed. Validating the ARN grammar here
++      // rejected policies RGW had already accepted, so the grammar is left to RGW.
++      // @see https://docs.ceph.com/en/latest/radosgw/account/#principals
++      it.each([
++        ["tenant (Keystone project UUID)", "arn:aws:iam::941afaee693a4155ac815be75f17b259:user/alice"],
++        ["tenant name", "arn:aws:iam::usfolks:user/fred"],
++        ["tenant with subuser", "arn:aws:iam::usfolks:user/fred:subuser"],
++        ["empty tenant", "arn:aws:iam:::user/anonymous"],
++        ["RGW account id", "arn:aws:iam::RGW33567154695143645:user/rgwuser"],
++        ["tenant root", "arn:aws:iam::usfolks:root"],
++      ])("should validate a Principal object with a Ceph %s ARN", (_label, arn) => {
+         const input = {
+           Effect: "Allow",
+-          Principal: { AWS: "not-an-arn" },
++          Principal: { AWS: arn },
++          Action: "s3:GetObject",
++          Resource: "arn:aws:s3:::bucket/*",
++        }
++        expect(bucketPolicyStatementSchema.safeParse(input).success).toBe(true)
++      })
++
++      it("should validate a Principal object with an array of mixed-form ARNs", () => {
++        const input = {
++          Effect: "Allow",
++          Principal: {
++            AWS: ["arn:aws:iam::usfolks:user/fred", "arn:aws:iam::123456789012:root", "*"],
++          },
++          Action: "s3:GetObject",
++          Resource: "arn:aws:s3:::bucket/*",
++        }
++        expect(bucketPolicyStatementSchema.safeParse(input).success).toBe(true)
++      })
++
++      it("should reject a Principal whose AWS value is not a string or array of strings", () => {
++        const input = {
++          Effect: "Allow",
++          Principal: { AWS: 123 },
+           Action: "s3:GetObject",
+           Resource: "arn:aws:s3:::bucket/*",
+         }
+diff --git a/packages/aurora/src/server/Storage/types/ceph.ts b/packages/aurora/src/server/Storage/types/ceph.ts
+index 6256d4a1..2aea5987 100644
+--- a/packages/aurora/src/server/Storage/types/ceph.ts
++++ b/packages/aurora/src/server/Storage/types/ceph.ts
+@@ -466,7 +466,7 @@ export const bucketPolicyStatementSchema = z
+       .union([
+         z.string(), // "*" for public
+         z.object({
+-          AWS: z.union([z.string(), z.array(z.string())]).optional(), // AWS account/user ARNs
++          AWS: z.union([z.string(), z.array(z.string())]).optional(), // user/tenant/account ARNs, or "*"
+           Service: z.union([z.string(), z.array(z.string())]).optional(),
+           Federated: z.union([z.string(), z.array(z.string())]).optional(),
+         }),
+@@ -482,18 +482,16 @@ export const bucketPolicyStatementSchema = z
+           })
+         }
+ 
+-        // Validate AWS principal ARN format
+-        if (typeof val === "object" && val.AWS) {
+-          const arns = Array.isArray(val.AWS) ? val.AWS : [val.AWS]
+-          for (const arn of arns) {
+-            if (arn !== "*" && !/^arn:aws:iam::\d{12}:(?:root|user\/.+|role\/.+)$/.test(arn)) {
+-              ctx.addIssue({
+-                code: "custom",
+-                message: `Invalid AWS principal ARN format: ${arn}. Expected arn:aws:iam::ACCOUNT-ID:root or arn:aws:iam::ACCOUNT-ID:(user|role)/NAME`,
+-              })
+-            }
+-          }
+-        }
++        // The contents of AWS/Service/Federated are deliberately left unvalidated: Ceph RGW,
++        // not AWS, is the authority on principal syntax here. Where an AWS ARN carries a
++        // 12-digit account id, an RGW one carries a tenant, an RGW account id, or nothing:
++        //   arn:aws:iam::<tenant>:user/<uid>      (with Keystone, <tenant> is the project UUID)
++        //   arn:aws:iam:::user/<uid>
++        //   arn:aws:iam::RGW<17 digits>:user/<name>
++        // and a :<subuser> suffix is allowed on any of them. Re-implementing that grammar
++        // produced nothing but false rejections of policies RGW had already accepted; RGW
++        // answers MalformedPolicy for the ones it genuinely won't take.
++        // @see https://docs.ceph.com/en/latest/radosgw/account/#principals
+       }),
+     NotPrincipal: z
+       .union([
