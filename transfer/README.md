@@ -22,4 +22,4 @@ git apply <путь к DOCS>/transfer/<файл>.patch
 
 | Патч | База | Что внутри |
 | --- | --- | --- |
-| `s3-version-pagination-on-0f992593.patch` | `0f992593` | Ветка `kiryl-s3-version-pagination`. 22 файл(ов). |
+| `s3-version-pagination-on-18422781.patch` | `18422781` | Ветка `kiryl-s3-version-pagination`, PR #1331: третий раунд Copilot-ревью — смена версионирования теперь обновляет оба запроса статуса через новый `invalidateVersioningStatusQueries` (бейдж в шапке бакета больше не зависает на старом значении), плюс UI-мелочи: пункты меню Restore переименованы в Restore Folder / Restore Version, убран заголовок Actions над колонкой действий в истории версий. 16 файлов. |

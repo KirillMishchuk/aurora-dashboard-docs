@@ -39,6 +39,7 @@ Authoritative bucket state in one call, replacing three independent client-side 
 
 - **`helpers/versionScan.ts`** (new) — pure helpers for attributing keys to child folders during a delimiter-less prefix scan: `folderPrefixOf`, `isFolderCovered`, `longestCommonPrefix`. The lexicographic-coverage guarantee they rest on is testable without mocks.
 - **`hooks/invalidateBucketQueries.ts`** (new) — one place to refresh everything a mutation can move (`objects.list`, `containers.list`, `containers.getState`, `versioning.checkDeletedContent`), replacing the set that was copy-pasted across 13 modals and had already drifted out of sync at four of them.
+- **`hooks/invalidateVersioningStatusQueries.ts`** (new) — the two queries a bucket's versioning status is read from (`versioning.getStatus` for the object browser, `containers.getState` for the bucket header), listed once. Kept separate from `invalidateBucketQueries`: `versioning.setStatus` changes no object, version or delete marker, so it has no business ordering that helper's two bucket-wide server scans to refresh one string.
 - **`hooks/useBucketInfo.ts`** — now reads `containers.getState` instead of `containers.list` + a truncation-prone `objects.list` probe; the separate `versioning.getStatus` query is gone, since `getState` already has that value in hand.
 - **`hooks/bucketStateHelpers.ts`** — deleted. Its `calculateBucketState` had no truncation parameter, and its `bucketObjectCount` guard never worked: `containers.list` was called without `includeMetadata`, whose default is `false`, so the count was hardcoded `0` on the server's fast path.
 - **`constants.ts`** — adds `S3_MAX_SCAN_PAGES` (20), `S3_CONNECTION_TIMEOUT_MS` (5000), `S3_MAX_BUFFERED_VERSIONS_PER_KEY`, `MAX_REPORTED_DELETE_ERRORS`. The scan page size reuses the existing `S3_MAX_KEYS_PER_REQUEST`. `S3_MAX_BUFFERED_VERSIONS_PER_KEY` bounds the cross-page carry, not the peak: a key that finishes within one page is processed regardless of size, so the reachable peak for one key is the limit plus one page (21 000), a constant that does not grow with the bucket.
@@ -52,6 +53,7 @@ Authoritative bucket state in one call, replacing three independent client-side 
 - **`BucketHeaderActions` / `BucketHeader`** — "Empty Bucket" and "Delete Versions" visibility now follows the server's flags, so the actions no longer disappear on a bucket whose first 100 versions happened not to show any.
 - **`ObjectBrowserView`** — a folder under `isPartialScan` renders neutrally: it is neither hidden from "All" nor flagged as holding deleted content in "Deleted". A positive result is always trustworthy; a negative one under a partial scan only means "not checked".
 - **All object modals** (Copy / Move / Delete / DeleteObjects / Upload / EditMetadata / CreateFolder / RestoreVersion / DeleteVersion) and `EmptyBucketsModal` — switched to `invalidateBucketQueries`.
+- **`EnableVersioningModal` / `SuspendVersioningModal`** — invalidate both status queries via `invalidateVersioningStatusQueries`. They previously invalidated only `versioning.getStatus`, which the bucket header had stopped reading, so the header kept its pre-mutation badge and went on offering the action just taken — and kept it indefinitely, not for a `staleTime`: a mounted observer does not refetch on going stale, and `refetchOnWindowFocus` is off globally. Neither modal had any assertion on its invalidation, which is how it drifted silently; both do now.
 
 ## Types
 
@@ -74,7 +76,7 @@ Two of these narrow an existing contract. No in-repo caller is affected, but a c
 
 Not breaking, listed for the reviewer's benefit:
 
-- `objects.deleteNonCurrentVersions` and `containers.getState` are new procedures; nothing called them before. No procedure was removed, and `versioning.getStatus` still exists — the client simply stopped calling it.
+- `objects.deleteNonCurrentVersions` and `containers.getState` are new procedures; nothing called them before. No procedure was removed, and `versioning.getStatus` still exists: the bucket header stopped reading it, the object browser still does, and both versioning modals still invalidate it.
 - UX-only, no BFF contract change: "Delete Versions" no longer closes on a failed or partial run, and "Empty Bucket" no longer closes on a failed one; both stay open and report themselves inline so the user can retry immediately. All three destructive bucket modals also block Cancel, the close button and Esc while their mutation is in flight.
 
 # Related Issues

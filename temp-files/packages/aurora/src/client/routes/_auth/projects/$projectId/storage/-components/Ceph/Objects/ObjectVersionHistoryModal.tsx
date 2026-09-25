@@ -1,0 +1,305 @@
+import { useEffect, useState } from "react"
+import { Trans, useLingui } from "@lingui/react/macro"
+import { trpcReact } from "@/client/trpcClient"
+import { useModalTracking } from "@/client/hooks/useModalTracking"
+import type { ObjectVersion } from "@/server/Storage/types/versioning"
+import {
+  Modal,
+  Stack,
+  Status,
+  Message,
+  DataGrid,
+  DataGridRow,
+  DataGridCell,
+  DataGridHeadCell,
+  Badge,
+  PopupMenu,
+  PopupMenuItem,
+  PopupMenuOptions,
+} from "@cloudoperators/juno-ui-components"
+import { useProjectId } from "@/client/hooks/useProjectId"
+import { formatBytesBinary } from "@/client/utils/formatBytes"
+import { RestoreVersionModal } from "./RestoreVersionModal"
+import { DeleteVersionModal } from "./DeleteVersionModal"
+
+interface ObjectVersionHistoryModalProps {
+  isOpen: boolean
+  bucketName: string
+  objectKey: string
+  onClose: () => void
+  onRestoreVersion?: (objectKey: string, versionId: string) => void
+  onDeleteVersion?: (objectKey: string, versionId: string) => void
+  canRestoreVersion: boolean
+  canDeleteVersion: boolean
+}
+
+export const ObjectVersionHistoryModal = ({
+  isOpen,
+  bucketName,
+  objectKey,
+  onClose,
+  onRestoreVersion,
+  onDeleteVersion,
+  canRestoreVersion,
+  canDeleteVersion,
+}: ObjectVersionHistoryModalProps) => {
+  const { t } = useLingui()
+  const projectId = useProjectId()
+
+  const { trackClose, resetTracking } = useModalTracking({
+    isOpen,
+    actionPrefix: "storage.ceph.object.version.history",
+  })
+
+  const [restoreTarget, setRestoreTarget] = useState<{
+    versionId: string
+    date?: string
+    size?: number
+  } | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<{
+    versionId: string
+    date?: string
+    size?: number
+    isDeleteMarker: boolean
+  } | null>(null)
+  const [feedbackMessage, setFeedbackMessage] = useState<{
+    variant: "success" | "error"
+    message: string
+  } | null>(null)
+
+  const { data, isLoading, error, refetch } = trpcReact.storage.ceph.versioning.listObjectVersions.useQuery(
+    {
+      project_id: projectId ?? "",
+      bucket: bucketName,
+      key: objectKey,
+    },
+    {
+      enabled: isOpen && !!projectId && !!bucketName && !!objectKey,
+      staleTime: 0, // Always fetch fresh data when modal opens
+    }
+  )
+
+  // Refetch when modal opens
+  useEffect(() => {
+    if (isOpen && projectId && bucketName && objectKey) {
+      refetch()
+    }
+  }, [isOpen, projectId, bucketName, objectKey, refetch])
+
+  // data is already ObjectVersion[] array
+  const versions = data || []
+
+  const handleClose = () => {
+    setRestoreTarget(null)
+    setDeleteTarget(null)
+    setFeedbackMessage(null)
+    resetTracking()
+    onClose()
+  }
+
+  if (!isOpen) return null
+
+  return (
+    <Modal
+      title={
+        <span className="flex max-w-100 items-center gap-1 md:max-w-125 lg:max-w-250 xl:max-w-275">
+          <span className="shrink-0">
+            <Trans>Version History:</Trans>
+          </span>
+          <span className="truncate" title={objectKey}>
+            {objectKey}
+          </span>
+        </span>
+      }
+      open={isOpen}
+      onCancel={() => {
+        trackClose()
+        handleClose()
+      }}
+      size="xl"
+    >
+      <Stack direction="vertical" gap="4">
+        {feedbackMessage && (
+          <Message variant={feedbackMessage.variant} dismissible onDismiss={() => setFeedbackMessage(null)}>
+            {feedbackMessage.message}
+          </Message>
+        )}
+
+        {isLoading && <Status status="progress" title={t`Loading Versions...`} className="mt-0" />}
+
+        {error && <Status status="error" title={t`Failed to Load Versions`} body={error.message} className="mt-0" />}
+
+        {!isLoading && !error && versions.length === 0 && (
+          <Status status="empty" title={t`No Versions Found for This Object.`} className="mt-0" />
+        )}
+
+        {!isLoading && !error && versions.length > 0 && (
+          <>
+            <DataGrid columns={6} minContentColumns={[5]}>
+              <DataGridRow>
+                <DataGridHeadCell>
+                  <Trans>Status</Trans>
+                </DataGridHeadCell>
+                <DataGridHeadCell>
+                  <Trans>Version ID</Trans>
+                </DataGridHeadCell>
+                <DataGridHeadCell>
+                  <Trans>Last Modified</Trans>
+                </DataGridHeadCell>
+                <DataGridHeadCell>
+                  <Trans>Size</Trans>
+                </DataGridHeadCell>
+                <DataGridHeadCell>
+                  <Trans>ETag</Trans>
+                </DataGridHeadCell>
+                <DataGridHeadCell />
+              </DataGridRow>
+
+              {versions.map((version: ObjectVersion) => {
+                const isLatest = version.isLatest
+                const isDeleteMarker = version.isDeleteMarker ?? false
+
+                return (
+                  <DataGridRow key={version.versionId}>
+                    <DataGridCell>
+                      {isDeleteMarker ? (
+                        <Badge variant="error">
+                          <Trans>Delete Marker</Trans>
+                        </Badge>
+                      ) : isLatest ? (
+                        <Badge variant="success">
+                          <Trans>Latest</Trans>
+                        </Badge>
+                      ) : (
+                        <Badge variant="info">
+                          <Trans>Older</Trans>
+                        </Badge>
+                      )}
+                    </DataGridCell>
+
+                    <DataGridCell>
+                      <code className="text-xs break-all" title={version.versionId}>
+                        {version.versionId}
+                      </code>
+                    </DataGridCell>
+
+                    <DataGridCell>
+                      <span className="text-theme-light text-sm">
+                        {version.lastModified ? new Date(version.lastModified).toLocaleString() : "—"}
+                      </span>
+                    </DataGridCell>
+
+                    <DataGridCell>
+                      <span className="text-theme-light text-sm">
+                        {isDeleteMarker ? "—" : formatBytesBinary(version.size ?? 0)}
+                      </span>
+                    </DataGridCell>
+
+                    <DataGridCell>
+                      <span className="text-theme-light text-xs break-all">
+                        {isDeleteMarker ? "—" : version.etag || "—"}
+                      </span>
+                    </DataGridCell>
+
+                    <DataGridCell>
+                      <div className="flex justify-end">
+                        {/* Both items are gated mutations with no always-visible read action in
+                            this menu, so skip it entirely when neither applies. */}
+                        {((!isDeleteMarker && !isLatest && canRestoreVersion) || canDeleteVersion) && (
+                          <PopupMenu>
+                            <PopupMenuOptions>
+                              {!isDeleteMarker && !isLatest && canRestoreVersion && (
+                                <PopupMenuItem
+                                  label={t`Restore Version`}
+                                  onClick={() => {
+                                    setRestoreTarget({
+                                      versionId: version.versionId,
+                                      date: version.lastModified,
+                                      size: version.size,
+                                    })
+                                  }}
+                                />
+                              )}
+                              {canDeleteVersion && (
+                                <PopupMenuItem
+                                  label={isDeleteMarker ? t`Delete Marker` : t`Delete Version`}
+                                  onClick={() => {
+                                    setDeleteTarget({
+                                      versionId: version.versionId,
+                                      date: version.lastModified,
+                                      size: version.size,
+                                      isDeleteMarker,
+                                    })
+                                  }}
+                                />
+                              )}
+                            </PopupMenuOptions>
+                          </PopupMenu>
+                        )}
+                      </div>
+                    </DataGridCell>
+                  </DataGridRow>
+                )
+              })}
+            </DataGrid>
+          </>
+        )}
+      </Stack>
+
+      <RestoreVersionModal
+        isOpen={restoreTarget !== null}
+        bucketName={bucketName}
+        objectKey={objectKey}
+        versionId={restoreTarget?.versionId ?? ""}
+        versionDate={restoreTarget?.date}
+        versionSize={restoreTarget?.size}
+        onClose={() => setRestoreTarget(null)}
+        onSuccess={(objectKey, versionId) => {
+          setRestoreTarget(null)
+          const displayName = objectKey.split("/").filter(Boolean).pop() ?? objectKey
+          setFeedbackMessage({
+            variant: "success",
+            message: t`${displayName} was successfully restored`,
+          })
+          onRestoreVersion?.(objectKey, versionId)
+          setTimeout(() => refetch(), 100)
+        }}
+        onError={(_objectKey, errorMessage) => {
+          setRestoreTarget(null)
+          setFeedbackMessage({
+            variant: "error",
+            message: t`Failed to restore version: ${errorMessage}`,
+          })
+        }}
+      />
+
+      <DeleteVersionModal
+        isOpen={deleteTarget !== null}
+        bucketName={bucketName}
+        objectKey={objectKey}
+        versionId={deleteTarget?.versionId ?? ""}
+        versionDate={deleteTarget?.date}
+        versionSize={deleteTarget?.size}
+        isDeleteMarker={deleteTarget?.isDeleteMarker ?? false}
+        onClose={() => setDeleteTarget(null)}
+        onSuccess={(objectKey, versionId) => {
+          setDeleteTarget(null)
+          const shortVersionId = versionId.slice(0, 8)
+          setFeedbackMessage({
+            variant: "success",
+            message: t`Version ${shortVersionId}... deleted successfully`,
+          })
+          onDeleteVersion?.(objectKey, versionId)
+          setTimeout(() => refetch(), 100)
+        }}
+        onError={(_objectKey, errorMessage) => {
+          setDeleteTarget(null)
+          setFeedbackMessage({
+            variant: "error",
+            message: t`Failed to delete version: ${errorMessage}`,
+          })
+        }}
+      />
+    </Modal>
+  )
+}

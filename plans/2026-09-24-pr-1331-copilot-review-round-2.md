@@ -576,3 +576,76 @@ pnpm build
 ---
 
 **Режим соблюдён:** только план. Ничего не реализовано, не закоммичено, не запушено, ни один комментарий на GitHub не опубликован. Разбивка на коммиты в плане намеренно отсутствует.
+
+---
+
+## Раунд 3 Copilot-ревью (2026-09-25, HEAD `18422781`)
+
+Пять находок раунда 2 помечены Copilot'ом как Resolved. Две новые (обе Medium). В шапке ревью Copilot написал «Six unresolved moderate findings» при `Findings: 2` — GraphQL показывает ровно 2 нерешённых треда, прозаическая сводка у него разъехалась с собственными данными.
+
+**Находка 1 — `ObjectBrowserView.tsx:158-161`, ошибки `checkDeletedContent` не обрабатываются. → FOLLOW-UP, в #1331 не чиним.**
+
+Валидна. `const { data: folderDeletedStatus }` без `error` — но эта строка стоит и в `main:146`, мы её не трогали. Что сделал PR: убрал серверный `catch`, который молча возвращал `hasDeletedContent: false` по каждой папке, и заменил на `throw mapS3ErrorToTRPCError` (`versioningRouter.ts:433`). То есть путь к ошибке открыли мы, сама дыра давняя.
+
+Copilot давит на устаревшие данные при рефетче — это самый мягкий сценарий. Резче не описанный им: **ошибка на первой загрузке**, `data === undefined`, срабатывает фолбэк `return allFolders` (`:346`, `:358`), и вкладка Deleted показывает **все** папки, как будто в каждой что-то удалено. Ошибки при этом не видно нигде.
+
+Отдельно: PR поменял сторону отказа с fail-closed на fail-open. На `main` сбой давал `folderMarkerVersionId: undefined`, фильтр `status.folderMarkerVersionId !== undefined` прятал папку из вкладки All — то есть сбой скана молча **скрывал существующие папки**. Сейчас молча показывает лишние. Направление верное, молчание одинаковое.
+
+Причина выноса в follow-up: правка не сводится к `if` — нужен видимый UI состояния скана, и он же закрывает записанный follow-up про видимость `isPartialScan` во вкладке Deleted. Один пробел, один дизайн, отдельная задача.
+
+**Находка 2 — `useBucketInfo.ts:93-99`, `containers.getState` не инвалидируется после смены версионирования. → ИСПРАВЛЕНО в #1331.**
+
+Наша регрессия, подтверждена по коду: `useBucketInfo.ts:106-109` собирает `versioningStatus` из `bucketState.status`, отдельного `versioning.getStatus` в хуке больше нет; `EnableVersioningModal.tsx:36` и `SuspendVersioningModal.tsx:34` инвалидировали ровно тот запрос, который хук перестал читать; `BucketHeader.tsx:46-53` рендерит из этого значения бейдж и передаёт его в меню Enable/Suspend (`:67`).
+
+Copilot занизил живучесть: он пишет «until its normal cache expiry», такого механизма нет. `refetchInterval` не задан, `refetchOnWindowFocus` глобально выключен (`App.tsx:56`), а смонтированный обозреватель не рефетчится сам по истечении `staleTime`. Протухший бейдж живёт до инвалидации от другой мутации или до перемонтирования — то есть сколько открыта вкладка.
+
+Лекарство Copilot'а («preferably through the shared invalidation path», т.е. `invalidateBucketQueries`) **отклонено**: хелпер документирован как обновление того, что зависит от *содержимого* бакета, а `setStatus` не меняет ни объекта, ни версии, ни delete-маркера. Через него ушло бы два серверных скана (`getState` по всему бакету, `checkDeletedContent` по префиксу) плюс два листинга ради одной строки.
+
+Сделано вместо этого — новый сосед `hooks/invalidateVersioningStatusQueries.ts`: оба читателя статуса перечислены один раз. Просто дописать вторую строку в обе модалки было нельзя — это ровно тот капкан, из-за которого всё и разъехалось.
+
+Тесты: ни в одной из двух модалок инвалидация не ассертилась вообще (`mockInvalidate` был объявлен и не использован) — именно поэтому связь порвалась молча. Теперь в обеих есть `describe("... - cache invalidation")`, плюс новый `invalidateVersioningStatusQueries.test.ts` (3 теста). Регрессия подтверждена откатом: возврат на `getStatus.invalidate()` роняет оба новых теста.
+
+**CI после правки:** licenses, lint, check-i18n (диффа локалей нет — новых msgid не появилось), typecheck, format:check, test (aurora 5733, signal-openstack 177, policy-engine 320 + 1 skipped), build — всё зелёное. 5 изменённых файлов + 2 новых.
+
+### Triple-review по правке раунда 3 (2026-09-25)
+
+**security — 0 находок.** Подтверждено, что инвалидация без аргументов не расширяет скоуп: `App.tsx:58-63` подмешивает активный `projectId` в хеш каждого ключа через `queryKeyHashFn`, так что задеть кеш другого проекта физически нельзя. Права на действие гейтятся отдельным запросом `useCephPermissions` (`staleTime: Infinity`, ключ по `project_id`), который хелпер не трогает: обновление статуса может только исправить, какое из Enable/Suspend предложено, но не выдать действие без прав.
+
+**performance — 0 находок.** Пересчёт по реальному набору смонтированных обозревателей: одно действие Enable/Suspend → 2 рефетча (`getStatus` — один обозреватель в `ObjectBrowserView.tsx:136`; `getState` — один в `useBucketInfo.ts:93`). `EmptyBucketModal` и `DeleteBucketModal` тоже читают `getState`, но гейтятся на `enabled: isOpen`, а `BucketModals` держит один `activeModal` за раз — в момент срабатывания `onSuccess` они закрыты и обозревателей не добавляют. Отвергнутая альтернатива через `invalidateBucketQueries` дала бы 3 рефетча.
+
+Один нит performance **отбракован**: «нет `.catch`, будет unhandled rejection при падении скана». Проверено по `query-core@5.99.0`, `queryClient.js:174-176`: `if (!fetchOptions.throwOnError) { promise = promise.catch(noop) }`, а `throwOnError` не задан — промис от `invalidateQueries` не реджектится.
+
+**architecture — 4 находки, все в комментариях, кода не касаются.** Главный вопрос (оправдан ли отдельный хелпер рядом с `invalidateBucketQueries`) закрыт в пользу split'а, с дополнительным доводом: композиция «`invalidateBucketQueries` зовёт `invalidateVersioningStatusQueries`» была бы хуже, потому что первый намеренно не трогает `versioning.getStatus`, а `ObjectBrowserView` держит его смонтированным постоянно — композиция добавила бы рефетч `getStatus` на все 13 контентных call site'ов. Полнота списка читателей и обратная проверка (`setStatus` вызывается ровно в двух местах) — PASS.
+
+Исправлено всё четыре:
+
+1. **Фактическая ошибка в моём же докблоке.** Было «two whole server-side scans», но `containers.getState` новый хелпер инвалидирует сам — этот скан идёт в любом случае. Реальная дельта против `invalidateBucketQueries` = один скан (`checkDeletedContent`, по префиксу) + два листинга. Та же формулировка была продублирована в тесте хелпера и в changeset — поправлено во всех трёх местах.
+2. **Перекрёстная ссылка между хелперами.** `containers.getState` теперь назван в двух списках, и оба докблока обещали быть единственным местом. Сценарий рецидива: новый запрос, несущий и статус, и содержимое, попадает в тот список, до которого разработчик дошёл первым. Обе стороны теперь ссылаются друг на друга, плюс правило «запрос, отчитывающийся об обоих, принадлежит обоим спискам».
+3. **Списки потребителей дополнены:** `getStatus` питает ещё пропы `versioningEnabled`; `getState` напрямую читают `EmptyBucketModal.tsx:55` и `DeleteBucketModal.tsx:39` — с явной оговоркой, почему им от этого хелпера ничего не нужно (`staleTime: 0` + `enabled: isOpen`, каждое открытие перепроверяет вживую).
+4. **«indefinitely» уточнено.** `App.tsx:54-56` задаёт только `staleTime` и `refetchOnWindowFocus: false`; `refetchOnReconnect` остаётся дефолтным `true`, то есть реконнект сети протухший бейдж тоже чинит. Поправлено в докблоке, в обоих тестах модалок и в changeset.
+
+Зафиксировано как pre-existing и вне скоупа: `CreateBucketModal` умеет создавать бакет сразу с версионированием (`:149`), а инвалидирует только `containers.list` — узкий сценарий пересоздания бакета с тем же именем в пределах `gcTime`.
+
+**CI:** licenses, lint, check-i18n (диффа локалей нет), typecheck, format:check, test (aurora 5733, signal-openstack 177, policy-engine 320 + 1 skipped), build — зелёное. Итог правки раунда 3: 6 изменённых + 2 новых файла.
+
+### Тексты ответов Copilot'у (раунд 3) — публикует пользователь
+
+**В тред `#discussion_r4095220055` (ObjectBrowserView / checkDeletedContent errors):**
+
+> Valid, and tracked as a follow-up rather than fixed here.
+>
+> Two corrections to the framing. The missing `error` handling is not new: `main` destructures `{ data: folderDeletedStatus }` the same way. What this PR changed is the server side — it removed a per-folder `catch` that silently returned `hasDeletedContent: false` and now throws `mapS3ErrorToTRPCError`, which is what makes that path reachable.
+>
+> The sharper case is also not the stale refetch. It's the first load: with `data === undefined` the fallback at :346/:358 returns `allFolders`, so the Deleted tab lists every folder as though each held deleted content, with no indication the scan failed. Worth noting the previous behaviour was fail-closed and worse — a failed scan left `folderMarkerVersionId: undefined`, and the All-tab filter `folderMarkerVersionId !== undefined` hid existing folders outright.
+>
+> Deferred because the fix isn't a conditional: it needs a visible scan-state affordance, and the same affordance covers surfacing `isPartialScan`, which is already tracked. Bundling that UI into this PR would widen it past what it's for.
+
+**В тред `#discussion_r4095220124` (useBucketInfo / versioning invalidation):**
+
+> Correct, and fixed — this one is a regression from this PR.
+>
+> One amendment: the staleness doesn't end at "normal cache expiry". `refetchInterval` isn't set, `refetchOnWindowFocus` is off globally, and a mounted observer doesn't refetch just because its data went stale. The pre-mutation badge survives until some other mutation invalidates the query or the view remounts.
+>
+> On the suggested remedy: routed through a new `invalidateVersioningStatusQueries` helper rather than `invalidateBucketQueries`. The latter is scoped to what depends on a bucket's *contents*, and `versioning.setStatus` changes no object, version or delete marker — going through it would order two bucket-wide server scans plus two listings to refresh one string. The new helper lists both readers of the status (`versioning.getStatus`, `containers.getState`) in one place, which is the part worth keeping: two call sites spelling the set out themselves is exactly how this drifted.
+>
+> Neither modal asserted its invalidation at all, which is why it broke silently. Both do now, plus a unit test for the helper; reverting the fix turns both red.
