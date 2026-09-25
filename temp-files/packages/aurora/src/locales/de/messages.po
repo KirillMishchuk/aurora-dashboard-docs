@@ -143,14 +143,8 @@ msgstr "{emptiedCount, plural, one {# Container war bereits leer.} other {# Cont
 msgid "{emptiedCount, plural, one {# container} other {# containers}} successfully emptied. {totalDeleted, plural, one {# object} other {# objects}} deleted in total."
 msgstr "{emptiedCount, plural, one {# Container} other {# Container}} erfolgreich geleert. {totalDeleted, plural, one {# Objekt} other {# Objekte}} insgesamt gelöscht."
 
-msgid "{errorCount} {errorCount, plural, one {item} other {items}} could not be deleted: {listed}"
-msgstr ""
-
-msgid "{errorCount} {errorCount, plural, one {item} other {items}} could not be deleted."
-msgstr ""
-
-msgid "{errorCount} item(s) could not be deleted"
-msgstr ""
+msgid "{filteredCount, plural, one {{filteredCount} of {totalCount} container} other {{filteredCount} of {totalCount} containers}}"
+msgstr "{filteredCount, plural, one {{filteredCount} von {totalCount} Container} other {{filteredCount} von {totalCount} Containern}}"
 
 msgid "{numberDeleted} object was permanently deleted."
 msgstr "{numberDeleted} Objekt wurde dauerhaft gelöscht."
@@ -188,6 +182,9 @@ msgstr "{selectedCount, plural, one {Container leeren} other {# Container leeren
 msgid "{skippedRuleCount, plural, one {# lifecycle rule on this bucket could not be read and is hidden from this table. Saving any change here replaces the entire lifecycle configuration, which would permanently delete it. Fix it with an external S3 tool (e.g. the AWS CLI) first, then reload this page.} other {# lifecycle rules on this bucket could not be read and are hidden from this table. Saving any change here replaces the entire lifecycle configuration, which would permanently delete them. Fix them with an external S3 tool (e.g. the AWS CLI) first, then reload this page.}}"
 msgstr ""
 
+msgid "{totalCount, plural, one {{filteredCount} of {totalCount} bucket} other {{filteredCount} of {totalCount} buckets}}"
+msgstr "{totalCount, plural, one {{filteredCount} von {totalCount} Bucket} other {{filteredCount} von {totalCount} Buckets}}"
+
 msgid "{totalCount, plural, one {{totalCount} bucket} other {{totalCount} buckets}}"
 msgstr "{totalCount, plural, one {{totalCount} Bucket} other {{totalCount} Buckets}}"
 
@@ -211,9 +208,6 @@ msgstr "{totalItemCount, plural, one {{filteredItemCount} von {totalItemCount} E
 
 msgid "{totalItemCount, plural, one {{totalItemCount} item} other {{totalItemCount} items}}"
 msgstr "{totalItemCount, plural, one {{totalItemCount} Element} other {{totalItemCount} Elemente}}"
-
-msgid "{unlisted} further {unlisted, plural, one {failure is} other {failures are}} not listed here."
-msgstr ""
 
 msgid "<0>Edit metadata:</0> <1>{displayName}</1>"
 msgstr "<0>Metadaten bearbeiten:</0> <1>{displayName}</1>"
@@ -567,9 +561,6 @@ msgid "Bucket \"{bucketName}\" was successfully emptied. {deletedCount} objects 
 msgstr ""
 
 msgid "Bucket actions"
-msgstr ""
-
-msgid "Bucket contents could not be fully verified — refresh and try again"
 msgstr ""
 
 msgid "Bucket Created"
@@ -1232,9 +1223,6 @@ msgstr ""
 msgid "Deleted"
 msgstr ""
 
-msgid "Deleted {deletedCount} {deletedCount, plural, one {version} other {versions}} from bucket \"{bucketName}\"."
-msgstr ""
-
 msgid "Deleted {successCount} image(s), but {failedCount} image(s) could not be deleted."
 msgstr "{successCount} Image(s) gelöscht, aber {failedCount} Image(s) konnten nicht gelöscht werden."
 
@@ -1679,6 +1667,9 @@ msgstr "{failedCount} von {totalCount} Image(s) konnten nicht gelöscht werden. 
 msgid "Failed to Delete Bucket"
 msgstr ""
 
+msgid "Failed to delete bucket \"{bucketName}\": {errorMessage}"
+msgstr ""
+
 msgid "Failed to Delete Container"
 msgstr "Fehler beim Löschen des Containers"
 
@@ -1739,6 +1730,9 @@ msgstr ""
 msgid "Failed to Delete Versions"
 msgstr ""
 
+msgid "Failed to delete versions from bucket \"{bucketName}\": {errorMessage}"
+msgstr ""
+
 msgid "Failed to Download"
 msgstr "Fehler beim Herunterladen"
 
@@ -1746,6 +1740,9 @@ msgid "Failed to Download Object"
 msgstr "Fehler beim Herunterladen des Objekts"
 
 msgid "Failed to Empty Bucket"
+msgstr ""
+
+msgid "Failed to empty bucket \"{bucketName}\": {errorMessage}"
 msgstr ""
 
 msgid "Failed to Empty Container"
@@ -3071,6 +3068,9 @@ msgstr "Reservierte Schlüssel: web-index, web-listings, quota-count, quota-byte
 msgid "Resource Not Found"
 msgstr ""
 
+msgid "Restore"
+msgstr ""
+
 msgid "Restore Folder"
 msgstr ""
 
@@ -3491,16 +3491,25 @@ msgstr ""
 msgid "Successfully deleted {deletedCount} version from bucket \"{bucketName}\"."
 msgstr ""
 
+msgid "Successfully deleted {deletedCount} versions and delete markers from bucket \"{bucketName}\"."
+msgstr ""
+
 msgid "Successfully deleted {deletedCount} versions from bucket \"{bucketName}\"."
 msgstr ""
 
 msgid "Successfully deleted {successCount} of {totalCount} image(s)"
 msgstr "{successCount} von {totalCount} Image(s) erfolgreich gelöscht"
 
+msgid "Successfully deleted bucket \"{bucketName}\"."
+msgstr ""
+
 msgid "Successfully emptied {emptiedCount} {emptiedCount, plural, one {bucket} other {buckets}}, deleting {totalDeleted} {totalDeleted, plural, one {object} other {objects}}."
 msgstr ""
 
 msgid "Successfully emptied {emptiedCount} of {totalBuckets} {totalBuckets, plural, one {bucket} other {buckets}}, deleting {totalDeleted} {totalDeleted, plural, one {object} other {objects}}. {errorsLength} {errorsLength, plural, one {bucket} other {buckets}} failed."
+msgstr ""
+
+msgid "Successfully emptied bucket \"{bucketName}\". {deletedCount} objects deleted."
 msgstr ""
 
 msgid "Suggested Images"
@@ -3644,9 +3653,6 @@ msgstr "Der angeforderte Flavor konnte nicht gefunden werden. Er wurde mögliche
 msgid "The Resource you are looking for does not exist or is not accessible."
 msgstr ""
 
-msgid "The scan did not reach the end of the bucket, so non-current versions may remain. Run Delete Versions again."
-msgstr ""
-
 msgid "The selected images will be permanently deleted. This action cannot be undone."
 msgstr ""
 
@@ -3742,9 +3748,6 @@ msgstr "Diese Aktion ist dauerhaft. Alle Objekte im Container werden gelöscht u
 
 msgid "This action is permanent. The address will be removed from your project and returned to the public pool. This action cannot be undone."
 msgstr "Diese Aktion ist dauerhaft. Die Adresse wird aus Ihrem Projekt entfernt und dem öffentlichen Pool zurückgegeben. Dies kann nicht rückgängig gemacht werden."
-
-msgid "This action will permanently delete all non-current versions and delete markers in this bucket. Each object's current version is kept, so nothing visible changes. Objects that are currently deleted will be fully removed and can no longer be restored from the Deleted tab afterwards. This action cannot be undone."
-msgstr ""
 
 msgid "This action will permanently delete all objects from {bucketName}. This action cannot be undone."
 msgstr ""
@@ -3962,7 +3965,13 @@ msgstr "Image-Sichtbarkeit kann nicht aktualisiert werden"
 msgid "Unable to Upload Image File"
 msgstr "Image-Datei kann nicht hochgeladen werden"
 
-msgid "Unable to verify bucket versioning status and contents. Try again."
+msgid "Unable to verify bucket contents. Please try again."
+msgstr ""
+
+msgid "Unable to verify bucket versioning status and contents. Please try again."
+msgstr ""
+
+msgid "Unable to verify bucket versioning status. Please try again."
 msgstr ""
 
 msgid "Unknown domain"
@@ -4098,9 +4107,6 @@ msgid "Versions Deleted"
 msgstr ""
 
 msgid "Versions Deleted Permanently"
-msgstr ""
-
-msgid "Versions Partially Deleted"
 msgstr ""
 
 msgid "Versions to delete:"

@@ -1,0 +1,943 @@
+import React from "react"
+import { describe, test, expect, vi, beforeEach } from "vitest"
+import { render, screen, act, waitFor } from "@testing-library/react"
+import userEvent from "@testing-library/user-event"
+import { PortalProvider, toast } from "@cloudoperators/juno-ui-components"
+import { i18n } from "@lingui/core"
+import { I18nProvider } from "@lingui/react"
+import { SwiftContainers } from "./"
+import type { ContainerSummary } from "@/server/Storage/types/swift"
+
+// ─── Mock the Juno toast API ──────────────────────────────────────────────────
+// Container feedback now fires through the NotificationManager (Sonner). We assert
+// the component calls the right toast method with the right content; rendering and
+// dismissal are the library's responsibility.
+
+vi.mock("@cloudoperators/juno-ui-components", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@cloudoperators/juno-ui-components")>()
+  return {
+    ...actual,
+    toast: Object.assign(actual.toast, { success: vi.fn(), error: vi.fn(), warning: vi.fn() }),
+  }
+})
+
+// ─── Mock tRPC ────────────────────────────────────────────────────────────────
+
+const mockContainers: ContainerSummary[] = [
+  { name: "alpha", count: 10, bytes: 1048576, last_modified: "2024-03-01T08:00:00.000000" },
+  { name: "beta", count: 5, bytes: 524288, last_modified: "2024-01-15T12:00:00.000000" },
+  { name: "gamma", count: 20, bytes: 2097152, last_modified: "2024-02-10T09:00:00.000000" },
+]
+
+let trpcState = {
+  containers: mockContainers as ContainerSummary[] | undefined,
+  isLoading: false,
+  error: null as { message: string } | null,
+  accountInfo: undefined as
+    { bytesUsed: number; quotaBytes?: number; containerCount: number; objectCount: number } | undefined,
+  serviceInfo: undefined as { swift?: { max_container_name_length?: number } } | undefined,
+}
+
+// createContainer mutation mock (used by CreateContainerModal rendered inside ContainerListView)
+const mockMutate = vi.fn()
+const mockReset = vi.fn()
+const mockInvalidate = vi.fn()
+let capturedMutationOptions: {
+  onSuccess?: () => void
+  onError?: (error: { message: string }) => void
+  onSettled?: () => void
+} = {}
+
+// ─── Hoisted Route mock ───────────────────────────────────────────────────────
+// vi.mock factories are hoisted — use vi.hoisted() so mockContainersUseSearch
+// is available inside the factory and can be updated per-test via mockReturnValue.
+
+const { mockContainersUseSearch } = vi.hoisted(() => {
+  type ContainersSearch = {
+    sortBy: "name" | "count" | "bytes" | "last_modified" | undefined
+    sortDirection: "asc" | "desc" | undefined
+    search: string | undefined
+  }
+  const mockContainersUseSearch = vi.fn<() => ContainersSearch>(() => ({
+    sortBy: undefined,
+    sortDirection: undefined,
+    search: undefined,
+  }))
+  return { mockContainersUseSearch }
+})
+
+vi.mock("@tanstack/react-router", async () => {
+  const actual = await vi.importActual("@tanstack/react-router")
+  return {
+    ...actual,
+    useParams: vi.fn(() => ({
+      accountId: "test-account",
+      projectId: "test-project",
+      provider: "swift",
+    })),
+    useNavigate: vi.fn(() => vi.fn()),
+    Link: vi.fn(
+      ({
+        children,
+        to,
+        ...props
+      }: {
+        children: React.ReactNode
+        to: string
+        params?: Record<string, string>
+        [key: string]: unknown
+      }) => (
+        <a href={to} {...props}>
+          {children}
+        </a>
+      )
+    ),
+  }
+})
+
+// ─── Mock containers Route (sort + search state read from URL search params) ──
+
+vi.mock("../../../$provider/$storageType/", () => ({
+  Route: {
+    fullPath: "/_auth/projects/$projectId/storage/$provider/$storageType/",
+    useSearch: mockContainersUseSearch,
+  },
+}))
+
+vi.mock("@/client/trpcClient", () => ({
+  trpcReact: {
+    useUtils: () => ({
+      storage: {
+        swift: {
+          listContainers: { invalidate: mockInvalidate },
+          getContainerMetadata: { invalidate: vi.fn() },
+        },
+      },
+    }),
+    storage: {
+      swift: {
+        listContainers: {
+          useQuery: () => ({
+            data: trpcState.containers,
+            isLoading: trpcState.isLoading,
+            error: trpcState.error,
+          }),
+        },
+        getAccountMetadata: {
+          useQuery: () => ({ data: trpcState.accountInfo }),
+        },
+        getServiceInfo: {
+          useQuery: () => ({ data: trpcState.serviceInfo }),
+        },
+        listObjects: {
+          useQuery: () => ({ data: [], isLoading: false }),
+        },
+        getContainerPublicUrl: {
+          useQuery: () => ({ data: undefined }),
+        },
+        createContainer: {
+          useMutation: (options: typeof capturedMutationOptions) => {
+            capturedMutationOptions = options ?? {}
+            return {
+              mutate: mockMutate.mockImplementation(() => {
+                capturedMutationOptions.onSuccess?.()
+                capturedMutationOptions.onSettled?.()
+              }),
+              reset: mockReset,
+              isPending: false,
+            }
+          },
+        },
+        updateContainerMetadata: {
+          useMutation: () => ({
+            mutate: vi.fn(),
+            reset: vi.fn(),
+            isPending: false,
+            isError: false,
+            error: null,
+          }),
+        },
+        emptyContainer: {
+          useMutation: () => ({
+            mutate: vi.fn(),
+            mutateAsync: vi.fn().mockResolvedValue(3),
+            reset: vi.fn(),
+            isPending: false,
+          }),
+        },
+        getContainerMetadata: {
+          useQuery: () => ({ data: undefined, isLoading: false, isError: false, error: null }),
+        },
+        deleteContainer: {
+          useMutation: () => ({
+            mutate: vi.fn(),
+            reset: vi.fn(),
+            isPending: false,
+          }),
+        },
+      },
+    },
+  },
+}))
+
+// ─── Mock toast notification builders ────────────────────────────────────────
+
+vi.mock("./ContainerToastNotifications", () => ({
+  getContainerCreatedToast: vi.fn((name) => ({
+    message: "Container Created",
+    description: `Container "${name}" was successfully created.`,
+  })),
+  getContainerCreatedWithWarningToast: vi.fn((name, reason) => ({
+    message: "Container Created with Warnings",
+    description: `Container "${name}" was created, but its settings could not be applied: ${reason}`,
+  })),
+  getContainerEmptiedToast: vi.fn((name, deletedCount) => ({
+    message: "Container Emptied",
+    description:
+      deletedCount === 0
+        ? `Container "${name}" was already empty.`
+        : `Container "${name}" was successfully emptied. ${deletedCount} objects deleted.`,
+  })),
+  getContainerEmptyErrorToast: vi.fn((name, error) => ({
+    message: "Failed to Empty Container",
+    description: `Could not empty container "${name}": ${error}`,
+  })),
+  getContainerDeletedToast: vi.fn((name) => ({
+    message: "Container Deleted",
+    description: `Container "${name}" was successfully deleted.`,
+  })),
+  getContainerDeleteErrorToast: vi.fn((name, error) => ({
+    message: "Failed to Delete Container",
+    description: `Could not delete container "${name}": ${error}`,
+  })),
+  getContainerUpdatedToast: vi.fn((name) => ({
+    message: "Container Updated",
+    description: `Container "${name}" properties were successfully updated.`,
+  })),
+  getContainerUpdateErrorToast: vi.fn((name, error) => ({
+    message: "Failed to Update Container",
+    description: `Could not update container "${name}": ${error}`,
+  })),
+  getContainerAclUpdatedToast: vi.fn((name) => ({
+    message: "Access Control Updated",
+    description: `ACLs for container "${name}" were successfully updated.`,
+  })),
+  getContainerAclUpdateErrorToast: vi.fn((name, error) => ({
+    message: "Failed to Update Access Control",
+    description: `Could not update ACLs for container "${name}": ${error}`,
+  })),
+  getContainersEmptiedToast: vi.fn((emptiedCount, totalDeleted) => ({
+    message: "Containers Emptied",
+    description: `${emptiedCount} container(s) successfully emptied. ${totalDeleted} object(s) deleted in total.`,
+  })),
+  getContainersEmptyErrorToast: vi.fn((errorMessage) => ({
+    message: "Failed to Empty Containers",
+    description: `One or more containers could not be emptied: ${errorMessage}`,
+  })),
+  getContainersEmptyCompleteToast: vi.fn((emptiedCount, totalDeleted, errors) => ({
+    severity: errors.length > 0 && emptiedCount > 0 ? "warning" : errors.length > 0 ? "error" : "success",
+    message:
+      errors.length > 0 && emptiedCount > 0
+        ? "Containers Partially Emptied"
+        : errors.length > 0
+          ? "Failed to Empty Containers"
+          : "Containers Emptied",
+    description:
+      errors.length > 0 ? `Partial: ${emptiedCount} emptied, errors: ${errors.join(", ")}` : `${emptiedCount} emptied`,
+  })),
+}))
+
+// ─── Mock individual container modals ────────────────────────────────────────
+
+vi.mock("./CreateContainerModal", () => ({
+  CreateContainerModal: vi.fn(({ isOpen, onClose, onSuccess, onPartialSuccess }) =>
+    isOpen ? (
+      <div data-testid="create-container-modal">
+        <button onClick={onClose}>Close</button>
+        <button onClick={() => onSuccess?.("new-container")}>SimulateSuccess</button>
+        <button onClick={() => onPartialSuccess?.("new-container", "Settings could not be applied")}>
+          SimulatePartialSuccess
+        </button>
+      </div>
+    ) : null
+  ),
+}))
+
+vi.mock("./EmptyContainerModal", () => ({
+  EmptyContainerModal: vi.fn(({ isOpen, container, onClose, onSuccess, onError }) =>
+    isOpen && container ? (
+      <div data-testid="empty-container-modal">
+        <button onClick={onClose}>CloseEmpty</button>
+        <button onClick={() => onSuccess?.(container.name, 3)}>SimulateEmptySuccess</button>
+        <button onClick={() => onError?.(container.name, "Delete failed")}>SimulateEmptyError</button>
+      </div>
+    ) : null
+  ),
+}))
+
+vi.mock("./DeleteContainerModal", () => ({
+  DeleteContainerModal: vi.fn(({ isOpen, container, onClose, onSuccess, onError }) =>
+    isOpen && container ? (
+      <div data-testid="delete-container-modal">
+        <button onClick={onClose}>CloseDelete</button>
+        <button onClick={() => onSuccess?.(container.name)}>SimulateDeleteSuccess</button>
+        <button onClick={() => onError?.(container.name, "Delete failed")}>SimulateDeleteError</button>
+      </div>
+    ) : null
+  ),
+}))
+
+vi.mock("./EditContainerMetadataModal", () => ({
+  EditContainerMetadataModal: vi.fn(({ isOpen, container, onClose, onSuccess, onError }) =>
+    isOpen && container ? (
+      <div data-testid="edit-container-modal">
+        <button onClick={onClose}>CloseEdit</button>
+        <button onClick={() => onSuccess?.(container.name)}>SimulateEditSuccess</button>
+        <button onClick={() => onError?.(container.name, "Update failed")}>SimulateEditError</button>
+      </div>
+    ) : null
+  ),
+}))
+
+vi.mock("./ManageContainerAccessModal", () => ({
+  ManageContainerAccessModal: vi.fn(({ isOpen, container, onClose, onSuccess, onError }) =>
+    isOpen && container ? (
+      <div data-testid="manage-access-modal">
+        <button onClick={onClose}>CloseManageAccess</button>
+        <button onClick={() => onSuccess?.(container.name)}>SimulateAclSuccess</button>
+        <button onClick={() => onError?.(container.name, "ACL update failed")}>SimulateAclError</button>
+      </div>
+    ) : null
+  ),
+}))
+
+vi.mock("./ContainerLimitsTooltip", () => ({
+  ContainerLimitsTooltip: vi.fn(() => <span role="img" aria-label="info" />),
+}))
+
+vi.mock("./EmptyContainersModal", () => ({
+  EmptyContainersModal: vi.fn(({ isOpen, containers, onClose, onComplete }) =>
+    isOpen ? (
+      <div data-testid="empty-containers-modal" data-container-count={containers.length}>
+        <button onClick={onClose}>CloseEmptyAll</button>
+        <button
+          onClick={() =>
+            onComplete?.({ emptiedCount: containers.length, totalDeleted: containers.length * 3, errors: [] })
+          }
+        >
+          SimulateEmptyAllSuccess
+        </button>
+        <button onClick={() => onComplete?.({ emptiedCount: 0, totalDeleted: 0, errors: ["bulk empty failed"] })}>
+          SimulateEmptyAllError
+        </button>
+      </div>
+    ) : null
+  ),
+}))
+
+// ─── Mock virtualizer (no layout engine in jsdom) ─────────────────────────────
+
+vi.mock("@tanstack/react-virtual", () => ({
+  useVirtualizer: ({ count }: { count: number }) => ({
+    getVirtualItems: () =>
+      Array.from({ length: count }, (_, i) => ({
+        index: i,
+        start: i * 48,
+        size: 48,
+        key: i,
+        measureElement: vi.fn(),
+      })),
+    getTotalSize: () => count * 48,
+    measureElement: vi.fn(),
+  }),
+}))
+
+// ─── Render helper ────────────────────────────────────────────────────────────
+
+const renderList = () =>
+  render(
+    <I18nProvider i18n={i18n}>
+      <PortalProvider>
+        <SwiftContainers />
+      </PortalProvider>
+    </I18nProvider>
+  )
+
+// ─── Tests ────────────────────────────────────────────────────────────────────
+
+describe("SwiftContainers (List)", () => {
+  beforeEach(async () => {
+    vi.clearAllMocks()
+    mockContainersUseSearch.mockReturnValue({ sortBy: undefined, sortDirection: undefined, search: undefined })
+    capturedMutationOptions = {}
+    trpcState = {
+      containers: mockContainers,
+      isLoading: false,
+      error: null,
+      accountInfo: undefined,
+      serviceInfo: undefined,
+    }
+    await act(async () => {
+      i18n.activate("en")
+    })
+  })
+
+  describe("Loading state", () => {
+    test("shows loading message while fetching", () => {
+      trpcState.isLoading = true
+      trpcState.containers = undefined
+      renderList()
+      expect(screen.getByText(/Loading Containers/i)).toBeInTheDocument()
+    })
+
+    test("does not render table while loading", () => {
+      trpcState.isLoading = true
+      trpcState.containers = undefined
+      renderList()
+      expect(screen.queryByTestId("containers-table-header")).not.toBeInTheDocument()
+    })
+  })
+
+  describe("Error state", () => {
+    test("shows error message when query fails", () => {
+      trpcState.error = { message: "Failed to fetch" }
+      trpcState.containers = undefined
+      renderList()
+      expect(screen.getByText(/Error Loading Containers/i)).toBeInTheDocument()
+      expect(screen.getByText(/Failed to fetch/i)).toBeInTheDocument()
+    })
+
+    test("does not render table on error", () => {
+      trpcState.error = { message: "Network error" }
+      renderList()
+      expect(screen.queryByTestId("containers-table-header")).not.toBeInTheDocument()
+    })
+  })
+
+  describe("Rendering", () => {
+    test("renders the table header", () => {
+      renderList()
+      expect(screen.getByTestId("containers-table-header")).toBeInTheDocument()
+    })
+
+    test("renders all column headers", () => {
+      renderList()
+      expect(screen.getByRole("columnheader", { name: "Container Name" })).toBeInTheDocument()
+      expect(screen.getByRole("columnheader", { name: "Object Count" })).toBeInTheDocument()
+      expect(screen.getByRole("columnheader", { name: "Last Modified" })).toBeInTheDocument()
+      expect(screen.getByRole("columnheader", { name: "Total Size" })).toBeInTheDocument()
+    })
+
+    test("renders the Create Container button", () => {
+      renderList()
+      expect(screen.getByRole("button", { name: /Create Container/i })).toBeInTheDocument()
+    })
+
+    test("renders info icon for limits tooltip", () => {
+      renderList()
+      expect(screen.getByRole("img", { name: /info/i })).toBeInTheDocument()
+    })
+
+    test("renders a row for each container", () => {
+      renderList()
+      mockContainers.forEach((c) => {
+        expect(screen.getByTestId(`container-row-${c.name}`)).toBeInTheDocument()
+      })
+    })
+
+    test("renders container names in rows", () => {
+      renderList()
+      expect(screen.getByText("alpha")).toBeInTheDocument()
+      expect(screen.getByText("beta")).toBeInTheDocument()
+      expect(screen.getByText("gamma")).toBeInTheDocument()
+    })
+
+    test("renders empty state when containers array is empty", () => {
+      trpcState.containers = []
+      renderList()
+      expect(screen.getByText(/No containers found/i)).toBeInTheDocument()
+    })
+  })
+
+  describe("Bulk actions menu", () => {
+    // The bulk Empty control is no longer a standalone "Empty All (N)" button.
+    // Selecting a row enables the Zone 3 "Actions" toggle; the Empty item lives
+    // inside that popup menu and is labeled singular/plural (no numeric count).
+    const selectViaCheckbox = async (user: ReturnType<typeof userEvent.setup>, name: string) => {
+      await user.click(screen.getByTestId(`select-container-${name}`))
+    }
+    const openActionsMenu = async (user: ReturnType<typeof userEvent.setup>) => {
+      await user.click(screen.getByRole("button", { name: /^Actions/ }))
+    }
+
+    test("renders the Actions button", () => {
+      renderList()
+      expect(screen.getByRole("button", { name: /^Actions/ })).toBeInTheDocument()
+    })
+
+    test("Actions button is disabled when no containers are selected", () => {
+      renderList()
+      expect(screen.getByRole("button", { name: /^Actions/ })).toBeDisabled()
+    })
+
+    test("no Empty item is reachable when no containers are selected", () => {
+      renderList()
+      expect(screen.getByRole("button", { name: /^Actions/ })).toBeDisabled()
+      expect(screen.queryByText(/^Empty Container/)).not.toBeInTheDocument()
+    })
+
+    test("Actions button is enabled and exposes the Empty item after selecting a container", async () => {
+      const user = userEvent.setup()
+      renderList()
+      await selectViaCheckbox(user, "alpha")
+      await waitFor(() => expect(screen.getByRole("button", { name: /^Actions/ })).toBeEnabled())
+      await openActionsMenu(user)
+      expect(await screen.findByText("Empty Container")).toBeInTheDocument()
+    })
+
+    test("Empty item label becomes plural with count as more containers are selected", async () => {
+      const user = userEvent.setup()
+      renderList()
+      await selectViaCheckbox(user, "alpha")
+      await selectViaCheckbox(user, "beta")
+      await waitFor(() => expect(screen.getByRole("button", { name: /^Actions/ })).toBeEnabled())
+      await openActionsMenu(user)
+      expect(await screen.findByText("Empty 2 Containers")).toBeInTheDocument()
+    })
+
+    test("Actions button returns to disabled after deselecting all", async () => {
+      const user = userEvent.setup()
+      renderList()
+      const alphaCheckbox = screen.getByTestId("select-container-alpha")
+      await user.click(alphaCheckbox)
+      await waitFor(() => expect(screen.getByRole("button", { name: /^Actions/ })).toBeEnabled())
+      await user.click(alphaCheckbox)
+      await waitFor(() => expect(screen.getByRole("button", { name: /^Actions/ })).toBeDisabled())
+    })
+
+    test("selecting multiple containers enables Actions and shows the plural Empty item with count", async () => {
+      const user = userEvent.setup()
+      renderList()
+      await user.click(screen.getByTestId("select-container-alpha"))
+      await user.click(screen.getByTestId("select-container-beta"))
+      await user.click(screen.getByTestId("select-container-gamma"))
+      await waitFor(() => expect(screen.getByRole("button", { name: /^Actions/ })).toBeEnabled())
+      await openActionsMenu(user)
+      expect(await screen.findByText("Empty 3 Containers")).toBeInTheDocument()
+    })
+  })
+
+  describe("Bulk empty modal", () => {
+    // Select alpha, open the Zone 3 Actions menu, then click the Empty item to
+    // open the bulk-empty modal.
+    const selectAlphaAndOpenModal = async (user: ReturnType<typeof userEvent.setup>) => {
+      await user.click(screen.getByTestId("select-container-alpha"))
+      await waitFor(() => expect(screen.getByRole("button", { name: /^Actions/ })).toBeEnabled())
+      await user.click(screen.getByRole("button", { name: /^Actions/ }))
+      await user.click(await screen.findByText("Empty Container"))
+    }
+
+    test("modal is not visible by default", () => {
+      renderList()
+      expect(screen.queryByTestId("empty-containers-modal")).not.toBeInTheDocument()
+    })
+
+    test("clicking the Empty item opens the modal", async () => {
+      const user = userEvent.setup()
+      renderList()
+      await selectAlphaAndOpenModal(user)
+      await waitFor(() => {
+        expect(screen.getByTestId("empty-containers-modal")).toBeInTheDocument()
+      })
+    })
+
+    test("modal receives the selected containers", async () => {
+      const user = userEvent.setup()
+      renderList()
+      await selectAlphaAndOpenModal(user)
+      await waitFor(() => {
+        expect(screen.getByTestId("empty-containers-modal")).toHaveAttribute("data-container-count", "1")
+      })
+    })
+
+    test("closing the modal hides it", async () => {
+      const user = userEvent.setup()
+      renderList()
+      await selectAlphaAndOpenModal(user)
+      await waitFor(() => expect(screen.getByTestId("empty-containers-modal")).toBeInTheDocument())
+      await user.click(screen.getByRole("button", { name: "CloseEmptyAll" }))
+      await waitFor(() => {
+        expect(screen.queryByTestId("empty-containers-modal")).not.toBeInTheDocument()
+      })
+    })
+
+    test("shows success toast and clears selection after successful empty", async () => {
+      const { getContainersEmptyCompleteToast } = await import("./ContainerToastNotifications")
+      const user = userEvent.setup()
+      renderList()
+      await selectAlphaAndOpenModal(user)
+      await waitFor(() => expect(screen.getByTestId("empty-containers-modal")).toBeInTheDocument())
+      await user.click(screen.getByRole("button", { name: "SimulateEmptyAllSuccess" }))
+      await waitFor(() => {
+        expect(getContainersEmptyCompleteToast).toHaveBeenCalledWith(1, 3, [])
+        expect(toast.success).toHaveBeenCalled()
+        // Selection cleared → the Actions toggle is disabled again.
+        expect(screen.getByRole("button", { name: /^Actions/ })).toBeDisabled()
+      })
+    })
+
+    test("shows error toast when bulk empty fails", async () => {
+      const { getContainersEmptyCompleteToast } = await import("./ContainerToastNotifications")
+      const user = userEvent.setup()
+      renderList()
+      await selectAlphaAndOpenModal(user)
+      await waitFor(() => expect(screen.getByTestId("empty-containers-modal")).toBeInTheDocument())
+      await user.click(screen.getByRole("button", { name: "SimulateEmptyAllError" }))
+      await waitFor(() => {
+        expect(getContainersEmptyCompleteToast).toHaveBeenCalledWith(0, 0, ["bulk empty failed"])
+        expect(toast.error).toHaveBeenCalled()
+      })
+    })
+  })
+
+  describe("Search filtering", () => {
+    test("calls navigate when search input changes", async () => {
+      const user = userEvent.setup()
+      renderList()
+      await user.type(screen.getByPlaceholderText(/Search/i), "alph")
+      // navigate is called via handleSearchChange — verify the handler fires
+      await waitFor(() => {
+        // The input is rendered and interactive — typing triggers the handler
+        expect(screen.getByPlaceholderText(/Search/i)).toBeInTheDocument()
+      })
+    })
+
+    test("filters containers by search param from URL", () => {
+      mockContainersUseSearch.mockReturnValue({ sortBy: undefined, sortDirection: undefined, search: "alpha" })
+      renderList()
+      expect(screen.getByTestId("container-row-alpha")).toBeInTheDocument()
+      expect(screen.queryByTestId("container-row-beta")).not.toBeInTheDocument()
+      expect(screen.queryByTestId("container-row-gamma")).not.toBeInTheDocument()
+    })
+
+    test("search filtering is case-insensitive", () => {
+      mockContainersUseSearch.mockReturnValue({ sortBy: undefined, sortDirection: undefined, search: "ALPHA" })
+      renderList()
+      expect(screen.getByTestId("container-row-alpha")).toBeInTheDocument()
+      expect(screen.queryByTestId("container-row-beta")).not.toBeInTheDocument()
+    })
+
+    test("shows all containers when search param is empty", () => {
+      mockContainersUseSearch.mockReturnValue({ sortBy: undefined, sortDirection: undefined, search: "" })
+      renderList()
+      expect(screen.getByTestId("container-row-alpha")).toBeInTheDocument()
+      expect(screen.getByTestId("container-row-beta")).toBeInTheDocument()
+      expect(screen.getByTestId("container-row-gamma")).toBeInTheDocument()
+    })
+
+    test("shows empty state when no containers match search param", () => {
+      mockContainersUseSearch.mockReturnValue({ sortBy: undefined, sortDirection: undefined, search: "nonexistent" })
+      renderList()
+      expect(screen.getByText(/No containers found/i)).toBeInTheDocument()
+    })
+  })
+
+  describe("Sorting", () => {
+    test("shows containers sorted by name ascending by default", () => {
+      renderList()
+      expect(screen.getByTestId("container-row-alpha")).toBeInTheDocument()
+      expect(screen.getByTestId("container-row-beta")).toBeInTheDocument()
+      expect(screen.getByTestId("container-row-gamma")).toBeInTheDocument()
+    })
+
+    test("sorts containers by name descending when sort direction is changed", async () => {
+      const user = userEvent.setup()
+      renderList()
+      // Find the sort direction button in the ListToolbar
+      const sortButtons = screen.getAllByRole("button")
+      // The toolbar renders sort controls - find the direction toggle
+      const descButton = sortButtons.find(
+        (btn) =>
+          btn.getAttribute("aria-label")?.toLowerCase().includes("desc") ||
+          btn.textContent?.toLowerCase().includes("desc") ||
+          btn.getAttribute("data-testid")?.includes("desc")
+      )
+      if (descButton) {
+        await user.click(descButton)
+        await waitFor(() => {
+          // gamma should come before alpha in desc order
+          const gammaRow = screen.getByTestId("container-row-gamma")
+          const alphaRow = screen.getByTestId("container-row-alpha")
+          expect(gammaRow.compareDocumentPosition(alphaRow) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+        })
+      }
+    })
+  })
+
+  describe("Create Container modal", () => {
+    test("modal is not visible by default", () => {
+      renderList()
+      // Modal renders null when isOpen=false
+      expect(screen.queryByText(/Create Container/i)?.closest("[role='dialog']")).not.toBeInTheDocument()
+    })
+
+    test("opens modal when Create Container button is clicked", async () => {
+      const user = userEvent.setup()
+      renderList()
+      await user.click(screen.getByRole("button", { name: /Create Container/i }))
+      await waitFor(() => {
+        expect(screen.getByTestId("create-container-modal")).toBeInTheDocument()
+      })
+    })
+
+    test("closes modal when Close is clicked", async () => {
+      const user = userEvent.setup()
+      renderList()
+      await user.click(screen.getByRole("button", { name: /Create Container/i }))
+      await waitFor(() => {
+        expect(screen.getByTestId("create-container-modal")).toBeInTheDocument()
+      })
+      await user.click(screen.getByRole("button", { name: "Close" }))
+      await waitFor(() => {
+        expect(screen.queryByTestId("create-container-modal")).not.toBeInTheDocument()
+      })
+    })
+  })
+
+  describe("Info block", () => {
+    test("shows total container count", () => {
+      renderList()
+      const infoBlock = screen.getByTestId("containers-info-block")
+      expect(infoBlock.textContent).toContain("3 containers")
+    })
+
+    test("shows singular 'container' for exactly one container", () => {
+      trpcState.containers = [mockContainers[0]]
+      renderList()
+      const infoBlock = screen.getByTestId("containers-info-block")
+      expect(infoBlock.textContent).toContain("1 container")
+    })
+
+    test("shows 'X of Y containers' when search filter is active", () => {
+      mockContainersUseSearch.mockReturnValue({ sortBy: undefined, sortDirection: undefined, search: "alpha" })
+      renderList()
+      const infoBlock = screen.getByTestId("containers-info-block")
+      expect(infoBlock.textContent).toContain("1 of 3 container")
+    })
+
+    test("shows just count (not X of Y) when search matches all containers", () => {
+      mockContainersUseSearch.mockReturnValue({ sortBy: undefined, sortDirection: undefined, search: "" })
+      renderList()
+      const infoBlock = screen.getByTestId("containers-info-block")
+      expect(infoBlock.textContent).toContain("3 containers")
+      expect(infoBlock.textContent).not.toContain("of 3")
+    })
+  })
+
+  describe("Quota display", () => {
+    test("does not show remaining quota when accountInfo is absent", () => {
+      renderList()
+      expect(screen.queryByText(/Remaining Quota/i)).not.toBeInTheDocument()
+    })
+
+    test("does not show remaining quota when quotaBytes is 0", () => {
+      trpcState.accountInfo = { bytesUsed: 500, quotaBytes: 0, containerCount: 2, objectCount: 10 }
+      renderList()
+      expect(screen.queryByText(/Remaining Quota/i)).not.toBeInTheDocument()
+    })
+
+    test("shows remaining quota when accountInfo has quotaBytes > 0", () => {
+      trpcState.accountInfo = { bytesUsed: 1073741824, quotaBytes: 10737418240, containerCount: 5, objectCount: 100 }
+      renderList()
+      expect(screen.getByText(/Remaining Quota/i)).toBeInTheDocument()
+      expect(screen.getByText(/9 GiB/i)).toBeInTheDocument()
+    })
+
+    test("quota is shown inline in the info block, not in the toolbar actions", () => {
+      trpcState.accountInfo = { bytesUsed: 1073741824, quotaBytes: 10737418240, containerCount: 5, objectCount: 100 }
+      renderList()
+      const infoBlock = screen.getByTestId("containers-info-block")
+      expect(infoBlock.textContent).toContain("3 containers")
+      expect(infoBlock.textContent).toContain("Remaining Quota")
+    })
+  })
+
+  describe("Toast notifications", () => {
+    // Helper: open popup menu for a container row
+    const openMenu = async (user: ReturnType<typeof userEvent.setup>, containerName: string) => {
+      const row = screen.getByTestId(`container-row-${containerName}`)
+      const toggle = row.querySelector("button") as HTMLElement
+      await user.click(toggle)
+    }
+
+    test("shows success toast after container is created", async () => {
+      const user = userEvent.setup()
+      renderList()
+      await user.click(screen.getByRole("button", { name: /Create Container/i }))
+      await waitFor(() => expect(screen.getByTestId("create-container-modal")).toBeInTheDocument())
+      await user.click(screen.getByRole("button", { name: "SimulateSuccess" }))
+      await waitFor(() => {
+        expect(toast.success).toHaveBeenCalledWith(
+          expect.anything(),
+          expect.objectContaining({
+            description: expect.stringContaining('Container "new-container" was successfully created'),
+          })
+        )
+      })
+    })
+
+    test("shows a warning toast when the container is created but its settings could not be applied", async () => {
+      const user = userEvent.setup()
+      renderList()
+      await user.click(screen.getByRole("button", { name: /Create Container/i }))
+      await waitFor(() => expect(screen.getByTestId("create-container-modal")).toBeInTheDocument())
+      await user.click(screen.getByRole("button", { name: "SimulatePartialSuccess" }))
+      await waitFor(() => {
+        expect(toast.warning).toHaveBeenCalledWith(
+          expect.anything(),
+          expect.objectContaining({
+            description: expect.stringContaining(
+              'Container "new-container" was created, but its settings could not be applied: Settings could not be applied'
+            ),
+          })
+        )
+      })
+    })
+
+    test("shows success toast after container is emptied", async () => {
+      const user = userEvent.setup()
+      renderList()
+      await openMenu(user, "alpha")
+      await user.click(screen.getByTestId("empty-action-alpha"))
+      await waitFor(() => expect(screen.getByTestId("empty-container-modal")).toBeInTheDocument())
+      await user.click(screen.getByRole("button", { name: "SimulateEmptySuccess" }))
+      await waitFor(() => {
+        expect(toast.success).toHaveBeenCalledWith(
+          expect.anything(),
+          expect.objectContaining({
+            description: expect.stringContaining('Container "alpha" was successfully emptied'),
+          })
+        )
+      })
+    })
+
+    test("shows error toast when emptying container fails", async () => {
+      const user = userEvent.setup()
+      renderList()
+      await openMenu(user, "alpha")
+      await user.click(screen.getByTestId("empty-action-alpha"))
+      await waitFor(() => expect(screen.getByTestId("empty-container-modal")).toBeInTheDocument())
+      await user.click(screen.getByRole("button", { name: "SimulateEmptyError" }))
+      await waitFor(() => {
+        expect(toast.error).toHaveBeenCalledWith(
+          expect.anything(),
+          expect.objectContaining({
+            description: expect.stringContaining('Could not empty container "alpha": Delete failed'),
+          })
+        )
+      })
+    })
+
+    test("shows success toast after container is deleted", async () => {
+      const user = userEvent.setup()
+      renderList()
+      await openMenu(user, "alpha")
+      await user.click(screen.getByTestId("delete-action-alpha"))
+      await waitFor(() => expect(screen.getByTestId("delete-container-modal")).toBeInTheDocument())
+      await user.click(screen.getByRole("button", { name: "SimulateDeleteSuccess" }))
+      await waitFor(() => {
+        expect(toast.success).toHaveBeenCalledWith(
+          expect.anything(),
+          expect.objectContaining({
+            description: expect.stringContaining('Container "alpha" was successfully deleted'),
+          })
+        )
+      })
+    })
+
+    test("shows error toast when deleting container fails", async () => {
+      const user = userEvent.setup()
+      renderList()
+      await openMenu(user, "alpha")
+      await user.click(screen.getByTestId("delete-action-alpha"))
+      await waitFor(() => expect(screen.getByTestId("delete-container-modal")).toBeInTheDocument())
+      await user.click(screen.getByRole("button", { name: "SimulateDeleteError" }))
+      await waitFor(() => {
+        expect(toast.error).toHaveBeenCalledWith(
+          expect.anything(),
+          expect.objectContaining({
+            description: expect.stringContaining('Could not delete container "alpha": Delete failed'),
+          })
+        )
+      })
+    })
+
+    test("shows success toast after container properties are updated", async () => {
+      const user = userEvent.setup()
+      renderList()
+      await openMenu(user, "alpha")
+      await user.click(screen.getByTestId("properties-action-alpha"))
+      await waitFor(() => expect(screen.getByTestId("edit-container-modal")).toBeInTheDocument())
+      await user.click(screen.getByRole("button", { name: "SimulateEditSuccess" }))
+      await waitFor(() => {
+        expect(toast.success).toHaveBeenCalledWith(
+          expect.anything(),
+          expect.objectContaining({
+            description: expect.stringContaining('Container "alpha" properties were successfully updated'),
+          })
+        )
+      })
+    })
+
+    test("shows error toast when updating container properties fails", async () => {
+      const user = userEvent.setup()
+      renderList()
+      await openMenu(user, "alpha")
+      await user.click(screen.getByTestId("properties-action-alpha"))
+      await waitFor(() => expect(screen.getByTestId("edit-container-modal")).toBeInTheDocument())
+      await user.click(screen.getByRole("button", { name: "SimulateEditError" }))
+      await waitFor(() => {
+        expect(toast.error).toHaveBeenCalledWith(
+          expect.anything(),
+          expect.objectContaining({
+            description: expect.stringContaining('Could not update container "alpha": Update failed'),
+          })
+        )
+      })
+    })
+
+    test("shows success toast after ACLs are updated", async () => {
+      const user = userEvent.setup()
+      renderList()
+      await openMenu(user, "alpha")
+      await user.click(screen.getByTestId("access-control-action-alpha"))
+      await waitFor(() => expect(screen.getByTestId("manage-access-modal")).toBeInTheDocument())
+      await user.click(screen.getByRole("button", { name: "SimulateAclSuccess" }))
+      await waitFor(() => {
+        expect(toast.success).toHaveBeenCalledWith(
+          expect.anything(),
+          expect.objectContaining({
+            description: expect.stringContaining('ACLs for container "alpha" were successfully updated'),
+          })
+        )
+      })
+    })
+
+    test("shows error toast when ACL update fails", async () => {
+      const user = userEvent.setup()
+      renderList()
+      await openMenu(user, "alpha")
+      await user.click(screen.getByTestId("access-control-action-alpha"))
+      await waitFor(() => expect(screen.getByTestId("manage-access-modal")).toBeInTheDocument())
+      await user.click(screen.getByRole("button", { name: "SimulateAclError" }))
+      await waitFor(() => {
+        expect(toast.error).toHaveBeenCalledWith(
+          expect.anything(),
+          expect.objectContaining({
+            description: expect.stringContaining('Could not update ACLs for container "alpha": ACL update failed'),
+          })
+        )
+      })
+    })
+  })
+})

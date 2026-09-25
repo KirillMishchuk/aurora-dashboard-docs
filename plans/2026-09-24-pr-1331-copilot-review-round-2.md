@@ -649,3 +649,9 @@ Copilot занизил живучесть: он пишет «until its normal ca
 > On the suggested remedy: routed through a new `invalidateVersioningStatusQueries` helper rather than `invalidateBucketQueries`. The latter is scoped to what depends on a bucket's *contents*, and `versioning.setStatus` changes no object, version or delete marker — going through it would order two bucket-wide server scans plus two listings to refresh one string. The new helper lists both readers of the status (`versioning.getStatus`, `containers.getState`) in one place, which is the part worth keeping: two call sites spelling the set out themselves is exactly how this drifted.
 >
 > Neither modal asserted its invalidation at all, which is why it broke silently. Both do now, plus a unit test for the helper; reverting the fix turns both red.
+
+---
+
+## Раунд 4 Copilot-ревью (2026-09-25, HEAD `03144db3`)
+
+7 замечаний, **ни одно не чинится в #1331**: три валидных → follow-up 8–10, одно частично валидное и чинящее `main` → follow-up 11, два ложных срабатывания (abort-гонки в `getState` и `checkDeletedContent`) и одно уже принятое решение (безусловная инвалидация в `invalidateBucketQueries`) → ответ ревьюверу. Разбор, оценка критичности и тексты ответов: [2026-09-25-pr-1331-copilot-review-round-4.md](./2026-09-25-pr-1331-copilot-review-round-4.md).
