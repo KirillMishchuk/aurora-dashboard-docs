@@ -111,15 +111,13 @@
 
 ## Follow-ups, заведённые этим раундом
 
-Продолжают сквозную нумерацию списка «Follow-ups (вне этого PR)» в `2026-09-24-pr-1331-copilot-review-findings.md`.
+> Ведутся в едином реестре [`../FOLLOW-UPS.md`](../FOLLOW-UPS.md) — там же текст, обоснование и
+> статус. Нумерация сквозная, продолжает список раундов 1–3.
 
-**8. Не удалять неполную группу ключей, когда truncated-страница пришла без `NextKeyMarker`** (`objectRouter.ts:929`). Обрабатывать последнюю группу только если её current-запись — обычная версия; если current — delete-маркер, пропускать с записью в `errors` + `isPartial`. Обязательное условие: существующий тест `objectRouter.test.ts:1469` должен остаться зелёным — он закрывает противоположный риск (молча уронить версии). Нужен новый тест на delete-маркерный случай.
-
-**9. `deleteNonCurrentVersions` теряет отчёт о прошлых страницах при systemic-сбое** (`objectRouter.ts:989` + `:196`). Обернуть постраничный вызов в try/catch, при `deletedCount > 0` отдавать `isPartial` + запись в `errors` вместо реджекта. Сигнатуру `bulkDeleteItems` не трогать — у двух других call site'ов вызов однократный и поведение корректно.
-
-**10. Вкладка Deleted должна fail-closed** (`ObjectBrowserView.tsx:358`). Возвращать `[]` в ветке Deleted, нейтральный `allFolders` оставить только для All. Делать вместе с follow-up 1 (видимость `isPartialScan`) и находкой 1 раунда 3 (видимый UI состояния скана). Отдельно в ту же задачу: рассинхрон `enabled` запроса (`:164`, только `Enabled`) с условием показа вкладки (`:654`, `!== "Unversioned"`) — на Suspended-бакете вкладка Deleted показывает все папки всегда.
-
-**11. Empty Bucket не должен запускать удаление версий без `storage:object_versions:delete`.** Прокинуть `canDeleteVersion` в `EmptyBucketModal` и закрыть им и авто-ветку `isBucketEmptyWithVersions` (`:77`, `:121`), и чекбокс (`:298-303`). Чинит `main`, а не изменение этого PR: те же ворота стоят на `BucketTableView.tsx:255`. Помнить, что серверной проверки прав на Ceph-процедурах нет вовсе (`cephProcedure.ts:107`) — это выравнивание аффордансов UI, не граница безопасности.
+**8.** Не удалять неполную группу ключей, когда truncated-страница пришла без `NextKeyMarker` (`objectRouter.ts:929`).
+**9.** `deleteNonCurrentVersions` теряет отчёт о прошлых страницах при systemic-сбое (`objectRouter.ts:989` + `:196`).
+**10.** Вкладка Deleted должна fail-closed (`ObjectBrowserView.tsx:358`) — делать вместе с п. 1.
+**11.** Empty Bucket не должен запускать удаление версий без `storage:object_versions:delete`.
 
 ---
 
