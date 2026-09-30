@@ -320,7 +320,13 @@ msgstr ""
 msgid "Access for project \"{targetTenant}\" was successfully revoked."
 msgstr ""
 
+msgid "Access key \"{accessKey}\" is ready to use. You can find it again any time under More Actions, Manage Credentials."
+msgstr ""
+
 msgid "Access key \"{accessKey}\" was permanently deleted."
+msgstr ""
+
+msgid "Access key created"
 msgstr ""
 
 msgid "Access key deleted"

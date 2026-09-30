@@ -22,7 +22,7 @@ import { EC2_CREDENTIALS_MAX_PER_PROJECT, EC2_CREDENTIAL_LIMIT_REACHED } from "@
 import { useProjectId } from "@/client/hooks/useProjectId"
 import { useModalTracking } from "@/client/hooks/useModalTracking"
 import ClipboardText from "@/client/components/ClipboardText"
-import { getCredentialDeletedToast } from "./CredentialToastNotifications"
+import { getCredentialCreatedToast, getCredentialDeletedToast } from "./CredentialToastNotifications"
 import { useCephPermissions } from "../hooks/useCephPermissions"
 import { invalidateCredentialQueries } from "../hooks/invalidateCredentialQueries"
 
@@ -108,6 +108,12 @@ export const ManageCredentialsModal = ({ isOpen, onClose }: ManageCredentialsMod
         setRevealedSecrets((prev) => ({ ...prev, [credential.id]: credential.secret }))
       }
       invalidateCredentialQueries(utils, { projectId: projectId ?? "", mutation: "create" })
+
+      // Fires even though the new key is already visible in the table behind this toast: what it
+      // adds is where to find the key later, which the table itself can't say. See the docblock on
+      // `getCredentialCreatedToast`.
+      const { message, ...options } = getCredentialCreatedToast(credential.access)
+      toast.success(message, options)
     },
     onError: (err) => {
       setActionError(

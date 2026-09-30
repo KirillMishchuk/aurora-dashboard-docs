@@ -22,4 +22,4 @@ git apply <путь к DOCS>/transfer/<файл>.patch
 
 | Патч | База | Что внутри |
 | --- | --- | --- |
-| `main-on-fe1fa280.patch` | `fe1fa280` | Ветка `main`, локальные правки без issue. Модалка «Manage S3 Credentials» для Ceph: просмотр своих EC2-кредов с секретом, создание (лимит 2 на пользователя в проекте) и удаление; новый permission-ключ `storage:credentials:delete`; `containers.status` отдаёт endpoint/region; починен `createPermissionRouter` — отсутствующее правило больше не роняет весь батч `canUser`. 37 файлов. |
+| `main-on-fe1fa280.patch` | `fe1fa280` | Ветка `main`, без issue. Управление S3-кредами (Ceph): модалка Manage Credentials — список ключей с секретами, создание с лимитом 2 на проект и тостом «где найти ключ», удаление, endpoint/region; новая процедура `ec2Credentials.reveal`, permission-ключ `storage:credentials:delete`, детерминированный выбор креда в `resolveEC2Credential`, `createPermissionRouter` больше не роняет весь батч из-за одного отсутствующего правила. 37 файлов. |

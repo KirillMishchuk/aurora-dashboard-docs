@@ -320,8 +320,14 @@ msgstr "Access for project \"{projectId}\" to flavor \"{flavorName}\" was succes
 msgid "Access for project \"{targetTenant}\" was successfully revoked."
 msgstr "Access for project \"{targetTenant}\" was successfully revoked."
 
+msgid "Access key \"{accessKey}\" is ready to use. You can find it again any time under More Actions, Manage Credentials."
+msgstr "Access key \"{accessKey}\" is ready to use. You can find it again any time under More Actions, Manage Credentials."
+
 msgid "Access key \"{accessKey}\" was permanently deleted."
 msgstr "Access key \"{accessKey}\" was permanently deleted."
+
+msgid "Access key created"
+msgstr "Access key created"
 
 msgid "Access key deleted"
 msgstr "Access key deleted"

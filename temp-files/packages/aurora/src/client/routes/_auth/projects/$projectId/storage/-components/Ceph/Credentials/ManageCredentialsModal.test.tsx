@@ -384,7 +384,7 @@ describe("ManageCredentialsModal", () => {
   })
 
   describe("Create Access Key", () => {
-    test("creating shows the new secret immediately without a success toast, and invalidates queries", async () => {
+    test("creating shows the new secret immediately, toasts where to find it, and invalidates queries", async () => {
       const user = userEvent.setup()
       mockState.createResult = {
         id: "cred-2",
@@ -400,7 +400,7 @@ describe("ManageCredentialsModal", () => {
       expect(mockCreateMutate).toHaveBeenCalledWith({ project_id: mockProjectId })
       expect(await screen.findByText("new-secret-value")).toBeInTheDocument()
       expect(mockInvalidateList).toHaveBeenCalled()
-      expect(toast.success).not.toHaveBeenCalled()
+      await waitFor(() => expect(toast.success).toHaveBeenCalled())
 
       // A second key changes no bucket, so the expensive `includeMetadata` listing is left alone.
       expect(mockInvalidateContainersList).not.toHaveBeenCalled()
