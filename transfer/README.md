@@ -22,4 +22,4 @@ git apply <путь к DOCS>/transfer/<файл>.patch
 
 | Патч | База | Что внутри |
 | --- | --- | --- |
-| `main-on-2feab20d.patch` | `2feab20d` | Ветка `main` (правка ещё без своей ветки), follow-up 28: во вкладке «All» версионированного бакета убрана лишняя клиентская фильтрация папок по `checkDeletedContent` — она прятала любую папку без zero-byte объекта-пустышки `folder/`, который пишет только кнопка «Create folder» в Aurora, из-за чего папки из бакетов, наполненных сторонним S3-клиентом, мигали и сменялись на «No objects found.»; заодно запрос `checkDeletedContent` больше не уходит на этой вкладке. 3 файла (правка, тесты 43/43, changeset `patch`). |
+| `main-on-fe1fa280.patch` | `fe1fa280` | Ветка `main`, локальные правки без issue. Модалка «Manage S3 Credentials» для Ceph: просмотр своих EC2-кредов с секретом, создание (лимит 2 на пользователя в проекте) и удаление; новый permission-ключ `storage:credentials:delete`; `containers.status` отдаёт endpoint/region; починен `createPermissionRouter` — отсутствующее правило больше не роняет весь батч `canUser`. 37 файлов. |
