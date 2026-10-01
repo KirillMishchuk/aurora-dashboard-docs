@@ -1,0 +1,690 @@
+diff --git a/.changeset/security-groups-list-fixes.md b/.changeset/security-groups-list-fixes.md
+new file mode 100644
+index 00000000..0e0061a2
+--- /dev/null
++++ b/.changeset/security-groups-list-fixes.md
+@@ -0,0 +1,5 @@
++---
++"@cobaltcore-dev/aurora": patch
++---
++
++Fixed the Security Groups `Shared` filter returning groups from all projects for admin users (e.g. several `default` groups). Filtered lists are now always a subset of the unfiltered list, and sorting/search behave the same with and without filters. Aligned the list's DataGrid header with the Juno pattern and simplified the Name cell markup. `network.securityGroup.list` no longer accepts `tenant_id`; the scope always comes from `project_id`.
+diff --git a/packages/aurora/docs/007_security_groups_bff.md b/packages/aurora/docs/007_security_groups_bff.md
+index baf6d83a..db5d1096 100644
+--- a/packages/aurora/docs/007_security_groups_bff.md
++++ b/packages/aurora/docs/007_security_groups_bff.md
+@@ -47,15 +47,21 @@ Retrieves a list of security groups with optional pagination, sorting, and filte
+ | `sort_dir`     | enum    | Sort direction (`asc`, `desc`)                                   | -       |
+ | `name`         | string  | Filter by name                                                   | -       |
+ | `description`  | string  | Filter by description                                            | -       |
+-| `project_id`   | string  | Filter by project ID                                             | -       |
+-| `tenant_id`    | string  | Filter by tenant ID                                              | -       |
++| `project_id`   | string  | **Required.** Scoped project; sent only on the own-side request  | -       |
+ | `shared`       | boolean | Filter by shared status                                          | -       |
++| `stateful`     | boolean | **BFF-side** filter by stateful flag (missing flag = stateful)   | -       |
+ | `tags`         | string  | Filter by tags (comma-separated)                                 | -       |
+ | `tags_any`     | string  | Filter by any tags                                               | -       |
+ | `not_tags`     | string  | Exclude tags                                                     | -       |
+ | `not_tags_any` | string  | Exclude any tags                                                 | -       |
+ | `searchTerm`   | string  | **BFF-side** client search (filters by name, description, or ID) | -       |
+ 
++#### List semantics (own ∪ shared)
++
++Every view is built from two sources: own groups (`project_id` = the scoped project, `shared=false`) and shared groups (`shared=true`). Without a `shared` filter both are fetched and merged; an explicit `shared` picks one side, so filtered lists are always subsets of the unfiltered list.
++`project_id` is always sent on the own-side request, because admin tokens are not limited to the scoped project by Neutron. `tenant_id` (a Neutron alias of `project_id`) is not part of the input and is stripped like any unknown key, so the scope cannot be overridden.
++Deduplication, `stateful` and `searchTerm` filtering, and sorting (`sort_key`/`sort_dir`, not forwarded to Neutron) are applied in the BFF for every view.
++
+ #### Response
+ 
+ Returns an array of security group objects:
+diff --git a/packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/-components/SecurityGroupTableRow.test.tsx b/packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/-components/SecurityGroupTableRow.test.tsx
+index 35fd5ef9..1bf8c68a 100644
+--- a/packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/-components/SecurityGroupTableRow.test.tsx
++++ b/packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/-components/SecurityGroupTableRow.test.tsx
+@@ -99,6 +99,8 @@ describe("SecurityGroupTableRow", () => {
+       })
+ 
+       expect(screen.getByText("Security group for web servers")).toBeInTheDocument()
++      // The name is rendered directly in its cell, without a wrapper element
++      expect(screen.getByText("web-servers")).toHaveClass("juno-datagrid-cell")
+     })
+ 
+     it("renders a missing stateful flag as Yes, matching Neutron's default", async () => {
+diff --git a/packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/-components/SecurityGroupTableRow.tsx b/packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/-components/SecurityGroupTableRow.tsx
+index 5fc4633d..62671548 100644
+--- a/packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/-components/SecurityGroupTableRow.tsx
++++ b/packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/-components/SecurityGroupTableRow.tsx
+@@ -65,11 +65,7 @@ export function SecurityGroupTableRow({
+           <Checkbox checked={isSelected} onChange={() => onSelect?.(sg)} />
+         </DataGridCell>
+       )}
+-      <DataGridCell>
+-        <div>
+-          <p className="text-md">{sg.name}</p>
+-        </div>
+-      </DataGridCell>
++      <DataGridCell>{sg.name}</DataGridCell>
+       <DataGridCell>{sg.description || t`—`}</DataGridCell>
+       <DataGridCell>
+         <BooleanValue value={sg.shared} />
+diff --git a/packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/-components/SecurityGroupsList.test.tsx b/packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/-components/SecurityGroupsList.test.tsx
+index 31634df5..c3c801ee 100644
+--- a/packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/-components/SecurityGroupsList.test.tsx
++++ b/packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/-components/SecurityGroupsList.test.tsx
+@@ -1,4 +1,4 @@
+-import { render, screen } from "@testing-library/react"
++import { render, screen, within } from "@testing-library/react"
+ import userEvent from "@testing-library/user-event"
+ import { I18nProvider } from "@lingui/react"
+ import { i18n } from "@lingui/core"
+@@ -43,7 +43,7 @@ vi.mock("./SecurityGroupListContainer", () => ({
+     onDeleteSecurityGroup?: (id: string) => void
+     onUpdateSecurityGroup?: (id: string, data: { name: string }) => Promise<void>
+   }) => (
+-    <div>
++    <div data-testid="sg-list-container">
+       <button onClick={() => onDeleteSecurityGroup?.("sg-123")}>Delete group</button>
+       <button onClick={() => onUpdateSecurityGroup?.("sg-123", { name: "updated" })}>Update group</button>
+     </div>
+@@ -123,6 +123,23 @@ describe("SecurityGroups", () => {
+     i18n.activate("en")
+   })
+ 
++  it("composes the DataGrid header per the Juno pattern", () => {
++    const { container } = renderList()
++
++    const outer = container.querySelector(".juno-pattern-datagrid-outer")
++    expect(outer).not.toBeNull()
++    const zones = Array.from(outer!.children)
++
++    const header = zones[0]
++    expect(header).toHaveClass("juno-pattern-datagrid-header")
++    expect(within(header as HTMLElement).getByTestId("searchbar")).toBeInTheDocument()
++    expect(within(header as HTMLElement).getByRole("button", { name: "Create Security Group" })).toBeInTheDocument()
++
++    expect(zones[zones.length - 1]).toBe(within(container).getByTestId("sg-list-container"))
++    // The old `div.relative` wrapper around the list is gone: the outer Stack is a top-level zone
++    expect(outer!.parentElement!.querySelector(":scope > div.relative")).toBeNull()
++  })
++
+   it("shows a success toast with the group name after deletion", async () => {
+     const success = vi.spyOn(toast, "success")
+     const user = userEvent.setup()
+diff --git a/packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/-components/SecurityGroupsList.tsx b/packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/-components/SecurityGroupsList.tsx
+index 96f79e70..d7a58d03 100644
+--- a/packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/-components/SecurityGroupsList.tsx
++++ b/packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/-components/SecurityGroupsList.tsx
+@@ -250,98 +250,103 @@ export const SecurityGroups = ({ project: projectId }: SecurityGroupsProps) => {
+     <>
+       <ContentHeader title={t`Security Groups`} projectId={projectId} />
+ 
+-      <div className="relative">
+-        {/* Non-blocking error banner for refetch failures with cached data */}
+-        {isError && securityGroups.length > 0 && (
+-          <Message variant="error" className="mb-4">
+-            {listError}
+-          </Message>
+-        )}
+-
+-        <Stack distribution="end" alignment="center" gap="2" className="pb-2">
+-          <Stack gap="2">
+-            <SortInput
+-              options={sortSettings.options}
+-              sortBy={sortSettings.sortBy}
+-              sortDirection={sortSettings.sortDirection ?? "asc"}
+-              selectClassName="min-w-40"
+-              onSortByChange={(v) =>
+-                handleSortChange({ ...sortSettings, sortBy: v, sortDirection: sortSettings.sortDirection })
+-              }
+-              onSortDirectionChange={(dir) => handleSortChange({ ...sortSettings, sortDirection: dir })}
+-            />
+-            {permissions.canCreate && (
+-              <Button onClick={() => setCreateModalOpen(true)} variant="primary" className="whitespace-nowrap">
+-                <Trans>Create Security Group</Trans>
+-              </Button>
+-            )}
++      {/* Non-blocking error banner for refetch failures with cached data */}
++      {isError && securityGroups.length > 0 && (
++        <Message variant="error" className="mb-4">
++          {listError}
++        </Message>
++      )}
++
++      <Stack direction="vertical" className="juno-pattern-datagrid-outer">
++        <Stack direction="vertical" className="juno-pattern-datagrid-header">
++          {/* Zone 1: sort + primary action */}
++          <Stack distribution="end" alignment="center" gap="2" className="pb-2">
++            <Stack gap="2">
++              <SortInput
++                options={sortSettings.options}
++                sortBy={sortSettings.sortBy}
++                sortDirection={sortSettings.sortDirection ?? "asc"}
++                selectClassName="min-w-40"
++                onSortByChange={(v) =>
++                  handleSortChange({ ...sortSettings, sortBy: v, sortDirection: sortSettings.sortDirection })
++                }
++                onSortDirectionChange={(dir) => handleSortChange({ ...sortSettings, sortDirection: dir })}
++              />
++              {permissions.canCreate && (
++                <Button onClick={() => setCreateModalOpen(true)} variant="primary" className="whitespace-nowrap">
++                  <Trans>Create Security Group</Trans>
++                </Button>
++              )}
++            </Stack>
+           </Stack>
+-        </Stack>
+ 
+-        <DataGridToolbar>
+-          <Stack direction="vertical" gap="2">
+-            <Stack distribution="between" alignment="center">
+-              <FiltersInput
+-                filters={filterSettings.filters}
+-                selectClassName="sm:min-w-40"
+-                comboboxClassName="sm:min-w-40"
+-                onChange={(selected) => {
+-                  const newSelected = applyFilterSelection(
+-                    filterSettings.selectedFilters || [],
+-                    selected,
+-                    filterSettings.filters
+-                  )
+-                  if (newSelected === (filterSettings.selectedFilters || [])) return
+-                  handleFilterChange({ ...filterSettings, selectedFilters: newSelected })
+-                }}
+-              />
+-              <SearchInput
+-                // The wrapper is inline-block/w-auto and the input reserves pr-16 for its icons, so at
+-                // the browser's default input width this placeholder gets cut off mid-ellipsis.
+-                className="w-60 sm:w-68"
+-                placeholder={t`Search security groups...`}
+-                data-testid="searchbar"
+-                value={localSearchTerm}
+-                onInput={(e: React.FormEvent<HTMLInputElement>) => {
+-                  const v = e.currentTarget.value
+-                  setLocalSearchTerm(v)
+-                  clearTimeout(debounceTimer.current)
+-                  debounceTimer.current = window.setTimeout(() => {
++          {/* Zone 2: filters, search, active filter pills */}
++          <DataGridToolbar>
++            <Stack direction="vertical" gap="2">
++              <Stack distribution="between" alignment="center">
++                <FiltersInput
++                  filters={filterSettings.filters}
++                  selectClassName="sm:min-w-40"
++                  comboboxClassName="sm:min-w-40"
++                  onChange={(selected) => {
++                    const newSelected = applyFilterSelection(
++                      filterSettings.selectedFilters || [],
++                      selected,
++                      filterSettings.filters
++                    )
++                    if (newSelected === (filterSettings.selectedFilters || [])) return
++                    handleFilterChange({ ...filterSettings, selectedFilters: newSelected })
++                  }}
++                />
++                <SearchInput
++                  // The wrapper is inline-block/w-auto and the input reserves pr-16 for its icons, so at
++                  // the browser's default input width this placeholder gets cut off mid-ellipsis.
++                  className="w-60 sm:w-68"
++                  placeholder={t`Search security groups...`}
++                  data-testid="searchbar"
++                  value={localSearchTerm}
++                  onInput={(e: React.FormEvent<HTMLInputElement>) => {
++                    const v = e.currentTarget.value
++                    setLocalSearchTerm(v)
++                    clearTimeout(debounceTimer.current)
++                    debounceTimer.current = window.setTimeout(() => {
++                      debounceTimer.current = undefined
++                      handleSearchChange(v)
++                    }, SEARCH_DEBOUNCE_MS)
++                  }}
++                  onSearch={(v) => {
++                    clearTimeout(debounceTimer.current)
+                     debounceTimer.current = undefined
+-                    handleSearchChange(v)
+-                  }, SEARCH_DEBOUNCE_MS)
+-                }}
+-                onSearch={(v) => {
+-                  clearTimeout(debounceTimer.current)
+-                  debounceTimer.current = undefined
+-                  handleSearchChange(typeof v === "string" ? v : "")
+-                }}
+-                onClear={() => {
+-                  clearTimeout(debounceTimer.current)
+-                  debounceTimer.current = undefined
+-                  setLocalSearchTerm("")
+-                  handleSearchChange("")
+-                }}
+-              />
++                    handleSearchChange(typeof v === "string" ? v : "")
++                  }}
++                  onClear={() => {
++                    clearTimeout(debounceTimer.current)
++                    debounceTimer.current = undefined
++                    setLocalSearchTerm("")
++                    handleSearchChange("")
++                  }}
++                />
++              </Stack>
++              {filterSettings.selectedFilters && filterSettings.selectedFilters.length > 0 && (
++                <SelectedFilters
++                  selectedFilters={filterSettings.selectedFilters}
++                  filters={filterSettings.filters}
++                  onDelete={(filterToRemove) =>
++                    handleFilterChange({
++                      ...filterSettings,
++                      selectedFilters: (filterSettings.selectedFilters || []).filter(
++                        (f) => !(f.name === filterToRemove.name && f.value === filterToRemove.value)
++                      ),
++                    })
++                  }
++                  onClear={() => handleFilterChange({ ...filterSettings, selectedFilters: [] })}
++                />
++              )}
+             </Stack>
+-            {filterSettings.selectedFilters && filterSettings.selectedFilters.length > 0 && (
+-              <SelectedFilters
+-                selectedFilters={filterSettings.selectedFilters}
+-                filters={filterSettings.filters}
+-                onDelete={(filterToRemove) =>
+-                  handleFilterChange({
+-                    ...filterSettings,
+-                    selectedFilters: (filterSettings.selectedFilters || []).filter(
+-                      (f) => !(f.name === filterToRemove.name && f.value === filterToRemove.value)
+-                    ),
+-                  })
+-                }
+-                onClear={() => handleFilterChange({ ...filterSettings, selectedFilters: [] })}
+-              />
+-            )}
+-          </Stack>
+-        </DataGridToolbar>
++          </DataGridToolbar>
++        </Stack>
+ 
++        {/* Renders <DataGrid> as a direct child; its Edit/Delete modals portal and add no in-flow DOM */}
+         <SecurityGroupListContainer
+           securityGroups={securityGroups}
+           isLoading={isLoading}
+@@ -359,18 +364,18 @@ export const SecurityGroups = ({ project: projectId }: SecurityGroupsProps) => {
+           hasAnyBulkAction={false}
+           onClearUpdateError={handleClearUpdateError}
+         />
+-
+-        <CreateSecurityGroupModal
+-          isOpen={createModalOpen}
+-          onClose={() => {
+-            setCreateError(null)
+-            setCreateModalOpen(false)
+-          }}
+-          onCreate={handleCreateSecurityGroup}
+-          isLoading={createSecurityGroupMutation.isPending}
+-          error={createError}
+-        />
+-      </div>
++      </Stack>
++
++      <CreateSecurityGroupModal
++        isOpen={createModalOpen}
++        onClose={() => {
++          setCreateError(null)
++          setCreateModalOpen(false)
++        }}
++        onCreate={handleCreateSecurityGroup}
++        isLoading={createSecurityGroupMutation.isPending}
++        error={createError}
++      />
+     </>
+   )
+ }
+diff --git a/packages/aurora/src/server/Network/routers/securityGroupRouter.test.ts b/packages/aurora/src/server/Network/routers/securityGroupRouter.test.ts
+index 94f1b25b..094e03b4 100644
+--- a/packages/aurora/src/server/Network/routers/securityGroupRouter.test.ts
++++ b/packages/aurora/src/server/Network/routers/securityGroupRouter.test.ts
+@@ -502,6 +502,255 @@ describe("securityGroupRouter.list", () => {
+       expect(result[2].name).toBe("alpha")
+     })
+   })
++
++  describe("Explicit shared filter (admin token)", () => {
++    type FixtureGroup = SecurityGroup & { sharedWith: string[] }
++
++    const makeGroup = (
++      id: string,
++      name: string,
++      project_id: string,
++      extra: Partial<FixtureGroup> = {}
++    ): FixtureGroup => ({
++      id,
++      name,
++      project_id,
++      shared: false,
++      stateful: true,
++      security_group_rules: [],
++      sharedWith: [],
++      ...extra,
++    })
++
++    const adminFixture: FixtureGroup[] = [
++      makeGroup("sg-default-1", "default", "proj-1"),
++      makeGroup("sg-default-2", "default", "proj-2"),
++      makeGroup("sg-default-3", "default", "proj-3"),
++      makeGroup("sg-default-4", "default", "proj-4"),
++      makeGroup("sg-manila", "manila-service", "proj-1"),
++      makeGroup("sg-shared-wide", "shared-wide", "proj-2", { sharedWith: ["*"] }),
++      makeGroup("sg-own-wide", "own-wide", "proj-1", { sharedWith: ["*"] }),
++      makeGroup("sg-shared-to-proj1", "shared-to-proj1", "proj-3", { sharedWith: ["proj-1"] }),
++      makeGroup("sg-shared-to-proj9", "shared-to-proj9", "proj-4", { sharedWith: ["proj-9"] }),
++      makeGroup("sg-stateless-own", "stateless-own", "proj-1", { stateful: false }),
++    ]
++
++    /**
++     * Emulates the observed Neutron behaviour for an admin token: without a project_id filter every
++     * project's groups are returned; `shared` is evaluated relative to the requesting project.
++     */
++    const createNeutronListMock = (opts: {
++      requestingProjectId: string
++      groups: FixtureGroup[]
++      /** Models Neutron returning the project's own groups regardless of `shared` when filtered by project_id */
++      projectFilterIgnoresShared?: boolean
++    }) => {
++      const { requestingProjectId, groups, projectFilterIgnoresShared = false } = opts
++      const requestedUrls: string[] = []
++
++      const isSharedWithRequester = (g: FixtureGroup) =>
++        g.sharedWith.includes("*") || g.sharedWith.includes(requestingProjectId)
++
++      const mockOpenstackSession = {
++        service: vi.fn().mockImplementation((serviceName: string) => {
++          if (serviceName !== "network") {
++            return null
++          }
++          return {
++            get: vi.fn().mockImplementation((url: string) => {
++              requestedUrls.push(url)
++              const params = new URL(url, "http://x").searchParams
++              const projectFilter = params.get("project_id")
++              const sharedFilter = params.get("shared")
++
++              let matches = groups
++              if (projectFilter) {
++                matches = matches.filter((g) => g.project_id === projectFilter)
++              }
++              if (projectFilter && projectFilterIgnoresShared) {
++                // own groups are returned unfiltered by `shared`
++              } else if (sharedFilter === "true") {
++                matches = matches.filter(isSharedWithRequester)
++              } else if (sharedFilter === "false") {
++                matches = matches.filter((g) => !isSharedWithRequester(g))
++              }
++
++              const security_groups = matches.map(({ sharedWith: _sharedWith, ...sg }) => ({
++                ...sg,
++                shared: isSharedWithRequester({ ...sg, sharedWith: _sharedWith }),
++              }))
++              return Promise.resolve({
++                ok: true,
++                json: vi.fn().mockResolvedValue({ security_groups }),
++              })
++            }),
++          }
++        }),
++      }
++
++      const ctx = {
++        validateSession: vi.fn().mockReturnValue(true),
++        identityEndpoint: "http://identity.example.com/",
++        imageMetadataExcludedProperties: [],
++        openstack: mockOpenstackSession,
++        createSession: vi.fn(),
++        terminateSession: vi.fn(),
++        rescopeSession: vi.fn().mockResolvedValue(mockOpenstackSession),
++      } as unknown as AuroraPortalContext
++
++      return { ctx, requestedUrls }
++    }
++
++    const setup = (groups: FixtureGroup[] = adminFixture, projectFilterIgnoresShared = false) =>
++      createNeutronListMock({ requestingProjectId: "proj-1", groups, projectFilterIgnoresShared })
++
++    const queryOf = (url: string) => new URL(url, "http://x").searchParams
++    const ids = (list: SecurityGroup[]) => list.map((g) => g.id)
++
++    it("shared=false sends project_id and returns only own groups", async () => {
++      const { ctx, requestedUrls } = setup()
++      const caller = createCaller(ctx)
++
++      const result = await caller.securityGroup.list({ project_id: "proj-1", shared: false })
++
++      expect(requestedUrls).toHaveLength(1)
++      const query = queryOf(requestedUrls[0])
++      expect(query.get("project_id")).toBe("proj-1")
++      expect(query.get("shared")).toBe("false")
++      expect(ids(result).sort()).toEqual(["sg-default-1", "sg-manila", "sg-stateless-own"])
++      expect(result.filter((g) => g.name === "default")).toHaveLength(1)
++    })
++
++    it("shared=true sends a single shared=true request", async () => {
++      const { ctx, requestedUrls } = setup()
++      const caller = createCaller(ctx)
++
++      const result = await caller.securityGroup.list({ project_id: "proj-1", shared: true })
++
++      expect(requestedUrls).toHaveLength(1)
++      const query = queryOf(requestedUrls[0])
++      expect(query.get("shared")).toBe("true")
++      expect(query.has("project_id")).toBe(false)
++      expect(ids(result).sort()).toEqual(["sg-own-wide", "sg-shared-to-proj1", "sg-shared-wide"])
++    })
++
++    it("lists an own group that is also shared once, in the shared partition", async () => {
++      const { ctx } = setup()
++      const caller = createCaller(ctx)
++
++      const all = ids(await caller.securityGroup.list({ project_id: "proj-1" }))
++      const yes = ids(await caller.securityGroup.list({ project_id: "proj-1", shared: true }))
++      const no = ids(await caller.securityGroup.list({ project_id: "proj-1", shared: false }))
++
++      expect(all.filter((id) => id === "sg-own-wide")).toHaveLength(1)
++      expect(yes).toContain("sg-own-wide")
++      expect(no).not.toContain("sg-own-wide")
++    })
++
++    it("deduplicates a group returned by both the own and the shared request", async () => {
++      const { ctx } = setup(adminFixture, true)
++
++      const result = await createCaller(ctx).securityGroup.list({ project_id: "proj-1" })
++
++      expect(ids(result).filter((id) => id === "sg-own-wide")).toHaveLength(1)
++      expect(new Set(ids(result)).size).toBe(result.length)
++    })
++
++    it("filtered results are subsets of the unfiltered list", async () => {
++      const sharedValues = [undefined, true, false]
++      const statefulValues = [undefined, true, false]
++
++      const run = async (shared?: boolean, stateful?: boolean) => {
++        const { ctx } = setup()
++        const result = await createCaller(ctx).securityGroup.list({ project_id: "proj-1", shared, stateful })
++        return ids(result)
++      }
++
++      for (const stateful of statefulValues) {
++        const all = new Set(await run(undefined, stateful))
++        const yes = await run(true, stateful)
++        const no = await run(false, stateful)
++
++        for (const id of [...yes, ...no]) {
++          expect(all.has(id)).toBe(true)
++        }
++        expect(yes.filter((id) => no.includes(id))).toEqual([])
++        expect(new Set([...yes, ...no])).toEqual(all)
++      }
++
++      for (const shared of sharedValues) {
++        const all = new Set(await run(shared, undefined))
++        for (const stateful of [true, false]) {
++          for (const id of await run(shared, stateful)) {
++            expect(all.has(id)).toBe(true)
++          }
++        }
++      }
++    })
++
++    it("explicit filter sorts in the BFF", async () => {
++      const reversed = [...adminFixture].reverse()
++
++      const asc = setup(reversed)
++      const ascResult = await createCaller(asc.ctx).securityGroup.list({
++        project_id: "proj-1",
++        shared: false,
++        sort_key: "name",
++        sort_dir: "asc",
++      })
++      expect(ascResult.map((g) => g.name)).toEqual(["default", "manila-service", "stateless-own"])
++
++      const desc = setup(reversed)
++      const descResult = await createCaller(desc.ctx).securityGroup.list({
++        project_id: "proj-1",
++        shared: false,
++        sort_key: "name",
++        sort_dir: "desc",
++      })
++      expect(descResult.map((g) => g.name)).toEqual(["stateless-own", "manila-service", "default"])
++
++      for (const url of [...asc.requestedUrls, ...desc.requestedUrls]) {
++        expect(url).not.toContain("sort_key")
++        expect(url).not.toContain("sort_dir")
++      }
++    })
++
++    it("explicit filter combines with stateful and searchTerm", async () => {
++      const statefulCase = setup()
++      const stateless = await createCaller(statefulCase.ctx).securityGroup.list({
++        project_id: "proj-1",
++        shared: false,
++        stateful: false,
++      })
++      expect(ids(stateless)).toEqual(["sg-stateless-own"])
++
++      const searchCase = setup()
++      const searched = await createCaller(searchCase.ctx).securityGroup.list({
++        project_id: "proj-1",
++        shared: false,
++        searchTerm: "MANILA",
++      })
++      expect(ids(searched)).toEqual(["sg-manila"])
++    })
++
++    it("never forwards a caller-supplied tenant_id to Neutron", async () => {
++      const { ctx, requestedUrls } = setup()
++      const caller = createCaller(ctx)
++
++      // tenant_id is a Neutron alias of project_id; forwarding it could widen the own-side scope
++      const input = { project_id: "proj-1", tenant_id: "proj-2" } as unknown as Parameters<
++        typeof caller.securityGroup.list
++      >[0]
++      for (const shared of [undefined, true, false]) {
++        await caller.securityGroup.list({ ...input, shared })
++      }
++
++      expect(requestedUrls).toHaveLength(4)
++      for (const url of requestedUrls) {
++        expect(queryOf(url).has("tenant_id")).toBe(false)
++      }
++    })
++  })
+ })
+ describe("securityGroupRouter.getById", () => {
+   beforeEach(() => {
+diff --git a/packages/aurora/src/server/Network/routers/securityGroupRouter.ts b/packages/aurora/src/server/Network/routers/securityGroupRouter.ts
+index b7617ebc..958e7785 100644
+--- a/packages/aurora/src/server/Network/routers/securityGroupRouter.ts
++++ b/packages/aurora/src/server/Network/routers/securityGroupRouter.ts
+@@ -58,8 +58,10 @@ async function fetchSecurityGroupsWithParams(
+  * tRPC router for OpenStack Neutron Security Groups.
+  *
+  * Currently exposes:
+- * - list: GET /v2.0/security-groups - Fetches both own and shared security groups by default.
+- *   User can explicitly filter by shared=true/false. Now uses projectScopedProcedure for automatic token rescoping.
++ * - list: GET /v2.0/security-groups - Every view is built from own (project-scoped, shared=false) and
++ *   shared (shared=true) groups. Both are fetched by default; an explicit shared=true/false picks one side.
++ *   Deduplication, stateful/search filtering and sorting happen in the BFF. Uses projectScopedProcedure
++ *   for automatic token rescoping.
+  * - getById: GET /v2.0/security-groups/{security_group_id} to fetch a single security group with rules.
+  *   Includes BFF-side search filtering by name, description, or id.
+  * - create: POST /v2.0/security-groups to create a new security group.
+@@ -75,48 +77,21 @@ export const securityGroupRouter = {
+         // ctx.openstack is already rescoped to the project by projectScopedProcedure
+         const network = getNetworkService(ctx)
+ 
+-        // If user explicitly filters by shared, use single request with all params
+-        if (shared !== undefined) {
+-          const securityGroups = await fetchSecurityGroupsWithParams(network, {
+-            ...queryInput,
+-            shared,
+-            sort_key,
+-            sort_dir,
+-          })
+-          return filterBySearchParams(filterSecurityGroupsByStateful(securityGroups, stateful), searchTerm, [
+-            "name",
+-            "description",
+-            "id",
+-          ])
+-        }
++        // "All" = own ∪ shared. An explicit `shared` filter selects one side, so every filtered view is a
++        // subset of "All". project_id must stay on the own-side request: for admin tokens Neutron does not
++        // scope to the token's project and would return every project's non-shared groups (#1321).
++        const fetchOwn = () => fetchSecurityGroupsWithParams(network, { ...queryInput, project_id, shared: false })
++        const fetchShared = () => fetchSecurityGroupsWithParams(network, { ...queryInput, shared: true })
++
++        const requests = shared === undefined ? [fetchOwn(), fetchShared()] : [shared ? fetchShared() : fetchOwn()]
++        const fetched = (await Promise.all(requests)).flat()
++
++        // Filtering and sorting happen in the BFF, identically for every view
++        let result = deduplicateSecurityGroupsById<SecurityGroup>(fetched)
++        result = filterSecurityGroupsByStateful<SecurityGroup>(result, stateful)
++        result = filterBySearchParams<SecurityGroup>(result, searchTerm, ["name", "description", "id"])
+ 
+-        // When fetching both own and shared groups, we need to:
+-        // 1. Fetch ALL items from both sources
+-        // 2. Merge and deduplicate
+-        // 3. Apply global sort in-memory
+-        const [ownGroups, sharedGroups] = await Promise.all([
+-          fetchSecurityGroupsWithParams(network, {
+-            ...queryInput,
+-            project_id,
+-            shared: false,
+-          }),
+-          fetchSecurityGroupsWithParams(network, {
+-            ...queryInput,
+-            shared: true,
+-          }),
+-        ])
+-
+-        // Merge and deduplicate
+-        let combined = deduplicateSecurityGroupsById<SecurityGroup>([...ownGroups, ...sharedGroups])
+-
+-        // Apply BFF-side filters
+-        combined = filterSecurityGroupsByStateful<SecurityGroup>(combined, stateful)
+-        combined = filterBySearchParams<SecurityGroup>(combined, searchTerm, ["name", "description", "id"])
+-
+-        // Apply global sort
+-        combined = sortSecurityGroups<SecurityGroup>(combined, sort_key, sort_dir)
+-
+-        return combined
++        return sortSecurityGroups<SecurityGroup>(result, sort_key, sort_dir)
+       }, "list security groups")
+     }),
+ 
+diff --git a/packages/aurora/src/server/Network/types/securityGroup.ts b/packages/aurora/src/server/Network/types/securityGroup.ts
+index 7af27c59..6fca94e9 100644
+--- a/packages/aurora/src/server/Network/types/securityGroup.ts
++++ b/packages/aurora/src/server/Network/types/securityGroup.ts
+@@ -57,7 +57,6 @@ export const listSecurityGroupsInputSchema = projectScopedInputSchema.extend({
+   // Basic filtering
+   name: z.string().optional(),
+   description: z.string().optional(),
+-  tenant_id: z.string().optional(),
+   shared: z.boolean().optional(),
+ 
+   // Tag-based filtering (string values follow Neutron semantics)
