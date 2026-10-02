@@ -209,29 +209,6 @@ _Escape and in-flight requests_
 - [ ] The reverse does hold: with a create or delete in flight, nothing in the modal can be
       clicked — Close, the close button, Escape, Create, every delete button and every Reveal.
 
-**Alternatives Considered**
-
-- **Show the secret only once, at creation time, and never again.** Rejected: every current user's
-  creation moment has already passed, so it solves nothing for the people who reported this. It
-  would also make a lost secret a reason to delete a working key.
-- **Return the secret from `list`.** Rejected: it would put every secret of every key into the
-  TanStack Query cache, where it survives the modal and is visible in devtools. A separate
-  `reveal` *mutation* per key keeps secrets out of the cache entirely.
-- **Show every secret outright, fetched as the modal opens.** Built first, and the argument for it
-  is real: every key on this screen belongs to the caller, and the BFF reads the same secret out of
-  Keystone to sign every Ceph request, so a reveal control guards nothing the session does not
-  already hold. Dropped on design review all the same — a secret rendered without being asked for
-  is a secret on screen during a screen share, and fetching both of them to open a modal someone
-  opened for the endpoint is work nobody asked for.
-- **Juno's `SecretText` as the reveal control.** Prototyped. It conceals by drawing a blurred cover
-  over a textarea that still holds the value — paint rather than a boundary, unless the fetch is
-  deferred as well — and bundles copy and clear controls this screen does not want. An
-  `InputGroup` of a read-only `type="password"` field with its own Reveal/Hide button says exactly
-  what is meant and nothing more.
-- **A "currently active" badge on the key the BFF signs with.** Rejected: all of a user's keys in a
-  project map to the same RGW identity, so the badge would label an implementation detail as if it
-  were a property of the key.
-
 **Out of scope / known limitations**
 
 - Naming or labelling keys. Keystone's credential object has no field for it — only the `blob`,
@@ -240,41 +217,10 @@ _Escape and in-flight requests_
 - Choosing which key the BFF signs with, and rotation by switching an active key. The choice is
   made deterministic (sorted by credential ID) rather than dependent on Keystone's response order,
   but there is still no concept of an active key.
-- Keeping a revealed secret out of client memory altogether. Juno's `TextInput` is controlled and
-  mirrors whatever it is handed into its own state, so a displayed secret is in React state and in
-  the DOM regardless of who holds it. The reachable property is lifetime, not absence.
 - Swift, which does not use EC2 credentials.
-
-**Open points**
-
-- Where the modal's single error message belongs on the screen. It currently sits above the
-  sections; placement is still open.
-- The secret field is the first `InputGroup` in the dashboard pairing an input with its own action
-  button — the only other one (`ListToolbar/FiltersInput.tsx`) groups two inputs — and Juno still
-  marks `InputGroup` as WIP. Worth agreeing whether this becomes the general pattern for "value
-  plus inline action", which today is `ClipboardText`.
-- Overall credential-handling patterns across the dashboard: this is an interim solution for Ceph
-  S3 specifically, not a general answer for credentials.
 
 **Additional Context**
 
-- The "S3 Object Storage: Setup Required" screen is rebuilt on Juno's `Status` component, the same
-  one the bucket list's other full-page states already use, rather than hand-rolled markup.
-- The success message on the first key creation names where the key can be found again, per
-  design feedback.
-- Only the two mutations are permission-gated (`storage:credentials:create`,
-  `storage:credentials:delete`). There is no permission key for reading credentials, and none is
-  added here: the convention in this codebase is that reads are never gated (documented in
-  `useCephPermissions`), Keystone already answers with the caller's own credentials and no others,
-  and hiding the list would leave a user without those two permissions looking at a modal with
-  nothing in it — no keys, no endpoint, no region — which is the one thing they came for.
 - New permission key `storage:credentials:delete`. Operators with a forked `storage.json` should
   add `"storage:credential_delete": "rule:storage_viewer"` (or their own equivalent rule);
   without it the delete action stays hidden and everything else keeps working.
-- That last sentence was not true before this change, which is why adding a permission key is worth
-  a line here at all. `canUser` evaluates the whole batch of keys in one pass, and a rule missing
-  from the loaded policy file threw — failing the batch rather than the key. `useCephPermissions`
-  asks for around twenty keys at once, so one unknown rule hid every Ceph action, not the one it
-  governs, and `storage:credential_delete` would have walked straight into it on any forked policy
-  file. A missing rule now answers "not allowed" for its own key and leaves the rest of the batch
-  alone.
