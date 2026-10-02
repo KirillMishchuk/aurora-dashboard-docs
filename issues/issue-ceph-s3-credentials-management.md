@@ -56,8 +56,9 @@ been deleted — three entry points, one screen.
 - **Secrets** — concealed by default and fetched only when that key's own **Reveal** is clicked;
   until then the field holds filler of the same length as a real secret, so opening the modal for
   the endpoint fetches no secrets at all. **Hide** discards the value rather than painting over it,
-  as do deleting the key and closing the modal. `reveal` is a mutation and the secret is never part
-  of `list`, so none of this enters the TanStack Query cache either. What it does not promise: a
+  as do deleting the key and closing the modal. The secret is never part of `list`, and `reveal` is
+  called through the vanilla tRPC client rather than a React Query hook, so no client-side cache
+  holds it at all. What it does not promise: a
   revealed secret is in React state and in the DOM, the same as any value in a controlled input —
   what is ours to decide is how long it stays there.
 - **Connection Details** — the S3 endpoint URL and region, each copyable on its own.
@@ -130,13 +131,16 @@ _Revealing a secret_
 - [ ] A failed reveal is reported once, in the modal's single error message, naming the key it
       belongs to — not as a validation message on the field. The other key is unaffected, and
       clicking "Reveal" again retries.
-- [ ] Deleting a key discards its revealed secret along with the row.
+- [ ] Deleting a key discards its revealed secret along with the row, including a secret still in
+      flight when the key is deleted - it is dropped on arrival rather than written back into a row
+      that is gone.
 - [ ] Closing the modal discards every revealed secret, including when it is closed by Escape or
       by the page rather than by the Close button; reopening starts concealed again.
 - [ ] A secret that arrives after the modal has closed is discarded rather than written back into
       state — including when the modal has been reopened by the time it arrives, which must not
       unmask a field nobody asked to see.
-- [ ] Secrets are never part of the `list` response and never enter the TanStack Query cache.
+- [ ] Secrets are never part of the `list` response and enter no TanStack cache - neither the
+      query cache nor the mutation cache.
 
 _Connection details_
 

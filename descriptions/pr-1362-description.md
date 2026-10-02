@@ -10,13 +10,13 @@ This adds a **Manage Credentials** modal: the keys the user holds in this projec
 
 **The secret was recoverable all along.** Keystone's EC2 credentials are not Application Credentials — the blob is stored encrypted and decrypted on every read, and the owner may read their own. The BFF already performs that read on every Ceph request to sign the S3 call (`middleware/resolveEC2Credential.ts`), so nothing new is exposed.
 
-**A secret is fetched only when its Reveal is clicked.** `type="password"` changes how an input paints a value it already holds; it is not a boundary. Filling every field on open would put every key into the DOM for a user who most likely came for the endpoint. Until then the field holds filler of the same length, and Hide, delete and close discard the value rather than paint over it.
+**A secret is fetched only when its Reveal is clicked.** `type="password"` changes how an input paints a value it already holds; it is not a boundary. Filling every field on open would put every key into the DOM for a user who most likely came for the endpoint. Until then the field holds filler of the same length, and Hide, delete and close discard the value rather than paint over it — the component's own state is the only thing that ever holds it.
 
 # Changes Made
 
 ## Server
 
-- **`ec2CredentialRouter.ts`** — new `reveal` mutation, the only procedure that returns a secret. A mutation and not a query so the result never lands in the TanStack Query cache.
+- **`ec2CredentialRouter.ts`** — new `reveal` mutation, the only procedure that returns a secret. A mutation and not a query so the result never lands in the TanStack Query cache; the client calls it through the vanilla tRPC client, which holds no cache of its own either.
 - **`ec2CredentialRouter.ts`** — `create` no longer returns the secret and imposes no limit on how many keys a user holds; `delete` is deliberately not idempotent, answering `NOT_FOUND` for a credential that is already gone rather than reporting a deletion that did not happen.
 - **`ec2CredentialRouter.ts`** — `fetchOwnedCredential`, shared by `reveal` and `delete`: the status the identity service answered with is the status the caller gets. The one refusal of its own is a credential belonging to another user or project, which is never parsed and never returned.
 - **`helpers/ec2CredentialMapper.ts`** — new; replaces the parse-and-validate block that stood three times in the router, and rejects JSON that parses but has no fields to read.
@@ -26,12 +26,14 @@ This adds a **Manage Credentials** modal: the keys the user holds in this projec
 ## Client
 
 - **`Ceph/Credentials/ManageCredentialsModal.tsx`** — new. Keys in a `DataGrid`: access key ID, secret, delete. Both values sit in read-only `TextInput`s, which is also how they are copied. The secret's field is an `InputGroup` with its own Reveal/Hide button. Connection Details carries the endpoint and region.
+- **`reveal` is called through the vanilla tRPC client**, not `useMutation`: a mutation's answer sits in TanStack's `MutationCache` until `gcTime` elapses after `reset()`, which would outlive Hide, delete and close by minutes. The vanilla client caches nothing. A secret that arrives after its own key has been deleted is dropped rather than written back into a row that is gone and no Hide can reach.
 - **`Ceph/Credentials/DeleteCredentialModal.tsx`** — new. Confirmation dialog stacked inside the parent modal's subtree, the way `ObjectVersionHistoryModal` stacks its own. Names the key, and says one thing more when it is the last one: without a key S3 Object Storage is out of reach in the dashboard too, though the buckets survive and a new key reaches them.
-- **`Ceph/hooks/invalidateCredentialQueries.ts`** — new. Refreshes the key table on every mutation, and the bucket listing only on the 0 ↔ 1 transition, since that query is the expensive one on the screen.
+- **`Ceph/hooks/invalidateCredentialQueries.ts`** — new. Refetches the key table on every mutation and takes its decision from the list that comes back rather than from the cache afterwards: a refresh that fails leaves the pre-mutation list in place, which counts perfectly well and would strand the page behind the modal on "Setup Required" over a project that now has a key. The bucket listing is refreshed only on the 0 ↔ 1 transition, since that query is the expensive one on the screen.
 - **`Ceph/Buckets/index.tsx`** — three entry points into the same modal: the overflow menu beside "Create Bucket", the rewritten empty state, and the "S3 Credentials No Longer Valid" screen.
 - **`Ceph/Credentials/CredentialPrompt.tsx`** — moved from `Ceph/Buckets/`, rebuilt on Juno's `Status`, and opens the modal instead of creating a key and reloading.
 - **Permissions** — Create and the row's delete button render only for a user who may use them, with one `Message` naming what is missing and pointing at an administrator. Only a definite no hides a control: while the check is in flight, or if it failed, both stay disabled. Reading one's own keys is not gated.
 - **In-flight state** — a create or delete disables everything in the modal, Escape included. A reveal does not: it belongs to one row.
+- **Error banners** carry `role="alert"` and `aria-live="assertive"`, as `CreateBucketModal`'s does: both appear after an asynchronous failure rather than at render time.
 
 ## Docs
 

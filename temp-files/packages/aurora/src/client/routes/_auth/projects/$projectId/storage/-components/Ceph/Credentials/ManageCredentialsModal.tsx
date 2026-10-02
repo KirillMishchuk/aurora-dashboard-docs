@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react"
 import { Trans, useLingui } from "@lingui/react/macro"
-import { trpcReact } from "@/client/trpcClient"
+import { trpcReact, trpcClient } from "@/client/trpcClient"
 import {
   Modal,
   Stack,
@@ -58,8 +58,9 @@ interface ManageCredentialsModalProps {
  * It cannot be kept out of client memory altogether: Juno's `TextInput` is controlled and mirrors
  * whatever it is handed into its own state, so a displayed secret is in React state and in the DOM
  * no matter who holds it. What is ours to decide is how long, hence the discard on Hide, on delete
- * and on close. It never reaches the TanStack Query cache in any case - `list` strips secrets
- * server-side and `reveal` is a mutation.
+ * and on close - and that nothing but this component's own state ever holds it. `list` strips
+ * secrets server-side, and `reveal` is called through the vanilla tRPC client rather than
+ * `useMutation`, so no TanStack cache sees the answer at all.
  *
  * Mounted once, outside every early `return` in `CephBuckets` (see index.tsx): deleting the last
  * credential flips the page underneath into the `NO_CEPH_CREDENTIALS` branch, and the modal must
@@ -74,8 +75,6 @@ export const ManageCredentialsModal = ({ isOpen, onClose }: ManageCredentialsMod
   // mutations inside (create/delete) are gated below.
   const { permissions, isLoading: isLoadingPermissions, isError: isPermissionsError } = useCephPermissions(projectId)
 
-  // "We know what this user may do" - as opposed to still asking, or having failed to ask. The
-  // three states are not interchangeable: only a definite no hides a control and explains why.
   const permissionsKnown = !isLoadingPermissions && !isPermissionsError
 
   const {
@@ -104,6 +103,17 @@ export const ManageCredentialsModal = ({ isOpen, onClose }: ManageCredentialsMod
   // every open, and a completion carries the value it was fired under.
   const openIdRef = useRef(0)
 
+  // Credentials deleted while a reveal of their own row was still in flight. The opening counter
+  // above cannot catch this one: the modal never closed, so such a reveal still matches the opening
+  // it belongs to and would write the secret of a key that is no longer there - into a row that has
+  // gone, where no Hide can reach it and only closing the modal clears it. The delete's own cleanup
+  // cannot catch it either: it can only drop a secret that has already arrived.
+  //
+  // Filled on a successful delete, not when one is started, so a delete that fails and leaves the
+  // key in place still shows the secret its Reveal was fetching. An id is dropped again when that
+  // row's Reveal is clicked, which is what keeps this from outliving the key's id.
+  const abandonedRevealsRef = useRef<Set<string>>(new Set())
+
   // Only the secrets revealed right now. A key leaves this map on Hide, on delete and on close,
   // and nothing else in the component remembers it afterwards.
   const [revealedSecrets, setRevealedSecrets] = useState<Record<string, string>>({})
@@ -125,11 +135,19 @@ export const ManageCredentialsModal = ({ isOpen, onClose }: ManageCredentialsMod
     actionPrefix: "storage.ceph.credentials.manage",
   })
 
-  // Mutation, not a query, on purpose: a query result lands in the TanStack Query cache, where
-  // the secret would survive the modal closing and show up in devtools. See the server-side
-  // docblock on `ec2Credentials.reveal` for the full rationale.
-  const revealMutation = trpcReact.storage.ceph.ec2Credentials.reveal.useMutation()
-  const revealSecret = revealMutation.mutateAsync
+  // The one call in this component made through the vanilla client instead of a React hook, and
+  // the only one that returns a secret.
+  //
+  // `useMutation` would put the answer in TanStack's MutationCache, which is not the query cache
+  // the server-side docblock on `reveal` is about but keeps the value just as long: `reset()` only
+  // detaches the observer and schedules collection after `gcTime` (five minutes by default), and
+  // Hide does not call it at all. The secret would therefore outlive every action meant to discard
+  // it - Hide, delete, and the close that calls `reset()` - by minutes, in a cache React Query
+  // Devtools shows. The vanilla client has no cache: the answer exists as the resolved value of
+  // this promise and nowhere else.
+  //
+  // Same client `LoginForm` sends the password through, and for the same reason.
+  const revealSecret = trpcClient.storage.ceph.ec2Credentials.reveal.mutate
 
   const createMutation = trpcReact.storage.ceph.ec2Credentials.create.useMutation({
     onSuccess: (credential) => {
@@ -161,6 +179,9 @@ export const ManageCredentialsModal = ({ isOpen, onClose }: ManageCredentialsMod
           delete next[deleted.id]
           return next
         })
+        // The line above only reaches a secret that is already here. One still in flight would
+        // land afterwards and put itself back, into a row that no longer exists - see the ref.
+        abandonedRevealsRef.current.add(deleted.id)
         const { message, ...options } = getCredentialDeletedToast(deleted.access)
         toast.success(message, options)
       }
@@ -193,11 +214,11 @@ export const ManageCredentialsModal = ({ isOpen, onClose }: ManageCredentialsMod
     trackClose()
     setRevealedSecrets({})
     setLoadingSecretIds({})
+    abandonedRevealsRef.current.clear()
     deletingRef.current = null
     setDeletingId(null)
     setDeleteTarget(null)
     setActionError(null)
-    revealMutation.reset()
     createMutation.reset()
     deleteMutation.reset()
     resetTracking()
@@ -224,6 +245,7 @@ export const ManageCredentialsModal = ({ isOpen, onClose }: ManageCredentialsMod
     setLoadingSecretIds({})
     setDeleteTarget(null)
     deletingRef.current = null
+    abandonedRevealsRef.current.clear()
   }, [isOpen])
 
   // The only place a secret is fetched. Guarded on the two states that mean "already have it or
@@ -237,21 +259,28 @@ export const ManageCredentialsModal = ({ isOpen, onClose }: ManageCredentialsMod
 
     setActionError(null)
     setLoadingSecretIds((prev) => ({ ...prev, [credentialId]: true }))
+    // This request is the row's current one again, whatever happened to the previous one.
+    abandonedRevealsRef.current.delete(credentialId)
 
     // The opening this request belongs to. Anything that comes back under a different one is
     // dropped: by then its field has been cleared and may be looking at a different request.
     const openId = openIdRef.current
 
+    // Still wanted when it lands: same opening, and the row has not been deleted in the meantime.
+    const stillWanted = () => openIdRef.current === openId && !abandonedRevealsRef.current.has(credentialId)
+
     revealSecret({ project_id: projectId, credentialId })
       .then((credential) => {
-        if (openIdRef.current !== openId) return
+        if (!stillWanted()) return
         setRevealedSecrets((prev) => ({ ...prev, [credential.id]: credential.secret }))
       })
       .catch(() => {
-        if (openIdRef.current !== openId) return
+        if (!stillWanted()) return
         setActionError(t`Could not load the secret for access key "${access}". Try again.`)
       })
       .finally(() => {
+        // Only the opening is checked here: a delete that failed leaves the row on screen, and its
+        // Reveal has to stop spinning whether or not the secret it fetched was still wanted.
         if (openIdRef.current !== openId) return
         setLoadingSecretIds((prev) => {
           const next = { ...prev }
@@ -298,8 +327,14 @@ export const ManageCredentialsModal = ({ isOpen, onClose }: ManageCredentialsMod
       // delete runs `handleClose` ahead of the mutation's own `onSuccess`.
       closeOnEsc={!isBusy}
     >
+      {/* role/aria-live, as on CreateBucketModal's error banner: this appears after an
+          asynchronous failure rather than at render time, so without them a screen reader is
+          never told that the reveal the user just asked for came back empty.
+
+          Not dismissible, unlike that one: this message is cleared at the start of every Reveal,
+          Create and Delete and on close, so it is already gone by the time it stops being true. */}
       {actionError && (
-        <Message variant="error" text={actionError} className="mb-4" onDismiss={() => setActionError(null)} />
+        <Message variant="error" text={actionError} className="mb-4" role="alert" aria-live="assertive" />
       )}
 
       {/* FormSection is what section titles are built from elsewhere in the dashboard (see
@@ -358,7 +393,7 @@ export const ManageCredentialsModal = ({ isOpen, onClose }: ManageCredentialsMod
           )}
 
           {!isLoadingPermissions && isPermissionsError && (
-            <Message variant="error" title={t`Could Not Check Permissions`}>
+            <Message variant="error" title={t`Could Not Check Permissions`} role="alert" aria-live="assertive">
               <Trans>Could not verify whether you can create access keys. Reload the page or try again later.</Trans>
             </Message>
           )}
@@ -431,59 +466,32 @@ export const ManageCredentialsModal = ({ isOpen, onClose }: ManageCredentialsMod
                 </DataGridRow>
               ) : (
                 credentials.map((credential) => {
-                  // Bound before the JSX: Lingui's macro wants a plain variable, and a
-                  // `credential.access` inside one extracts as a nameless `{0}` a translator can
-                  // make nothing of.
                   const access = credential.access
 
                   return (
                     <DataGridRow key={credential.id}>
                       <DataGridCell>
-                        {/* A read-only field rather than a clipboard control: the value selects and
-                          copies out of an input perfectly well, so the icon only added a second
-                          way to do the same thing next to a field that already looked like one. */}
                         <TextInput
                           readOnly
                           value={credential.access}
                           aria-label={t`Access key ID`}
-                          // 40 hex characters, so the field asks for 41. `ch` is exactly one
-                          // character wide because the font is monospaced - the two go together.
-                          // `+2rem` is Juno's own `px-4` on the input: `min-width` is border-box, so
-                          // without it the padding eats the last characters instead of the margin.
                           className="min-w-[calc(41ch+2rem)] font-mono text-sm"
                           data-testid={`access-${credential.id}`}
                         />
                       </DataGridCell>
                       <DataGridCell>
-                        {/* Filler until Reveal fetches the real value, and filler again after Hide.
-                          `readOnly` because the value is ours to show, not the user's to edit -
-                          selecting and copying it still works, which is how it leaves this
-                          screen now that there is no clipboard control on it. */}
-                        {/* `w-full` because the group is a Stack, which is content-sized inside the
-                          cell's flex column - without it the field keeps the width of an empty
-                          input and the rest of the column goes to waste. */}
                         <InputGroup className="w-full">
                           <TextInput
                             readOnly
                             type={revealedSecrets[credential.id] ? "text" : "password"}
                             value={revealedSecrets[credential.id] ?? SECRET_PLACEHOLDER}
                             aria-label={t`Secret access key`}
-                            // 56 characters (base64 of 40 bytes) plus one, so the whole secret is on
-                            // screen instead of scrolled inside the field. `+2rem` for the input's
-                            // own `px-4`, which `min-width` would otherwise count as part of the 57.
                             className="min-w-[calc(57ch+2rem)] font-mono text-sm"
                             data-testid={`secret-${credential.id}`}
                           />
                           <Button
                             label={revealedSecrets[credential.id] ? t`Hide` : t`Reveal`}
                             progress={!!loadingSecretIds[credential.id]}
-                            // Its own fetch, and also any create or delete: while one of those is
-                            // in flight every other control in the modal is disabled, and a reveal
-                            // started against a row that is being deleted either reports NOT_FOUND
-                            // for a key the user just removed, or lands after the row is gone and
-                            // leaves a secret in state for a credential that no longer exists.
-                            // The converse does not hold - a reveal in flight blocks nothing, since
-                            // it belongs to one row rather than to the modal.
                             disabled={!!loadingSecretIds[credential.id] || isBusy}
                             onClick={() =>
                               revealedSecrets[credential.id]
@@ -498,16 +506,10 @@ export const ManageCredentialsModal = ({ isOpen, onClose }: ManageCredentialsMod
                         {deleteMutation.isPending && deletingId === credential.id ? (
                           <Spinner variant="primary" size="small" />
                         ) : (
-                          // Hidden only on a definite no, the same rule the Create button follows:
-                          // while the check is in flight the button is here and disabled, so the
-                          // action column does not start blank and sprout buttons a moment later.
                           (!permissionsKnown || permissions.canDeleteCredential) && (
                             <Button
                               size="small"
                               icon="deleteForever"
-                              // Named after the key: with more than one row, two buttons both
-                              // reading "Delete Access Key" say nothing about which one they delete,
-                              // and the confirmation dialog's own button already carries that label.
                               title={t`Delete access key ${access}`}
                               aria-label={t`Delete access key ${access}`}
                               disabled={!permissions.canDeleteCredential || isBusy}
@@ -526,11 +528,6 @@ export const ManageCredentialsModal = ({ isOpen, onClose }: ManageCredentialsMod
         </Stack>
       </FormSection>
 
-      {/* Inside the parent `Modal`'s subtree, the way ObjectVersionHistoryModal stacks its own
-          delete dialog. Confirming closes it right away and leaves the request to the row's
-          spinner: Juno's Modal has no progress state for its confirm button, so keeping this one
-          open for the duration would replace the one piece of feedback there is with a frozen
-          dialog. */}
       <DeleteCredentialModal
         isOpen={deleteTarget !== null}
         accessKey={deleteTarget?.access ?? ""}
