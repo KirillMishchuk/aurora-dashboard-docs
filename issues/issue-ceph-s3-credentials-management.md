@@ -178,7 +178,9 @@ _Deleting_
 - [ ] A failed delete is reported in a toast carrying what the server answered — not in the
       modal's error message, and never as a success.
 - [ ] A credential that is already gone answers `NOT_FOUND` rather than being reported as deleted,
-      and the key list is refreshed anyway so its row does not stay on screen.
+      and the key list is refreshed anyway so its row does not stay on screen - along with any
+      secret that row had revealed, which the vanished row's Hide can no longer discard. Every
+      other failure leaves the key, and its revealed secret, where they are.
 - [ ] A user without the delete permission does not see the delete button.
 
 _Isolation and permissions_
