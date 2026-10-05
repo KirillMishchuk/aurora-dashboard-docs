@@ -35,6 +35,13 @@ This adds a **Manage Credentials** modal: the keys the user holds in this projec
 - **In-flight state** — a create or delete disables everything in the modal, Escape included. A reveal does not: it belongs to one row.
 - **Error banners** carry `role="alert"` and `aria-live="assertive"`, as `CreateBucketModal`'s does: both appear after an asynchronous failure rather than at render time.
 
+## Tests
+
+- **`ManageCredentialsModal.test.tsx`** — 37 tests over the modal: concealment and the filler, one `reveal` per Reveal, Hide discarding rather than masking, the per-row error message, create and delete including the confirmation dialog, the permission states, and what each mutation does to the bucket listing behind the modal. Four of them are about a secret outliving what asked for it: one arriving after the modal was closed, one after it was closed and reopened, one after its own key was deleted, and one whose delete came back `NOT_FOUND`. The last pair's counterpart is there too — an ordinary failed delete keeps the key on screen, so it keeps the secret.
+- **`invalidateCredentialQueries.test.ts`** — 12 tests: the key table is refreshed on every mutation, the pending request is cancelled before it, the refetch asks the server rather than accepting a merely fresh list, the decision is taken from what came back, a failed refresh still refreshes the bucket listing, and the narrow error-only refresh matches a failed listing while skipping a loaded one.
+- **`ec2CredentialRouter.test.ts`** and **`ec2CredentialMapper.test.ts`** — ownership from the rescoped token, the identity service's status passed through unchanged in both shapes a refusal arrives in, non-`ec2` credentials treated as absent, and a blob that parses into something with no fields to read.
+- Full suite: **240 files / 5835 tests**, all passing. `pnpm typecheck`, `pnpm lint`, `pnpm format:check` and `pnpm check-i18n` are green, with no `.po` churn.
+
 ## Docs
 
 - **`packages/aurora/docs/009_ceph_s3_bff.md`** — the EC2-credential section brought in line with the procedures it documents.
