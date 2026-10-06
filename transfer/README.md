@@ -22,4 +22,4 @@ git apply <путь к DOCS>/transfer/<файл>.patch
 
 | Патч | База | Что внутри |
 | --- | --- | --- |
-| `security-groups-form-hints-on-d01c26b4.patch` | `d01c26b4` | Ветка `kiryl-security-groups-form-hints`: help hints и валидация во всех формах Security Groups (по замечанию ревью, сверка с Elektra), обязательная remote-группа, ethertype из CIDR, колонка Remote, ошибки только в модалке со сбросом при закрытии, без Edit/Delete у группы `default`. 52 файла. |
+| `security-groups-form-hints-on-9b3ff989.patch` | `9b3ff989` | Ветка `kiryl-security-groups-form-hints`, PR #1368, поверх коммитов PR: правки по замечаниям Copilot — поиск по колонке Remote, ошибка ICMP type под Code, required-ошибки у Select'ов Rule Type и Remote Security Group, подсказки у Description и очистка описания в Edit. 18 файлов. |

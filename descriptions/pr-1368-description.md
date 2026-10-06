@@ -14,8 +14,9 @@ The cross-check with Elektra and Neutron found a few things the hints would othe
 - **A failed create closed the modal and lost the input.** The modal now stays open and shows the error.
 - **Errors were shown twice**, as a toast and in the modal. Error toasts are removed: an error is shown only in the modal it belongs to.
 - **A modal's error stayed after it was closed** and showed up again the next time it opened. Closing a modal now discards its error.
+- **Clearing Description in Edit kept the old description.** The modal sent `undefined`, which the update leaves out. It now sends an empty string.
 - **The default group could not be edited.** Neutron rejects any update of its name, and the modal always sent it. As in Elektra, the default group no longer offers Edit and Delete; its details and rules stay available.
-- **The rules table had no Remote column.** Added: CIDR, group name or `Any`. The delete dialog and the rules search use the same value.
+- **The rules table had no Remote column.** Added: CIDR, group name or `Any`. The delete dialog and the rules search use the same value, so whatever the column shows can be searched for.
 
 # Changes Made
 
@@ -23,11 +24,12 @@ The cross-check with Elektra and Neutron found a few things the hints would othe
 
 - **`securityGroupValidation.ts`** (new): name and description validation for Create/Edit: required name, 255-character limits, reserved `default`.
 - **`CreateSecurityGroupModal.tsx`, `EditSecurityGroupModal.tsx`, `AddRuleModal.tsx`, `AddRBACPolicyModal.tsx`**: help hints and the common modal pattern (on-blur errors, disabled confirm, in-form error message).
-- **`AddRuleModal/validation/fieldErrors.ts`** (new): when a field's error is visible in Add Rule.
+- **`AddRuleModal/validation/fieldErrors.ts`** (new): when a field's error is visible in Add Rule. Rule Type and Remote Security Group now report leaving the select, so their required errors show.
 - **`AddRuleModal/validation/formSchema.ts`**:
   - Remote Security Group required;
   - protocol name or number 0-255;
   - description limit;
+  - the missing ICMP type error shown under Code, the field the user has just filled;
   - no CIDR/ethertype mismatch check.
 - **`AddRuleModal/sections/*`**: hints instead of placeholders; preset ports shown read-only; ICMP type/code only for Custom ICMP and Other Protocol, for any spelling of ICMP (`icmp`, `1`, `ipv6-icmp`, `icmpv6`, `58`).
 - **`ruleRemote.ts`** (new), **`SecurityGroupRulesTable.tsx`**, **`DeleteRuleDialog.tsx`**, **`useSecurityGroupDetails.ts`**: Remote column, delete dialog line and search.
@@ -40,7 +42,7 @@ The cross-check with Elektra and Neutron found a few things the hints would othe
 ## Tests
 
 - Hints, error visibility, validation rules, IPv6/IPv4 ethertype, required remote group, the Remote column and search; error toast tests removed with the toasts.
-- 5871 tests pass; `typecheck`, `lint`, `format:check` and `check-i18n` are clean.
+- 5872 tests pass; `typecheck`, `lint`, `format:check` and `check-i18n` are clean.
 
 # Testing Instructions
 

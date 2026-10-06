@@ -1286,9 +1286,6 @@ msgstr "Detaching this Floating IP will remove its association with the current 
 msgid "Detaching..."
 msgstr "Detaching..."
 
-msgid "Details"
-msgstr "Details"
-
 msgid "Device ID"
 msgstr "Device ID"
 
@@ -1387,12 +1384,6 @@ msgstr "e.g. production"
 
 msgid "e.g. PROJECT_ID:USER_ID"
 msgstr "e.g. PROJECT_ID:USER_ID"
-
-msgid "e.g. Ubuntu 22.04 LTS"
-msgstr "e.g. Ubuntu 22.04 LTS"
-
-msgid "e.g., production, linux, ubuntu"
-msgstr "e.g., production, linux, ubuntu"
 
 msgid "Edit"
 msgstr "Edit"
@@ -2789,6 +2780,9 @@ msgstr "Optional identifier for this rule (max 255 characters)."
 msgid "Optional unique identifier for the rule (max 255 characters)"
 msgstr "Optional unique identifier for the rule (max 255 characters)"
 
+msgid "Optional. Up to 255 characters."
+msgstr "Optional. Up to 255 characters."
+
 msgid "or drag and drop"
 msgstr "or drag and drop"
 
@@ -2929,9 +2923,6 @@ msgstr "Property Created"
 
 msgid "Property Deleted"
 msgstr "Property Deleted"
-
-msgid "Property Key"
-msgstr "Property Key"
 
 msgid "Property Updated"
 msgstr "Property Updated"
@@ -3154,9 +3145,6 @@ msgstr "Search flavors..."
 
 msgid "Search floating IPs..."
 msgstr "Search floating IPs..."
-
-msgid "Search images..."
-msgstr "Search images..."
 
 msgid "Search lifecycle rules..."
 msgstr "Search lifecycle rules..."

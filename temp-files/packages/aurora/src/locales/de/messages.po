@@ -1286,9 +1286,6 @@ msgstr "Das Trennen dieser Floating IP hebt die Zuordnung zum aktuellen Port auf
 msgid "Detaching..."
 msgstr ""
 
-msgid "Details"
-msgstr "Details"
-
 msgid "Device ID"
 msgstr "Geräte-ID"
 
@@ -1387,12 +1384,6 @@ msgstr ""
 
 msgid "e.g. PROJECT_ID:USER_ID"
 msgstr "z. B. PROJECT_ID:USER_ID"
-
-msgid "e.g. Ubuntu 22.04 LTS"
-msgstr ""
-
-msgid "e.g., production, linux, ubuntu"
-msgstr "z. B. production, linux, ubuntu"
 
 msgid "Edit"
 msgstr "Bearbeiten"
@@ -2789,6 +2780,9 @@ msgstr ""
 msgid "Optional unique identifier for the rule (max 255 characters)"
 msgstr ""
 
+msgid "Optional. Up to 255 characters."
+msgstr ""
+
 msgid "or drag and drop"
 msgstr "oder per Drag & Drop"
 
@@ -2928,9 +2922,6 @@ msgid "Property Created"
 msgstr ""
 
 msgid "Property Deleted"
-msgstr ""
-
-msgid "Property Key"
 msgstr ""
 
 msgid "Property Updated"
@@ -3154,9 +3145,6 @@ msgstr "Flavors suchen..."
 
 msgid "Search floating IPs..."
 msgstr ""
-
-msgid "Search images..."
-msgstr "Images suchen..."
 
 msgid "Search lifecycle rules..."
 msgstr ""
