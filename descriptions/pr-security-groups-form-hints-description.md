@@ -12,6 +12,9 @@ The cross-check with Elektra and Neutron found a few things the hints would othe
 - **A rule with an IPv6 CIDR could not be created.** The hidden ethertype was forced to IPv4. It is now taken from the CIDR, as in Horizon. Only a security group remote asks for the IP version.
 - **The current group could not be chosen as the remote.** It is back in the list as `<name> (this group)`.
 - **A failed create closed the modal and lost the input.** The modal now stays open and shows the error.
+- **Errors were shown twice**, as a toast and in the modal. Error toasts are removed: an error is shown only in the modal it belongs to.
+- **A modal's error stayed after it was closed** and showed up again the next time it opened. Closing a modal now discards its error.
+- **The default group could not be edited.** Neutron rejects any update of its name, and the modal always sent it. As in Elektra, the default group no longer offers Edit and Delete; its details and rules stay available.
 - **The rules table had no Remote column.** Added: CIDR, group name or `Any`. The delete dialog and the rules search use the same value.
 
 # Changes Made
@@ -28,12 +31,16 @@ The cross-check with Elektra and Neutron found a few things the hints would othe
   - no CIDR/ethertype mismatch check.
 - **`AddRuleModal/sections/*`**: hints instead of placeholders; preset ports shown read-only; ICMP type/code only for Custom ICMP and Other Protocol.
 - **`ruleRemote.ts`** (new), **`SecurityGroupRulesTable.tsx`**, **`DeleteRuleDialog.tsx`**, **`useSecurityGroupDetails.ts`**: Remote column, delete dialog line and search.
+- **`$securityGroupId/index.tsx`**: the current group is no longer filtered out of the remote group list.
 - **`SecurityGroupsList.tsx`**: lets a failed create reject so the modal stays open.
+- **`SecurityGroupTableRow.tsx`**, **`$securityGroupId/index.tsx`**: no Edit and Delete for the default group.
+- **`SecurityGroupToastNotifications.tsx`**, **`useSecurityGroupDetails.ts`**, **`SecurityGroupsList.tsx`**, **`SecurityGroupRBACPolicies.tsx`**, **`AddRBACPolicyModal.tsx`**: error toasts removed; success toasts stay.
+- **`useSecurityGroupDetails.ts`**, **`SecurityGroupRulesTable.tsx`**, **`SecurityGroupListContainer.tsx`**, **`SecurityGroupRBACPolicies.tsx`**: closing a modal resets its mutation error.
 
 ## Tests
 
-- Hints, error visibility, validation rules, IPv6/IPv4 ethertype, required remote group, the Remote column and search.
-- 5870 tests pass; `typecheck`, `lint`, `format:check` and `check-i18n` are clean.
+- Hints, error visibility, validation rules, IPv6/IPv4 ethertype, required remote group, the Remote column and search; error toast tests removed with the toasts.
+- 5871 tests pass; `typecheck`, `lint`, `format:check` and `check-i18n` are clean.
 
 # Testing Instructions
 
@@ -44,6 +51,7 @@ The cross-check with Elektra and Neutron found a few things the hints would othe
    - choose Remote = Security Group without a group: Add Rule stays disabled;
    - add a rule with CIDR `::/0`: it is created as IPv6.
 5. Check that the rules table shows a Remote column.
+6. Add the same rule twice: the 409 error appears only in the modal, with no toast.
 
 # Checklist
 
