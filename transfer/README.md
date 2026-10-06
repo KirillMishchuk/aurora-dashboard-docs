@@ -22,4 +22,4 @@ git apply <путь к DOCS>/transfer/<файл>.patch
 
 | Патч | База | Что внутри |
 | --- | --- | --- |
-| `security-groups-form-hints-on-2f50c45b.patch` | `2f50c45b` | Ветка `kiryl-security-groups-form-hints`, PR #1368, поверх коммитов PR: замечание Copilot по портам в Add Rule — каждый порт проверяется отдельно, ошибка диапазона и порядка показывается под Port (to), 3 файла. |
+| `security-groups-form-hints-on-89d8320b.patch` | `89d8320b` | Ветка `kiryl-security-groups-form-hints`, PR #1368, поверх коммитов PR: замечание Copilot по ICMP — номер протокола с ведущими нулями (`01`, `058`) распознаётся как ICMP и уходит в Neutron без нулей, 3 файла. |

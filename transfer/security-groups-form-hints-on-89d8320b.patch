@@ -1,0 +1,122 @@
+diff --git a/packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/$securityGroupId/-modals/AddRuleModal/AddRuleModal.test.tsx b/packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/$securityGroupId/-modals/AddRuleModal/AddRuleModal.test.tsx
+index 995de2a0..3f036e08 100644
+--- a/packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/$securityGroupId/-modals/AddRuleModal/AddRuleModal.test.tsx
++++ b/packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/$securityGroupId/-modals/AddRuleModal/AddRuleModal.test.tsx
+@@ -25,6 +25,7 @@ vi.mock("./sections/RuleTypeSection", () => ({
+         <option value="custom-tcp">Custom TCP</option>
+         <option value="custom-icmp">Custom ICMP</option>
+         <option value="all-icmp">All ICMP</option>
++        <option value="other-protocol">Other Protocol</option>
+       </select>
+     </div>
+   ),
+@@ -42,7 +43,13 @@ vi.mock("./sections/DirectionEthertypeSection", () => ({
+ }))
+ 
+ vi.mock("./sections/ProtocolSection", () => ({
+-  ProtocolSection: () => <div data-testid="protocol-section">Protocol Section</div>,
++  ProtocolSection: ({ form }: { form: AddRuleFormApi }) => (
++    <div data-testid="protocol-section">
++      <button type="button" onClick={() => form.setFieldValue("protocol", "01")}>
++        Use protocol 01
++      </button>
++    </div>
++  ),
+ }))
+ 
+ vi.mock("./sections/PortRangeSection", () => ({
+@@ -54,7 +61,19 @@ vi.mock("./sections/PortRangeSection", () => ({
+ }))
+ 
+ vi.mock("./sections/IcmpSection", () => ({
+-  IcmpSection: () => <div data-testid="icmp-section">ICMP Section</div>,
++  IcmpSection: ({ form }: { form: AddRuleFormApi }) => (
++    <div data-testid="icmp-section">
++      <button
++        type="button"
++        onClick={() => {
++          form.setFieldValue("icmpType", "8")
++          form.setFieldValue("icmpCode", "0")
++        }}
++      >
++        Use echo request
++      </button>
++    </div>
++  ),
+ }))
+ 
+ vi.mock("./sections/RemoteSourceSection", () => ({
+@@ -331,6 +350,22 @@ describe("AddRuleModal", () => {
+       expect(payload.port_range_min).toBeUndefined()
+       expect(payload.port_range_max).toBeUndefined()
+     })
++
++    test("keeps the ICMP type and code for a protocol number with leading zeros", async () => {
++      const onCreate = vi.fn().mockResolvedValue(undefined)
++      const user = userEvent.setup()
++      renderModal({ onCreate })
++
++      await user.selectOptions(screen.getByTestId("rule-type-select"), "other-protocol")
++      await user.click(screen.getByRole("button", { name: "Use protocol 01" }))
++      await user.click(screen.getByRole("button", { name: "Use echo request" }))
++      await user.click(getAddRuleButton())
++
++      await waitFor(() => expect(onCreate).toHaveBeenCalled())
++      expect(onCreate.mock.calls[0][0]).toEqual(
++        expect.objectContaining({ protocol: "1", port_range_min: 8, port_range_max: 0 })
++      )
++    })
+   })
+ 
+   describe("Error handling", () => {
+diff --git a/packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/$securityGroupId/-modals/AddRuleModal/constants.test.ts b/packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/$securityGroupId/-modals/AddRuleModal/constants.test.ts
+index edd7c25a..9f493879 100644
+--- a/packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/$securityGroupId/-modals/AddRuleModal/constants.test.ts
++++ b/packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/$securityGroupId/-modals/AddRuleModal/constants.test.ts
+@@ -6,6 +6,9 @@ describe("normalizeProtocol", () => {
+     [" GRE ", "gre"],
+     ["IPv6-ICMP", "ipv6-icmp"],
+     ["47", "47"],
++    ["01", "1"],
++    ["058", "58"],
++    ["000", "0"],
+     ["   ", null],
+     ["", null],
+     [null, null],
+@@ -33,9 +36,12 @@ describe("hasIcmpFields", () => {
+     expect(hasIcmpFields("all-icmp", "icmp")).toBe(false)
+   })
+ 
+-  test.each(["icmp", "ICMP", " ipv6-icmp ", "icmpv6", "1", "58"])("is true for Other Protocol with %j", (protocol) => {
+-    expect(hasIcmpFields("other-protocol", protocol)).toBe(true)
+-  })
++  test.each(["icmp", "ICMP", " ipv6-icmp ", "icmpv6", "1", "58", "01", "058"])(
++    "is true for Other Protocol with %j",
++    (protocol) => {
++      expect(hasIcmpFields("other-protocol", protocol)).toBe(true)
++    }
++  )
+ 
+   test("is false for Other Protocol with a non-ICMP protocol", () => {
+     expect(hasIcmpFields("other-protocol", "gre")).toBe(false)
+diff --git a/packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/$securityGroupId/-modals/AddRuleModal/constants.ts b/packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/$securityGroupId/-modals/AddRuleModal/constants.ts
+index f560514b..6ee005fb 100644
+--- a/packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/$securityGroupId/-modals/AddRuleModal/constants.ts
++++ b/packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/$securityGroupId/-modals/AddRuleModal/constants.ts
+@@ -8,8 +8,14 @@ export const CUSTOM_UDP_RULE = "custom-udp"
+ export const CUSTOM_ICMP_RULE = "custom-icmp"
+ export const OTHER_PROTOCOL_RULE = "other-protocol"
+ 
+-/** Neutron matches protocol names case-insensitively; send and compare them trimmed and lowercased */
+-export const normalizeProtocol = (protocol: string | null): string | null => protocol?.trim().toLowerCase() || null
++/**
++ * Neutron matches protocol names case-insensitively and reads a protocol number as an integer, so "01" is ICMP.
++ * Send and compare names trimmed and lowercased, and numbers without leading zeros.
++ */
++export const normalizeProtocol = (protocol: string | null): string | null => {
++  const normalized = protocol?.trim().toLowerCase() || null
++  return normalized && /^\d+$/.test(normalized) ? String(Number(normalized)) : normalized
++}
+ 
+ /**
+  * A protocol Neutron can accept: an IP protocol number 0-255, or a name such as "gre" or "ipv6-icmp".

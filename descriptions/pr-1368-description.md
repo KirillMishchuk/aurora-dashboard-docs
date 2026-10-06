@@ -32,7 +32,7 @@ The cross-check with Elektra and Neutron found a few things the hints would othe
   - the missing ICMP type error shown under Code, the field the user has just filled;
   - each port validated on its own: an out-of-range Port (to) and a reversed range are shown under Port (to), not under a valid Port (from);
   - no CIDR/ethertype mismatch check.
-- **`AddRuleModal/sections/*`**: hints instead of placeholders; preset ports shown read-only; ICMP type/code only for Custom ICMP and Other Protocol, for any spelling of ICMP (`icmp`, `1`, `ipv6-icmp`, `icmpv6`, `58`).
+- **`AddRuleModal/sections/*`**: hints instead of placeholders; preset ports shown read-only; ICMP type/code only for Custom ICMP and Other Protocol, for any spelling of ICMP (`icmp`, `1`, `ipv6-icmp`, `icmpv6`, `58`, also with leading zeros such as `01`; a protocol number is sent without them).
 - **`ruleRemote.ts`** (new), **`SecurityGroupRulesTable.tsx`**, **`DeleteRuleDialog.tsx`**, **`useSecurityGroupDetails.ts`**: Remote column, delete dialog line and search.
 - **`$securityGroupId/index.tsx`**: the current group is no longer filtered out of the remote group list.
 - **`SecurityGroupsList.tsx`**: lets a failed create reject so the modal stays open.
