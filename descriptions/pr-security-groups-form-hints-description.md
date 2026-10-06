@@ -29,7 +29,7 @@ The cross-check with Elektra and Neutron found a few things the hints would othe
   - protocol name or number 0-255;
   - description limit;
   - no CIDR/ethertype mismatch check.
-- **`AddRuleModal/sections/*`**: hints instead of placeholders; preset ports shown read-only; ICMP type/code only for Custom ICMP and Other Protocol.
+- **`AddRuleModal/sections/*`**: hints instead of placeholders; preset ports shown read-only; ICMP type/code only for Custom ICMP and Other Protocol, for any spelling of ICMP (`icmp`, `1`, `ipv6-icmp`, `icmpv6`, `58`).
 - **`ruleRemote.ts`** (new), **`SecurityGroupRulesTable.tsx`**, **`DeleteRuleDialog.tsx`**, **`useSecurityGroupDetails.ts`**: Remote column, delete dialog line and search.
 - **`$securityGroupId/index.tsx`**: the current group is no longer filtered out of the remote group list.
 - **`SecurityGroupsList.tsx`**: lets a failed create reject so the modal stays open.
