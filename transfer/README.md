@@ -22,4 +22,4 @@ git apply <путь к DOCS>/transfer/<файл>.patch
 
 | Патч | База | Что внутри |
 | --- | --- | --- |
-| `security-groups-form-hints-on-9b3ff989.patch` | `9b3ff989` | Ветка `kiryl-security-groups-form-hints`, PR #1368, поверх коммитов PR: правки по замечаниям Copilot — поиск по колонке Remote, ошибка ICMP type под Code, required-ошибки у Select'ов Rule Type и Remote Security Group, подсказки у Description и очистка описания в Edit. 18 файлов. |
+| `security-groups-form-hints-on-2f50c45b.patch` | `2f50c45b` | Ветка `kiryl-security-groups-form-hints`, PR #1368, поверх коммитов PR: замечание Copilot по портам в Add Rule — каждый порт проверяется отдельно, ошибка диапазона и порядка показывается под Port (to), 3 файла. |

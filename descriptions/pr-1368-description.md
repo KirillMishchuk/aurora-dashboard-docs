@@ -30,6 +30,7 @@ The cross-check with Elektra and Neutron found a few things the hints would othe
   - protocol name or number 0-255;
   - description limit;
   - the missing ICMP type error shown under Code, the field the user has just filled;
+  - each port validated on its own: an out-of-range Port (to) and a reversed range are shown under Port (to), not under a valid Port (from);
   - no CIDR/ethertype mismatch check.
 - **`AddRuleModal/sections/*`**: hints instead of placeholders; preset ports shown read-only; ICMP type/code only for Custom ICMP and Other Protocol, for any spelling of ICMP (`icmp`, `1`, `ipv6-icmp`, `icmpv6`, `58`).
 - **`ruleRemote.ts`** (new), **`SecurityGroupRulesTable.tsx`**, **`DeleteRuleDialog.tsx`**, **`useSecurityGroupDetails.ts`**: Remote column, delete dialog line and search.
@@ -38,11 +39,6 @@ The cross-check with Elektra and Neutron found a few things the hints would othe
 - **`SecurityGroupTableRow.tsx`**, **`$securityGroupId/index.tsx`**: no Edit and Delete for the default group.
 - **`SecurityGroupToastNotifications.tsx`**, **`useSecurityGroupDetails.ts`**, **`SecurityGroupsList.tsx`**, **`SecurityGroupRBACPolicies.tsx`**, **`AddRBACPolicyModal.tsx`**: error toasts removed; success toasts stay.
 - **`useSecurityGroupDetails.ts`**, **`SecurityGroupRulesTable.tsx`**, **`SecurityGroupListContainer.tsx`**, **`SecurityGroupRBACPolicies.tsx`**: closing a modal resets its mutation error.
-
-## Tests
-
-- Hints, error visibility, validation rules, IPv6/IPv4 ethertype, required remote group, the Remote column and search; error toast tests removed with the toasts.
-- 5872 tests pass; `typecheck`, `lint`, `format:check` and `check-i18n` are clean.
 
 # Testing Instructions
 
