@@ -40,6 +40,10 @@ The cross-check with Elektra and Neutron found a few things the hints would othe
 - **`SecurityGroupToastNotifications.tsx`**, **`useSecurityGroupDetails.ts`**, **`SecurityGroupsList.tsx`**, **`SecurityGroupRBACPolicies.tsx`**, **`AddRBACPolicyModal.tsx`**: error toasts removed; success toasts stay.
 - **`useSecurityGroupDetails.ts`**, **`SecurityGroupRulesTable.tsx`**, **`SecurityGroupListContainer.tsx`**, **`SecurityGroupRBACPolicies.tsx`**: closing a modal resets its mutation error.
 
+# Related Issues
+
+Fixes #1367
+
 # Testing Instructions
 
 1. `pnpm i`
