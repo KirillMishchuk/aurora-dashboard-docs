@@ -60,6 +60,7 @@
 | 38 | В таблице правил SG нет колонки Remote | Клиент (SG) | сделано (PR про help hints форм SG, 06.10.2026) |
 | 39 | Сообщения валидации Add Rule не переведены | Клиент (SG) | открыт |
 | 42 | Вкладки `TabNavigation`: `tabStyle="content"` и управляемый `activeItem` везде | Juno | открыт |
+| 43 | Состояние страницы деталей SG (вкладка, поиск, сортировка, фильтры правил) в URL | Клиент (SG) | открыт |
 
 ---
 
@@ -863,6 +864,35 @@ blob только `access`, `secret` и опциональные `trust_id`/`app
 проверки на стенде.
 
 **Источник:** обсуждение фидбэка по #1362 (порядок новых ключей, формат ключей), 07.10.2026.
+
+**Статус:** открыт.
+
+### 43. Состояние страницы деталей SG (вкладка, поиск, сортировка, фильтры правил) в URL
+
+**Где:**
+- `securitygroups/$securityGroupId/-components/SecurityGroupDetailsView.tsx:58`: `activeTab` в `useState`;
+- `securitygroups/$securityGroupId/index.tsx:87-100`: поиск, сортировка и фильтры правил через
+  `useListWithFiltering` (`client/utils/useListWithFiltering.ts:97-119`, тоже `useState`);
+- у маршрута `$securityGroupId/index.tsx` нет `validateSearch`.
+
+**Что:** правило B.9 в `.github/copilot-instructions.md` требует держать такое состояние в search
+params (`tab`, `search`, `sortBy`/`sortDirection`). Сейчас перезагрузка или ссылка на страницу всегда
+открывает Rules без поиска и с сортировкой по умолчанию.
+
+**Как:**
+1. `validateSearch` на маршруте: `tab: z.enum(["rules", "rbac"]).optional().default("rules")` плюс
+   параметры поиска и сортировки. Образец — `storage/$provider/$storageType/$containerName/objects/index.tsx:44`.
+2. Передать `tab` и `navigate` в `SecurityGroupDetailsView` вместо локального `activeTab`.
+3. Если RBAC недоступен, а в URL `tab=rbac`, заменить его на `rules` (`navigate` с `replace`). Сейчас
+   `currentTab` (`SecurityGroupDetailsView.tsx:63-64`) только маскирует значение, и при возврате прав
+   снова откроется RBAC.
+4. Для поиска и сортировки правил понадобится URL-вариант `useListWithFiltering` или проброс search
+   params, как на списочных страницах.
+
+**Почему не сделано сразу:** `activeTab` и состояние правил жили в `useState` и до PR #1375. Перенос
+в URL — отдельная задача по маршруту, а PR #1375 про раскладку и компоненты Juno.
+
+**Источник:** замечание Copilot в PR #1375 (`SecurityGroupDetailsView.tsx:64`), 07.10.2026.
 
 **Статус:** открыт.
 

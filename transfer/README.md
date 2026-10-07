@@ -22,4 +22,4 @@ git apply <путь к DOCS>/transfer/<файл>.patch
 
 | Патч | База | Что внутри |
 | --- | --- | --- |
-| `security-groups-detail-page-on-c084f6ad.patch` | `c084f6ad` | Ветка `kiryl-security-groups-detail-page`: страница деталей Security Group под Juno — заголовок `h2` и порядок полей, раскладка `TwoColumnDescriptionList` на flex, обычные кнопки Add Rule/Share, вкладки на управляемом `TabNavigation` с откатом на Rules при пропаже RBAC. 14 файлов. |
+| `security-groups-detail-page-on-505e3e1b.patch` | `505e3e1b` | Ветка `kiryl-security-groups-detail-page`, PR #1375, поверх коммита PR: порядок импортов в `SecurityGroupTabs.tsx` (react → lingui → Juno, `import type { ReactNode }`) по замечанию Copilot. 1 файл. |

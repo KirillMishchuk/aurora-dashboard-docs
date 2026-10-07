@@ -1,0 +1,13 @@
+diff --git a/packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/$securityGroupId/-components/-details/SecurityGroupTabs.tsx b/packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/$securityGroupId/-components/-details/SecurityGroupTabs.tsx
+index 09f7b869..4651ed77 100644
+--- a/packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/$securityGroupId/-components/-details/SecurityGroupTabs.tsx
++++ b/packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/$securityGroupId/-components/-details/SecurityGroupTabs.tsx
+@@ -1,6 +1,6 @@
+-import { ReactNode } from "react"
+-import { TabNavigation, TabNavigationItem } from "@cloudoperators/juno-ui-components"
++import type { ReactNode } from "react"
+ import { useLingui } from "@lingui/react/macro"
++import { TabNavigation, TabNavigationItem } from "@cloudoperators/juno-ui-components"
+ 
+ export type TabType = "rules" | "rbac"
+ 
