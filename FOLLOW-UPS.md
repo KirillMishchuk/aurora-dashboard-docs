@@ -59,6 +59,7 @@
 | 37 | Шаринг security group сразу на несколько проектов | RBAC (SG) | открыт |
 | 38 | В таблице правил SG нет колонки Remote | Клиент (SG) | сделано (PR про help hints форм SG, 06.10.2026) |
 | 39 | Сообщения валидации Add Rule не переведены | Клиент (SG) | открыт |
+| 42 | Вкладки `TabNavigation`: `tabStyle="content"` и управляемый `activeItem` везде | Juno | открыт |
 
 ---
 
@@ -862,6 +863,42 @@ blob только `access`, `secret` и опциональные `trust_id`/`app
 проверки на стенде.
 
 **Источник:** обсуждение фидбэка по #1362 (порядок новых ключей, формат ключей), 07.10.2026.
+
+**Статус:** открыт.
+
+## K. Juno: консистентность компонентов
+
+### 42. Вкладки `TabNavigation`: `tabStyle="content"` и управляемый `activeItem` везде
+
+**Где:** все пять `TabNavigation` в `packages/aurora/src/client`: `components/ListToolbar/index.tsx:163`,
+`compute/images/-components/List.tsx:247`, `storage/-components/Ceph/Buckets/BucketDetailTabs.tsx:21`,
+`storage/-components/Ceph/Objects/ObjectBrowserView.tsx:655`,
+`network/securitygroups/$securityGroupId/-components/-details/SecurityGroupTabs.tsx`.
+
+**Что, две части:**
+
+1. **`tabStyle`.** Нигде не задан, везде `main` по умолчанию. По документации Juno 9.4.0
+   (`TabNavigation.component.tsx:77`) `main` — для первого ребёнка AppShell, для вкладок внутри
+   страницы нужен `content` (у неактивных вкладок появляется тёмная нижняя граница). Все пять стоят
+   внутри страницы.
+2. **Полуправляемые вкладки.** `BucketDetailTabs` и `ObjectBrowserView` передают только `active` +
+   `onClick`. В Juno 9.4.0 `Navigation` после первого клика хранит активный пункт у себя, и
+   `NavigationItem` дальше игнорирует `active`: если вкладку переключит не клик, подсветка останется
+   на старой. Ключ пункта при этом — переведённый `label`. `ListToolbar`, `images/List.tsx` и
+   `SecurityGroupTabs` уже управляемые.
+
+**Как:**
+1. `tabStyle="content"` во всех пяти местах сразу, не по одной странице, и проверить вид в браузере.
+2. В `BucketDetailTabs` и `ObjectBrowserView` сделать как в `SecurityGroupTabs.tsx`: стабильный
+   `value` у пунктов, `activeItem` + `onActiveItemChange` на `TabNavigation`, `active` оставить для
+   первого рендера. Тест: клик, затем смена активной вкладки родителем через `rerender`, проверка
+   `aria-selected`.
+
+**Почему не сделано сразу:** затрагивает чужие страницы (Ceph, Images, списки). Менять `tabStyle`
+только у Security Groups — новый разнобой.
+
+**Источник:** /triple-review PR про страницу деталей SG (ветка `kiryl-security-groups-detail-page`),
+07.10.2026.
 
 **Статус:** открыт.
 

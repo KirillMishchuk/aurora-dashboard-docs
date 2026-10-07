@@ -22,4 +22,4 @@ git apply <путь к DOCS>/transfer/<файл>.patch
 
 | Патч | База | Что внутри |
 | --- | --- | --- |
-| `ceph-credentials-on-d1fa75c4.patch` | `d1fa75c4` | Ветка `kiryl-ceph-credentials`, issue #1358, раунд Copilot от 07.10: удаление держит модалку занятой до обновления списка ключей (нет гонки с предупреждением о последнем ключе), тост ошибки удаления висит до закрытия, раскрытые секреты сверяются с каждым пришедшим списком; 5 файлов. |
+| `security-groups-detail-page-on-c084f6ad.patch` | `c084f6ad` | Ветка `kiryl-security-groups-detail-page`: страница деталей Security Group под Juno — заголовок `h2` и порядок полей, раскладка `TwoColumnDescriptionList` на flex, обычные кнопки Add Rule/Share, вкладки на управляемом `TabNavigation` с откатом на Rules при пропаже RBAC. 14 файлов. |
