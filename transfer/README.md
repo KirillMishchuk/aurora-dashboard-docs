@@ -22,4 +22,4 @@ git apply <путь к DOCS>/transfer/<файл>.patch
 
 | Патч | База | Что внутри |
 | --- | --- | --- |
-| `security-groups-form-hints-on-89d8320b.patch` | `89d8320b` | Ветка `kiryl-security-groups-form-hints`, PR #1368, поверх коммитов PR: замечание Copilot по ICMP — номер протокола с ведущими нулями (`01`, `058`) распознаётся как ICMP и уходит в Neutron без нулей, 3 файла. |
+| `ceph-credentials-on-e28580d4.patch` | `e28580d4` | Ветка `kiryl-ceph-credentials`, PR #1362 (issue #1358): правки по фидбэку ревьюера: ошибки бакетов через `Status` (Access Denied, S3 Authentication Failed), новые ключи сверху списка, toast создания 10 с, сокращённый changeset и исправленные комментарии; 15 файлов. |
