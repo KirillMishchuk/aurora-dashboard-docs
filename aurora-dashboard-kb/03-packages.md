@@ -24,7 +24,7 @@ src/
 │                    #   useVirtualizedTableBody — see 02-architecture "Cross-cutting mechanisms"), trpcClient
 ├── types/           # shared types
 ├── locales/en, de   # Lingui PO catalogs
-└── docs/ → ../docs/ # design docs 001–0014 (numbering has a collision: two files share 009 — 009_ceph_s3_bff.md and 009_playwright_e2e_testing.md; see 05-domain-map.md)
+└── docs/ → ../docs/ # design docs 001–0016 (the old 009 collision was resolved in #1355: the Playwright plan is now 0015_…, abort-signal doc 0016_…, and 0010 is the Routers BFF; see 05-domain-map.md)
 ```
 
 **Testing:** vitest, jsdom environment, colocated `*.test.ts(x)`. Run a single package: `pnpm --filter @cobaltcore-dev/aurora test [path]`.
