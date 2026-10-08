@@ -2,15 +2,15 @@
 
 ## packages/aurora — `@cobaltcore-dev/aurora` (the product)
 
-Published npm library (v1.2.0 at the current pin, public). Peer deps: `react`, `react-dom`, `fastify`, `@headlessui/react`, `@lingui/core`, `@lingui/react`, `@tanstack/react-form`, `@tanstack/react-query`, `@tanstack/react-router`, `@tanstack/react-virtual`, `@trpc/react-query`, `focus-trap-react`, `react-error-boundary`, `react-icons` — anything that renders React components or uses hooks/context must be a peer, not a private dependency, to avoid duplicate-React issues in consumers (#1085; classification rules in `docs/0014_dependency_classification.md`).
+Published npm library (v2.1.1 at the current pin, public; #1370's `minor` changeset is queued, not yet released). Peer deps: `react`, `react-dom`, `fastify`, `@headlessui/react`, `@lingui/core`, `@lingui/react`, `@tanstack/react-form`, `@tanstack/react-query`, `@tanstack/react-router`, `@tanstack/react-virtual`, `@trpc/react-query`, `focus-trap-react`, `react-error-boundary`, `react-icons` — anything that renders React components or uses hooks/context must be a peer, not a private dependency, to avoid duplicate-React issues in consumers (#1085; classification rules in `docs/0014_dependency_classification.md`).
 
 **Entry points** (package.json `exports`):
 
 | Export | Contents |
 | --- | --- |
-| `@cobaltcore-dev/aurora/server` | `createServer(config)`, `auroraRouter`, procedure builders (`publicProcedure`, `protectedProcedure`, `projectScopedProcedure`, `domainScopedProcedure`), scoped input schemas |
-| `@cobaltcore-dev/aurora/client` | `<AuroraApp />`, `SlotProps`, `TrackEventPayload`, tRPC client hooks, `useDomainId`/`useScope`, `isRouteInfo` + `RouteInfo`/`Crumb` types; the breadcrumb primitives `useBreadcrumbs` (+ `BreadcrumbItem` type), `useSetBreadcrumb`, `usePushBreadcrumbs`, `DynamicBreadcrumbContext`/`DynamicBreadcrumbProvider` (5 exports added #1254, 02.09.2026, for embedded SCI sub-apps that run their own `RouterProvider` — see 02-architecture "Breadcrumbs"); and, since #1268 (04.09.2026), the service-extension primitives `ServiceExtension`, `ServiceExtensionProps`, `ServiceExtensionContext`, `PageContentHeader` (renamed re-export of `ContentHeader`) — see 02-architecture "AuroraApp component". The same PR dropped `useProjectId` and `servicesRoute` from this export (both still exist inside the package — `useProjectId` is used by 117 internal files, `servicesRoute` is a now-dead re-export in the services route file). **`packages/aurora/README.md` still doesn't document the breadcrumb exports** — the omission flagged for `additionalProjectServices` in #1189 (`prs/1254-…md`, `prs/1189-…md`) persists, though the README's service-extensions section was rewritten and does match #1268. |
-| `@cobaltcore-dev/aurora/types` | shared types |
+| `@cobaltcore-dev/aurora/server` | `createServer(config)`, `auroraRouter`, procedure builders (`publicProcedure`, `protectedProcedure`, `projectScopedProcedure`, `domainScopedProcedure`), scoped input schemas; since #1370 (08.10.2026) the app-config surface: `AuroraAppConfig`, `AppConfigBase`, `DomainOverride`, `ResolvedAppConfig`, `Visibility`, `VisibilityDelta`, `SlotConfigEntry`, `ServiceFeatureMap`, `FeatureBag`, `SlotName` types, `resolveAppConfig`, `auroraAppConfigSchema` (Zod schema factory), `SLOT_NAMES` — see 02-architecture "App configuration" |
+| `@cobaltcore-dev/aurora/client` | `<AuroraApp />`, `SlotProps`, `TrackEventPayload`, tRPC client hooks, `useDomainId`/`useScope`, `isRouteInfo` + `RouteInfo`/`Crumb` types; the breadcrumb primitives `useBreadcrumbs` (+ `BreadcrumbItem` type), `useSetBreadcrumb`, `usePushBreadcrumbs`, `DynamicBreadcrumbContext`/`DynamicBreadcrumbProvider` (5 exports added #1254, 02.09.2026, for embedded SCI sub-apps that run their own `RouterProvider` — see 02-architecture "Breadcrumbs"); and, since #1268 (04.09.2026), the service-extension primitives `ServiceExtension`, `ServiceExtensionProps`, `ServiceExtensionContext`, `PageContentHeader` (renamed re-export of `ContentHeader`) — see 02-architecture "AuroraApp component"; since #1370 (08.10.2026) `AppConfigProvider`, `useAppConfig`, `useFeature`, `useIsAppConfigLoading` plus the same app-config types as the server entry. #1268 dropped `useProjectId` and `servicesRoute` from this export (both still exist inside the package — `useProjectId` is used by 117 internal files, `servicesRoute` is a now-dead re-export in the services route file). **`packages/aurora/README.md` still doesn't document the breadcrumb exports** — the omission flagged for `additionalProjectServices` in #1189 (`prs/1254-…md`, `prs/1189-…md`) persists, though the README's service-extensions section was rewritten and does match #1268. |
+| `@cobaltcore-dev/aurora/types` | shared types (`types/index.ts` re-exports everything from `types/appConfig.ts` since #1370) |
 
 **Build:** two-step — `tsup` for the server (CJS, node18 target, dts; bundles `policy-engine` + `signal-openstack` via `noExternal`, path alias `@` → `./src`) and `vite build` for the client. i18n via Lingui (`extract`/`compile`, checked in CI with `check-i18n`).
 
@@ -18,13 +18,13 @@ Published npm library (v1.2.0 at the current pin, public). Peer deps: `react`, `
 
 ```
 src/
-├── server/          # BFF: domain folders (Authentication, Project, Compute, Network, Storage) — no Services folder anymore, removed in #1189,
+├── server/          # BFF: domain folders (Authentication, Project, Compute, Network, Storage, AppConfig since #1370) — no Services folder anymore, removed in #1189,
 │                    # policies/ (permission router factory), aurora-fastify-plugins/, trpc.ts, routers.ts
 ├── client/          # AuroraApp, routes/ (file-based), components/, hooks/ (e.g. useAvailableViewportHeight,
 │                    #   useVirtualizedTableBody — see 02-architecture "Cross-cutting mechanisms"), trpcClient
 ├── types/           # shared types
 ├── locales/en, de   # Lingui PO catalogs
-└── docs/ → ../docs/ # design docs 001–0016 (the old 009 collision was resolved in #1355: the Playwright plan is now 0015_…, abort-signal doc 0016_…, and 0010 is the Routers BFF; see 05-domain-map.md)
+└── docs/ → ../docs/ # design docs 001–0016 (the old 009 collision was resolved in #1355: the Playwright plan is now 0015_…, abort-signal doc 0016_…, and 0010 is the Routers BFF; see 05-domain-map.md — but #1370 re-introduced a collision: `0015_app_config.md` now sits next to `0015_playwright_e2e_testing.md`)
 ```
 
 **Testing:** vitest, jsdom environment, colocated `*.test.ts(x)`. Run a single package: `pnpm --filter @cobaltcore-dev/aurora test [path]`.
