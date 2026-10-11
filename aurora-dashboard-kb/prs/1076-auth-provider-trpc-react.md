@@ -1,3 +1,11 @@
+---
+type: pr-report
+date: 2026-07-20
+status: merged
+pr: [1076]
+author: andypf
+branch: andypf/refactor-auth-provider-to-trpc-react
+---
 # PR #1076: refactor(aurora): migrate AuthProvider to tRPC React Query hooks
 
 **Автор:** andypf · **Статус:** open, draft (не смержен)

@@ -1,3 +1,11 @@
+---
+type: pr-report
+date: 2026-07-17
+status: merged
+pr: [1073]
+author: vlad-schur-external-sap
+branch: vlad-fix-default-msgs-at-global-error-route
+---
 # PR #1073: fix(aurora): trpc errors not used at root level errors
 
 **Автор:** vlad-schur-external-sap · **Статус:** смержен 22.07.2026 (`8944e742`; создан 15.07.2026)

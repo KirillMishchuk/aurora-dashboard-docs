@@ -1,58 +1,61 @@
-# Плагины Claude Code
+---
+type: tool-notes
+---
+# Claude Code plugins
 
-Каталог официальных плагинов Anthropic, доступных в маркетплейсе `claude-plugins-official` — том же, что даёт `skill-creator` (см. `claude-code-skills.md`). Это не то же самое, что список подключённых скиллов: плагин нужно явно включить (`/plugin`, `enabledPlugins` в `~/.claude/settings.json`), прежде чем его команды/скиллы/агенты станут доступны в сессии. Сейчас в этом окружении реально включён только один — `skill-creator`.
+A catalog of official Anthropic plugins available in the `claude-plugins-official` marketplace — the same one that provides `skill-creator` (see [`claude-code-skills.md`](claude-code-skills.md)). This is not the same as the list of connected skills: a plugin must be explicitly enabled (`/plugin`, `enabledPlugins` in `~/.claude/settings.json`) before its commands/skills/agents become available in a session. Currently only one is actually enabled in this environment — `skill-creator`.
 
-Маркетплейс целиком содержит несколько сотен записей, но подавляющее большинство — сторонние интеграции (Adobe, Airtable, Atlassian, AWS-сервисы и т.д.), подтягиваемые из внешних репозиториев при установке. Ниже — только ~53 плагина первого порядка от Anthropic, физически лежащие в локальном клоне маркетплейса (`~/.claude/plugins/marketplaces/claude-plugins-official/`) без обращения к сторонним репо: их можно включить мгновенно. Сторонний каталог сюда не включён — он слишком велик и быстро устаревает, чтобы иметь смысл как справочник.
+The marketplace as a whole contains several hundred entries, but the vast majority are third-party integrations (Adobe, Airtable, Atlassian, AWS services, etc.) pulled from external repositories at install time. Below are only the ~53 first-party Anthropic plugins that physically reside in the local clone of the marketplace (`~/.claude/plugins/marketplaces/claude-plugins-official/`) without reaching out to third-party repos: they can be enabled instantly. The third-party catalog is not included here — it is too large and goes stale too quickly to be useful as a reference.
 
-> Список сверен 24.09.2026 с `.claude-plugin/marketplace.json` репозитория https://github.com/anthropics/claude-plugins-official (52 плагина с локальным источником — все здесь; после 24.07 в каталог добавлялись только сторонние). Строка «включён только `skill-creator`» не перепроверялась. Проверить состояние: `cat ~/.claude/settings.json` (что реально включено) и `~/.claude/plugins/marketplaces/claude-plugins-official/.claude-plugin/marketplace.json` (полный каталог).
+> List checked on 2026-09-24 against `.claude-plugin/marketplace.json` in the https://github.com/anthropics/claude-plugins-official repository (52 plugins with a local source — all of them are here; after 2026-07-24 only third-party plugins were added to the catalog). The statement "only `skill-creator` is enabled" was not rechecked. To check the state: `cat ~/.claude/settings.json` (what is actually enabled) and `~/.claude/plugins/marketplaces/claude-plugins-official/.claude-plugin/marketplace.json` (the full catalog).
 
-## Разработка и код
+## Development and code
 
-| Плагин | Описание |
+| Plugin | Description |
 | --- | --- |
-| `feature-dev` | Комплексный воркфлоу разработки фичи: специализированные агенты для исследования кодовой базы, проектирования архитектуры и ревью качества. |
-| `agent-sdk-dev` | Набор инструментов для разработки с Claude Agent SDK. |
-| `mcp-server-dev` | Скиллы для проектирования и сборки MCP-серверов — модели деплоя (remote HTTP, MCPB, local), паттерны инструментов, auth, интерактивные MCP-приложения. |
-| `mcp-tunnels` | Подключение Claude к приватному MCP-серверу через Anthropic MCP tunnel; команда `/create-docker-mcp-tunnel` разворачивает Docker Compose quickstart целиком (сертификаты, прокси, cloudflared). |
-| `plugin-dev` | Тулкит для разработки самих плагинов Claude Code: 7 экспертных скиллов по hooks, MCP-интеграции, командам, агентам. |
-| `code-modernization` | Модернизация легаси-кода (COBOL, старая Java/C++, монолитные веб-приложения) через структурированный пайплайн preflight → assess → map → extract-rules → transform → harden. |
-| `frontend-design` | Создание качественных, самобытных фронтенд-интерфейсов — генерирует полированный код, избегая типового «AI-дизайна». |
-| `playground` | Генерация интерактивных HTML-плейграундов — самодостаточных исследователей с визуальными контролами и live preview. |
-| `ralph-loop` | Итеративная разработка через повторяющиеся self-referential циклы (Ralph Wiggum technique) — Claude работает над одной задачей, видя свою предыдущую работу, пока не завершит. |
-| `skill-creator` | Создание и улучшение скиллов, эвалы, бенчмарки. Уже включён в этом окружении — подробности в `claude-code-skills.md`. |
+| `feature-dev` | A comprehensive feature development workflow: specialized agents for codebase exploration, architecture design, and quality review. |
+| `agent-sdk-dev` | A toolkit for developing with the Claude Agent SDK. |
+| `mcp-server-dev` | Skills for designing and building MCP servers — deployment models (remote HTTP, MCPB, local), tool patterns, auth, interactive MCP apps. |
+| `mcp-tunnels` | Connecting Claude to a private MCP server via an Anthropic MCP tunnel; the `/create-docker-mcp-tunnel` command deploys a complete Docker Compose quickstart (certificates, proxy, cloudflared). |
+| `plugin-dev` | A toolkit for developing Claude Code plugins themselves: 7 expert skills on hooks, MCP integration, commands, agents. |
+| `code-modernization` | Modernizing legacy code (COBOL, old Java/C++, monolithic web apps) through a structured pipeline preflight → assess → map → extract-rules → transform → harden. |
+| `frontend-design` | Creating high-quality, distinctive frontend interfaces — generates polished code while avoiding generic "AI design". |
+| `playground` | Generating interactive HTML playgrounds — self-contained explorers with visual controls and live preview. |
+| `ralph-loop` | Iterative development through repeated self-referential loops (Ralph Wiggum technique) — Claude works on a single task, seeing its previous work, until it is done. |
+| `skill-creator` | Creating and improving skills, evals, benchmarks. Already enabled in this environment — details in `claude-code-skills.md`. |
 
-## PR, коммиты и код-ревью
+## PRs, commits, and code review
 
-| Плагин | Описание |
+| Plugin | Description |
 | --- | --- |
-| `code-review` | Автоматизированное ревью PR несколькими специализированными агентами с confidence-scoring для отсева ложных срабатываний. |
-| `pr-review-toolkit` | Агенты ревью PR по направлениям: комментарии, тесты, обработка ошибок, дизайн типов, качество и упрощение кода. |
-| `code-simplifier` | Агент, упрощающий и причёсывающий недавно изменённый код ради ясности и поддерживаемости, сохраняя поведение. |
-| `commit-commands` | Команды для git-воркфлоу — коммит, push, создание PR. |
+| `code-review` | Automated PR review by several specialized agents with confidence scoring to filter out false positives. |
+| `pr-review-toolkit` | PR review agents by area: comments, tests, error handling, type design, code quality and simplification. |
+| `code-simplifier` | An agent that simplifies and tidies recently changed code for clarity and maintainability while preserving behavior. |
+| `commit-commands` | Commands for the git workflow — commit, push, PR creation. |
 
-## Безопасность
+## Security
 
-| Плагин | Описание |
+| Plugin | Description |
 | --- | --- |
-| `claude-security` | Глубокое сканирование уязвимостей в своём же коде прямо в сессии Claude Code, с выбираемым уровнем усилий; каждая находка перепроверяется перед репортом. |
-| `security-guidance` | Security-ревью Claude-сгенерированного кода: паттерн-based предупреждения на правках, LLM-ревью диффа на Stop-хуке, агентный ревьюер коммитов (инъекции, XSS, SSRF, захардкоженные секреты и т.д.). |
+| `claude-security` | Deep vulnerability scanning of your own code right in the Claude Code session, with a selectable effort level; each finding is re-verified before being reported. |
+| `security-guidance` | Security review of Claude-generated code: pattern-based warnings on edits, LLM review of the diff on the Stop hook, an agentic commit reviewer (injections, XSS, SSRF, hardcoded secrets, etc.). |
 
-## Мета: настройка и обслуживание Claude Code
+## Meta: configuring and maintaining Claude Code
 
-| Плагин | Описание |
+| Plugin | Description |
 | --- | --- |
-| `claude-code-setup` | Анализирует кодовую базу и рекомендует автоматизации Claude Code под неё — hooks, скиллы, MCP-серверы, суб-агенты. |
-| `claude-md-management` | Поддержка и улучшение файлов CLAUDE.md — аудит качества, фиксация выводов сессии, актуализация project memory. |
-| `hookify` | Создание кастомных hooks для предотвращения нежелательного поведения — по паттернам разговора или явным инструкциям, правила в markdown. |
-| `session-report` | HTML-отчёт по использованию сессии Claude Code — токены, эффективность кэша, суб-агенты, скиллы, самые дорогие промпты. |
-| `receipts` | Персональный отчёт об импакте использования Claude Code — что сделано, в какие проекты пошло — для обоснования перед менеджером или self-review. |
-| `project-artifact` | Генерация и публикация живой status-страницы проекта (обзор, критерии успеха, план работ) как shareable claude.ai artifact. |
+| `claude-code-setup` | Analyzes the codebase and recommends Claude Code automations tailored to it — hooks, skills, MCP servers, subagents. |
+| `claude-md-management` | Maintaining and improving CLAUDE.md files — quality audits, capturing session learnings, keeping project memory up to date. |
+| `hookify` | Creating custom hooks to prevent unwanted behavior — based on conversation patterns or explicit instructions, with rules in markdown. |
+| `session-report` | An HTML report on Claude Code session usage — tokens, cache efficiency, subagents, skills, the most expensive prompts. |
+| `receipts` | A personal report on the impact of your Claude Code usage — what was done, which projects it went into — for justifying it to a manager or for self-review. |
+| `project-artifact` | Generating and publishing a live project status page (overview, success criteria, work plan) as a shareable claude.ai artifact. |
 
-## Языковые серверы (LSP)
+## Language servers (LSP)
 
-Дают Claude инструменты понимания и рефакторинга кода для конкретного языка через language server protocol. Для aurora-dashboard (TypeScript/React монорепо) релевантен `typescript-lsp`, остальные — для проектов на других языках.
+They give Claude code understanding and refactoring tools for a specific language via the language server protocol. For aurora-dashboard (a TypeScript/React monorepo) `typescript-lsp` is relevant; the rest are for projects in other languages.
 
-| Плагин | Язык |
+| Plugin | Language |
 | --- | --- |
 | `typescript-lsp` | TypeScript / JavaScript |
 | `pyright-lsp` | Python |
@@ -67,39 +70,39 @@
 | `swift-lsp` | Swift (SourceKit-LSP) |
 | `lua-lsp` | Lua |
 
-## Обучение и стиль вывода
+## Learning and output style
 
-| Плагин | Описание |
+| Plugin | Description |
 | --- | --- |
-| `explanatory-output-style` | Добавляет образовательные пояснения по архитектурным решениям и паттернам кодовой базы (аналог снятого Explanatory output style). |
-| `learning-output-style` | Интерактивный режим обучения — просит содержательный вклад пользователя в ключевых точках решений. |
+| `explanatory-output-style` | Adds educational explanations of architectural decisions and codebase patterns (an equivalent of the retired Explanatory output style). |
+| `learning-output-style` | An interactive learning mode — asks the user for meaningful contributions at key decision points. |
 
-## Прочее
+## Miscellaneous
 
-| Плагин | Описание |
+| Plugin | Description |
 | --- | --- |
-| `math-olympiad` | Решение олимпиадной математики (IMO, Putnam, USAMO) с состязательной проверкой доказательств «свежими» верификаторами. |
-| `cwc-makers` | Настройка Code-with-Claude Makers Cardputer одной командой — прошивка, установка Claude Buddy. |
+| `math-olympiad` | Solving olympiad math (IMO, Putnam, USAMO) with adversarial proof checking by "fresh" verifiers. |
+| `cwc-makers` | One-command setup of the Code-with-Claude Makers Cardputer — firmware flashing, installing Claude Buddy. |
 
-## Внешние MCP-интеграции
+## External MCP integrations
 
-Готовые MCP-серверы для внешних сервисов, оформленные как плагины (`external_plugins/` в маркетплейсе). Для aurora-dashboard потенциально полезны `github` (репозиторий, PR, issues — альтернатива прямому `gh` CLI, который уже используют `create-pr`/`document-pr`), `context7` (актуальная документация библиотек) и `playwright` (браузерное E2E-тестирование).
+Ready-made MCP servers for external services, packaged as plugins (`external_plugins/` in the marketplace). Potentially useful for aurora-dashboard: `github` (repository, PRs, issues — an alternative to the direct `gh` CLI already used by `create-pr`/`document-pr`), `context7` (up-to-date library documentation), and `playwright` (browser E2E testing).
 
-| Плагин | Описание |
+| Plugin | Description |
 | --- | --- |
-| `github` | Официальный GitHub MCP-сервер — issues, PR, ревью кода, поиск по репозиториям, полный доступ к API GitHub. |
-| `gitlab` | GitLab DevOps-платформа — репозитории, merge requests, CI/CD пайплайны, issues, wiki. |
-| `context7` | MCP-сервер Upstash Context7 — актуальная, версионированная документация и примеры кода прямо в контекст. |
-| `playwright` | Браузерная автоматизация и E2E-тестирование от Microsoft — переход по страницам, скриншоты, заполнение форм, клики. |
-| `serena` | Семантический анализ кода — понимание кодовой базы, рефакторинг, навигация через language server protocol. |
-| `terraform` | MCP-сервер Terraform — автоматизация и интеграция для Infrastructure as Code. |
-| `firebase` | Google Firebase — Firestore, аутентификация, cloud functions, hosting, storage. |
-| `laravel-boost` | Тулкит для Laravel — Artisan-команды, Eloquent-запросы, роутинг, миграции, генерация кода. |
-| `linear` | Linear issue tracking — задачи, проекты, статусы, поиск по воркспейсам. |
-| `asana` | Asana project management — задачи, проекты, назначения, прогресс. |
-| `discord` | Мост сообщений Discord с контролем доступа (pairing, allowlist). |
-| `telegram` | Мост сообщений Telegram с контролем доступа. |
-| `imessage` | Мост сообщений iMessage (чтение `chat.db`, отправка через AppleScript) с контролем доступа. |
-| `fakechat` | Локальный веб-чат для тестирования канала уведомлений — без токенов и внешних сервисов. |
+| `github` | The official GitHub MCP server — issues, PRs, code review, repository search, full access to the GitHub API. |
+| `gitlab` | The GitLab DevOps platform — repositories, merge requests, CI/CD pipelines, issues, wiki. |
+| `context7` | The Upstash Context7 MCP server — up-to-date, versioned documentation and code examples right in the context. |
+| `playwright` | Browser automation and E2E testing from Microsoft — page navigation, screenshots, form filling, clicks. |
+| `serena` | Semantic code analysis — codebase understanding, refactoring, navigation via the language server protocol. |
+| `terraform` | The Terraform MCP server — automation and integration for Infrastructure as Code. |
+| `firebase` | Google Firebase — Firestore, authentication, cloud functions, hosting, storage. |
+| `laravel-boost` | A toolkit for Laravel — Artisan commands, Eloquent queries, routing, migrations, code generation. |
+| `linear` | Linear issue tracking — issues, projects, statuses, search across workspaces. |
+| `asana` | Asana project management — tasks, projects, assignments, progress. |
+| `discord` | A Discord messaging bridge with access control (pairing, allowlist). |
+| `telegram` | A Telegram messaging bridge with access control. |
+| `imessage` | An iMessage messaging bridge (reading `chat.db`, sending via AppleScript) with access control. |
+| `fakechat` | A local web chat for testing the notification channel — no tokens or external services. |
 
-Сторонние плагины (подтягиваются из внешних репозиториев, в локальный клон не входят) сюда намеренно не включены. Из близких к этой теме: `greptile` — AI-поиск и понимание кодовой базы на естественном языке (источник — `greptileai/claude-plugin`).
+Third-party plugins (pulled from external repositories, not included in the local clone) are intentionally not listed here. Related to this topic: `greptile` — AI-powered natural-language search and understanding of a codebase (source: `greptileai/claude-plugin`).

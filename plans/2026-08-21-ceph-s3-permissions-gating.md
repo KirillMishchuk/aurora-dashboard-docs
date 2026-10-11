@@ -1,3 +1,8 @@
+---
+type: plan
+date: 2026-08-21
+status: implemented
+---
 # Plan: Epic #608 Section 15 — Permission gating for Ceph/S3 Object Storage
 
 **Date:** 2026-08-21 · **Revised:** 2026-08-24 (step-by-step review with user) · **Status:** implemented 2026-08-24 (security review clean, no findings)

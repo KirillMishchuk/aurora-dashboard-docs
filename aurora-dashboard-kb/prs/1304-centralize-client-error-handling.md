@@ -1,3 +1,11 @@
+---
+type: pr-report
+date: 2026-09-16
+status: merged
+pr: [1304]
+author: vlad-schur-external-sap
+branch: vlad-centralized-error-handling
+---
 # PR #1304: feat(dashboard): centralize client error handling
 
 **Автор:** vlad-schur-external-sap · **Статус:** смержен 17.09.2026 (создан 15.09.2026)
@@ -115,7 +123,7 @@ if (status === "error") {
 
 **Переименование `Error/` → `Errors/` — само по себе чистое** (проверено: во всём дереве на головном коммите PR не осталось ссылок на `components/Error/` в единственном числе), **но прямо конфликтует с текущей незакоммиченной веткой пользователя** `kiryl-storage-type-404-1081`: там в рабочем дереве лежат новые файлы `packages/aurora/src/client/components/Error/RouteNotFound.tsx` и `RouteNotFound.test.tsx` — в **той же** директории, которую этот PR переименовывает. Если #1304 смержится первым, эта ветка при ребейзе/мерже получит несуществующую (переименованную) директорию под новыми файлами; если наоборот — придётся вручную повторить переименование для файлов из #1081.
 
-**Тот же файл `storage/.../objects/index.tsx` одновременно переписывается в незакоммиченной ветке `kiryl-storage-type-404-1081`** (issue #1081) — по совершенно другой схеме: там `notFound({ data: { reason } })` с разными сообщениями на `provider-not-found`/`storage-type-mismatch` (см. план `DOCS/plans/2026-09-14-storage-type-404-issue-1081.md`), тогда как #1304 здесь просто ставит один и тот же `ObjectStorageErrorComponent` на оба (`notFoundComponent`/`errorComponent`) без различения причины. Оба PR трогают один и тот же роут с несовместимыми дизайнами — независимо от порядка мержа потребуется ручная сверка.
+**Тот же файл `storage/.../objects/index.tsx` одновременно переписывается в незакоммиченной ветке `kiryl-storage-type-404-1081`** (issue #1081) — по совершенно другой схеме: там `notFound({ data: { reason } })` с разными сообщениями на `provider-not-found`/`storage-type-mismatch` (см. план [`DOCS/plans/2026-09-14-storage-type-404-issue-1081.md`](../../plans/2026-09-14-storage-type-404-issue-1081.md)), тогда как #1304 здесь просто ставит один и тот же `ObjectStorageErrorComponent` на оба (`notFoundComponent`/`errorComponent`) без различения причины. Оба PR трогают один и тот же роут с несовместимыми дизайнами — независимо от порядка мержа потребуется ручная сверка.
 
 **Покрытие `errorComponent` неравномерно между Network и Compute.** Для Network (`floatingips.tsx`, `securitygroups.tsx`) новый `errorComponent` поставлен на **родительский layout-роут** раздела — значит, он перехватывает ошибки и из списка, и из страницы деталей (`floatingips/$floatingIpId/index.tsx`, `securitygroups/$securityGroupId/index.tsx` через `Outlet`). Для Compute аналогичные layout-роуты (`compute/flavors.tsx`, `compute/images.tsx`) не тронуты этим PR вообще — `errorComponent` есть только на самой странице деталей (`$flavorId.tsx`/`$imageId.tsx`), список (`flavors/index.tsx`/`images/index.tsx`) при ошибке загрузки по-прежнему всплывёт до полноэкранного `ProjectErrorComponent` на уровне `$projectId.tsx`. Не баг (то же поведение, что было везде до PR), но заявленное покрытие "Compute, Network and Object Storage" по факту неполное и несимметричное между разделами.
 

@@ -1,3 +1,8 @@
+---
+type: plan
+date: 2026-08-12
+status: not-implemented
+---
 # PRD: Bucket Tagging (Ceph S3)
 
 > Источник: [Issue #608](https://github.com/cobaltcore-dev/aurora-dashboard/issues/608), Section 14 (P3).
@@ -70,7 +75,7 @@ Aurora Dashboard's Ceph/S3 bucket management (`packages/aurora/src/server/Storag
 - Input/output Zod schemas belong in `Storage/types/ceph.ts` alongside the existing bucket policy schemas (`getBucketPolicyInputSchema` etc.) — add `getBucketTaggingInputSchema`, `setBucketTaggingInputSchema`, `deleteBucketTaggingInputSchema`, and a `bucketTagSchema` (`{ key: z.string().min(1).max(128), value: z.string().max(256) }`).
 - The `capabilities.bucketTagging` flag already exists in the capabilities schema (`types/ceph.ts:324`) but check where/how capabilities are currently populated and surfaced to the client (query it before assuming the client already receives this value — if it isn't wired to the client yet, wiring it through is itself a prerequisite task, not just a read).
 - No new permission mappings needed in `Storage/routers/permissionRouter.ts` — reuse `storage:containers:read`/`storage:containers:update`, per the scope decision above.
-- Design doc `packages/aurora/docs/009_ceph_s3_bff.md` is the canonical Ceph BFF reference (status: "implemented, reference") — update it with the new tagging endpoints once shipped, per the KB's `05-domain-map.md` design-doc index.
+- Design doc `packages/aurora/docs/009_ceph_s3_bff.md` is the canonical Ceph BFF reference (status: "implemented, reference") — update it with the new tagging endpoints once shipped, per the KB's [`05-domain-map.md`](../aurora-dashboard-kb/05-domain-map.md) design-doc index.
 
 ## Success Metrics
 

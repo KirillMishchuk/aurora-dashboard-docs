@@ -1,3 +1,11 @@
+---
+type: pr-report
+date: 2026-09-04
+status: merged
+pr: [1268]
+author: taymoor89
+branch: 1253-change-additional-services-integration
+---
 # PR #1268: feat(aurora): replace route-injection with standalone extension sub-app pattern
 
 **Автор:** taymoor89 · **Статус:** 03.09.2026 → смержен 04.09.2026 (approved andypf 04.09.2026)

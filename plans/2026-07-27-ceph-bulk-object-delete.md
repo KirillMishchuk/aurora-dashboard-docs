@@ -1,6 +1,11 @@
+---
+type: plan
+date: 2026-07-27
+status: implemented
+---
 # Plan: Ceph/S3 Section 8 — Bulk Object Delete (`objects.deleteBulk` + multi-select UI)
 
-**Date:** 2026-07-27 · **Status:** not implemented
+**Date:** 2026-07-27 · **Status:** implemented 2026-08-07 (PR #1121)
 
 # 📋 IMPLEMENTATION PLAN: Ceph/S3 Section 8 — Bulk Object Delete (`objects.deleteBulk` + multi-select UI)
 

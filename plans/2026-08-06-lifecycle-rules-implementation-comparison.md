@@ -1,3 +1,8 @@
+---
+type: plan
+date: 2026-08-06
+status: analysis
+---
 # Comparison: two implementations of Ceph Lifecycle Rules (Epic #608, Section 13)
 
 **Date:** 2026-08-06
@@ -6,7 +11,7 @@
 | | Implementation A — "speckit" | Implementation B — "planner" |
 |---|---|---|
 | Branch | `kiryl-lifecycle-rules-speckit` | `kiryl-lifecycle-rules-planner` (current) |
-| Planning artifacts | `specs/001-bucket-lifecycle-rules/{spec,plan,tasks,data-model,research,quickstart}.md`, `contracts/lifecycle-trpc-contract.md` | `DOCS/plans/2026-07-31-ceph-lifecycle-rules-crud.md` (single living document) |
+| Planning artifacts | `specs/001-bucket-lifecycle-rules/{spec,plan,tasks,data-model,research,quickstart}.md`, `contracts/lifecycle-trpc-contract.md` | [`DOCS/plans/2026-07-31-ceph-lifecycle-rules-crud.md`](2026-07-31-ceph-lifecycle-rules-crud.md) (single living document) |
 | Methodology | GitHub spec-kit slash-command workflow (`/speckit-specify` → `/speckit-clarify` → `/speckit-plan` → `/speckit-tasks` → `/speckit-implement`) | Freehand plan doc, iteratively re-verified and updated in place (dated edits, decision log) |
 | Base commit | Stale — missing several since-merged `main` features | 2 commits behind `main` (missing the presigned-URL feature) |
 

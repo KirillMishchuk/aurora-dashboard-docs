@@ -1,3 +1,8 @@
+---
+type: plan
+date: 2026-07-23
+status: implemented
+---
 # Plan: Ceph bucket lifecycle policies endpoint
 
 **Date:** 2026-07-23 · **Status:** implemented 2026-07-23

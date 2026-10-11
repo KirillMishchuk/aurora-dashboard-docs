@@ -1,3 +1,11 @@
+---
+type: pr-report
+date: 2026-07-24
+status: merged
+pr: [1090]
+author: mark-karnaukh-extern-sap
+branch: mark-object-storage-fix-table-view-scroll-issue
+---
 # PR #1090: fix(portal): size storage tables to the available viewport height
 
 **Автор:** mark-karnaukh-extern-sap · **Статус:** смержен 24.07.2026 (`fa875c73`)

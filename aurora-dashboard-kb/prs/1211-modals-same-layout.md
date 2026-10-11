@@ -1,3 +1,11 @@
+---
+type: pr-report
+date: 2026-09-01
+status: merged
+pr: [1211]
+author: TilmanHaupt
+branch: til-modal
+---
 # PR #1211: refactor(portal): refactor all modals to the same layout
 
 **Автор:** TilmanHaupt · **Статус:** смержен 01.09.2026 (создан 27.08.2026)

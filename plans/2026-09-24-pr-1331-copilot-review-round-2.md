@@ -1,8 +1,14 @@
+---
+type: plan
+date: 2026-09-24
+status: implemented
+pr: [1331]
+---
 # Plan: PR #1331 — Copilot review findings, round 2
 
 **Date:** 2026-09-24 · **Status:** implemented 2026-09-24
 
-> **Реализовано 2026-09-24.** Все 6 шагов выполнены, 13 файлов в репо + `DOCS/descriptions/pr-1331-description.md`, ничего не закоммичено. Семь CI-джоб зелёные (aurora 5728 тестов, signal-openstack 177, policy-engine 320 + 1 skipped), `.po` без диффа. Регрессия подтверждена по всем фиксам, включая инверсную проверку шага 3 (с применённым лекарством Copilot новый тест краснеет, существующий `objectRouter.test.ts:1538` — нет).
+> **Реализовано 2026-09-24.** Все 6 шагов выполнены, 13 файлов в репо + [`DOCS/pr-descriptions/pr-1331-description.md`](../pr-descriptions/pr-1331-description.md), ничего не закоммичено. Семь CI-джоб зелёные (aurora 5728 тестов, signal-openstack 177, policy-engine 320 + 1 skipped), `.po` без диффа. Регрессия подтверждена по всем фиксам, включая инверсную проверку шага 3 (с применённым лекарством Copilot новый тест краснеет, существующий `objectRouter.test.ts:1538` — нет).
 >
 > **Два отклонения по ходу**, оба пойманы существующими гейтами и починены точечно: `check-i18n` дал дифф в `.po`, потому что первая версия тела error-исхода использовала параметр `detail` вместо `errorMessage` (msgid сменился — переименовано обратно); `lint` выдал `lingui/no-expression-in-message` на `{bucket.name}`/`{outcome.detail}` внутри `<Trans>` — вынесено в компонент с плоскими пропсами без изменения msgid.
 >
@@ -12,13 +18,13 @@
 >
 > Второй проход по 22 файлам: security 0, performance 1 High, architecture 6. **Главная находка — дефект, внесённый правкой первого прохода**, найден performance и architecture независимо и подтверждён по коду: `onSettled` у `EmptyBucketModal` инвалидирует `containers.getState`, на который сама модалка подписана активным обозревателем, поэтому рефетч стартует сразу после `setMutationError`; `isLoading`, включающий `isFetching`, подменял отчёт спиннером, а после разрешения рефетча частично удавшийся отказ мог перевести бакет в ветку `isTrulyEmpty`, которая отчёта не рендерила вовсе — сообщение пропадало безвозвратно. Ровно то, ради чего затевался inline-отчёт. Починено тремя частями: `isLoading = isLoadingBucketState || (isFetchingBucketState && !mutationError)`, общий `EmptyBucketErrorMessage` во всех трёх ветках, заголовок по ветке (`Failed to Delete Versions` там, где кнопка называется так же). Плюс закрыты: необоснованная асимметрия `DeleteBucketModal` (комментарий в коде + changeset + описание PR), недоделанный B.10 в `ObjectBrowserView` (три оставшихся inline-тоста переведены на хелперы, минус 4 msgid), причина блокировки закрытия в changeset разделена по модалкам.
 >
-> Итог: 22 файла, 7/7 CI-джоб зелёные (aurora 5728 тестов), каждая правка подтверждена откатом. Осталось за пользователем: перезалить тело PR — оно отстало от `DOCS/descriptions/pr-1331-description.md` на 8 блоков (сверено после нормализации CRLF).
+> Итог: 22 файла, 7/7 CI-джоб зелёные (aurora 5728 тестов), каждая правка подтверждена откатом. Осталось за пользователем: перезалить тело PR — оно отстало от `DOCS/pr-descriptions/pr-1331-description.md` на 8 блоков (сверено после нормализации CRLF).
 >
 > Критических и High-находок в security-проходе нет. Утечки сырого `error.message` из SDK не прибавилось — тот же текст, что рендерил удалённый тост, просто в другом месте (остаётся follow-up первого раунда).
 
 # 📋 IMPLEMENTATION PLAN: PR #1331 — Copilot review, round 2
 
-**Ветка:** `kiryl-s3-version-pagination`, HEAD `0f992593`, дерево чистое. Первый раунд (`/Users/kirylmishchuk/projects/SAP/DOCS/plans/2026-09-24-pr-1331-copilot-review-findings.md`, статус implemented) прочитан — раунд 2 частично **откатывает** его Шаг 5.
+**Ветка:** `kiryl-s3-version-pagination`, HEAD `0f992593`, дерево чистое. Первый раунд ([`/Users/kirylmishchuk/projects/SAP/DOCS/plans/2026-09-24-pr-1331-copilot-review-findings.md`](2026-09-24-pr-1331-copilot-review-findings.md), статус implemented) прочитан — раунд 2 частично **откатывает** его Шаг 5.
 
 Все пять находок перепроверены по живому коду в этой сессии. Строки/факты ниже актуальны на `0f992593`. Пять уточнений к брифу помечены **[уточнение]** — ни одно не меняет решений, но два меняют содержание шагов (Шаг 3: в `deleteNonCurrentVersions` **нет** потолка страниц; Шаг 4: `Message.title` — это `string`, не `ReactNode`).
 
@@ -26,7 +32,7 @@
 
 ## Overview
 
-Закрываем второй раунд Copilot на PR #1331 (файл-описание: `/Users/kirylmishchuk/projects/SAP/DOCS/descriptions/pr-1331-description.md`):
+Закрываем второй раунд Copilot на PR #1331 (файл-описание: `/Users/kirylmishchuk/projects/SAP/DOCS/pr-descriptions/pr-1331-description.md`):
 
 1. Две деструктивные модалки (`DeleteBucketModal`, `EmptyBucketModal`) рендерят решение по **закэшированному** ответу `containers.getState`, хотя обе в комментариях объявляют себя live-проверкой. Один общий однострочный фикс (`isFetching`) закрывает обе находки (1, 2).
 2. `EmptyBucketModal` показывает три самодельных error-баннера без `role="alert"`/`aria-live="assertive"` — меняем на `<Message>` по форме, уже устоявшейся в соседних модалках (находка 5).
@@ -356,7 +362,7 @@ disableCloseButton={deleteVersionsMutation.isPending}
 3. Абзац про `deleteNonCurrentVersions` / `S3_MAX_BUFFERED_VERSIONS_PER_KEY`: если там есть формулировка про предел памяти, привести её в соответствие с новым доком константы (буфер, переносимый между страницами; пик = предел + размер страницы). Проверить фразу «A key with more versions than fit in the scan buffer is abandoned the same way instead of being accumulated in server memory» — она остаётся верной, но стоит уточнить, что отбрасывается ключ, **не дочитанный** до конца в пределах буфера.
 4. Шаг 2 (a11y) и шаг 3 (док+тест) в changeset отдельной строкой не нуждаются — поведения не меняют.
 
-**Описание PR** — `/Users/kirylmishchuk/projects/SAP/DOCS/descriptions/pr-1331-description.md` (опубликовано и совпадает с телом PR байт-в-байт; правки нужно внести и в файл, и в PR на GitHub — постит пользователь). Затрагиваемые разделы (заголовки проверены по файлу):
+**Описание PR** — `/Users/kirylmishchuk/projects/SAP/DOCS/pr-descriptions/pr-1331-description.md` (опубликовано и совпадает с телом PR байт-в-байт; правки нужно внести и в файл, и в PR на GitHub — постит пользователь). Затрагиваемые разделы (заголовки проверены по файлу):
 
 - `## Component Updates` → буллет **`DeleteVersionsModal`** (`:49`) — переписать вторую половину: вместо «reported through a new required `onPartial` callback as a "Versions Partially Deleted" warning notification that stays on screen until dismissed» — про inline-`Message` в открытой модалке, про повтор прямо оттуда и про то, что тостом остаётся только подтверждение успеха. Упоминание стабильного `id` тоста и `duration: Infinity` удалить — этих механизмов больше нет. Перечисление структурного тела («spells out the first few failures, counts the rest») сохранить, оно переехало в `Message`.
 - `## Component Updates` → буллеты **`EmptyBucketModal`** (`:50`) и **`DeleteBucketModal`** (`:51`) — добавить, что обе ждут живой ответ `getState` (in-flight refetch трактуется как «ещё не знаем»), и что error-состояние `EmptyBucketModal` теперь `Message` с `role="alert"`/`aria-live="assertive"`.
@@ -567,7 +573,7 @@ pnpm build
 
 **Релиз / документы:**
 `/Users/kirylmishchuk/projects/SAP/aurora-dashboard/.changeset/ceph-bounded-version-scans-and-delete-versions.md` (дополнить)
-`/Users/kirylmishchuk/projects/SAP/DOCS/descriptions/pr-1331-description.md` (+ то же в тело PR на GitHub, вручную)
+`/Users/kirylmishchuk/projects/SAP/DOCS/pr-descriptions/pr-1331-description.md` (+ то же в тело PR на GitHub, вручную)
 
 **Читались только для справки:**
 `/Users/kirylmishchuk/projects/SAP/aurora-dashboard/.github/copilot-instructions.md` (B.5 `:245`, B.11 `:415-416`, B.14 `:455`, B.16 `:492-509`, Reject `:41`, `:51`, `:295`, `:509`)
@@ -655,3 +661,10 @@ Copilot занизил живучесть: он пишет «until its normal ca
 ## Раунд 4 Copilot-ревью (2026-09-25, HEAD `03144db3`)
 
 7 замечаний, **ни одно не чинится в #1331**: три валидных → follow-up 8–10, одно частично валидное и чинящее `main` → follow-up 11, два ложных срабатывания (abort-гонки в `getState` и `checkDeletedContent`) и одно уже принятое решение (безусловная инвалидация в `invalidateBucketQueries`) → ответ ревьюверу. Разбор, оценка критичности и тексты ответов: [2026-09-25-pr-1331-copilot-review-round-4.md](./2026-09-25-pr-1331-copilot-review-round-4.md).
+
+<!-- related:auto — generated from pr/issue properties by tools/update-related.py; do not edit by hand -->
+## Related
+
+- plan · 2026-09-24 · [2026-09-24-pr-1331-copilot-review-findings](2026-09-24-pr-1331-copilot-review-findings.md)
+- pr-description · 2026-09-24 · [pr-1331-description](../pr-descriptions/pr-1331-description.md)
+- plan · 2026-09-25 · [2026-09-25-pr-1331-copilot-review-round-4](2026-09-25-pr-1331-copilot-review-round-4.md)

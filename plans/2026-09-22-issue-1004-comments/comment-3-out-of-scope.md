@@ -1,3 +1,8 @@
+---
+type: issue-comment
+date: 2026-09-23
+issue: [1004]
+---
 ## A second bug found while working on this — fixed in the same PR
 
 The bucket-state work above touched the gating of the `⋮` → **Delete Versions** action, which is how this surfaced.

@@ -1,3 +1,11 @@
+---
+type: pr-report
+date: 2026-07-24
+status: merged
+pr: [1086]
+author: mark-karnaukh-extern-sap
+branch: mark-ceph-object-upload-setup
+---
 # PR #1086: feat(portal): add object upload for Ceph (S3) buckets
 
 **Автор:** mark-karnaukh-extern-sap · **Статус:** смержен 24.07.2026 (`1e9ba790`)

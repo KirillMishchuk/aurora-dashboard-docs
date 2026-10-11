@@ -1,3 +1,8 @@
+---
+type: plan
+date: 2026-08-06
+status: implemented
+---
 # Fix plan: `kiryl-ceph-lifecycle-rules` (remote-machine branch)
 
 **Date:** 2026-08-06 (updated same day with manual QA findings)

@@ -1,3 +1,11 @@
+---
+type: pr-report
+date: 2026-08-18
+status: merged
+pr: [1180]
+author: mark-karnaukh-extern-sap
+branch: mark-use-positive-quota-validation-message
+---
 # PR #1180: fix(portal): use positive phrasing for quota validation message
 
 **Автор:** mark-karnaukh-extern-sap · **Статус:** смержен 21.08.2026 (коммит `a7b73a1e`; создан 18.08.2026)

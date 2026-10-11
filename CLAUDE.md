@@ -1,0 +1,16 @@
+# CLAUDE.md — DOCS
+
+Rules for working in this folder. The map of what lives where is in [`README.md`](./README.md) — read it before looking for anything; it is not repeated here.
+
+`DOCS` is its own git repository (personal notes and working docs for `aurora-dashboard`), separate from the project repo.
+
+1. **Language.** Everything new is written in English — docs, indexes, plans, PR reports, follow-ups, runbooks — whatever language the conversation is in. Older plans in `plans/` and older PR reports in `aurora-dashboard-kb/prs/` are in Russian; leave them as they are, don't translate them.
+2. **Historical records are not rewritten.** Plans, PR reports, PR reviews, runbooks and issue drafts record what was true at the time. Don't rewrite their body text retroactively; allowed edits are status updates, fixing a broken link or path, and adding metadata (frontmatter properties) or links.
+3. **Deferred work goes only into `FOLLOW-UPS.md`.** A plan, PR description or review keeps a reference to the item number, never a copy of its text. Numbering is permanent; closed items keep their number with status `done`.
+4. **Indexes** (`plans/README.md`, `pr-reviews/README.md`, `runbooks/README.md`, `aurora-dashboard-kb/prs/README.md`): newest row on top, dates as `YYYY-MM-DD`, escape any `|` inside a cell (also inside code spans) as `\|`. When you add a file to one of these folders, add its row too.
+5. **`aurora-dashboard-kb/`** changes only through the update procedure in its `README.md` (the `update-kb` skill), which moves the commit pin. Small factual fixes (a wrong path, a stale reference) are fine without moving the pin.
+6. **`transfer/` is written only by the `temp-sync` skill** — its scripts empty `transfer/temp-files/` and `transfer/patch/` on every run, so anything put there by hand is lost.
+7. **One Obsidian vault.** All of `DOCS` is a single vault (`DOCS/.obsidian/`). Never create `.obsidian/` in a subfolder; use relative Markdown links (`./x.md`, `../y.md`), not `[[wikilinks]]`.
+8. **Properties (frontmatter).** Every note (except this file) starts with a YAML block: `type` (`plan` · `pr-report` · `pr-review` · `pr-description` · `issue` · `issue-comment` · `runbook` · `kb` · `index` · `registry` · `tool-notes`), plus where they apply `date` (`YYYY-MM-DD`), `status`, `pr: [N]`, `issue: [N]`, and per type `author`/`branch` (pr-report), `branch`/`head` (pr-review), `kind`/`scope` (issue), `plan` (runbook). Plan `status` values: `not-implemented` · `in-progress` · `implemented` · `partially-implemented` · `analysis` · `passed` · `reference`; pr-report: `open` · `merged` · `closed`. When a status changes, update the property together with the `**Status:**` line and the index row. After adding a note or changing its `pr`/`issue`, run `python3 tools/update-related.py` — it regenerates the auto "Related" blocks and the file lists in `issues/README.md` and `pr-descriptions/README.md`; never edit those auto blocks by hand. Files in `templates/` are templates, not notes.
+9. **No secrets.** Never write tokens, passwords, keys or credential values into `DOCS` — runbooks say what to report back, not the secret itself. (`.netrc` is git-ignored here for that reason.)
+10. **Don't commit or push `DOCS`** unless the user explicitly asks — skills that write here stop at writing files.

@@ -1,4 +1,13 @@
+---
+type: issue
+date: 2026-09-30
+issue: [1358]
+kind: feature
+scope: storage
+---
 # [Feature](storage): manage S3 access keys for Ceph object storage
+
+Opened as #1358
 
 **Description**
 

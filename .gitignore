@@ -2,3 +2,4 @@
 /ai-dev-tasks/
 
 .netrc
+.obsidian/workspace*.json

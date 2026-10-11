@@ -1,3 +1,11 @@
+---
+type: pr-report
+date: 2026-08-12
+status: merged
+pr: [1153]
+author: TilmanHaupt
+branch: til-sec-3
+---
 # PR #1153: fix(core): prevent path traversal in OpenStack API routes
 
 **Автор:** TilmanHaupt · **Статус:** смержен 12.08.2026 (коммит `9645ac6`; открыт 07.08.2026)

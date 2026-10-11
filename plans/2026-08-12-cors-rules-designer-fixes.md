@@ -1,3 +1,8 @@
+---
+type: plan
+date: 2026-08-12
+status: implemented
+---
 # Plan: CORS Rules UI — post-merge designer fixes
 
 **Date:** 2026-08-12 · **Status:** implemented 2026-08-12 (complete, including Step 6 follow-up correction — commit cf8ec618)

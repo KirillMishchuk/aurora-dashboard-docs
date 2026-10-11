@@ -1,3 +1,11 @@
+---
+type: pr-report
+date: 2026-08-24
+status: merged
+pr: [1198]
+author: TilmanHaupt
+branch: til-del-mod
+---
 # PR #1198: refactor(portal): equalize delete modals
 
 **Автор:** TilmanHaupt · **Статус:** смержен 24.08.2026 (коммит `1513d972`; создан 21.08.2026)

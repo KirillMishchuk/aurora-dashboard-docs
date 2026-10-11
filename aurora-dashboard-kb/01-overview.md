@@ -1,3 +1,6 @@
+---
+type: kb
+---
 # 01 — Project Overview
 
 ## What Aurora Dashboard is

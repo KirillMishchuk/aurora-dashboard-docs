@@ -1,0 +1,127 @@
+{
+  "items": [
+    {
+      "type": "file",
+      "ctime": 1791567909435,
+      "path": "Home.md",
+      "title": "Home"
+    },
+    {
+      "type": "file",
+      "ctime": 1791553559419,
+      "path": "README.md",
+      "title": "DOCS map"
+    },
+    {
+      "type": "file",
+      "ctime": 1791553559419,
+      "path": "CLAUDE.md",
+      "title": "Agent rules"
+    },
+    {
+      "type": "file",
+      "ctime": 1791553559419,
+      "path": "FOLLOW-UPS.md",
+      "title": "Follow-ups"
+    },
+    {
+      "type": "group",
+      "ctime": 1791559858294,
+      "title": "Bases",
+      "items": [
+        {
+          "type": "file",
+          "ctime": 1791559858294,
+          "path": "bases/Plans.base",
+          "title": "Plans board"
+        },
+        {
+          "type": "file",
+          "ctime": 1791559858294,
+          "path": "bases/PR timeline.base",
+          "title": "PR timeline"
+        }
+      ]
+    },
+    {
+      "type": "group",
+      "ctime": 1791553559419,
+      "title": "Indexes",
+      "items": [
+        {
+          "type": "file",
+          "ctime": 1791553559419,
+          "path": "aurora-dashboard-kb/README.md",
+          "title": "Knowledge base"
+        },
+        {
+          "type": "file",
+          "ctime": 1791553559419,
+          "path": "plans/README.md",
+          "title": "Plans"
+        },
+        {
+          "type": "file",
+          "ctime": 1791553559419,
+          "path": "pr-reviews/README.md",
+          "title": "PR reviews"
+        },
+        {
+          "type": "file",
+          "ctime": 1791553559419,
+          "path": "aurora-dashboard-kb/prs/README.md",
+          "title": "PR reports"
+        },
+        {
+          "type": "file",
+          "ctime": 1791553559419,
+          "path": "runbooks/README.md",
+          "title": "Runbooks"
+        },
+        {
+          "type": "file",
+          "ctime": 1791553559419,
+          "path": "transfer/README.md",
+          "title": "Transfer"
+        }
+      ]
+    },
+    {
+      "type": "group",
+      "ctime": 1791567909435,
+      "title": "Searches",
+      "items": [
+        {
+          "type": "search",
+          "ctime": 1791567909435,
+          "query": "[type:plan] [status:not-implemented]",
+          "title": "Plans not implemented"
+        },
+        {
+          "type": "search",
+          "ctime": 1791567909435,
+          "query": "[type:plan] [status:partially-implemented]",
+          "title": "Plans partially implemented"
+        },
+        {
+          "type": "search",
+          "ctime": 1791567909435,
+          "query": "[type:pr-report] [status:open]",
+          "title": "Open PR reports"
+        },
+        {
+          "type": "search",
+          "ctime": 1791567909435,
+          "query": "[pr:1331]",
+          "title": "Everything for PR #1331 (example \u2014 edit the number)"
+        },
+        {
+          "type": "search",
+          "ctime": 1791567909435,
+          "query": "[type:issue]",
+          "title": "Issue drafts"
+        }
+      ]
+    }
+  ]
+}

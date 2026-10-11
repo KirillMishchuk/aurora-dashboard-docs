@@ -1,3 +1,11 @@
+---
+type: pr-report
+date: 2026-08-06
+status: merged
+pr: [1123]
+author: mark-karnaukh-extern-sap
+branch: mark-object-storage-fix-table-view-height-it-2
+---
 # PR #1123: fix(portal): account for custom footer height when sizing storage tables
 
 **Автор:** mark-karnaukh-extern-sap · **Статус:** создан 30.07.2026, смержен 06.08.2026 (коммит `9e817d02`)

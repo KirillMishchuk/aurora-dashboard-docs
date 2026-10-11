@@ -1,3 +1,9 @@
+---
+type: plan
+date: 2026-09-22
+status: implemented
+issue: [1004]
+---
 # Plan: Issue #1004 — S3 version pagination & bucket-state detection
 
 **Date:** 2026-09-22 · **Status:** implemented 2026-09-22 · PR [#1331](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1331) (draft) — ветка `kiryl-s3-version-pagination`, коммит `1a3c2818` + merge main `1602891d`, 50 файлов. 14 из 15 шагов; шаг 4 не применим при выбранном Варианте B. Ручная проверка на реальном Ceph RGW — passed 2026-09-24, см. [2026-09-23-issue-1004-manual-test-cases.md](./2026-09-23-issue-1004-manual-test-cases.md).
@@ -792,7 +798,7 @@ pnpm --filter @cobaltcore-dev/aurora test
 
 ## 📝 Оформление в GitHub
 
-> **РЕШЕНО 2026-09-22 (пользователь):** новые тикеты НЕ заводим — issue #1004 остаётся единственным, к нему дописываются три комментария. Готовые тексты лежат в [`2026-09-22-issue-1004-comments/`](./2026-09-22-issue-1004-comments/): `comment-1-verification.md`, `comment-2-implementation.md`, `comment-3-out-of-scope.md`. Тело самого issue не правится — неверные места перекрываются комментарием ①. Постит пользователь сам. Заготовки тикетов ниже оставлены как черновой материал, из которого собраны комментарии.
+> **РЕШЕНО 2026-09-22 (пользователь):** новые тикеты НЕ заводим — issue #1004 остаётся единственным, к нему дописываются три комментария. Готовые тексты лежат в [`2026-09-22-issue-1004-comments/`](./2026-09-22-issue-1004-comments/): [`comment-1-verification.md`](2026-09-22-issue-1004-comments/comment-1-verification.md), [`comment-2-implementation.md`](2026-09-22-issue-1004-comments/comment-2-implementation.md), [`comment-3-out-of-scope.md`](2026-09-22-issue-1004-comments/comment-3-out-of-scope.md). Тело самого issue не правится — неверные места перекрываются комментарием ①. Постит пользователь сам. Заготовки тикетов ниже оставлены как черновой материал, из которого собраны комментарии.
 
 Issue #1004 предлагалось закрыть как superseded и завести два тикета — **этот вариант отклонён**, см. выше. Ниже — исходный текст заготовок.
 
@@ -1115,3 +1121,12 @@ semver-обязательством. Решение команды, не аге�
 ### Итог раунда
 
 44 файла, +2778/−641. 7/7 джоб CI зелёные, 5700 тестов. Ничего не закоммичено.
+
+<!-- related:auto — generated from pr/issue properties by tools/update-related.py; do not edit by hand -->
+## Related
+
+- issue-comment · 2026-09-23 · [comment-1-verification](2026-09-22-issue-1004-comments/comment-1-verification.md)
+- issue-comment · 2026-09-23 · [comment-2-implementation](2026-09-22-issue-1004-comments/comment-2-implementation.md)
+- issue-comment · 2026-09-23 · [comment-3-out-of-scope](2026-09-22-issue-1004-comments/comment-3-out-of-scope.md)
+- plan · 2026-09-23 · [2026-09-23-issue-1004-manual-test-cases](2026-09-23-issue-1004-manual-test-cases.md)
+- pr-description · 2026-09-24 · [pr-1331-description](../pr-descriptions/pr-1331-description.md)

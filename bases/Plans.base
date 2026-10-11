@@ -1,0 +1,64 @@
+filters:
+  and:
+    - note.type == "plan"
+    - '!file.inFolder("templates")'
+properties:
+  file.name:
+    displayName: Plan
+  note.date:
+    displayName: Date
+  note.status:
+    displayName: Status
+  note.pr:
+    displayName: PR
+  note.issue:
+    displayName: Issue
+views:
+  - type: table
+    name: Open
+    filters:
+      or:
+        - note.status == "not-implemented"
+        - note.status == "in-progress"
+        - note.status == "partially-implemented"
+        - note.status == "analysis"
+    order:
+      - file.name
+      - date
+      - status
+      - pr
+      - issue
+    sort:
+      - property: issue
+        direction: ASC
+      - property: status
+        direction: DESC
+      - property: date
+        direction: DESC
+    columnSize:
+      note.pr: 106
+  - type: table
+    name: By status
+    groupBy:
+      property: status
+      direction: ASC
+    order:
+      - file.name
+      - date
+      - status
+      - pr
+      - issue
+    sort:
+      - property: date
+        direction: DESC
+  - type: table
+    name: All
+    order:
+      - file.name
+      - date
+      - status
+      - pr
+      - issue
+    sort:
+      - property: date
+        direction: DESC

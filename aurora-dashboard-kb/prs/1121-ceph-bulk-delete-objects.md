@@ -1,3 +1,11 @@
+---
+type: pr-report
+date: 2026-08-03
+status: merged
+pr: [1121]
+author: KirylSAP
+branch: kiryl-ceph-bulk-objects-delete
+---
 # PR #1121: feat(aurora): add bulk delete for Ceph objects with performance and UX improvements
 
 **Автор:** KirylSAP · **Статус:** смержен 07.08.2026

@@ -1,3 +1,8 @@
+---
+type: plan
+date: 2026-07-23
+status: implemented
+---
 # Plan: Restore a deleted Cinder volume from its most recent snapshot
 
 **Date:** 2026-07-23 · **Status:** implemented 2026-07-23 (BFF-only, per Open Question 1 — no client UI shipped this iteration)
@@ -20,7 +25,7 @@ the volume that no longer exists; the server finds all snapshots whose
   integration at all** — no server domain code, no client route, nothing
   under `packages/signal-openstack` or `packages/aurora/src/server` mentions
   "cinder"/"volume"/"block-storage" (confirmed via repo-wide grep). The
-  `05-domain-map.md` KB table lists Compute, Network, Storage (Swift/Ceph),
+  [`05-domain-map.md`](../aurora-dashboard-kb/05-domain-map.md) KB table lists Compute, Network, Storage (Swift/Ceph),
   Services, Permissions — no Volumes/Cinder row. This plan introduces the
   domain from scratch rather than extending existing code.
 - The `Storage` domain (`packages/aurora/src/server/Storage/`) currently only

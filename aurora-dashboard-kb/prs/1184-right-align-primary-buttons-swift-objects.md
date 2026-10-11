@@ -1,3 +1,11 @@
+---
+type: pr-report
+date: 2026-08-18
+status: merged
+pr: [1184]
+author: mark-karnaukh-extern-sap
+branch: mark-right-align-primary-buttons
+---
 # PR #1184: fix(portal): right-align primary buttons / fix button order (#1183)
 
 **Автор:** mark-karnaukh-extern-sap · **Статус:** смержен 18.08.2026 (коммит `9cdf0ae`; создан 18.08.2026)

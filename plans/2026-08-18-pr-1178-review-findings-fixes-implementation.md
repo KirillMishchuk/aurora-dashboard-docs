@@ -1,10 +1,16 @@
+---
+type: plan
+date: 2026-08-18
+status: implemented
+pr: [1178]
+---
 # Plan: Fix PR #1178 review findings (15 confirmed) — implementation
 
 **Date:** 2026-08-18 · **Status:** implemented 2026-08-18
 
 ## Overview
 
-Implement all 15 confirmed findings from the completed triage at `../DOCS/plans/2026-08-18-pr-1178-review-findings-fixes.md` against PR #1178 ("feat(aurora): add Ceph S3 bucket lifecycle configuration management"). The work spans two design-doc corrections, four server changes (Zod refinements, mapper typing, rate-limiter cleanup), eight client changes (validation mirrors, modal guards, form preservation, a11y labels, index derivation, i18n), and one test-determinism fix. Finding **5b is explicitly REJECTED** and must NOT be implemented — it stays documented as "not fixed, by design."
+Implement all 15 confirmed findings from the completed triage at [`../DOCS/plans/2026-08-18-pr-1178-review-findings-fixes.md`](2026-08-18-pr-1178-review-findings-fixes.md) against PR #1178 ("feat(aurora): add Ceph S3 bucket lifecycle configuration management"). The work spans two design-doc corrections, four server changes (Zod refinements, mapper typing, rate-limiter cleanup), eight client changes (validation mirrors, modal guards, form preservation, a11y labels, index derivation, i18n), and one test-determinism fix. Finding **5b is explicitly REJECTED** and must NOT be implemented — it stays documented as "not fixed, by design."
 
 ## Architecture Analysis
 
@@ -660,3 +666,10 @@ The planning agent could not use `AskUserQuestion` (unavailable in that subagent
 
 **Docs/i18n/changeset:** `aurora-dashboard/packages/aurora/docs/009_ceph_s3_bff.md` · `/aurora-dashboard/packages/aurora/src/locales/{en,de}/messages.po` · `/aurora-dashboard/.changeset/nice-clouds-start.md`
 </content>
+
+<!-- related:auto — generated from pr/issue properties by tools/update-related.py; do not edit by hand -->
+## Related
+
+- plan · 2026-08-18 · [2026-08-18-pr-1178-review-findings-fixes](2026-08-18-pr-1178-review-findings-fixes.md)
+- plan · 2026-08-20 · [2026-08-20-pr-1178-code-review-fixes](2026-08-20-pr-1178-code-review-fixes.md)
+- pr-review · 2026-08-20 · [pr-1178-review](../pr-reviews/pr-1178-review.md)

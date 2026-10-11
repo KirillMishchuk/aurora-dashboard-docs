@@ -1,0 +1,79 @@
+{
+  "collapse-filter": true,
+  "search": "",
+  "showTags": false,
+  "showAttachments": false,
+  "hideUnresolved": false,
+  "showOrphans": true,
+  "collapse-color-groups": false,
+  "colorGroups": [
+    {
+      "query": "path:plans",
+      "color": {
+        "a": 1,
+        "rgb": 5016565
+      }
+    },
+    {
+      "query": "path:aurora-dashboard-kb/prs",
+      "color": {
+        "a": 1,
+        "rgb": 10250974
+      }
+    },
+    {
+      "query": "path:aurora-dashboard-kb",
+      "color": {
+        "a": 1,
+        "rgb": 3061373
+      }
+    },
+    {
+      "query": "path:pr-reviews",
+      "color": {
+        "a": 1,
+        "rgb": 15237946
+      }
+    },
+    {
+      "query": "path:pr-descriptions",
+      "color": {
+        "a": 1,
+        "rgb": 15054848
+      }
+    },
+    {
+      "query": "path:issues",
+      "color": {
+        "a": 1,
+        "rgb": 14697851
+      }
+    },
+    {
+      "query": "path:runbooks",
+      "color": {
+        "a": 1,
+        "rgb": 1548984
+      }
+    },
+    {
+      "query": "path:ToolDocs",
+      "color": {
+        "a": 1,
+        "rgb": 9079434
+      }
+    }
+  ],
+  "collapse-display": true,
+  "showArrow": true,
+  "textFadeMultiplier": 0,
+  "nodeSizeMultiplier": 1,
+  "lineSizeMultiplier": 1,
+  "collapse-forces": true,
+  "centerStrength": 0.518713248970312,
+  "repelStrength": 10,
+  "linkStrength": 1,
+  "linkDistance": 250,
+  "scale": 2.262779930467441,
+  "close": false
+}

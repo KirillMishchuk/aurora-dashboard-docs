@@ -1,3 +1,8 @@
+---
+type: plan
+date: 2026-09-25
+status: implemented
+---
 # Plan: Ceph — папки исчезают во вкладке «All» в версионированном бакете
 
 **Date:** 2026-09-25 · **Status:** implemented 2026-09-25; [PR #1331](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1331) влит в `main` 2026-09-28 — правка теперь лежит некоммиченной прямо на `main` и перепроверена на нём (см. ниже), осталось отвести ветку и открыть PR; см. [`FOLLOW-UPS.md`](../FOLLOW-UPS.md) п. 28 — пункт остаётся `открыт` до открытия PR
@@ -8,7 +13,7 @@
 
 # 📋 ПЛАН ИСПРАВЛЕНИЯ (базис #1331): папки исчезают во вкладке «All» в версионированном Ceph-бакете
 
-> Базис: ветка `kiryl-s3-version-pagination`, HEAD `5b25aad0`, дерево чистое. Все номера строк ниже — **по этой ветке**. Прочитаны: `aurora-dashboard/CLAUDE.md`, `DOCS/aurora-dashboard-kb/README.md`, `DOCS/FOLLOW-UPS.md` (п. 1, 10, 17, 28), предыдущий план `DOCS/plans/2026-09-25-ceph-all-tab-folders-vanish.md`. Все шесть пунктов установленной причины перепроверены по коду ветки — расхождений нет. Baseline прогон `ObjectBrowserView.test.tsx` на ветке: **40 тестов, все зелёные**.
+> Базис: ветка `kiryl-s3-version-pagination`, HEAD `5b25aad0`, дерево чистое. Все номера строк ниже — **по этой ветке**. Прочитаны: [`aurora-dashboard/CLAUDE.md`](../CLAUDE.md), `DOCS/aurora-dashboard-kb/README.md`, [`DOCS/FOLLOW-UPS.md`](../FOLLOW-UPS.md) (п. 1, 10, 17, 28), предыдущий план `DOCS/plans/2026-09-25-ceph-all-tab-folders-vanish.md`. Все шесть пунктов установленной причины перепроверены по коду ветки — расхождений нет. Baseline прогон `ObjectBrowserView.test.tsx` на ветке: **40 тестов, все зелёные**.
 
 ---
 

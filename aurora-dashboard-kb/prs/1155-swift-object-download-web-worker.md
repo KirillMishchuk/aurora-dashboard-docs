@@ -1,3 +1,11 @@
+---
+type: pr-report
+date: 2026-08-11
+status: merged
+pr: [1155]
+author: mark-karnaukh-extern-sap
+branch: mark-swift-download-improvements
+---
 # PR #1155: feat(portal): offload Swift object downloads to a Web Worker
 
 **Автор:** mark-karnaukh-extern-sap · **Статус:** создан 09.08.2026 → смержен 13.08.2026

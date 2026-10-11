@@ -1,3 +1,9 @@
+---
+type: pr-review
+date: 2026-08-28
+pr: [1207]
+head: d01e15c4
+---
 # PR #1207 Code Review — Ceph Lifecycle Rules Management & Permission Controls
 
 Repo: `cobaltcore-dev/aurora-dashboard`
@@ -51,3 +57,8 @@ The comment's fallback — "bucket policy" — is opt-in and per-bucket. A bucke
 *Note: this review was generated in a local/Cowork session at the user's request ("put the result of review into pr-reviews folder") and, unlike the 2026-08-26 review, has not been posted as a PR comment. Let the user know if they'd like it posted to GitHub.*
 
 *Analyzed: 2026-08-28 · commit `d01e15c4d7da21e0d0e73366ec2390f775da92ad`*
+
+<!-- related:auto — generated from pr/issue properties by tools/update-related.py; do not edit by hand -->
+## Related
+
+- plan · 2026-08-28 · [2026-08-28-pr-1207-review-feedback-fixes](../plans/2026-08-28-pr-1207-review-feedback-fixes.md)

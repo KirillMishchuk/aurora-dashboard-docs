@@ -1,3 +1,9 @@
+---
+type: plan
+date: 2026-09-10
+status: implemented
+pr: [1288]
+---
 # Plan: Copilot round 2 — Swift `createContainer` metadata leak + `createFolder` server-side existence check
 
 **Date:** 2026-09-10 · **Status:** implemented 2026-09-10
@@ -371,3 +377,9 @@ All decisions resolved; plan is ready to implement as written (Step 1 uses D2's 
 - `packages/aurora/src/client/routes/_auth/projects/$projectId/storage/-components/Swift/Containers/CreateContainerModal.tsx` (reference pattern)
 - `packages/signal-openstack/src/client.ts`, `packages/signal-openstack/src/service.ts`, `packages/signal-openstack/src/error.ts`
 - `.changeset/full-maps-obey.md`
+
+<!-- related:auto — generated from pr/issue properties by tools/update-related.py; do not edit by hand -->
+## Related
+
+- plan · 2026-09-10 · [2026-09-10-pr-1288-copilot-findings](2026-09-10-pr-1288-copilot-findings.md)
+- plan · 2026-09-11 · [2026-09-11-pr-1288-copilot-round-3](2026-09-11-pr-1288-copilot-round-3.md)

@@ -1,3 +1,11 @@
+---
+type: pr-report
+date: 2026-09-02
+status: merged
+pr: [1254]
+author: taymoor89
+branch: 1252-refactor-breadcrumbs
+---
 # PR #1254: feat(aurora): refactor breadcrumb generation
 
 **Автор:** taymoor89 · **Статус:** создан 02.09.2026 → смержен 02.09.2026
@@ -86,7 +94,7 @@ export { DynamicBreadcrumbContext, DynamicBreadcrumbProvider } from "./context/D
 
 ## Ревью
 
-**[95] `packages/aurora/README.md` не документирует ни один из шести новых публичных экспортов, хотя PR прямо и единственно ради этого их и вводит.** `CLAUDE.md` называет `packages/aurora/README.md` источником истины для консьюмерского контракта пакета («treat that file as the source of truth when changing any of `AuroraApp`'s public props»), и changeset этого PR сам формулирует цель как «for use in embedded sub-apps and standalone consumers» — то есть аудитория именно внешние читатели README, не только maintainers. Диф PR не касается `README.md` вообще (`git grep README` по `/tmp/pr1254.diff` — пусто) ни в корне, ни в `packages/aurora/`. В README нет ни слова про `useBreadcrumbs`, `useSetBreadcrumb`, `usePushBreadcrumbs`, `DynamicBreadcrumbProvider`/`DynamicBreadcrumbContext`, ни примера, как под-приложению подключить эти примитивы к своему `RouterProvider`. Это ровно тот же паттерн, который уже был зафиксирован как находка [100] в ревью PR #1189 (`prs/1189-custom-project-services.md`) для `additionalProjectServices` — и на момент этого PR остаётся неисправленным для новой порции публичного API. Разработчик, открывший README сегодня, не узнает о существовании breadcrumb-примитивов вообще.
+**[95] `packages/aurora/README.md` не документирует ни один из шести новых публичных экспортов, хотя PR прямо и единственно ради этого их и вводит.** [`CLAUDE.md`](../../CLAUDE.md) называет `packages/aurora/README.md` источником истины для консьюмерского контракта пакета («treat that file as the source of truth when changing any of `AuroraApp`'s public props»), и changeset этого PR сам формулирует цель как «for use in embedded sub-apps and standalone consumers» — то есть аудитория именно внешние читатели README, не только maintainers. Диф PR не касается `README.md` вообще (`git grep README` по `/tmp/pr1254.diff` — пусто) ни в корне, ни в `packages/aurora/`. В README нет ни слова про `useBreadcrumbs`, `useSetBreadcrumb`, `usePushBreadcrumbs`, `DynamicBreadcrumbProvider`/`DynamicBreadcrumbContext`, ни примера, как под-приложению подключить эти примитивы к своему `RouterProvider`. Это ровно тот же паттерн, который уже был зафиксирован как находка [100] в ревью PR #1189 ([`prs/1189-custom-project-services.md`](1189-custom-project-services.md)) для `additionalProjectServices` — и на момент этого PR остаётся неисправленным для новой порции публичного API. Разработчик, открывший README сегодня, не узнает о существовании breadcrumb-примитивов вообще.
 
 *Проверено и не подтвердилось (ниже порога ≥80, не репортится отдельно):* пропажа секционной крошки "Compute"/"Network"/"Storage" — не регрессия, см. «Что затронуло» (условие рендера было мёртвым с #937 задолго до этого PR); edge-case в `Breadcrumbs.tsx:15-39`, где при `hasExtensionTrail === true`, но не найденном в `additionalProjectServices` сервисе, последняя OSS-крошка ошибочно получила бы "кнопку назад к сервису" — ветка технически недостижима в штатном потоке (URL с `serviceType`-параметром существует только если сервис зарегистрирован и, значит, найдётся); типы/deps-массивы `useSetBreadcrumb`/`usePushBreadcrumbs` (mount-порядок провайдеров, cleanup при анмаунте, стабильность `setCrumb`/`setBreadcrumbs`) проверены построчно — логика корректна и соответствует комментариям в файлах.
 

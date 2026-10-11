@@ -1,91 +1,94 @@
-# Скиллы Claude Code
+---
+type: tool-notes
+---
+# Claude Code skills
 
-Скиллы (`/команды`), доступные в Claude Code в этой рабочей среде. **Встроенные** поставляются с самим Claude Code и работают в любом проекте. **Из плагинов** появляются только после включения плагина. **Проектные** специфичны для `aurora-dashboard` и лежат в `.claude/skills/` репозитория. Вызываются через `/имя-скилла` или срабатывают автоматически по описанию задачи.
+Skills (`/commands`) available in Claude Code in this working environment. **Built-in** ones ship with Claude Code itself and work in any project. **Plugin** ones appear only after the plugin is enabled. **Project** ones are specific to `aurora-dashboard` and live in the repository's `.claude/skills/`. They are invoked via `/skill-name` or trigger automatically based on the task description.
 
-> Встроенные сверены 24.09.2026 с https://code.claude.com/docs/en/commands (строки с пометкой Skill/Workflow). Проектные сверены с `aurora-dashboard/.claude/skills/` на ту же дату. Каталог официальных плагинов — в `claude-code-plugins.md`, остальные слэш-команды — в `claude-code-commands.md`.
+> Built-in skills checked on 2026-09-24 against https://code.claude.com/docs/en/commands (rows marked Skill/Workflow). Project skills checked against `aurora-dashboard/.claude/skills/` on the same date. The catalog of official plugins is in [`claude-code-plugins.md`](claude-code-plugins.md); the remaining slash commands are in [`claude-code-commands.md`](claude-code-commands.md).
 
-## Встроенные скиллы
+## Built-in skills
 
-| Скилл | Описание |
+| Skill | Description |
 | --- | --- |
-| `code-review` | Ревью текущего диффа, **или** PR (номер), ветки, пути — на баги корректности. Уровни усилий `low`/`medium`/`high`/`xhigh`/`max`/`ultra` (`ultra` — облачное ревью, как `/ultrareview`). `--comment` постит находки инлайн в PR, `--fix` сразу применяет исправления. `/review` — просто его алиас. |
-| `simplify` | Ревью изменённого кода на переиспользование, упрощение, эффективность (4 параллельных агента) и сразу применяет правки. Только качество кода, багов не ищет — для этого `code-review`. |
-| `verify` | Проверяет, что изменение реально работает: собирает, запускает приложение и смотрит результат, а не только тесты и тайпчек. |
-| `run` | Запускает и прогоняет приложение проекта, чтобы увидеть изменение в действии. |
-| `run-skill-generator` | Пишет проектный скилл, который учит `run`/`verify` собирать, запускать и управлять приложением из чистого окружения. |
-| `debug` | Включает debug-лог сессии и разбирает проблему по нему. |
-| `doctor` | Проверка установки Claude Code (дубли, PATH и т.п.) с возможностью починить. |
-| `batch` | Масштабные изменения по кодовой базе: разбивает работу на 5–30 независимых частей и выполняет параллельно. |
-| `loop` | Периодический запуск промпта/команды, пока сессия открыта (например, `/loop 5m /foo`); без интервала модель сама выбирает темп. |
-| `fewer-permission-prompts` | Ищет в транскриптах частые read-only Bash/MCP-вызовы и добавляет allowlist в `.claude/settings.json`. |
-| `update-config` | Описываете изменение настроек (hook «каждый раз когда X», permission, env) — Claude правит нужный settings-файл. |
-| `claude-api` | Справочник по Claude API и Managed Agents под язык проекта; подкоманды `migrate`, `upgrade`, `prompt-audit`, `cost-optimize`, `build-eval` и др. |
-| `dataviz` | Гайд по дизайну чартов, графиков, дашбордов: форма графика, цвет по роли, валидация палитры. |
-| `design` / `design-sync` | Мокапы, флоу, лендинги как Design-артефакт; `design-sync` выгружает React-дизайн-систему репо в Claude Design. |
-| `workflow-authoring` | Справочник по написанию скриптов воркфлоу (API, resume, паттерны). |
-| `deep-research` | *(workflow)* Веб-поиск веером, перекрёстная проверка источников, отчёт со ссылками. |
+| `code-review` | Reviews the current diff, **or** a PR (number), branch, or path — for correctness bugs. Effort levels `low`/`medium`/`high`/`xhigh`/`max`/`ultra` (`ultra` is a cloud review, like `/ultrareview`). `--comment` posts findings inline on the PR, `--fix` applies the fixes right away. `/review` is just its alias. |
+| `simplify` | Reviews changed code for reuse, simplification, and efficiency (4 parallel agents) and applies the edits right away. Code quality only, it does not look for bugs — use `code-review` for that. |
+| `verify` | Checks that a change actually works: builds, runs the app, and looks at the result, not just tests and the typecheck. |
+| `run` | Starts and exercises the project's app to see the change in action. |
+| `run-skill-generator` | Writes a project skill that teaches `run`/`verify` to build, start, and drive the app from a clean environment. |
+| `debug` | Enables the session debug log and investigates the problem using it. |
+| `doctor` | Checks the Claude Code installation (duplicates, PATH, etc.) with the option to fix it. |
+| `batch` | Large-scale changes across the codebase: splits the work into 5–30 independent parts and executes them in parallel. |
+| `loop` | Runs a prompt/command periodically while the session is open (e.g., `/loop 5m /foo`); without an interval the model picks the pace itself. |
+| `fewer-permission-prompts` | Scans transcripts for frequent read-only Bash/MCP calls and adds an allowlist to `.claude/settings.json`. |
+| `update-config` | You describe a settings change (a hook "every time X", a permission, env) — Claude edits the appropriate settings file. |
+| `claude-api` | A reference for the Claude API and Managed Agents for the project's language; subcommands `migrate`, `upgrade`, `prompt-audit`, `cost-optimize`, `build-eval`, and others. |
+| `dataviz` | A design guide for charts, graphs, and dashboards: chart form, color by role, palette validation. |
+| `design` / `design-sync` | Mockups, flows, and landing pages as a Design artifact; `design-sync` exports the repo's React design system to Claude Design. |
+| `workflow-authoring` | A reference for writing workflow scripts (API, resume, patterns). |
+| `deep-research` | *(workflow)* Fan-out web search, cross-checking of sources, a report with links. |
 
-Близкие по смыслу команды, которые в документации **не** помечены как скиллы: `/security-review` (security-анализ диффа ветки относительно основной ветки origin), `/ultrareview`, `/schedule` (routines по расписанию в облаке), `/init` (создание `CLAUDE.md`), `/keybindings`. Скилла `keybindings-help` в текущей документации нет.
+Related commands that are **not** marked as skills in the documentation: `/security-review` (security analysis of the branch diff against the origin main branch), `/ultrareview`, `/schedule` (scheduled routines in the cloud), `/init` (creating [`CLAUDE.md`](../../CLAUDE.md)), `/keybindings`. There is no `keybindings-help` skill in the current documentation.
 
-## Скиллы из плагинов и окружения
+## Skills from plugins and the environment
 
-| Скилл | Откуда | Описание |
+| Skill | Source | Description |
 | --- | --- | --- |
-| `skill-creator` | плагин `skill-creator` | Создание и улучшение скиллов: интервью, черновик SKILL.md, эвалы, сравнение baseline/with-skill, оптимизация description. |
-| `artifact-design`, `artifact-capabilities`, `claude-in-chrome` | окружение (Cowork / облачные сессии) | Гайды по Artifacts и управление браузером. Были доступны на 24.07.2026, но в документации CLI не значатся — зависят от среды запуска. |
+| `skill-creator` | the `skill-creator` plugin | Creating and improving skills: interview, SKILL.md draft, evals, baseline/with-skill comparison, description optimization. |
+| `artifact-design`, `artifact-capabilities`, `claude-in-chrome` | environment (Cowork / cloud sessions) | Guides for Artifacts and browser control. They were available as of 2026-07-24 but are not listed in the CLI documentation — they depend on the runtime environment. |
 
-## Скиллы проекта aurora-dashboard
+## aurora-dashboard project skills
 
-Лежат в `aurora-dashboard/.claude/skills/` (19 штук) и работают только в контексте этого репозитория.
+They live in `aurora-dashboard/.claude/skills/` (19 of them) and work only in the context of this repository.
 
-### Планирование, реализация, ревью
+### Planning, implementation, review
 
-| Скилл | Описание |
+| Skill | Description |
 | --- | --- |
-| `create-plan` | Изучает архитектуру под задачу и составляет детальный план (риски, шаги, тестирование, критерии готовности) через `dev-planner`, **не** пишет код. План сохраняется в `../DOCS/plans/`, индекс обновляется. |
-| `implement-plan` | Реализует существующий план (из `create-plan`, из прошлой сессии или ручной) через `dev-executor`, затем точечный security-проход. Если плана нет — сначала `create-plan`. |
-| `triple-review` | Ревью незакоммиченных изменений с трёх сторон параллельно (security, performance, architecture) тремя суб-агентами, со сводкой. |
-| `quick-security-check` | Быстрый security-аудит одного файла или компонента через `security-reviewer`. |
+| `create-plan` | Studies the architecture relevant to the task and drafts a detailed plan (risks, steps, testing, definition of done) via `dev-planner`; it does **not** write code. The plan is saved to `../DOCS/plans/` and the index is updated. |
+| `implement-plan` | Implements an existing plan (from `create-plan`, from a previous session, or a manual one) via `dev-executor`, followed by a targeted security pass. If there is no plan, run `create-plan` first. |
+| `triple-review` | Reviews changes from three angles in parallel (security, performance, architecture) with three subagents, plus a summary. Takes uncommitted changes, or, if there are none, the whole branch (`main...HEAD`). Saves the report to `../DOCS/pr-reviews/pr-<n>-review.md` (or `<branch>-review.md` while there is no PR) and updates the index in `pr-reviews/README.md`; a rerun overwrites the file. It does not create a fix plan and publishes nothing to GitHub. |
+| `quick-security-check` | A quick security audit of a single file or component via `security-reviewer`. |
 
-### Git и PR
+### Git and PRs
 
-| Скилл | Описание |
+| Skill | Description |
 | --- | --- |
-| `create-pr` | Синхронизирует ветку с main, проводит через конфликты и merge-коммит, генерирует описание по `.github/pull_request_template.md`, открывает draft PR через `gh`. |
-| `rework-commits` | Разбивает **последний коммит** ветки на серию мелких семантических коммитов (схема/БД → бэкенд → фронтенд) с точкой отката и сверкой диффа до/после. |
-| `document-pr` | Вытягивает PR (номер/URL/текущая ветка) через `gh`, делает разбор на русском — что сделано, как, что затронуло в монорепо (код с file:line) — плюс ревью с confidence-scoring (5 агентов + фильтр ≥80). Отчёт в `../DOCS/aurora-dashboard-kb/prs/`, индекс обновляется. |
-| `temp-sync` | Снимок git-staged файлов в `../DOCS/temp-files` (сами файлы с иерархией) и `../DOCS/transfer` (один `git diff --cached --binary` патч для переноса на другую машину). Обе папки очищаются при каждом запуске. |
+| `create-pr` | Syncs the branch with main, walks through conflicts and the merge commit, generates a description from `.github/pull_request_template.md`, and opens a draft PR via `gh`. |
+| `rework-commits` | Splits the branch's **last commit** into a series of small semantic commits (schema/DB → backend → frontend) with a rollback point and a before/after diff comparison. |
+| `document-pr` | Fetches a PR (number/URL/current branch) via `gh` and produces a breakdown in Russian — what was done, how, and what it affected in the monorepo (code with file:line) — plus a review with confidence scoring (5 agents + a ≥80 filter). The report goes to `../DOCS/aurora-dashboard-kb/prs/` and the index is updated. |
+| `temp-sync` | A snapshot of git-staged files into `../DOCS/transfer/temp-files` (the files themselves with their hierarchy) and `../DOCS/transfer/patch` (a single `git diff --cached --binary` patch for transfer to another machine); both subfolders are cleared on every run. It also writes a PR description for the same set of changes to `../DOCS/pr-descriptions/` (a cumulative folder, not cleared). It commits and publishes nothing. |
 
-### База знаний
+### Knowledge base
 
-| Скилл | Описание |
+| Skill | Description |
 | --- | --- |
-| `update-kb` | Обновляет `../DOCS/aurora-dashboard-kb/` после новых коммитов в main: дифф от закреплённого коммита, правка затронутых файлов, сдвиг pin, запись в журнал. |
+| `update-kb` | Updates `../DOCS/aurora-dashboard-kb/` after new commits on main: diff from the pinned commit, editing the affected files, moving the pin, an entry in the log. |
 
 ### Spec Kit (spec-driven development)
 
-Набор `speckit-*` ведёт фичу через артефакты `spec.md` → `plan.md` → `tasks.md`.
+The `speckit-*` set drives a feature through the artifacts `spec.md` → `plan.md` → `tasks.md`. **It requires a `.specify/` directory at the repository root** (templates, scripts, `memory/constitution.md`) — `aurora-dashboard` currently does not have one, so the skills do not work until Spec Kit is initialized. The only surviving output of a previous run is `../claude-config/aurora-dashboard-config/specs/001-bucket-lifecycle-rules/`.
 
-| Скилл | Описание |
+| Skill | Description |
 | --- | --- |
-| `speckit-constitution` | Создаёт или обновляет «конституцию» проекта — базовые принципы. |
-| `speckit-specify` | Создаёт или обновляет спецификацию фичи по описанию на естественном языке. |
-| `speckit-clarify` | Находит недоопределённые места спецификации: до 5 точечных вопросов, ответы вносятся обратно в spec. |
-| `speckit-plan` | Воркфлоу планирования по шаблону — дизайн-артефакты. |
-| `speckit-tasks` | Упорядоченный по зависимостям `tasks.md` из дизайн-артефактов. |
-| `speckit-analyze` | Неразрушающая проверка согласованности и качества spec/plan/tasks после генерации задач. |
-| `speckit-checklist` | Кастомный чеклист для текущей фичи по требованиям пользователя. |
-| `speckit-implement` | Выполняет план, проходя все задачи из `tasks.md`. |
-| `speckit-converge` | Сверяет код со spec/plan/tasks и дописывает недоделанное новыми задачами в `tasks.md`. |
-| `speckit-taskstoissues` | Превращает задачи в упорядоченные GitHub issues. |
+| `speckit-constitution` | Creates or updates the project's "constitution" — its core principles. |
+| `speckit-specify` | Creates or updates a feature specification from a natural-language description. |
+| `speckit-clarify` | Finds underspecified areas of the spec: up to 5 targeted questions, with the answers written back into the spec. |
+| `speckit-plan` | A template-based planning workflow — design artifacts. |
+| `speckit-tasks` | A dependency-ordered `tasks.md` from the design artifacts. |
+| `speckit-analyze` | A non-destructive consistency and quality check of spec/plan/tasks after task generation. |
+| `speckit-checklist` | A custom checklist for the current feature based on the user's requirements. |
+| `speckit-implement` | Executes the plan, working through all tasks in `tasks.md`. |
+| `speckit-converge` | Reconciles the code with spec/plan/tasks and adds unfinished work as new tasks in `tasks.md`. |
+| `speckit-taskstoissues` | Turns tasks into ordered GitHub issues. |
 
-### Как устроены скиллы проекта
+### How the project skills are structured
 
-`create-plan`/`implement-plan`/`triple-review`/`quick-security-check` не содержат ревью-логику сами, а делегируют её пяти суб-агентам из `.claude/agents/` (`dev-planner`, `dev-executor`, `security-reviewer`, `performance-reviewer`, `architecture-reviewer`). Эти агенты знают специфику стека aurora-dashboard: tRPC-процедуры, oslo.policy, отсутствие SQL/JWT/GraphQL/CORS и т.д. Скилл описывает воркфлоу (кого звать, в каком порядке, что делать с результатом), а знания о проекте живут в файлах агентов. Поэтому доработки агентов скиллы подхватывают автоматически, без правок в себе.
+`create-plan`/`implement-plan`/`triple-review`/`quick-security-check` do not contain the review logic themselves but delegate it to five subagents from `.claude/agents/` (`dev-planner`, `dev-executor`, `security-reviewer`, `performance-reviewer`, `architecture-reviewer`). These agents know the specifics of the aurora-dashboard stack: tRPC procedures, oslo.policy, the absence of SQL/JWT/GraphQL/CORS, etc. A skill describes the workflow (whom to call, in what order, what to do with the result), while the project knowledge lives in the agent files. That is why the skills pick up agent improvements automatically, without changes to the skills themselves.
 
-Рядом лежит `.claude/workflows/` с теми же сценариями в формате воркфлоу (описания на русском):
+Next to it is `.claude/workflows/` with the same scenarios in workflow format (descriptions in Russian):
 
-- `create-plan` — план с анализом архитектуры, без реализации;
-- `plan-and-implement` — полный цикл: план → реализация → ревью;
-- `quick-security-check` — быстрая проверка одного файла;
-- `triple-review` — параллельное ревью тремя агентами.
+- `create-plan` — a plan with architecture analysis, without implementation;
+- `plan-and-implement` — the full cycle: plan → implementation → review;
+- `quick-security-check` — a quick check of a single file;
+- `triple-review` — parallel review by three agents.

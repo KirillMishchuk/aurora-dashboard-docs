@@ -1,0 +1,69 @@
+filters:
+  and:
+    - '!file.inFolder("templates")'
+    - or:
+        - file.hasProperty("pr")
+        - file.hasProperty("issue")
+properties:
+  file.name:
+    displayName: Note
+  note.type:
+    displayName: Type
+  note.date:
+    displayName: Date
+  note.status:
+    displayName: Status
+  note.pr:
+    displayName: PR
+  note.issue:
+    displayName: Issue
+views:
+  - type: table
+    name: By PR
+    filters:
+      and:
+        - file.hasProperty("pr")
+    groupBy:
+      property: pr
+      direction: DESC
+    order:
+      - file.name
+      - type
+      - date
+      - status
+      - issue
+    sort:
+      - property: status
+        direction: DESC
+      - property: date
+        direction: ASC
+  - type: table
+    name: By issue
+    filters:
+      and:
+        - file.hasProperty("issue")
+    groupBy:
+      property: issue
+      direction: DESC
+    order:
+      - file.name
+      - type
+      - date
+      - status
+      - pr
+    sort:
+      - property: date
+        direction: ASC
+  - type: table
+    name: Open PR reports
+    filters:
+      and:
+        - note.type == "pr-report"
+        - note.status == "open"
+    order:
+      - file.name
+      - date
+      - pr
+    sort:
+      - property: date
+        direction: DESC

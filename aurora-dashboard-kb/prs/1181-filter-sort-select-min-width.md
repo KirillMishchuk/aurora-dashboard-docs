@@ -1,3 +1,11 @@
+---
+type: pr-report
+date: 2026-08-18
+status: merged
+pr: [1181]
+author: mark-karnaukh-extern-sap
+branch: mark-fix-dropdown-select-min-width
+---
 # PR #1181: fix(portal): add min-width to filter/sort selects app-wide
 
 **Автор:** mark-karnaukh-extern-sap · **Статус:** смержен 18.08.2026 (коммит `2309942`; создан 18.08.2026)

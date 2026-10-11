@@ -1,3 +1,8 @@
+---
+type: issue-comment
+date: 2026-09-23
+issue: [1004]
+---
 ## What was implemented
 
 Both halves described above are done, plus a third thing: a data-loss bug in "Delete Versions" that surfaced while reworking the gating around it. That one has its own comment below — this one covers the two halves of #1004.

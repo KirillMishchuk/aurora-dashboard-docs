@@ -1,3 +1,11 @@
+---
+type: pr-report
+date: 2026-08-19
+status: merged
+pr: [1177]
+author: vlad-schur-external-sap
+branch: clavis-ui-ux-changes-with-downloading
+---
 # PR #1177: feat(clavis): different changes(api/ui-ux) with downloading functionality
 
 **Автор:** vlad-schur-external-sap · **Статус:** смержен 19.08.2026 (коммит `35095b4`; коммиты 13.08.2026–19.08.2026) — **2-я версия отчёта**

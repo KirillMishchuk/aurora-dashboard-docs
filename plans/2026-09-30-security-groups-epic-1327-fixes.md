@@ -1,3 +1,8 @@
+---
+type: plan
+date: 2026-09-30
+status: implemented
+---
 # Plan: Security Groups epic #1327 fixes (#1321, #1323, #1325)
 
 **Date:** 2026-09-30 · **Status:** implemented 2026-09-30 (uncommitted in worktree `sg-bugs-main`, branch `fix/security-groups-epic-1327`; DevStack M1–M12 and PR description pending) · **Revised:** 2026-09-30 after verification against `fe1fa280`. Follow-up renumbered 31 → 35 (31–34 are taken). Commit, push and PR-opening instructions removed; delivery is Open Question 8. One changeset instead of three. M5 is now a hard gate.
@@ -6,7 +11,7 @@
 
 ## IMPLEMENTATION PLAN: Security Groups epic #1327 (#1321, #1323, #1325)
 
-> Note on sources: the worktree `/Users/kirylmishchuk/projects/SAP/aurora-dashboard/.claude/worktrees/sg-bugs-main` (detached `fe1fa280`) has no `.claude/` and no `CLAUDE.md`. Both are untracked, so they exist only in the main working copy. I read only those two config files there (`.claude/agents/dev-planner.md`, `CLAUDE.md`) and no code. All code findings below come from the worktree. The worktree also has **no `node_modules`**, so see Prerequisites. I left out the agent spec's emoji risk markers and used text tags instead: [BREAKING], [SECURITY], [PERF], [CAREFUL].
+> Note on sources: the worktree `/Users/kirylmishchuk/projects/SAP/aurora-dashboard/.claude/worktrees/sg-bugs-main` (detached `fe1fa280`) has no `.claude/` and no [`CLAUDE.md`](../CLAUDE.md). Both are untracked, so they exist only in the main working copy. I read only those two config files there (`.claude/agents/dev-planner.md`, `CLAUDE.md`) and no code. All code findings below come from the worktree. The worktree also has **no `node_modules`**, so see Prerequisites. I left out the agent spec's emoji risk markers and used text tags instead: [BREAKING], [SECURITY], [PERF], [CAREFUL].
 
 ### Overview
 
@@ -15,7 +20,7 @@ This epic delivers three fixes to the Security Groups list in `packages/aurora`,
 - **#1323:** the list's DataGrid header composition is changed to the Juno `juno-pattern-datagrid-outer/-header` pattern.
 - **#1325:** the `Name` cell drops its needless `<div><p>` wrapper.
 
-The same header anti-pattern also appears in other lists. It gets recorded as a single new item (**35**) in `DOCS/FOLLOW-UPS.md` and is not fixed here.
+The same header anti-pattern also appears in other lists. It gets recorded as a single new item (**35**) in [`DOCS/FOLLOW-UPS.md`](../FOLLOW-UPS.md) and is not fixed here.
 
 ### Architecture Analysis
 
@@ -339,14 +344,14 @@ The same header anti-pattern also appears in other lists. It gets recorded as a 
    - `pnpm build`
 2. Run the manual DevStack checklist (Testing Plan below) with `pnpm dev`, pointed at DevStack. M5 must pass before the change set is handed over.
 3. Deliver the change set as decided in Open Question 8. Do **not** push, and do not open the PR: the user does both.
-4. Write the PR description to `DOCS/descriptions/` (the `temp-sync` skill does this), following `.github/pull_request_template.md` and the house style:
+4. Write the PR description to `DOCS/pr-descriptions/` (the `temp-sync` skill does this), following `.github/pull_request_template.md` and the house style:
    - Suggested title: `fix(network): security groups list fixes (#1327)`. It must pass commitlint.
    - Body: summary per issue; `Closes #1321`, `Closes #1323`, `Closes #1325`; `Part of #1327`; the DevStack results table; a reference to `FOLLOW-UPS.md` item 35 (the number only; the file is outside the repo); the Network-routers observation (below).
    - No mention of Claude or AI generation, no `Not changed` section, and no mention of changesets.
 
 **Verification:**
 
-- All gate commands pass locally. The description file exists in `DOCS/descriptions/`.
+- All gate commands pass locally. The description file exists in `DOCS/pr-descriptions/`.
 
 ### Testing Plan
 
@@ -404,7 +409,7 @@ Setup:
 - [ ] `FOLLOW-UPS.md` has item 35 (status `открыт`) plus a summary row, and nothing else in that file changed.
 - [ ] The change set contains exactly one `patch` changeset. It is delivered as decided in Open Question 8, and nothing is pushed.
 - [ ] DevStack check M5 passed.
-- [ ] A PR description exists in `DOCS/descriptions/` that follows the house style and has `Closes #1321`, `#1323`, `#1325`.
+- [ ] A PR description exists in `DOCS/pr-descriptions/` that follows the house style and has `Closes #1321`, `#1323`, `#1325`.
 - [ ] No regressions in the SG detail page, which uses the unfiltered `list`.
 - [ ] `pnpm --filter @cobaltcore-dev/aurora typecheck`, `pnpm --filter @cobaltcore-dev/aurora lint` and `pnpm --filter @cobaltcore-dev/aurora test` pass, and so do `pnpm format:check`, `pnpm check-i18n` and `pnpm build`.
 

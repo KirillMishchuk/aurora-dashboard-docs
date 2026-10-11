@@ -1,3 +1,11 @@
+---
+type: pr-report
+date: 2026-08-28
+status: merged
+pr: [1221]
+author: vlad-schur-external-sap
+branch: vlad-missing-toasts-for-secgroups-and-storages
+---
 # PR #1221: feat(dashboard): add missing toasts for object-storage and security-groups
 
 **Автор:** vlad-schur-external-sap · **Статус:** смержен 31.08.2026 (создан 28.08.2026)

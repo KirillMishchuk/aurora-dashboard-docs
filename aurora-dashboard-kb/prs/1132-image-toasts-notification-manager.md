@@ -1,3 +1,11 @@
+---
+type: pr-report
+date: 2026-08-06
+status: merged
+pr: [1132]
+author: mark-karnaukh-extern-sap
+branch: mark-images-notifications
+---
 # PR #1132: refactor(portal): migrate image toasts from legacy Toast to NotificationManager
 
 **Автор:** mark-karnaukh-extern-sap · **Статус:** создан 04.08.2026, смержен 06.08.2026 (коммит `46256e98`)
@@ -81,7 +89,7 @@ onMemberStatusChanged?.()
 
 ## Ревью
 
-Через диф прогнаны параллельно: CLAUDE.md/AGENTS.md-комплаенс (та же оговорка, что и для #1123 — апстрим не содержит `AGENTS.md`/`CLAUDE.md`, сверка велась по `CONTRIBUTING.md`/`docs/aurora_architecture_overview.md`/`packages/aurora/README.md`), bug-scan, historical context (`git log`/`git blame`, сравнение с более ранними миграциями Ceph/Swift на тот же паттерн), prior-feedback (в этом PR на GitHub уже есть автоматические ревью от CodeRabbit и Copilot — их замечания перепроверены по коду, а не приняты на веру) и comment-compliance.
+Через диф прогнаны параллельно: CLAUDE.md/AGENTS.md-комплаенс (та же оговорка, что и для #1123 — апстрим не содержит `AGENTS.md`/[`CLAUDE.md`](../../CLAUDE.md), сверка велась по `CONTRIBUTING.md`/`docs/aurora_architecture_overview.md`/`packages/aurora/README.md`), bug-scan, historical context (`git log`/`git blame`, сравнение с более ранними миграциями Ceph/Swift на тот же паттерн), prior-feedback (в этом PR на GitHub уже есть автоматические ревью от CodeRabbit и Copilot — их замечания перепроверены по коду, а не приняты на веру) и comment-compliance.
 
 **Проблем с уверенностью ≥80 не найдено.** Ближе всего к порогу — оставленный мёртвый код `NotificationText` (75/100), не дотянул на 5 пунктов.
 

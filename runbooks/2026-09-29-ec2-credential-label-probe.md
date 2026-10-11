@@ -1,99 +1,104 @@
-# Runbook: проба «метка в blob EC2-креда»
+---
+type: runbook
+date: 2026-09-29
+plan: plans/2026-09-29-ceph-s3-credentials-management-ui.md
+---
+# Runbook: probe "label in the EC2 credential blob"
 
-**Дата:** 2026-09-29 · **Для:** плана [2026-09-29-ceph-s3-credentials-management-ui.md](../plans/2026-09-29-ceph-s3-credentials-management-ui.md) · **Где выполнять:** удалённая машина с доступом в сеть (VPN/бастион)
+**Date:** 2026-09-29 · **For:** plan [2026-09-29-ceph-s3-credentials-management-ui.md](../plans/2026-09-29-ceph-s3-credentials-management-ui.md) · **Where to run:** a remote machine with network access (VPN/bastion)
 
-## Зачем
+## Why
 
-У EC2-креда в Keystone нет ни имени, ни описания, ни тегов — объект целиком это
-`{id, type, user_id, project_id, blob}`. Единственное место, куда можно положить
-человекочитаемую метку («backups», «CI», «ноутбук»), — сам `blob`, который
-Aurora составляет сама:
+An EC2 credential in Keystone has no name, no description, and no tags — the whole object is
+`{id, type, user_id, project_id, blob}`. The only place a human-readable label
+("backups", "CI", "laptop") can go is the `blob` itself, which
+Aurora composes on its own:
 
 ```json
 { "access": "…", "secret": "…", "label": "backups" }
 ```
 
-Со стороны Aurora это безопасно — проверено по коду: `list`
-(`ec2CredentialRouter.ts:71-77`), `create` (`:134-140`) и
-`resolveEC2Credential.ts` делают `JSON.parse` и затем явно выбирают поля в
-проекцию под `safeParse`, то есть лишний ключ проходит насквозь.
+On the Aurora side this is safe — verified in the code: `list`
+(`ec2CredentialRouter.ts:71-77`), `create` (`:134-140`) and
+`resolveEC2Credential.ts` do `JSON.parse` and then explicitly pick fields into a
+projection under `safeParse`, i.e. an extra key passes through untouched.
 
-Непроверено и проверяется этим runbook-ом:
+Unverified, and checked by this runbook:
 
-1. **Примет ли Keystone** креду с лишним полем в blob и **сохранит ли** его.
-2. **Не сломает ли** это аутентификацию — подпись S3 идёт в RGW, а тот несёт её
-   в Keystone на `/v3/ec2tokens`, который читает тот же blob.
+1. **Will Keystone accept** a credential with an extra field in the blob, and **will it keep** it.
+2. **Will it break** authentication — the S3 signature goes to RGW, which forwards it
+   to Keystone at `/v3/ec2tokens`, which reads the same blob.
 
-Цена ошибки высокая: если валидация всё же есть, сломается не отображение, а
-сам ключ — пользователь получит креду, которая не работает. Поэтому проверяем
-руками до того, как закладывать метки в план.
+The cost of a mistake is high: if there is validation after all, it is not the display that breaks but
+the key itself — the user gets a credential that does not work. So we verify
+by hand before building labels into the plan.
 
-## Что понадобится на машине
+## What you need on the machine
 
-| Инструмент | Зачем | Если нет |
+| Tool | Why | If missing |
 | --- | --- | --- |
-| `curl` | все запросы к Keystone | есть везде |
-| `jq` | сборка/разбор JSON | `sudo apt install jq` / `sudo dnf install jq`, либо см. «Без jq» в конце |
-| `openssl` | сгенерировать случайные access/secret | есть везде |
-| `aws` (AWS CLI v2) | только для части 2 | `pip3 install --user awscli`, либо см. «Установка AWS CLI» |
+| `curl` | all requests to Keystone | available everywhere |
+| `jq` | building/parsing JSON | `sudo apt install jq` / `sudo dnf install jq`, or see "Without jq" at the end |
+| `openssl` | generate random access/secret | available everywhere |
+| `aws` (AWS CLI v2) | only for part 2 | `pip3 install --user awscli`, or see "Installing AWS CLI" |
 
-Проверить одной строкой:
+Check in one line:
 
 ```bash
-for t in curl jq openssl aws; do command -v "$t" >/dev/null && echo "$t: ok" || echo "$t: НЕТ"; done
+for t in curl jq openssl aws; do command -v "$t" >/dev/null && echo "$t: ok" || echo "$t: MISSING"; done
 ```
 
-Без `aws` можно выполнить часть 1 — она отвечает на главный вопрос. Часть 2
-желательна, но не блокирует решение.
+Without `aws` you can run part 1 — it answers the main question. Part 2
+is desirable but does not block the decision.
 
-## Прежде чем начать
+## Before you start
 
-**Проба создаёт настоящий рабочий ключ к вашему проекту.** Не к тестовому — к
-тому, в котором вы работаете. Отсюда три правила:
+**The probe creates a real, working key for your project.** Not a test one — the
+one you work in. Hence three rules:
 
-1. **Запишите `CRED_ID` сразу, как получите.** Если сессия оборвётся, ключ
-   останется жить в Keystone. В разделе «Уборка» есть команда, которая находит
-   забытые пробные креды по метке.
-2. **Ничего не писать в файлы.** Ни `~/.aws/credentials`, ни временных файлов с
-   токеном — всё живёт только в переменных окружения текущего шелла. На общей
-   машине это существенно.
-3. **Отключите историю шелла на время пробы** — пароль вводится через
-   `read -rs` и в историю не попадёт, но остальное лучше тоже не оставлять:
+1. **Write down `CRED_ID` as soon as you get it.** If the session drops, the key
+   will stay alive in Keystone. The "Cleanup" section has a command that finds
+   forgotten probe credentials by their label.
+2. **Do not write anything to files.** No `~/.aws/credentials`, no temporary files with
+   the token — everything lives only in the current shell's environment variables. On a shared
+   machine this matters.
+3. **Disable shell history for the duration of the probe** — the password is entered via
+   `read -rs` and will not end up in history, but it is better not to leave the rest either:
 
    ```bash
    set +o history        # bash
-   unset HISTFILE        # zsh / на всякий случай
+   unset HISTFILE        # zsh / just in case
    ```
 
-   Обратно — `set -o history`, либо просто закройте сессию.
+   To restore — `set -o history`, or simply close the session.
 
-Окружение — **QA** (`qa-de-1`), не прод. Значения взяты из
-`apps/dashboard/.env` рабочей копии: `IDENTITY_ENDPOINT=https://identity-3.qa-de-1.cloud.sap/v3`,
-`CEPH_REGION=ceph-objectstore-ec-st1-qa-de-1`. Если на удалённой машине
-окружение другое — подставьте свои.
+The environment is **QA** (`qa-de-1`), not prod. Values are taken from
+`apps/dashboard/.env` of the working copy: `IDENTITY_ENDPOINT=https://identity-3.qa-de-1.cloud.sap/v3`,
+`CEPH_REGION=ceph-objectstore-ec-st1-qa-de-1`. If the remote machine has a different
+environment, substitute your own.
 
-## Часть 1. Принимает ли Keystone лишнее поле
+## Part 1. Does Keystone accept the extra field
 
-### Шаг 1. Связность
+### Step 1. Connectivity
 
 ```bash
 curl -s -o /dev/null -w '%{http_code}\n' --max-time 10 https://identity-3.qa-de-1.cloud.sap/v3
 ```
 
-- `200` или `300` — хорошо, идём дальше.
-- `000` — сети до Keystone нет: VPN не поднят, либо машина не в том сегменте.
-  Останавливаемся, дальше ничего не заработает.
+- `200` or `300` — good, move on.
+- `000` — no network to Keystone: VPN is not up, or the machine is in the wrong segment.
+  Stop here; nothing further will work.
 
-### Шаг 2. Токен, scoped на проект
+### Step 2. Project-scoped token
 
-`PROJECT_ID` берётся прямо из URL дашборда: `/projects/<PROJECT_ID>/storage/...`.
-`USER_DOMAIN` — домен, в котором вы логинитесь (например `monsoon3`).
+`PROJECT_ID` is taken straight from the dashboard URL: `/projects/<PROJECT_ID>/storage/...`.
+`USER_DOMAIN` is the domain you log in to (e.g. `monsoon3`).
 
 ```bash
 IDENTITY=https://identity-3.qa-de-1.cloud.sap/v3
-USER_NAME=<ваш логин>
-USER_DOMAIN=<ваш домен>
-PROJECT_ID=<id проекта из URL дашборда>
+USER_NAME=<your login>
+USER_DOMAIN=<your domain>
+PROJECT_ID=<project id from the dashboard URL>
 
 read -rs -p "password: " OS_PASSWORD; echo
 
@@ -107,25 +112,25 @@ USER_ID=$(printf '%s' "$RESP" | sed -n '/^{/,$p' | jq -r '.token.user.id')
 echo "token: ${TOKEN:+ok}   user_id: $USER_ID"
 ```
 
-Ожидаем `token: ok` и непустой `user_id`.
+Expect `token: ok` and a non-empty `user_id`.
 
-Если пусто — посмотрите первую строку ответа и текст ошибки:
+If empty — look at the first line of the response and the error text:
 
 ```bash
 printf '%s' "$RESP" | head -1
 printf '%s' "$RESP" | sed -n '/^{/,$p' | jq -r '.error.message? // empty'
 ```
 
-`401` — логин/пароль/домен. `404` на scope — неверный `PROJECT_ID`.
-`403` — у пользователя нет роли в этом проекте.
+`401` — login/password/domain. `404` on scope — wrong `PROJECT_ID`.
+`403` — the user has no role in this project.
 
-Пароль больше не нужен, уберите его из шелла:
+The password is no longer needed; remove it from the shell:
 
 ```bash
 unset OS_PASSWORD
 ```
 
-### Шаг 3. Создать пробную креду с меткой
+### Step 3. Create a probe credential with a label
 
 ```bash
 ACCESS=$(openssl rand -hex 20 | tr 'a-z' 'A-Z')
@@ -140,49 +145,49 @@ CRED_ID=$(printf '%s' "$CRED" | jq -r '.credential.id // empty')
 echo "CRED_ID=$CRED_ID"
 ```
 
-**Запишите `CRED_ID` куда-нибудь вне шелла прямо сейчас.** Это то, что придётся
-удалить.
+**Write `CRED_ID` down somewhere outside the shell right now.** This is what will have to be
+deleted.
 
-Если `CRED_ID` пустой — Keystone отверг запрос, и это уже ответ:
+If `CRED_ID` is empty — Keystone rejected the request, and that is already the answer:
 
 ```bash
 printf '%s' "$CRED" | jq .
 ```
 
-Формат access/secret здесь ровно тот же, что генерит Aurora
-(`ec2CredentialRouter.ts:110-111`): 20 случайных байт в hex верхнего регистра и
-40 случайных байт в base64. Это намеренно — проба должна быть неотличима от
-боевого ключа во всём, кроме лишнего поля.
+The access/secret format here is exactly the same as what Aurora generates
+(`ec2CredentialRouter.ts:110-111`): 20 random bytes in uppercase hex and
+40 random bytes in base64. This is intentional — the probe must be indistinguishable from a
+production key in everything except the extra field.
 
-### Шаг 4. Перечитать и убедиться, что метка хранится
+### Step 4. Re-read and confirm the label is stored
 
-Критично делать отдельным запросом: ответ на POST может просто отражать то, что
-мы послали, а нас интересует, что реально легло в базу.
+It is critical to do this as a separate request: the POST response may simply echo what
+we sent, whereas we care about what actually landed in the database.
 
 ```bash
 curl -s "$IDENTITY/credentials/$CRED_ID" -H "X-Auth-Token: $TOKEN" | jq -r '.credential.blob'
 ```
 
-**Как читать результат:**
+**How to read the result:**
 
-| Что видим | Вывод |
+| What we see | Conclusion |
 | --- | --- |
-| `{"access":"…","secret":"…","label":"aurora-label-probe"}` | Keystone поле хранит — главный вопрос закрыт положительно |
-| blob без `label` | поле молча срезается — метки в blob невозможны, идея закрыта |
-| POST вернул 400/ошибку валидации | Keystone валидирует blob — идея закрыта |
+| `{"access":"…","secret":"…","label":"aurora-label-probe"}` | Keystone stores the field — the main question is answered positively |
+| blob without `label` | the field is silently stripped — labels in the blob are impossible, idea closed |
+| POST returned 400/validation error | Keystone validates the blob — idea closed |
 
-Если метка не уцелела — переходите сразу к «Уборке», часть 2 не нужна.
+If the label did not survive — go straight to "Cleanup"; part 2 is not needed.
 
-## Часть 2. Не ломается ли подпись S3
+## Part 2. Does the S3 signature break
 
-Отвечает на второй вопрос: RGW несёт подпись в Keystone на `/v3/ec2tokens`, и
-тот читает тот же blob. Если лишнее поле споткнёт этот путь — ключ будет
-создаваться, но не работать, что хуже, чем не иметь меток вовсе.
+Answers the second question: RGW forwards the signature to Keystone at `/v3/ec2tokens`, and
+that reads the same blob. If the extra field trips up this path, the key will
+be created but will not work, which is worse than having no labels at all.
 
-### Шаг 5. Найти S3-эндпоинт
+### Step 5. Find the S3 endpoint
 
-Сервис в каталоге называется `ceph` (`cephProcedure.ts:24`), а хвост
-`/swift/...` надо отрезать — ровно это делает `resolveS3Config`:
+The service in the catalog is called `ceph` (`cephProcedure.ts:24`), and the
+`/swift/...` suffix must be cut off — exactly what `resolveS3Config` does:
 
 ```bash
 S3=$(printf '%s' "$RESP" | sed -n '/^{/,$p' \
@@ -192,12 +197,12 @@ S3=$(printf '%s' "$RESP" | sed -n '/^{/,$p' \
 echo "S3=$S3"
 ```
 
-Пусто — значит в каталоге этого проекта нет сервиса `ceph`; тогда и сам Ceph в
-дашборде для этого проекта не работает, проверьте `PROJECT_ID`.
+Empty — means this project's catalog has no `ceph` service; then Ceph itself in the
+dashboard does not work for this project either, check `PROJECT_ID`.
 
-### Шаг 6. Дёрнуть S3 пробным ключом
+### Step 6. Hit S3 with the probe key
 
-Ключи передаём через окружение одной команды — чтобы ничего не осело в
+Pass the keys via the environment of a single command — so nothing settles in
 `~/.aws/`:
 
 ```bash
@@ -206,74 +211,74 @@ AWS_EC2_METADATA_DISABLED=true \
   aws --endpoint-url "$S3" --region ceph-objectstore-ec-st1-qa-de-1 s3 ls
 ```
 
-| Что видим | Вывод |
+| What we see | Conclusion |
 | --- | --- |
-| список бакетов, либо пустой вывод без ошибки | подпись прошла — лишнее поле ни на что не влияет |
-| `InvalidAccessKeyId` | Keystone не признал ключ по этому пути — идея закрыта |
-| `SignatureDoesNotMatch` | сначала перепроверьте регион и что `$SECRET` не покалечен шеллом (в нём бывают `+` и `/`), и только потом делайте вывод |
-| `Could not connect` | до RGW нет сети, хотя до Keystone есть — это про сеть, а не про метку |
+| a list of buckets, or empty output with no error | the signature passed — the extra field has no effect |
+| `InvalidAccessKeyId` | Keystone did not recognize the key on this path — idea closed |
+| `SignatureDoesNotMatch` | first double-check the region and that `$SECRET` was not mangled by the shell (it can contain `+` and `/`), and only then draw a conclusion |
+| `Could not connect` | no network to RGW, even though Keystone is reachable — this is about the network, not the label |
 
-## Уборка (обязательно)
+## Cleanup (mandatory)
 
 ```bash
 curl -s -o /dev/null -w '%{http_code}\n' -X DELETE "$IDENTITY/credentials/$CRED_ID" -H "X-Auth-Token: $TOKEN"
 ```
 
-`204` — удалено. `404` — уже удалено, тоже нормально.
+`204` — deleted. `404` — already deleted, also fine.
 
-Проверить, что пробных кред не осталось (в том числе от оборвавшейся попытки):
+Check that no probe credentials remain (including from an interrupted attempt):
 
 ```bash
 curl -s "$IDENTITY/credentials?user_id=$USER_ID&type=ec2" -H "X-Auth-Token: $TOKEN" \
   | jq -r '.credentials[] | select(.blob | contains("aurora-label-probe")) | .id'
 ```
 
-Вывод должен быть пустым. Если что-то нашлось — удалите тем же DELETE по этому
+The output must be empty. If something is found — delete it with the same DELETE using that
 `id`.
 
-Заодно убедитесь, что ваши **боевые** креды на месте и их столько же, сколько
-было до пробы:
+While at it, make sure your **production** credentials are in place and there are as many of them as
+there were before the probe:
 
 ```bash
 curl -s "$IDENTITY/credentials?user_id=$USER_ID&type=ec2" -H "X-Auth-Token: $TOKEN" \
   | jq -r --arg p "$PROJECT_ID" '[.credentials[] | select(.type=="ec2" and .project_id==$p)] | length'
 ```
 
-И подчистить шелл:
+And clean up the shell:
 
 ```bash
 unset TOKEN ACCESS SECRET CRED CRED_ID RESP
 set -o history
 ```
 
-## Что сообщить обратно
+## What to report back
 
-Достаточно двух строк:
+Two lines are enough:
 
-1. Уцелело ли `"label":"aurora-label-probe"` в перечитанном blob (шаг 4).
-2. Прошёл ли `aws s3 ls` (шаг 6), и если нет — с какой именно ошибкой.
+1. Whether `"label":"aurora-label-probe"` survived in the re-read blob (step 4).
+2. Whether `aws s3 ls` succeeded (step 6), and if not — with exactly which error.
 
-**Секрет, access key и токен присылать не надо** — они ни на что в решении не
-влияют, а переслать их значит размножить их по логам и чатам.
+**Do not send the secret, access key, or token** — they have no bearing on the
+decision, and forwarding them means spreading them across logs and chats.
 
-## Приложение
+## Appendix
 
-### Установка AWS CLI, если её нет
+### Installing AWS CLI, if it is missing
 
 ```bash
-# Linux x86_64, официальный установщик, без root:
+# Linux x86_64, official installer, no root:
 curl -s "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
 unzip -q /tmp/awscliv2.zip -d /tmp && /tmp/aws/install -i ~/.local/aws-cli -b ~/.local/bin
 export PATH="$HOME/.local/bin:$PATH"
 
-# либо, если есть pip:
+# or, if pip is available:
 pip3 install --user awscli
 ```
 
-### Без jq
+### Without jq
 
-`jq` используется только для сборки и разбора JSON; `python3` есть почти везде и
-заменяет его. Токен:
+`jq` is used only for building and parsing JSON; `python3` is available almost everywhere and
+replaces it. Token:
 
 ```bash
 BODY=$(python3 -c 'import json,sys,os
@@ -282,28 +287,28 @@ print(json.dumps({"auth":{"identity":{"methods":["password"],"password":{"user":
  "password":os.environ["OS_PASSWORD"]}}},"scope":{"project":{"id":os.environ["PROJECT_ID"]}}}}))')
 ```
 
-(переменные должны быть экспортированы: `export USER_NAME USER_DOMAIN PROJECT_ID OS_PASSWORD`)
+(the variables must be exported: `export USER_NAME USER_DOMAIN PROJECT_ID OS_PASSWORD`)
 
-Разбор blob:
+Parsing the blob:
 
 ```bash
 curl -s "$IDENTITY/credentials/$CRED_ID" -H "X-Auth-Token: $TOKEN" \
   | python3 -c 'import json,sys; print(json.load(sys.stdin)["credential"]["blob"])'
 ```
 
-### Если проба прошла — что меняется в плане
+### If the probe passed — what changes in the plan
 
-Не делать заранее, только после положительного результата:
+Do not do this in advance, only after a positive result:
 
-- Решение 6 (лимит 2 ключа) — поднять до 5. Лимит 2 был взят по образцу AWS
-  именно потому, что ключи взаимозаменяемы и два нужны лишь для беспростойной
-  ротации; у именованных ключей появляется назначение, и два становится
-  произвольным числом.
-- Решение 10 (содержимое модалки) — метка становится основным способом отличать
-  ключи, показ полного access key остаётся, но уходит на второй план.
-- `ec2CredentialSchema` — `label: z.string().max(…).optional()`; опциональность
-  обязательна: у всех уже существующих кред, а также у созданных через
-  `openstack ec2 credentials create`, метки нет и не будет.
-- `create` — принимать метку на входе; редактирование метки — это
-  `PATCH /v3/credentials/{id}` с перезаписью **всего** blob, то есть сервер
-  обязан прочитать текущий blob и записать его обратно вместе с секретом.
+- Decision 6 (limit of 2 keys) — raise to 5. The limit of 2 was modeled on AWS
+  precisely because keys are interchangeable and two are needed only for zero-downtime
+  rotation; named keys acquire a purpose, and two becomes an
+  arbitrary number.
+- Decision 10 (modal contents) — the label becomes the primary way to tell
+  keys apart; showing the full access key stays, but moves to the background.
+- `ec2CredentialSchema` — `label: z.string().max(…).optional()`; being optional is
+  mandatory: all existing credentials, as well as those created via
+  `openstack ec2 credentials create`, have no label and never will.
+- `create` — accept a label as input; editing a label is
+  `PATCH /v3/credentials/{id}` overwriting the **entire** blob, i.e. the server
+  must read the current blob and write it back together with the secret.

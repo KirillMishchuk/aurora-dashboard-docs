@@ -1,3 +1,11 @@
+---
+type: pr-report
+date: 2026-09-02
+status: merged
+pr: [1247]
+author: andypf
+branch: andypf/refactor-edit-spec-modal
+---
 # PR #1247: feat(aurora): refactor EditSpecModal to match EditImageMetadataModal design
 
 **Автор:** andypf · **Статус:** создан 01.09.2026 → смержен 02.09.2026

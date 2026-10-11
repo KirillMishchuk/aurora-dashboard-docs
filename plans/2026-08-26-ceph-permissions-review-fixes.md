@@ -1,3 +1,8 @@
+---
+type: plan
+date: 2026-08-26
+status: implemented
+---
 # Plan: Ceph permission-gating review fixes
 
 **Date:** 2026-08-26 · **Status:** implemented 2026-08-26 (Steps 1–10 done, Step 11 skipped by
@@ -76,7 +81,7 @@ string and `storage.json`; a drifted rule name just returns `false` forever.
       files.
 - [ ] KB (`../DOCS/aurora-dashboard-kb/`) is pinned to `90be7d9a` (44 commits behind `packages/`/
       `apps/`, all from this same branch's own recent merges — not flagged as stale). Its
-      `02-architecture.md` permission-key section will need a touch-up after Step 2 renames a key
+      [`02-architecture.md`](../aurora-dashboard-kb/02-architecture.md) permission-key section will need a touch-up after Step 2 renames a key
       it doesn't currently mention by name — low priority, KB-only, not part of this PR.
 
 ---

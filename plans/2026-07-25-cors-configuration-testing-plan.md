@@ -1,6 +1,12 @@
+---
+type: plan
+date: 2026-07-25
+status: implemented
+pr: [1092]
+---
 # Plan: Testing Plan — Section 12: CORS Configuration (PR #1092)
 
-**Date:** 2026-07-25 · **Status:** not implemented
+**Date:** 2026-07-25 · **Status:** implemented (PR #1092)
 
 # TESTING PLAN: Section 12 — CORS Configuration (PR #1092, commit `1f7a0d9`)
 
@@ -360,7 +366,7 @@ Run against a real Ceph-backed project (`pnpm dev`). Record pass/fail plus a scr
 - [ ] Every new/changed source file in PR #1092 has a colocated `*.test.ts(x)`, matching the Bucket Policy/Versioning convention.
 - [ ] Server suite asserts what is sent to S3 and which TRPC error code comes back, not merely "some `TRPCError` was thrown".
 - [ ] Each of the 7 defects has a named, executable regression test whose current status (red/green) is recorded, plus a written manual repro.
-- [ ] The disproven finding (`urlValidator` and wildcard subdomains) is corrected in the KB report at `/Users/kirylmishchuk/projects/SAP/DOCS/aurora-dashboard-kb/prs/1092-cors-configuration-ceph-buckets.md`, with the re-scoped path/query looseness noted instead.
+- [ ] The disproven finding (`urlValidator` and wildcard subdomains) is corrected in the KB report at [`/Users/kirylmishchuk/projects/SAP/DOCS/aurora-dashboard-kb/prs/1092-cors-configuration-ceph-buckets.md`](../aurora-dashboard-kb/prs/1092-cors-configuration-ceph-buckets.md), with the re-scoped path/query looseness noted instead.
 - [ ] `pnpm --filter @cobaltcore-dev/aurora test|typecheck|lint` and `pnpm format:check` + `check-i18n` results are recorded for the branch, with any failure attributed to either pre-existing baseline or the PR.
 - [ ] i18n findings (4 unwrapped `TagInput` strings, raw `"Security Warning"` in `CorsRulesViewer`, untranslated units/badge in `RuleCard`, empty German translations) are reported with file:line.
 - [ ] Missing changeset reported as a merge blocker.
@@ -380,3 +386,9 @@ Run against a real Ceph-backed project (`pnpm dev`). Record pass/fail plus a scr
 - Is `{ corsRules: [] }` (empty array from S3) a state Ceph can actually produce, or only `NoSuchCORSConfiguration`? It changes whether Step 2 case #14 is a real branch or defensive dead code.
 - `useBucketInfo` caches the CORS query for 5 minutes while the two modals use the default `staleTime` — intentional, or should they share one query config?
 - Should `CorsModal`'s unconfirmed "Delete All Rules" button route through `DeleteCorsModal` for consistency with the rest of the destructive-action UX?
+
+<!-- related:auto — generated from pr/issue properties by tools/update-related.py; do not edit by hand -->
+## Related
+
+- pr-report · 2026-08-11 · [1092-cors-configuration-ceph-buckets](../aurora-dashboard-kb/prs/1092-cors-configuration-ceph-buckets.md)
+- plan · 2026-08-11 · [2026-08-11-fix-pr1092-cors-review-findings](2026-08-11-fix-pr1092-cors-review-findings.md)

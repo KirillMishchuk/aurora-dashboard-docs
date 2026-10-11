@@ -1,3 +1,8 @@
+---
+type: plan
+date: 2026-08-12
+status: not-implemented
+---
 # Tasks: Bucket Tagging (Ceph S3)
 
 > Источник: [`prd-bucket-tagging.md`](./prd-bucket-tagging.md) (Issue [#608](https://github.com/cobaltcore-dev/aurora-dashboard/issues/608), Section 14).

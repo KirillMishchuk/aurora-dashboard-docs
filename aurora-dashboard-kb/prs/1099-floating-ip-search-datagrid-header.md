@@ -1,3 +1,11 @@
+---
+type: pr-report
+date: 2026-07-28
+status: merged
+pr: [1099]
+author: TilmanHaupt
+branch: til-datahead
+---
 # PR #1099: feat(portal): use DataGrid Header, stop blocking search, extend searchfields
 
 **Автор:** TilmanHaupt · **Статус:** смержен 28.07.2026 (`e04eed17`)

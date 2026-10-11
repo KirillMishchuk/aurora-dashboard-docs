@@ -1,3 +1,11 @@
+---
+type: pr-report
+date: 2026-07-21
+status: merged
+pr: [952]
+author: KirylSAP
+branch: kiryl-security-group-refactor
+---
 # PR #952: feat(aurora): security group data grid, permissions
 
 **Автор:** KirylSAP · **Статус:** смержен 23.07.2026 (`cb548a4a`)

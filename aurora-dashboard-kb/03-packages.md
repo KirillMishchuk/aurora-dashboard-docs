@@ -1,3 +1,6 @@
+---
+type: kb
+---
 # 03 — Packages & Apps
 
 ## packages/aurora — `@cobaltcore-dev/aurora` (the product)

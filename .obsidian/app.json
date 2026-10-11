@@ -1,0 +1,13 @@
+{
+  "useMarkdownLinks": true,
+  "newLinkFormat": "relative",
+  "alwaysUpdateLinks": true,
+  "attachmentFolderPath": "./",
+  "showUnsupportedFiles": false,
+  "userIgnoreFilters": [
+    "ai-dev-tasks/",
+    "transfer/temp-files/",
+    "ToolDocs/claude-config/",
+    "templates/"
+  ]
+}

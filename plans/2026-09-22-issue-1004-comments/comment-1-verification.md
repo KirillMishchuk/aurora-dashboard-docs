@@ -1,3 +1,8 @@
+---
+type: issue-comment
+date: 2026-09-23
+issue: [1004]
+---
 ## Description verified against the code at `dc918d47`
 
 *(Both halves are now implemented — see the two comments below. This one records what the code

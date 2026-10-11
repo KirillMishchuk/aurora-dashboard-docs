@@ -1,3 +1,9 @@
+---
+type: plan
+date: 2026-09-11
+status: implemented
+pr: [1288]
+---
 # Plan: PR #1288 round-3 Copilot review findings
 
 **Date:** 2026-09-11 · **Status:** implemented 2026-09-11, plus a follow-up triple-review fix pass same day (all 5 steps done; one lint-driven deviation in Step 1 — `onError` kept in `CreateBucketModalProps` but not destructured, since Ceph has no post-close partial-success path unlike Swift; Step 2's row-menu `Button` uses only `title`, no extra `aria-label`, to match the reference files exactly. `swiftRouter.test.ts` 108/108, full storage suite 72 files/2066 tests, full package suite 224 files/5601 tests, typecheck/lint/format:check all green, i18n regenerated. Security review clean — no Critical/High/Medium findings; noted one pre-existing, out-of-scope gap: `mapErrorResponseToTRPCError`'s default/500 branch can embed raw upstream error text, unchanged by this round. Not committed, per delivery decision.)
@@ -157,3 +163,9 @@ Update `.changeset/full-maps-obey.md` (bump `patch` → `minor` if Step 3 lands)
 2. **Issue 3 → Option A**, partial-success shape `{created, optionsApplied, optionsError}` (Step 3), changeset bump `patch` → `minor`.
 3. **Delivery → working tree only, no commit.** Do not commit or push; leave the changes as uncommitted working-tree edits. No reply to Copilot threads as part of this work.
 4. **Row-menu label → generic**, `"Bucket actions"` / `"Container actions"`, matching the header-action reference files exactly (Step 2 as written, no per-row uniqueness).
+
+<!-- related:auto — generated from pr/issue properties by tools/update-related.py; do not edit by hand -->
+## Related
+
+- plan · 2026-09-10 · [2026-09-10-pr-1288-copilot-findings](2026-09-10-pr-1288-copilot-findings.md)
+- plan · 2026-09-10 · [2026-09-10-pr-1288-copilot-round-2](2026-09-10-pr-1288-copilot-round-2.md)

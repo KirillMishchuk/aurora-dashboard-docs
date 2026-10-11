@@ -1,3 +1,9 @@
+---
+type: plan
+date: 2026-09-10
+status: implemented
+pr: [1288]
+---
 # Plan: Address GitHub Copilot review findings on PR #1288
 
 **Date:** 2026-09-10 · **Status:** implemented 2026-09-10
@@ -253,3 +259,9 @@ Recommended: **Option A**. The plan below is written for it — override Step 1 
 3. Should the PR description on GitHub also be corrected, or is fixing the code to match it sufficient? The plan makes the code match the description, so no description edit is strictly needed.
 
 **Sources:** [OpenStack Object Storage API reference](https://docs.openstack.org/api-ref/object-store/), [Ceph Container Operations](https://docs.ceph.com/en/reef/radosgw/swift/containerops/), [ceph/ceph#5214 — 202 Accepted on container creation](https://github.com/ceph/ceph/pull/5214)
+
+<!-- related:auto — generated from pr/issue properties by tools/update-related.py; do not edit by hand -->
+## Related
+
+- plan · 2026-09-10 · [2026-09-10-pr-1288-copilot-round-2](2026-09-10-pr-1288-copilot-round-2.md)
+- plan · 2026-09-11 · [2026-09-11-pr-1288-copilot-round-3](2026-09-11-pr-1288-copilot-round-3.md)

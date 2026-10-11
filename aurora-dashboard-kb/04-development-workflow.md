@@ -1,3 +1,6 @@
+---
+type: kb
+---
 # 04 — Development Workflow
 
 ## Local setup
@@ -67,7 +70,7 @@ Dev mode runs `tsx watch` on `apps/dashboard/src/server/server.ts` with `@fastif
 
 ## Claude Code assets in the repo (`.claude/`)
 
-`.claude/` and the repo-root `CLAUDE.md` are **not** in `origin/main`, so nothing here ships upstream.
+`.claude/` and the repo-root [`CLAUDE.md`](../CLAUDE.md) are **not** in `origin/main`, so nothing here ships upstream.
 
 - **Agents:** `dev-planner` (opus — plan with architecture analysis and risk identification), `dev-executor` (sonnet — execute a plan step by step), and three read-only reviewers: `architecture-reviewer` (opus), `security-reviewer` (sonnet, auth/authz/data protection), `performance-reviewer` (sonnet, frontend + backend).
 - **Skills — project workflow:** `create-plan` (analyze the architecture for a task → written plan in `../DOCS/plans/`), `implement-plan` (build an existing plan), `create-pr` (sync with main → guided conflict resolution, never resolves non-locale conflicts itself → PR description from template → draft PR via `gh`; never force-push/no-verify), `rework-commits` (split a branch into small semantic commits, backup branch first, before/after diff validation), `document-pr` (fetch a PR and write the report under `../DOCS/aurora-dashboard-kb/prs/`), `update-kb` (this knowledge base's update procedure), `triple-review` (review working changes from three angles), `quick-security-check` (focused audit of one file/component).

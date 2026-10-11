@@ -1,3 +1,11 @@
+---
+type: pr-report
+date: 2026-07-29
+status: merged
+pr: [1111]
+author: vlad-schur-external-sap
+branch: vlad-replace-datagrid-with-descriptionlist
+---
 # PR #1111: refactor(ui): replace data-grid with description-list
 
 **Автор:** vlad-schur-external-sap · **Статус:** смержен 30.07.2026 (`cf2e0ad0`)

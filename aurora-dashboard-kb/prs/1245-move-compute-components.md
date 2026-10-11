@@ -1,3 +1,11 @@
+---
+type: pr-report
+date: 2026-09-01
+status: merged
+pr: [1245]
+author: andypf
+branch: andypf/refactor-compute-components-1244
+---
 # PR #1245: refactor(aurora): move compute components to their feature directories
 
 **Автор:** andypf · **Статус:** смержен 01.09.2026 (создан 01.09.2026)

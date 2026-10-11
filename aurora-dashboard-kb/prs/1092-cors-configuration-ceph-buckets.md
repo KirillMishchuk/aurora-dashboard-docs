@@ -1,3 +1,11 @@
+---
+type: pr-report
+date: 2026-08-11
+status: merged
+pr: [1092]
+author: KirylSAP
+branch: kiryl-ceph-cors
+---
 # PR #1092: feat(aurora): add CORS configuration management for Ceph/S3 buckets
 
 **Автор:** KirylSAP · **Статус:** смержен 12.08.2026 (коммит `b7576db`)
@@ -201,7 +209,7 @@ Swift явно игнорирует `view` (закрыто регрессион�
 
 Changeset (`minor` для `@cobaltcore-dev/aurora`) утверждает: *«The Add CORS, Edit/View CORS buttons, and Delete CORS menu item have been removed in favor of full CRUD operations within the Cors Rules tab.»* Это **не соответствует действительности** — сравнение с базовым коммитом (`c65b027a`) показывает, что до этого PR в шапке бакета вообще не было ни кнопок CORS, ни пункта «Delete CORS Rules» — этот PR **добавляет** пункт «Delete CORS Rules» в меню шапки, а не убирает что-либо. См. «Ревью», п. 1 (оценка 100).
 
-Дизайн-документ (`009_ceph_s3_bff.md`) получил полноценный раздел `### CORS Configuration (storage.ceph.cors)` — с описанием `get`/`set`/`delete`, примерами и заметкой про особенности тестирования CORS в Ceph RGW (RGW не добавляет CORS-заголовки к HEAD-запросам, только к GET/POST/PUT/DELETE/OPTIONS). В этой заметке — ссылка `DOCS/plans/2026-07-25-cors-manual-testing-scenarios.md`, которая указывает на личную (не входящую в репозиторий) папку заметок автора; для апстрим-читателей этого PR путь не будет существовать (см. «Ревью», отклонённая находка с оценкой 75). Также раздел про `MaxAgeSeconds` в документе (и один из комментариев в `types/ceph.ts:581`) утверждает верхнюю границу 86400, хотя в реальной Zod-схеме максимума нет (см. отклонённую находку с оценкой 75).
+Дизайн-документ (`009_ceph_s3_bff.md`) получил полноценный раздел `### CORS Configuration (storage.ceph.cors)` — с описанием `get`/`set`/`delete`, примерами и заметкой про особенности тестирования CORS в Ceph RGW (RGW не добавляет CORS-заголовки к HEAD-запросам, только к GET/POST/PUT/DELETE/OPTIONS). В этой заметке — ссылка [`DOCS/plans/2026-07-25-cors-manual-testing-scenarios.md`](../../plans/2026-07-25-cors-manual-testing-scenarios.md), которая указывает на личную (не входящую в репозиторий) папку заметок автора; для апстрим-читателей этого PR путь не будет существовать (см. «Ревью», отклонённая находка с оценкой 75). Также раздел про `MaxAgeSeconds` в документе (и один из комментариев в `types/ceph.ts:581`) утверждает верхнюю границу 86400, хотя в реальной Zod-схеме максимума нет (см. отклонённую находку с оценкой 75).
 
 Локали `en`/`de` выросли с 1255 до 1330 строк `msgid` (+75 под новый CORS UI); все 75 новых немецких строк имеют пустой `msgstr ""` — перевода нет ни для одной, каталог только переэкстрагирован. Вероятно, это отдельный процесс перевода, а не недосмотр этого PR.
 
@@ -224,3 +232,9 @@ PR полностью самодостаточен внутри `packages/aurora
 
 ---
 Проанализировано: 11.08.2026 · коммит `8cbd4a5` (предыдущие версии отчёта — коммиты `1f7a0d9`, `834f993`, `5d8fb2d`)
+
+<!-- related:auto — generated from pr/issue properties by tools/update-related.py; do not edit by hand -->
+## Related
+
+- plan · 2026-07-25 · [2026-07-25-cors-configuration-testing-plan](../../plans/2026-07-25-cors-configuration-testing-plan.md)
+- plan · 2026-08-11 · [2026-08-11-fix-pr1092-cors-review-findings](../../plans/2026-08-11-fix-pr1092-cors-review-findings.md)

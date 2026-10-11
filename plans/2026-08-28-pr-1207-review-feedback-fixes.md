@@ -1,3 +1,9 @@
+---
+type: plan
+date: 2026-08-28
+status: partially-implemented
+pr: [1207]
+---
 # Plan: PR #1207 review-feedback & test fixes
 
 **Date:** 2026-08-28 · **Status:** partially implemented 2026-08-28 (Steps 1-3, 5-10, 12, 14 done — typecheck/214 test files/5476 tests/lint/format/i18n/build all green, security review clean; Steps 4 & 11 deferred by design to a follow-up PR per Q1; Step 13 — GitHub thread replies, issue filing — not yet done, pending human review before posting)
@@ -419,4 +425,9 @@ All must pass — this is the exact set `.github/workflows/ci-checks.yaml` runs 
 
 **Q3 — German translations. ANSWERED 2026-08-28: leave empty.** The two `msgstr` values stay empty, consistent with the 408 existing empty entries (not CI-blocking); reply to Copilot's comment explaining this is deliberate.
 
-**Q4 — Non-blocking, FYI.** The knowledge base at `../DOCS/aurora-dashboard-kb/` is pinned to `90be7d9a` (24.08.2026); `origin/main` is now at `70367891` and has since merged the entire Ceph lifecycle feature (#1178) — the `Storage — Ceph S3` row in `05-domain-map.md` doesn't mention `lifecycleRouter` at all. Worth an `update-kb` pass after this PR lands.
+**Q4 — Non-blocking, FYI.** The knowledge base at `../DOCS/aurora-dashboard-kb/` is pinned to `90be7d9a` (24.08.2026); `origin/main` is now at `70367891` and has since merged the entire Ceph lifecycle feature (#1178) — the `Storage — Ceph S3` row in [`05-domain-map.md`](../aurora-dashboard-kb/05-domain-map.md) doesn't mention `lifecycleRouter` at all. Worth an `update-kb` pass after this PR lands.
+
+<!-- related:auto — generated from pr/issue properties by tools/update-related.py; do not edit by hand -->
+## Related
+
+- pr-review · 2026-08-28 · [pr-1207-review](../pr-reviews/pr-1207-review.md)

@@ -1,3 +1,8 @@
+---
+type: plan
+date: 2026-07-31
+status: implemented
+---
 # Plan: Ceph S3 lifecycle rules (epic #608, Section 13) — full CRUD + UI
 
 **Date:** 2026-07-31 · **Last updated:** 2026-08-05 · **Status:** implemented 2026-08-06
@@ -341,7 +346,7 @@ Cases: empty state ("no rules configured"); rules render with correct human-read
 - `packages/aurora/docs/009_ceph_s3_bff.md` — add a "Lifecycle Configuration" section documenting the three procedures, the wire schema, the transitions-are-preserved-not-authored decision, and the async-processing caveat.
 - `.changeset/<name>.md` — `@cobaltcore-dev/aurora: minor`.
 
-**What to do:** run `pnpm check-i18n` (adds English + German entries; German strings need real translations, matching how the CORS branch added ~194 lines per catalog). Commit as `feat(aurora): ceph s3 bucket lifecycle rules` (scope `aurora` is allow-listed in `commitlint.config.mjs`); PR title must satisfy commitlint too. Optionally add a KB note by updating the Storage — Ceph S3 row in `../DOCS/aurora-dashboard-kb/05-domain-map.md`.
+**What to do:** run `pnpm check-i18n` (adds English + German entries; German strings need real translations, matching how the CORS branch added ~194 lines per catalog). Commit as `feat(aurora): ceph s3 bucket lifecycle rules` (scope `aurora` is allow-listed in `commitlint.config.mjs`); PR title must satisfy commitlint too. Optionally add a KB note by updating the Storage — Ceph S3 row in [`../DOCS/aurora-dashboard-kb/05-domain-map.md`](../aurora-dashboard-kb/05-domain-map.md).
 
 ---
 

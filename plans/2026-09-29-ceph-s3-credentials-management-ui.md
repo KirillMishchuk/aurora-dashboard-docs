@@ -1,3 +1,8 @@
+---
+type: plan
+date: 2026-09-29
+status: implemented
+---
 # Plan: Управление S3-кредами (Ceph) в Aurora
 
 **Date:** 2026-09-29 · **Status:** implemented 2026-09-29 (локальные правки в `main`, не закоммичено)

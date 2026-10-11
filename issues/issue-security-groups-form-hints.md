@@ -1,4 +1,13 @@
+---
+type: issue
+date: 2026-10-06
+issue: [1367]
+kind: feature
+scope: network
+---
 # [Feature](network): help hints and validation on Security Groups form inputs
+
+Opened as #1367
 
 **Description**
 

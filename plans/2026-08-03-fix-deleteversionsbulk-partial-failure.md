@@ -1,3 +1,8 @@
+---
+type: plan
+date: 2026-08-03
+status: not-implemented
+---
 # Plan: Stop `deleteVersionsBulk` per-item failures from being reported as success in `RestoreVersionModal` / `DeleteVersionModal`
 
 **Date:** 2026-08-03 · **Status:** not implemented

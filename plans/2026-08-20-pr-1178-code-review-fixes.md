@@ -1,13 +1,19 @@
+---
+type: plan
+date: 2026-08-20
+status: partially-implemented
+pr: [1178]
+---
 # Plan: PR #1178 code-review fixes (Ceph S3 lifecycle rules)
 
 **Date:** 2026-08-20 · **Status:** partially implemented 2026-08-20 (Steps 1-5 done; 6-11 not started)
 
 > Note: this plan fixes the 10 findings from the `code-review` skill's 2026-08-20 pass
-> (saved at `../pr-reviews/pr-1178-review.md`), run against branch `kiryl-ceph-lifecycle-rules`
+> (saved at [`../pr-reviews/pr-1178-review.md`](../pr-reviews/pr-1178-review.md)), run against branch `kiryl-ceph-lifecycle-rules`
 > head `eb82d69c` — which already includes an earlier, separate 15-fix round (commit `092fd7e3`,
-> tracked by `2026-08-18-pr-1178-review-findings-fixes-implementation.md` in this folder, status
+> tracked by [`2026-08-18-pr-1178-review-findings-fixes-implementation.md`](2026-08-18-pr-1178-review-findings-fixes-implementation.md) in this folder, status
 > implemented). These 10 findings are new/post that round, not a re-run of it. A third,
-> unrelated CodeRabbit+Copilot-sourced 16-finding review (`2026-08-18-pr-1178-review-findings-fixes.md`,
+> unrelated CodeRabbit+Copilot-sourced 16-finding review ([`2026-08-18-pr-1178-review-findings-fixes.md`](2026-08-18-pr-1178-review-findings-fixes.md),
 > status not implemented) also exists for this PR — worth a quick diff-check against this plan's
 > steps before implementing, in case of overlap.
 
@@ -430,3 +436,10 @@ They drive the limiter only through `caller.set(...)` plus `vi.getTimerCount()` 
 - `LifecycleRuleModal.tsx:175` submits via `document.querySelector<HTMLFormElement>("#lifecycle-rule-form")?.requestSubmit()` — a document-global lookup against a hardcoded id. Harmless today (one modal at a time) but a footgun; a ref would be safer.
 - `LifecycleRulesTable.tsx` casts through `as unknown as {…}` in five places (lines 143, 149, 162, 188) to feed the `lifecycleUtils` formatters. The formatters' parameter types could be widened to `LifecycleRuleRead["Expiration"]` etc. to delete the casts.
 - The KB at `/Users/kirylmishchuk/projects/SAP/DOCS/aurora-dashboard-kb/` is pinned to `d00f84a`, ~27 commits / 2 days behind current `main` — recent enough that this plan's file/line references should still hold, but worth a `git status`/line-number sanity check against the branch before starting implementation.
+
+<!-- related:auto — generated from pr/issue properties by tools/update-related.py; do not edit by hand -->
+## Related
+
+- plan · 2026-08-18 · [2026-08-18-pr-1178-review-findings-fixes-implementation](2026-08-18-pr-1178-review-findings-fixes-implementation.md)
+- plan · 2026-08-18 · [2026-08-18-pr-1178-review-findings-fixes](2026-08-18-pr-1178-review-findings-fixes.md)
+- pr-review · 2026-08-20 · [pr-1178-review](../pr-reviews/pr-1178-review.md)

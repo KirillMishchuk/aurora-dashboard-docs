@@ -1,3 +1,11 @@
+---
+type: pr-report
+date: 2026-08-27
+status: merged
+pr: [1209]
+author: andypf
+branch: andypf/fix-multi-tab-auth-error-1128
+---
 # PR #1209: fix(aurora): improve multi-tab auth error handling (#1128)
 
 **Автор:** andypf · **Статус:** создан 26.08.2026, обновлён 27.08.2026, смержен 27.08.2026 (коммит `9796a71b`)

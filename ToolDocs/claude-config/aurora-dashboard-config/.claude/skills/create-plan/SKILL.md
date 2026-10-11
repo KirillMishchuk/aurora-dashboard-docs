@@ -60,10 +60,18 @@ either now or in a later session, unedited or after the user has revised it.
    `git status` in the repo to confirm nothing under `docs/` picked up an
    untracked file — that's the tell if the collision happened anyway.
    File name: `<YYYY-MM-DD>-<kebab-slug-of-task>.md`, e.g.
-   `2026-07-23-ceph-lifecycle-policies-endpoint.md`. Content: dev-planner's
-   plan verbatim under a short header:
+   `2026-07-23-ceph-lifecycle-policies-endpoint.md`. The plan is written in
+   English, whatever language the conversation is in — ask `dev-planner` for
+   English output. Content: dev-planner's plan verbatim under a short header:
 
    ```markdown
+   ---
+   type: plan
+   date: <today, YYYY-MM-DD>
+   status: not-implemented
+   pr: [<number>]        # only if the task is tied to a PR; omit the line otherwise
+   issue: [<number>]     # only if tied to a GitHub issue; omit the line otherwise
+   ---
    # Plan: <short task title>
 
    **Date:** <today, YYYY-MM-DD> · **Status:** not implemented
@@ -76,7 +84,12 @@ either now or in a later session, unedited or after the user has revised it.
    otherwise insert the new row directly below the header. `Status` is its
    own column, always exactly `not implemented` at creation time — don't
    fold it into `Risks` or `File`, that's ambiguous for whatever updates it
-   later (see `implement-plan`'s step 8):
+   later (see `implement-plan`'s step 8). Write the row in English, whatever
+   language the conversation is in, and escape any `|` inside a cell —
+   including inside code spans — as `\|`, otherwise it splits the column
+   (if the plan has `pr`/`issue`, afterwards also run
+   `python3 "$(dirname "$PLANS_DIR")/tools/update-related.py"` to refresh the
+   vault's "Related" links — skip silently if the script is missing):
 
    ```markdown
    # Plans

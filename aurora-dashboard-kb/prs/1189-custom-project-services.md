@@ -1,3 +1,11 @@
+---
+type: pr-report
+date: 2026-08-20
+status: merged
+pr: [1189]
+author: taymoor89 (Taimoor Aslam)
+branch: 1102-support-custom-services
+---
 # PR #1189: feat(aurora): allow consumers to register custom srevices
 
 **Автор:** taymoor89 (Taimoor Aslam) · **Статус:** смержен 24.08.2026 (коммит `a9c257a1`; создан 20.08.2026)
@@ -69,7 +77,7 @@ for (const module of additionalProjectServices ?? []) {
 
 ### Серверные экспорты
 
-`packages/aurora/src/server/index.ts` теперь дополнительно экспортирует `validateOpenstackService` (существовавший ранее внутренний хелпер, начиная с #850, впервые сделан публичным) и `parseOrThrow` (ранее — внутренний хелпер `Network/helpers`, использовался только `pcaRouter.ts`/floating-ip роутерами) — оба нужны консьюмеру, чтобы писать свой BFF-роутер в тех же конвенциях, что описывает `CLAUDE.md` («routers must be built with the exported `auroraRouter`»). `routers.ts` убрал `serviceRouters` (бывший `Services/routers` с единственным содержимым — PCA) из `buildBaseRouter` (`routers.ts:6,15`).
+`packages/aurora/src/server/index.ts` теперь дополнительно экспортирует `validateOpenstackService` (существовавший ранее внутренний хелпер, начиная с #850, впервые сделан публичным) и `parseOrThrow` (ранее — внутренний хелпер `Network/helpers`, использовался только `pcaRouter.ts`/floating-ip роутерами) — оба нужны консьюмеру, чтобы писать свой BFF-роутер в тех же конвенциях, что описывает [`CLAUDE.md`](../../CLAUDE.md) («routers must be built with the exported `auroraRouter`»). `routers.ts` убрал `serviceRouters` (бывший `Services/routers` с единственным содержимым — PCA) из `buildBaseRouter` (`routers.ts:6,15`).
 
 ### Прочее
 
@@ -79,7 +87,7 @@ for (const module of additionalProjectServices ?? []) {
 
 **Собственный design-doc пакета устарел.** `packages/aurora/docs/0011_clavis.md` — design-doc, описывающий PCA/Clavis-интеграцию во всех деталях (роуты, компоненты, состояния) — этим PR не тронут вообще (`git diff` по файлу пуст), хотя описываемая функциональность полностью удалена. Он продолжает утверждать «The active UI entry point is the project service route at `/projects/$projectId/services/pca/`» и т.д. — то есть теперь описывает код, которого больше нет, без пометки «устарело» и без указателя на новый `additionalProjectServices`.
 
-**Наша собственная KB на это тоже завязана.** `DOCS/aurora-dashboard-kb/05-domain-map.md` в этой базе знаний ссылается на `0011_clavis.md` как на «living doc, current scope» для строки Services — PCA/Clavis. Если этот PR смержится в текущем виде, наш domain-map тоже станет неточным (ссылается на design-doc, который описывает удалённую функциональность) — стоит учесть при следующем прогоне `update-kb` после мержа.
+**Наша собственная KB на это тоже завязана.** [`DOCS/aurora-dashboard-kb/05-domain-map.md`](../05-domain-map.md) в этой базе знаний ссылается на `0011_clavis.md` как на «living doc, current scope» для строки Services — PCA/Clavis. Если этот PR смержится в текущем виде, наш domain-map тоже станет неточным (ссылается на design-doc, который описывает удалённую функциональность) — стоит учесть при следующем прогоне `update-kb` после мержа.
 
 **Свежая работа по PCA удаляется день в день.** Merge-base этого PR (`35095b4f`) — это ровно голова `main` сразу после мержа PR #1177 (19.08.2026, «different changes(api/ui-ux) with downloading functionality» — скачивание/импорт сертификатов, рефакторинг `parseCsrInfo` и т.д.). PR #1189 удаляет весь этот код на следующий день (коммиты 20.08.2026). Ни commit-сообщения, ни changeset не упоминают #1177 или то, что только вчера смерженная функциональность выбрасывается целиком — стоит явно сверить с автором #1177 (или консьюмером PCA), что эта работа перенесена/учтена на стороне будущей внешней реализации, а не потеряна.
 

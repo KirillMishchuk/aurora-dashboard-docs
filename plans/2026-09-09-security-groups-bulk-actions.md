@@ -1,3 +1,8 @@
+---
+type: plan
+date: 2026-09-09
+status: implemented
+---
 # Plan: Bulk Actions (multi-select + bulk delete) for Security Groups — list, Rules tab, RBAC Policies tab
 
 **Date:** 2026-09-09 · **Status:** implemented 2026-09-09

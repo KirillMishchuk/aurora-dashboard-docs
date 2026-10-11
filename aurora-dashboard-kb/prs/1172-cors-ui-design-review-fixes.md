@@ -1,3 +1,11 @@
+---
+type: pr-report
+date: 2026-08-13
+status: merged
+pr: [1172]
+author: KirylSAP
+branch: kiryl-ceph-cors-review-findings
+---
 # PR #1172: fix(aurora): apply design review fixes to bucket CORS rules UI
 
 **Автор:** KirylSAP · **Статус:** смержен 14.08.2026 (коммит `0bfd055`; открыт 12.08.2026)

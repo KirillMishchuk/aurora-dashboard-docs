@@ -1,3 +1,8 @@
+---
+type: plan
+date: 2026-08-06
+status: analysis
+---
 # Сравнение: две реализации Ceph Lifecycle Rules (Epic #608, Section 13)
 
 **Дата:** 2026-08-06
@@ -6,7 +11,7 @@
 | | Реализация A — «speckit» | Реализация B — «planner» |
 |---|---|---|
 | Ветка | `kiryl-lifecycle-rules-speckit` | `kiryl-lifecycle-rules-planner` (текущая) |
-| Артефакты планирования | `specs/001-bucket-lifecycle-rules/{spec,plan,tasks,data-model,research,quickstart}.md`, `contracts/lifecycle-trpc-contract.md` | `DOCS/plans/2026-07-31-ceph-lifecycle-rules-crud.md` (единый «живой» документ) |
+| Артефакты планирования | `specs/001-bucket-lifecycle-rules/{spec,plan,tasks,data-model,research,quickstart}.md`, `contracts/lifecycle-trpc-contract.md` | [`DOCS/plans/2026-07-31-ceph-lifecycle-rules-crud.md`](2026-07-31-ceph-lifecycle-rules-crud.md) (единый «живой» документ) |
 | Методология | Workflow GitHub spec-kit через слэш-команды (`/speckit-specify` → `/speckit-clarify` → `/speckit-plan` → `/speckit-tasks` → `/speckit-implement`) | Написанный вручную план-документ, итеративно перепроверяемый и обновляемый на месте (датированные правки, журнал решений) |
 | Базовый коммит | Устаревший — отсутствует несколько уже смёрженных в `main` фич | Отстаёт от `main` на 2 коммита (не хватает фичи presigned-URL) |
 

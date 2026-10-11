@@ -1,3 +1,11 @@
+---
+type: pr-report
+date: 2026-09-23
+status: merged
+pr: [1320]
+author: TilmanHaupt
+branch: til-all-search
+---
 # PR #1320: feat(portal): expand search to all visible columns including numeric
 
 **Автор:** TilmanHaupt · **Статус:** смержен 23.09.2026 (andypf; создан 23.09.2026). Отчёт писался, пока PR был open.

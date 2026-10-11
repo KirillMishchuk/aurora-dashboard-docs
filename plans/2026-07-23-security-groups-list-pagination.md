@@ -1,3 +1,8 @@
+---
+type: plan
+date: 2026-07-23
+status: not-implemented
+---
 # Plan: Security groups list pagination
 
 **Date:** 2026-07-23 · **Status:** not implemented

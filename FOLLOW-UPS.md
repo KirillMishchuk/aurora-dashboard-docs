@@ -1,671 +1,785 @@
-# Follow-ups — единый список
+---
+type: registry
+---
+# Follow-ups — single list
 
-Все отложенные задачи по `aurora-dashboard` в одном месте: то, что признано валидным при
-ревью/разборе, но сознательно не сделано в том PR, где всплыло.
+All deferred tasks for `aurora-dashboard` in one place: things recognized as valid during
+review/analysis but deliberately not done in the PR where they came up.
 
-**Правила ведения**
+**Maintenance rules**
 
-- Новый follow-up заводится **здесь**. В плане, описании PR или ответе ревьюверу остаётся только
-  ссылка вида `FOLLOW-UPS.md` → пункт N — не копия текста.
-- Нумерация сквозная и постоянная. ID не переиспользуется; закрытый пункт не удаляется, а получает
-  статус `сделано` со ссылкой на PR.
-- Пункты 1–11 пришли из ревью [PR #1331](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1331)
-  и сохранили свои номера — на них ссылаются файлы планов раундов 1–4.
+- A new follow-up is created **here**. A plan, PR description, or reply to a reviewer keeps only a
+  link of the form `FOLLOW-UPS.md` → item N — not a copy of the text.
+- Numbering is continuous and permanent. An ID is never reused; a closed item is not deleted but gets
+  the status `done` with a link to the PR.
+- Items 1–11 came from the review of [PR #1331](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1331)
+  and kept their numbers — the plan files for rounds 1–4 refer to them.
 
-**Статусы:** `открыт` · `в работе` · `сделано` · `отклонён`
+**Statuses:** `open` · `in progress` · `done` · `rejected`
 
-## Сводка
+## Summary
 
-| # | Тема | Область | Статус |
+| # | Topic | Area | Status |
 | --- | --- | --- | --- |
-| 3 | Общий хелпер пагинации `ListObjectVersions` | Сканы версий | открыт |
-| 4 | Маркер возобновления для `deleteNonCurrentVersions` | Сканы версий | открыт |
-| 8 | Truncated-страница без `NextKeyMarker` удаляет неполную группу | Сканы версий | открыт |
-| 9 | `deleteNonCurrentVersions` теряет отчёт при systemic-сбое | Сканы версий | открыт |
-| 13 | Порядок ключей: UTF-16 вместо UTF-8 | Сканы версий | открыт |
-| 18 | Логику page→key-group вынести в хелпер | Сканы версий | открыт |
-| 20 | `nextContinuationToken` смешан с `NextKeyMarker` | Сканы версий | открыт |
-| 24 | У `deleteNonCurrentVersions` нет потолка страниц | Сканы версий | открыт |
-| 11 | Empty Bucket без `storage:object_versions:delete` | Права | открыт |
-| 12 | Деструктивные Ceph-мутации не авторизуются на сервере | Права | открыт |
-| 1 | Вкладка Deleted игнорирует `isPartialScan` | Клиент | открыт |
-| 6 | Мемоизация списков в `ObjectBrowserView` | Клиент | открыт |
-| 10 | Вкладка Deleted должна fail-closed | Клиент | открыт |
-| 15 | Аккумулятор пагинации дублирует строки | Клиент | открыт |
-| 16 | Шесть модалок смонтированы без путей открытия | Клиент | открыт |
-| 22 | `DeleteVersionModal` озаглавлен «Delete Version» для delete-маркера | Клиент | открыт |
-| 23 | `GetBucketVersioning` дважды за загрузку страницы бакета | Клиент | открыт |
-| 28 | Вкладка All прячет живые папки без объекта-пустышки | Клиент | открыт |
-| 5 | Сырое `error.message` из SDK уходит в UI | Контракты | открыт |
-| 7 | `checkDeletedContentInputSchema.bucket` вне общей схемы | Контракты | открыт |
-| 17 | `checkDeletedContent` не ограничивает размер ответа | Контракты | открыт |
-| 19 | `console.error` логирует объект ошибки SDK целиком | Контракты | открыт |
-| 29 | Секреты EC2-кред уходят в debug-логи `signal-openstack` | Контракты | открыт |
-| 30 | Ветки `if (!response.ok)` недостижимы, тесты их маскируют | Контракты | открыт |
-| 31 | `createPermissionRouter` ловит ошибку `policy-engine` по тексту сообщения | Контракты | открыт |
-| 32 | Двойной `GET /v3/credentials` на открытие модалки кредов | Контракты | открыт |
-| 40 | Экраны ошибок бакетов выбираются по подстроке сообщения сервера | Контракты | открыт |
-| 41 | Метаданные S3-ключа (`created_at`, `label`) в blob EC2-креды | Контракты | открыт |
-| 33 | Оркестрация авто-раскрытия секретов живёт в компоненте, не в хуке | Клиент | открыт |
-| 34 | `CephBuckets` перестроен в лестницу `let content: ReactNode` | Клиент | открыт |
-| 14 | `S3Client` и keep-alive агент на каждый вызов | Транспорт | открыт |
-| 21 | Нет `requestTimeout` и тюнинга `maxAttempts` | Транспорт | открыт |
-| 26 | Тесты `set` завязаны на общий rate-limit | Политики бакетов | открыт |
-| 27 | `Deny s3:*` отвергается даже с `Condition` | Политики бакетов | открыт |
-| 25 | Поисковый запрос не тримится в клиентских фильтрах | Поиск | открыт |
-| 35 | Шапка DataGrid не по паттерну Juno в остальных списках | Списки | открыт |
-| 2 | «Please» в остальном клиенте | Тексты UI | открыт |
-| 36 | 409 при шаринге SG всегда показывается как «уже расшарено», в том числе при исчерпанной квоте | RBAC (SG) | открыт |
-| 37 | Шаринг security group сразу на несколько проектов | RBAC (SG) | открыт |
-| 38 | В таблице правил SG нет колонки Remote | Клиент (SG) | сделано (PR про help hints форм SG, 06.10.2026) |
-| 39 | Сообщения валидации Add Rule не переведены | Клиент (SG) | открыт |
-| 42 | Вкладки `TabNavigation`: `tabStyle="content"` и управляемый `activeItem` везде | Juno | открыт |
-| 43 | Состояние страницы деталей SG (вкладка, поиск, сортировка, фильтры правил) в URL | Клиент (SG) | открыт |
+| 3 | Shared `ListObjectVersions` pagination helper | Version scans | open |
+| 4 | Resume marker for `deleteNonCurrentVersions` | Version scans | open |
+| 8 | Truncated page without `NextKeyMarker` deletes an incomplete group | Version scans | open |
+| 9 | `deleteNonCurrentVersions` loses the report on a systemic failure | Version scans | open |
+| 13 | Key order: UTF-16 instead of UTF-8 | Version scans | open |
+| 18 | Move the page→key-group logic into a helper | Version scans | open |
+| 20 | `nextContinuationToken` mixed up with `NextKeyMarker` | Version scans | open |
+| 24 | `deleteNonCurrentVersions` has no page ceiling | Version scans | open |
+| 11 | Empty Bucket without `storage:object_versions:delete` | Permissions | open |
+| 12 | Destructive Ceph mutations are not authorized on the server | Permissions | open |
+| 1 | Deleted tab ignores `isPartialScan` | Client | open |
+| 6 | Memoization of lists in `ObjectBrowserView` | Client | open |
+| 10 | Deleted tab should fail closed | Client | open |
+| 15 | Pagination accumulator duplicates rows | Client | open |
+| 16 | Six modals mounted with no way to open them | Client | open |
+| 22 | `DeleteVersionModal` is titled "Delete Version" for a delete marker | Client | open |
+| 23 | `GetBucketVersioning` called twice per bucket page load | Client | open |
+| 28 | All tab hides live folders that have no placeholder object | Client | open |
+| 5 | Raw `error.message` from the SDK reaches the UI | Contracts | open |
+| 7 | `checkDeletedContentInputSchema.bucket` outside the shared schema | Contracts | open |
+| 17 | `checkDeletedContent` does not limit response size | Contracts | open |
+| 19 | `console.error` logs the entire SDK error object | Contracts | open |
+| 29 | EC2 credential secrets leak into `signal-openstack` debug logs | Contracts | open |
+| 30 | `if (!response.ok)` branches are unreachable, tests mask it | Contracts | open |
+| 31 | `createPermissionRouter` catches the `policy-engine` error by message text | Contracts | open |
+| 32 | Duplicate `GET /v3/credentials` when opening the credentials modal | Contracts | open |
+| 40 | Bucket error screens are chosen by a substring of the server message | Contracts | open |
+| 41 | S3 key metadata (`created_at`, `label`) in the EC2 credential blob | Contracts | open |
+| 33 | Secret auto-reveal orchestration lives in the component, not in a hook | Client | open |
+| 34 | `CephBuckets` rebuilt into a `let content: ReactNode` ladder | Client | open |
+| 14 | `S3Client` and keep-alive agent created on every call | Transport | open |
+| 21 | No `requestTimeout` and no `maxAttempts` tuning | Transport | open |
+| 26 | `set` tests depend on the shared rate limit | Bucket policies | open |
+| 27 | `Deny s3:*` is rejected even with a `Condition` | Bucket policies | open |
+| 25 | Search query is not trimmed in client-side filters | Search | open |
+| 35 | DataGrid header does not follow the Juno pattern in other lists | Lists | open |
+| 2 | "Please" in the rest of the client | UI copy | open |
+| 36 | 409 on SG sharing is always shown as "already shared", including when the quota is exhausted | RBAC (SG) | open |
+| 37 | Sharing a security group with several projects at once | RBAC (SG) | open |
+| 38 | SG rules table has no Remote column | Client (SG) | done ([PR #1368](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1368), 2026-10-06) |
+| 39 | Add Rule validation messages are not translated | Client (SG) | open |
+| 42 | `TabNavigation` tabs: `tabStyle="content"` and controlled `activeItem` everywhere | Juno | open |
+| 43 | SG details page state (tab, search, sorting, rule filters) in the URL | Client (SG) | open |
 
 ---
 
-## A. Сканы версий и пагинация (сервер)
+## A. Version scans and pagination (server)
 
-### 3. Вынести цикл пагинации `ListObjectVersions` в общий хелпер
+### 3. Move the `ListObjectVersions` pagination loop into a shared helper
 
-**Где:** `containerRouter.getState`, `versioningRouter.checkDeletedContent`,
-`objectRouter.deleteNonCurrentVersions`, `deleteAll`, `deleteVersionsBulk` — шесть почти одинаковых
-циклов `while (true)` в Ceph-роутерах.
+**Where:** `containerRouter.getState`, `versioningRouter.checkDeletedContent`,
+`objectRouter.deleteNonCurrentVersions`, `deleteAll`, `deleteVersionsBulk` — six nearly identical
+`while (true)` loops in the Ceph routers.
 
-**Что сделать:** async-генератор `scanObjectVersions(s3, { bucket, prefix, signal, maxPages })` в
-`Storage/helpers/versionScan.ts`, отдающий страницы и единый
-`stopReason: "complete" | "aborted" | "page-ceiling" | "no-continuation-marker"`; роутеры мапят
-`stopReason` в свой флаг. Заодно схлопнутся три формулировки комментария и закрепится общий словарь
-(`isPartial` vs `isPartialScan`). Защита `MAX_SAME_MARKER` сейчас есть только в `objectRouter` — при
-выносе достанется всем.
+**What to do:** an async generator `scanObjectVersions(s3, { bucket, prefix, signal, maxPages })` in
+`Storage/helpers/versionScan.ts` that yields pages and a single
+`stopReason: "complete" | "aborted" | "page-ceiling" | "no-continuation-marker"`; the routers map
+`stopReason` to their own flag. This also collapses three wordings of the comment and settles a shared vocabulary
+(`isPartial` vs `isPartialScan`). The `MAX_SAME_MARKER` guard currently exists only in `objectRouter` — once
+extracted, everyone gets it.
 
-**Почему отложено:** пять из шести циклов старше #1331. Вынос означает переписывание `deleteAll` —
-шипнутого кода, который безвозвратно удаляет объекты, — в одном диффе с новой процедурой удаления
-версий. Ревьювер не сможет отделить одно от другого. Заслуживает своего PR и своего прохода ревью.
+**Why deferred:** five of the six loops predate #1331. Extracting means rewriting `deleteAll` —
+shipped code that permanently deletes objects — in the same diff as the new version-deletion
+procedure. A reviewer would not be able to tell one from the other. It deserves its own PR and its own review pass.
 
-**Источник:** #1331 раунд 1 (главный техдолг по оценке architecture-ревью); повторно —
-`plans/2026-09-22-issue-1004-comments/comment-3-out-of-scope.md`.
+**Source:** #1331 round 1 (the main tech debt according to the architecture review); again —
+[`plans/2026-09-22-issue-1004-comments/comment-3-out-of-scope.md`](plans/2026-09-22-issue-1004-comments/comment-3-out-of-scope.md).
 
-### 4. Маркер возобновления для `deleteNonCurrentVersions`
+**Status:** open.
 
-**Что сделать:** возвращать точку останова и принимать её опциональным входом — тогда повтор стоит
-O(остатка), а не O(всей истории). Прогресс монотонен: каждое удаление адресует конкретный
-`VersionId` и не создаёт новых маркеров.
+### 4. Resume marker for `deleteNonCurrentVersions`
 
-**Почему отложено:** сообщение о частичном исходе просит запустить действие ещё раз, а повторный
-запуск пересканирует бакет с первого ключа. Это фича, а не ответ на замечание ревью.
+**What to do:** return the stopping point and accept it as an optional input — then a retry costs
+O(remainder) rather than O(entire history). Progress is monotonic: each deletion addresses a specific
+`VersionId` and creates no new markers.
 
-**Источник:** #1331 раунд 1.
+**Why deferred:** the partial-outcome message asks the user to run the action again, and the re-run
+rescans the bucket from the first key. This is a feature, not a response to a review comment.
 
-### 8. Не удалять неполную группу ключей, когда truncated-страница пришла без `NextKeyMarker`
+**Source:** #1331 round 1.
 
-**Где:** `objectRouter.ts:929`.
+**Status:** open.
 
-**Что сделать:** обрабатывать последнюю группу только если её current-запись — обычная версия; если
-current — delete-маркер, пропускать с записью в `errors` + `isPartial`. Обязательное условие:
-существующий тест `objectRouter.test.ts:1469` остаётся зелёным — он закрывает противоположный риск
-(молча уронить версии). Нужен новый тест на delete-маркерный случай.
+### 8. Do not delete an incomplete key group when a truncated page arrives without `NextKeyMarker`
 
-**Почему важно:** иначе за границей страницы остаётся более старая версия, она становится current, и
-удалённый объект воскресает живым. Вероятность очень низкая (нужен ответ RGW с нарушением спеки S3),
-данные не теряются — версия и так лежала в истории.
+**Where:** `objectRouter.ts:929`.
 
-**Источник:** #1331 раунд 4, находка 3.
+**What to do:** process the last group only if its current entry is a regular version; if
+current is a delete marker, skip it, adding an entry to `errors` + `isPartial`. Mandatory condition:
+the existing test `objectRouter.test.ts:1469` stays green — it covers the opposite risk
+(silently dropping versions). A new test for the delete-marker case is needed.
 
-### 9. `deleteNonCurrentVersions` теряет отчёт о прошлых страницах при systemic-сбое
+**Why it matters:** otherwise an older version remains beyond the page boundary, it becomes current, and
+the deleted object comes back to life. Probability is very low (requires an RGW response violating the S3 spec),
+no data is lost — the version was already in the history.
 
-**Где:** `objectRouter.ts:989` + `:196`.
+**Source:** #1331 round 4, finding 3.
 
-**Что сделать:** обернуть постраничный вызов в try/catch; при `deletedCount > 0` отдавать `isPartial`
-+ запись в `errors` вместо реджекта. Сигнатуру `bulkDeleteItems` не трогать — у двух других
-call site'ов вызов однократный и поведение корректно.
+**Status:** open.
 
-**Почему:** `bulkDeleteItems` судит о systemic-сбое по своим локальным массивам, а зовётся
-постранично — падение на второй странице реджектит мутацию, и ни `deletedCount` прошлых страниц, ни
-«запустите ещё раз» до пользователя не доходят.
+### 9. `deleteNonCurrentVersions` loses the report on previous pages on a systemic failure
 
-**Источник:** #1331 раунд 4, находка 4.
+**Where:** `objectRouter.ts:989` + `:196`.
 
-### 13. Порядок ключей сравнивается в UTF-16, а API упорядочен по UTF-8
+**What to do:** wrap the per-page call in try/catch; when `deletedCount > 0`, return `isPartial`
++ an entry in `errors` instead of rejecting. Do not touch the `bulkDeleteItems` signature — the two other
+call sites call it once and their behavior is correct.
 
-**Что сделать:** компаратор на `Buffer.compare`, общий для fallback-ветки отсрочки группы и проверки
-покрытия папки.
+**Why:** `bulkDeleteItems` judges a systemic failure by its local arrays, but is called
+per page — a failure on the second page rejects the mutation, and neither the `deletedCount` of previous pages nor
+"run it again" reaches the user.
 
-**Почему:** `<` в JS сравнивает UTF-16 code units, S3 упорядочивает ключи по сырым байтам UTF-8.
-Расходятся на astral-plane символах против U+E000–U+FFFF — эмодзи и CJK Ext-B в именах ключей.
+**Source:** #1331 round 4, finding 4.
 
-**Почему отложено:** трогает самую тонкую часть нового пути удаления; смешивать с фиксом потери
-данных нельзя — падение стало бы неоднозначным.
+**Status:** open.
 
-**Источник:** issue #1004, `comment-3-out-of-scope.md`.
+### 13. Key order is compared in UTF-16, while the API is ordered by UTF-8
 
-### 18. Логику page→key-group из `deleteNonCurrentVersions` вынести в хелпер
+**What to do:** a comparator based on `Buffer.compare`, shared by the group-deferral fallback branch and the folder
+coverage check.
 
-**Что сделать:** слияние страницы, сортировка в байтовом порядке, группировка по ключу, объединение
-перенесённой группы и решение keep/delete — чистые функции от одного `ListObjectVersionsOutput` плюс
-carry, без S3-клиента и `ctx`.
+**Why:** `<` in JS compares UTF-16 code units, S3 orders keys by raw UTF-8 bytes.
+They diverge on astral-plane characters versus U+E000–U+FFFF — emoji and CJK Ext-B in key names.
 
-**Почему:** ветка уже установила, что такое место — `Storage/helpers/` (там лежат `folderPrefixOf`,
-`isFolderCovered`, `longestCommonPrefix`). Цена бездействия видна: большая часть новых тестов в
-`objectRouter.test.ts` выстраивает последовательности `mockSend` ради решений, которым S3 не нужен
-вовсе. В отличие от п. 3, ничего из того, на чём стоит `deleteAll`, не трогает — приземляется
-независимо.
+**Why deferred:** it touches the most delicate part of the new deletion path; it must not be mixed with the data-loss
+fix — a failure would become ambiguous.
 
-**Источник:** issue #1004, `comment-3-out-of-scope.md`.
+**Source:** issue #1004, `comment-3-out-of-scope.md`.
 
-### 20. `nextContinuationToken` смешан с `NextKeyMarker`
+**Status:** open.
 
-**Где:** `objectRouter.ts`, ветка `showVersions`.
+### 18. Move the page→key-group logic out of `deleteNonCurrentVersions` into a helper
 
-**Что:** полю `nextContinuationToken` присваивается `response.NextKeyMarker`, и то же значение уходит
-в `nextKeyMarker`. Связанное: при заданном `delimiter` версии фильтруются на клиенте **после** того,
-как S3 уже отрезал страницу по `MaxKeys`, — страница может вернуться визуально пустой при
+**What to do:** page merging, byte-order sorting, grouping by key, merging the
+carried-over group, and the keep/delete decision — pure functions of a single `ListObjectVersionsOutput` plus
+carry, without the S3 client and `ctx`.
+
+**Why:** the branch has already established where such code belongs — `Storage/helpers/` (it holds `folderPrefixOf`,
+`isFolderCovered`, `longestCommonPrefix`). The cost of inaction is visible: most of the new tests in
+`objectRouter.test.ts` build `mockSend` sequences for decisions that do not need S3
+at all. Unlike item 3, it touches nothing that `deleteAll` relies on — it lands
+independently.
+
+**Source:** issue #1004, `comment-3-out-of-scope.md`.
+
+**Status:** open.
+
+### 20. `nextContinuationToken` mixed up with `NextKeyMarker`
+
+**Where:** `objectRouter.ts`, the `showVersions` branch.
+
+**What:** the `nextContinuationToken` field is assigned `response.NextKeyMarker`, and the same value goes
+into `nextKeyMarker`. Related: when `delimiter` is set, versions are filtered on the client **after**
+S3 has already cut the page at `MaxKeys` — a page may come back visually empty with
 `isTruncated: true`.
 
-**Почему отложено:** ни один из текущих call site'ов не задевает (все с `delimiter: ""`), ветвление
-объектного браузера по вкладкам остаётся согласованным.
+**Why deferred:** none of the current call sites is affected (all use `delimiter: ""`), and the object
+browser's per-tab branching remains consistent.
 
-**Источник:** issue #1004, `comment-3-out-of-scope.md`.
+**Source:** issue #1004, `comment-3-out-of-scope.md`.
 
-### 24. У `deleteNonCurrentVersions` нет потолка страниц
+**Status:** open.
 
-**Что:** корректности потолок не нужен (удаление по `VersionId` не создаёт новых маркеров, рескана
-нет), а буфер на ключ + `isPartial` уже ограничивают то, что было опасно: память сервера и выдачу
-неполной зачистки за полную. Остаётся wall-clock: на бакете с сотнями тысяч non-current версий
-мутация работает минутами внутри одного запроса и может упереться в таймаут прокси.
+### 24. `deleteNonCurrentVersions` has no page ceiling
 
-**Почему отложено:** ровно то же свойство у `deleteAll`, и он уже в проде. Дать потолок только новой
-процедуре — сделать её единственной, которая умеет остановиться на полпути. Решать вместе и заодно
-решить, не место ли этому классу операций за существующим паттерном progress-подписки.
+**What:** correctness does not need a ceiling (deleting by `VersionId` creates no new markers, there is no
+rescan), and the per-key buffer + `isPartial` already bound what was dangerous: server memory and reporting
+an incomplete cleanup as complete. What remains is wall-clock time: on a bucket with hundreds of thousands of non-current versions
+the mutation runs for minutes inside a single request and may hit the proxy timeout.
 
-**Источник:** issue #1004, `comment-3-out-of-scope.md`.
+**Why deferred:** `deleteAll` has exactly the same property, and it is already in production. Giving a ceiling only to the new
+procedure would make it the only one able to stop halfway. Decide this together, and at the same time
+decide whether this class of operations belongs behind the existing progress-subscription pattern.
 
----
+**Source:** issue #1004, `comment-3-out-of-scope.md`.
 
-## B. Права и авторизация
-
-### 11. Empty Bucket не должен запускать удаление версий без `storage:object_versions:delete`
-
-**Что сделать:** прокинуть `canDeleteVersion` в `EmptyBucketModal` и закрыть им и авто-ветку
-`isBucketEmptyWithVersions` (`:77`, `:121`), и чекбокс (`:298-303`).
-
-**Контекст:** чинит `main`, а не изменение #1331 — те же ворота стоят на `BucketTableView.tsx:255`.
-Это выравнивание аффордансов UI, не граница безопасности: серверной проверки прав на Ceph-процедурах
-нет вовсе (`cephProcedure.ts:107`), см. п. 12.
-
-**Источник:** #1331 раунд 4, находка 1.
-
-### 12. Деструктивные Ceph-мутации не авторизуются на сервере
-
-**Что:** `storage:object_version_delete` маппится на `rule:storage_admin`, но это правило читает
-только клиент — чтобы решить, что рисовать. У `canUser` нет ни одного call site под `server/Storage`.
-Участник проекта без роли админа получает скрытый пункт меню и по-прежнему может дёрнуть процедуру
-напрямую; `deleteAll`, `deleteVersionsBulk` и `containers.delete` — в том же положении. Фактическая
-защита целиком лежит на маппинге ролей Keystone в RGW, а это более грубые ворота, чем описывает файл
-политик.
-
-**Что решить (одно из двух, оба — про всю Ceph-поверхность):** либо RGW объявляется границей
-авторизации, а oslo.policy — метаданными для UI, и это один раз записывается на
-`cephProtectedProcedure`, чтобы перестать всплывать в каждом ревью; либо домену нужен
-`requirePermission`-middleware, применённый ко всем деструктивным мутациям разом.
-
-**Источник:** issue #1004, `comment-3-out-of-scope.md` (поднято ревью). Стоит завести issue.
+**Status:** open.
 
 ---
 
-## C. Клиент: объектный браузер и модалки
+## B. Permissions and authorization
 
-### 1. Вкладка «Deleted» игнорирует `isPartialScan`
+### 11. Empty Bucket must not trigger version deletion without `storage:object_versions:delete`
 
-**Где:** `ObjectBrowserView.tsx:361` — фильтрует вкладку только по `hasDeletedContent`. Сервер
-после фикса #1331 честно сообщает, что скан не дошёл до конца, но вкладка флаг не читает: папка с
-непроверенным содержимым просто не показывается, и пользователь не узнаёт, что ответ неполон.
+**What to do:** pass `canDeleteVersion` into `EmptyBucketModal` and use it to gate both the automatic
+`isBucketEmptyWithVersions` branch (`:77`, `:121`) and the checkbox (`:298-303`).
 
-После п. 28 у ветки «All» больше нет собственной проверки — она отвязана от `checkDeletedContent`
-целиком (запрос туда не отправляется, `enabled: tab === "deleted"`) и никакого `isPartialScan` не
-читает. Это делает данный пункт **единственным оставшимся клиентским потребителем флага**
-`checkDeletedContent.isPartialScan`: контракт и серверные тесты сохраняют поле только ради него.
+**Context:** this fixes `main`, not a change from #1331 — the same gate exists at `BucketTableView.tsx:255`.
+This is aligning UI affordances, not a security boundary: there is no server-side permission check on Ceph procedures
+at all (`cephProcedure.ts:107`), see item 12.
 
-**Что решить:** показывать ли частично отсканированные папки во вкладке «Deleted» и с какой пометкой
-(«не подтверждено» / иконка / подсказка). Продуктовое и дизайнерское решение: вкладка существует
-ровно для показа удалённого содержимого, а такие папки — «мы не знаем, есть ли там удалённое».
+**Source:** #1331 round 4, finding 1.
 
-**Делать одной задачей с п. 10** и с находкой 1 раунда 3 (видимый UI состояния скана).
+**Status:** open.
 
-**Источник:** #1331 раунд 1, решено 2026-09-24 не тащить в PR.
+### 12. Destructive Ceph mutations are not authorized on the server
 
-### 6. Мемоизация списков в `ObjectBrowserView`
+**What:** `storage:object_version_delete` maps to `rule:storage_admin`, but this rule is read
+only by the client — to decide what to render. `canUser` has not a single call site under `server/Storage`.
+A project member without the admin role gets a hidden menu item and can still call the procedure
+directly; `deleteAll`, `deleteVersionsBulk` and `containers.delete` are in the same position. The actual
+protection rests entirely on the Keystone role mapping in RGW, which is a coarser gate than the policy
+file describes.
 
-**Где:** `filteredObjects` (`:273`), `filteredFolders` (`:370`) и три выражения сортировки (`:374`,
-`:411`, `:434`) — обычные выражения, не мемо, над списками до 1000 элементов без виртуализации.
-Пересчитываются на каждый рендер, включая каждое нажатие клавиши в поиске (дебаунс откладывает
-запрос, но не ре-рендер). Pre-existing.
+**What to decide (one of two, both covering the entire Ceph surface):** either RGW is declared the authorization
+boundary and oslo.policy is UI metadata, and this is written down once on
+`cephProtectedProcedure` so it stops coming up in every review; or the domain needs a
+`requirePermission` middleware applied to all destructive mutations at once.
 
-**Источник:** #1331 раунд 1 (performance-ревью).
+**Source:** issue #1004, `comment-3-out-of-scope.md` (raised by review). Worth filing an issue.
 
-### 10. Вкладка Deleted должна fail-closed
+**Status:** open.
 
-**Где:** `ObjectBrowserView.tsx:358`.
+---
 
-**Что сделать:** возвращать `[]` в ветке Deleted вместо нейтрального `allFolders` (fail-open остаётся
-только там, поскольку п. 28 уже увёл ветку All на `return allFolders` по совсем другой причине —
-листинг там самодостаточен, а фильтр не нужен вовсе; ветки больше не связаны общей мотивировкой).
-Отдельно в ту же задачу: рассинхрон `enabled` запроса (`:167`, только `Enabled`) с условием показа
-вкладки (`:673`, `!== "Unversioned"`) — на Suspended-бакете вкладка Deleted показывает все папки
-всегда. Разрушающих действий у ложно показанной папки нет (`ObjectsTableView.tsx:580-581`, `:481`) —
-это косметика.
+## C. Client: object browser and modals
 
-Ошибку самого запроса `checkDeletedContent` на вкладке Deleted тоже проглатывает — не сервер (в
-`versioningRouter.ts` #1331 убрал per-folder try/catch, ошибка скана проксируется наружу через
-`mapS3ErrorToTRPCError`), а **клиент**: из хука (`ObjectBrowserView.tsx:157`) деструктурируется только
-`data`, поле `error` не читается, поэтому упавший скан выглядит как «удалённого содержимого нет».
+### 1. The "Deleted" tab ignores `isPartialScan`
 
-**Делать вместе с п. 1.**
+**Where:** `ObjectBrowserView.tsx:361` — filters the tab only by `hasDeletedContent`. After the #1331 fix the
+server honestly reports that the scan did not run to completion, but the tab does not read the flag: a folder with
+unverified contents is simply not shown, and the user never learns that the answer is incomplete.
 
-**Источник:** #1331 раунд 4, находка 6.
+After item 28 the "All" branch no longer has its own check — it is fully decoupled from `checkDeletedContent`
+(no request is sent there, `enabled: tab === "deleted"`) and does not read any `isPartialScan`. This makes this item
+**the only remaining client-side consumer of the flag**
+`checkDeletedContent.isPartialScan`: the contract and the server tests keep the field solely for its sake.
 
-### 15. Аккумулятор пагинации объектного браузера может дублировать строки
+**What to decide:** whether to show partially scanned folders in the "Deleted" tab, and with what marker
+("unconfirmed" / icon / tooltip). A product and design decision: the tab exists
+precisely to show deleted content, and such folders mean "we don't know whether there is deleted content there".
 
-**Что:** после загрузки нескольких страниц инвалидация `objects.list` рефетчит только ту страницу, на
-которую указывает текущий токен, а накапливающий эффект дописывает её ещё раз. Structural sharing
-прячет это, пока мутация реально не изменит данные.
+**Do as a single task with item 10** and with finding 1 of round 3 (visible UI for scan state).
 
-**Настоящий фикс:** `useInfiniteQuery` вместо самодельного аккумулятора — то есть переписывание
-потока данных этого компонента.
+**Source:** #1331 round 1, decided on 2026-09-24 not to pull into the PR.
 
-**Источник:** issue #1004, `comment-3-out-of-scope.md`.
+**Status:** open.
 
-### 16. Шесть модалок смонтированы в `ObjectBrowserView` без путей открытия
+### 6. Memoization of lists in `ObjectBrowserView`
 
-**Что:** кроме `DeleteVersionsModal` там висят ещё шесть модалок, которые ничем не открываются —
-живые экземпляры ведёт шапка бакета. #1331 убрал только ту, которую трогал, а не все семь.
+**Where:** `filteredObjects` (`:273`), `filteredFolders` (`:370`) and three sort expressions (`:374`,
+`:411`, `:434`) — plain expressions, not memoized, over lists of up to 1000 items without virtualization.
+They are recomputed on every render, including every keystroke in the search (the debounce delays the
+request, but not the re-render). Pre-existing.
 
-**Источник:** issue #1004, `comment-3-out-of-scope.md`.
+**Source:** #1331 round 1 (performance review).
 
-### 22. `DeleteVersionModal` всегда озаглавлен «Delete Version», в том числе для delete-маркера
+**Status:** open.
 
-**Что:** пункт меню, который её открывает, всё делает правильно —
-`ObjectVersionHistoryModal` рендерит ``label={isDeleteMarker ? t`Delete Marker` : t`Delete Version`}``,
-— и модалка получает `isDeleteMarker`, скрывая по нему строки Date и Size. Но для текста он не
-читается вовсе: заголовок, кнопка подтверждения и тело ветвятся только по `isDeletingAllVersions`.
-Клик по «Delete Marker» открывает диалог, предлагающий удалить несуществующую «version».
+### 10. The Deleted tab should fail closed
 
-**Оценка:** десять минут (тот же тернарник ещё в трёх местах) + `pnpm check-i18n` на новые строки.
-Pre-existing на `dc918d47`.
+**Where:** `ObjectBrowserView.tsx:358`.
 
-**Источник:** ручная проверка issue #1004, `comment-3-out-of-scope.md`.
+**What to do:** return `[]` in the Deleted branch instead of the neutral `allFolders` (fail-open remains
+only there, since item 28 already moved the All branch to `return allFolders` for an entirely different reason —
+the listing there is self-sufficient and the filter is not needed at all; the branches no longer share a common rationale).
+Separately, in the same task: the mismatch between the query's `enabled` (`:167`, only `Enabled`) and the condition for showing the
+tab (`:673`, `!== "Unversioned"`) — on a Suspended bucket the Deleted tab always shows all folders.
+A falsely shown folder has no destructive actions (`ObjectsTableView.tsx:580-581`, `:481`) —
+this is cosmetic.
 
-### 23. `GetBucketVersioning` выполняется дважды за загрузку страницы бакета
+An error from the `checkDeletedContent` query itself is also swallowed on the Deleted tab — not by the server (in
+`versioningRouter.ts` #1331 removed the per-folder try/catch, a scan error is propagated outward via
+`mapS3ErrorToTRPCError`), but by the **client**: only `data` is destructured from the hook (`ObjectBrowserView.tsx:157`),
+the `error` field is not read, so a failed scan looks like "there is no deleted content".
 
-**Что:** `containers.getState` нужен ответ, чтобы решить, есть ли история, которую стоит сканировать;
-`ObjectBrowserView` отдельно запрашивает `versioning.getStatus`, чтобы решить, включать ли
-`checkDeletedContent`. Чистка раунда 3 схлопнула это для шапки бакета и модалки пустого бакета — оба
-идут через `useBucketInfo`, — а объектный браузер держит свой `useQuery` и остался не тронут.
-`getState` уже возвращает трёхзначный `status`, так что подстановка та же.
+**Do together with item 1.**
 
-**Источник:** ручная проверка issue #1004, `comment-3-out-of-scope.md`.
+**Source:** #1331 round 4, finding 6.
 
-### 28. Вкладка All прячет живые папки без объекта-пустышки
+**Status:** open.
 
-**Где:** `ObjectBrowserView.tsx`, `deletedFoldersList`, ветка `tab !== "deleted"` (по ветке #1331 —
-строки 343-356, ключевая строка 352); запрос `checkDeletedContent` — `:147-167`, `enabled` — `:164`.
+### 15. The object browser's pagination accumulator can duplicate rows
 
-**Что:** баг, о котором пришёл фидбэк от реального пользователя (eu-de-1): в версионированном бакете
-содержимое папки показывается на долю секунды и сменяется на «No objects found.», папки видны только
-во вкладке Deleted. Вкладка All поверх ответа `ListObjectsV2` делает вторую фильтрацию папок по
-`checkDeletedContent` и выбрасывает любую папку, у которой нет zero-byte объекта-пустышки `folder/`
-(`folderMarkerVersionId === undefined`). Пустышку создаёт только кнопка «Create folder» в Aurora
-(`objectRouter.ts:806`), поэтому страдает каждый бакет, наполнявшийся сторонним S3-клиентом —
-Elektra, `s3cmd`, `rclone`, любой SDK. Тем же условием прячется папка, у которой delete-маркер стоит
-на пустышке, хотя внутри лежит живой объект. Побочно расходятся шапка и таблица: `totalItemCount`
-(`:409-410`) считается по нефильтрованному `allFolders`, поэтому счётчик показывает реальное число
-над пустой таблицей.
+**What:** after several pages have been loaded, invalidating `objects.list` refetches only the page that
+the current token points to, and the accumulating effect appends it once more. Structural sharing
+hides this until a mutation actually changes the data.
 
-**Что сделать:** фильтрация на вкладке All избыточна в принципе — `ListObjectsV2` отдаёт только
-актуальные версии, значит пришедший `CommonPrefix` уже означает живое содержимое, а полностью
-удалённая папка в листинг не попадает вовсе. Ветка `tab !== "deleted"` сводится к `return allFolders`;
-запрос `checkDeletedContent` получает в `enabled` условие `tab === "deleted"`. Правка чисто
-клиентская, сервер не меняется.
+**The real fix:** `useInfiniteQuery` instead of the hand-rolled accumulator — i.e. rewriting the
+data flow of this component.
 
-**Идёт следом за [PR #1331](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1331):** обе правки
-ложатся ровно на те строки, которые #1331 переписывает (`deletedFoldersList` → `useMemo` +
-`statusByPrefix`, вход `checkDeletedContent` с `folders` → `prefix`, добавленная им же строка
-`if (status.isPartialScan) return true` внутри All-фильтра), поэтому отдельный PR отводится от `main`
-уже после мержа #1331. На базисе #1331 правка не усложняется — вся ветка All удаляется целиком.
+**Source:** issue #1004, `comment-3-out-of-scope.md`.
 
-**Статус реализации:** правка **реализована**, но ещё не закоммичена. Делалась локально на ветке
-`kiryl-s3-version-pagination` (по прямому указанию пользователя, без отдельной ветки от `main`);
-после мержа #1331 в `main` 2026-09-28 (`2feab20d`) изменения перенеслись на `main` без конфликтов и
-лежат там в рабочем дереве. Базис совпал точно: файлы `Ceph/Objects/` в `main` равны версии ветки, по
-которой писался план, поэтому номера строк в плане остаются верными. Перепроверено на `main`
-2026-09-28: 5749 тестов пакета зелёные, `ObjectBrowserView.test.tsx` 43/43, typecheck/lint/format:check/
-check-i18n чисто. Пункт остаётся `открыт`, потому что PR ещё не создан — блокер снят, ветку можно
-отводить от `main` прямо сейчас. Изменения: `ObjectBrowserView.tsx` (ветка `tab !== "deleted"`
-→ `return allFolders`; `enabled` у `checkDeletedContent` получил `tab === "deleted"`),
-`ObjectBrowserView.test.tsx` (тест `:649-706` переписан, тест #1331 `:815-849` инвертирован с
-сохранением тестовых данных, тест `:778-813` перекомментирован, добавлены три новых теста),
+**Status:** open.
+
+### 16. Six modals are mounted in `ObjectBrowserView` with no way to open them
+
+**What:** besides `DeleteVersionsModal`, six more modals hang there that nothing opens —
+the live instances are owned by the bucket header. #1331 removed only the one it touched, not all seven.
+
+**Source:** issue #1004, `comment-3-out-of-scope.md`.
+
+**Status:** open.
+
+### 22. `DeleteVersionModal` is always titled "Delete Version", including for a delete marker
+
+**What:** the menu item that opens it does everything correctly —
+`ObjectVersionHistoryModal` renders ``label={isDeleteMarker ? t`Delete Marker` : t`Delete Version`}``,
+— and the modal receives `isDeleteMarker`, hiding the Date and Size rows based on it. But it is not
+read at all for the text: the title, the confirm button and the body branch only on `isDeletingAllVersions`.
+Clicking "Delete Marker" opens a dialog offering to delete a nonexistent "version".
+
+**Estimate:** ten minutes (the same ternary in three more places) + `pnpm check-i18n` for the new strings.
+Pre-existing at `dc918d47`.
+
+**Source:** manual verification of issue #1004, `comment-3-out-of-scope.md`.
+
+**Status:** open.
+
+### 23. `GetBucketVersioning` runs twice per bucket page load
+
+**What:** `containers.getState` needs the response to decide whether there is history worth scanning;
+`ObjectBrowserView` separately queries `versioning.getStatus` to decide whether to enable
+`checkDeletedContent`. The round 3 cleanup collapsed this for the bucket header and the empty-bucket modal — both
+go through `useBucketInfo` — while the object browser keeps its own `useQuery` and was left untouched.
+`getState` already returns a three-valued `status`, so the substitution is the same.
+
+**Source:** manual verification of issue #1004, `comment-3-out-of-scope.md`.
+
+**Status:** open.
+
+### 28. The All tab hides live folders that lack a placeholder object
+
+**Where:** `ObjectBrowserView.tsx`, `deletedFoldersList`, the `tab !== "deleted"` branch (on the #1331 branch —
+lines 343-356, key line 352); the `checkDeletedContent` query — `:147-167`, `enabled` — `:164`.
+
+**What:** a bug reported in feedback from a real user (eu-de-1): in a versioned bucket
+a folder's contents are shown for a split second and then replaced with "No objects found.", and folders are visible only
+in the Deleted tab. On top of the `ListObjectsV2` response, the All tab performs a second filtering of folders by
+`checkDeletedContent` and drops any folder that has no zero-byte placeholder object `folder/`
+(`folderMarkerVersionId === undefined`). The placeholder is created only by the "Create folder" button in Aurora
+(`objectRouter.ts:806`), so every bucket populated by a third-party S3 client is affected —
+Elektra, `s3cmd`, `rclone`, any SDK. The same condition hides a folder whose placeholder has a delete marker
+even though a live object sits inside it. As a side effect, the header and the table disagree: `totalItemCount`
+(`:409-410`) is computed from the unfiltered `allFolders`, so the counter shows the real number
+above an empty table.
+
+**What to do:** filtering on the All tab is redundant in principle — `ListObjectsV2` returns only
+current versions, so a returned `CommonPrefix` already means live content, and a fully
+deleted folder does not appear in the listing at all. The `tab !== "deleted"` branch reduces to `return allFolders`;
+the `checkDeletedContent` query gets the condition `tab === "deleted"` in `enabled`. The change is purely
+client-side; the server does not change.
+
+**Follows [PR #1331](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1331):** both changes
+land exactly on the lines that #1331 rewrites (`deletedFoldersList` → `useMemo` +
+`statusByPrefix`, the `checkDeletedContent` input from `folders` → `prefix`, and the line it also added,
+`if (status.isPartialScan) return true` inside the All filter), so a separate PR is branched off `main`
+only after #1331 is merged. On the #1331 base the change does not get more complex — the entire All branch is removed.
+
+**Implementation status:** the change is **implemented** but not yet committed. It was done locally on the branch
+`kiryl-s3-version-pagination` (at the user's explicit instruction, without a separate branch off `main`);
+after #1331 was merged into `main` on 2026-09-28 (`2feab20d`), the changes carried over onto `main` without conflicts and
+sit there in the working tree. The base matched exactly: the `Ceph/Objects/` files in `main` are identical to the version of the branch
+the plan was written against, so the line numbers in the plan remain correct. Re-verified on `main`
+on 2026-09-28: the package's 5749 tests are green, `ObjectBrowserView.test.tsx` 43/43, typecheck/lint/format:check/
+check-i18n clean. The item remains `open` because the PR has not been created yet — the blocker is lifted, and the branch can
+be cut from `main` right now. Changes: `ObjectBrowserView.tsx` (the `tab !== "deleted"` branch
+→ `return allFolders`; `enabled` of `checkDeletedContent` got `tab === "deleted"`),
+`ObjectBrowserView.test.tsx` (test `:649-706` rewritten, #1331's test `:815-849` inverted while
+keeping its test data, test `:778-813` re-commented, three new tests added),
 changeset `.changeset/ceph-all-tab-folders-visible.md` (`patch`).
 
-**План:** [`plans/2026-09-25-ceph-all-tab-folders-vanish.md`](./plans/2026-09-25-ceph-all-tab-folders-vanish.md)
-— версия 2, базис #1331, 6 шагов, написан **по коду ветки #1331** (`5b25aad0`), номера строк по ней;
-именно по ней и реализовано. (Первая редакция того же файла была написана по строкам `main` и целиком
-переписана 25.09.2026, когда стало ясно, что правка ляжет на ветку #1331, — раздел 0 файла перечисляет,
-какие выводы редакции по `main` на новом базисе больше не верны.) Разобраны все потребители
-`folderDeletedStatus`/`statusByPrefix`, Swift не затронут. Два существующих теста упали намеренно и были
-исправлены: `:649-706` закреплял сломанное поведение и переписан; `:815-849`, добавленный самим #1331,
-инвертирован с сохранением тестовых данных, а не удалён.
+**Plan:** [`plans/2026-09-25-ceph-all-tab-folders-vanish.md`](./plans/2026-09-25-ceph-all-tab-folders-vanish.md)
+— version 2, #1331 base, 6 steps, written **against the code of the #1331 branch** (`5b25aad0`), with line numbers from it;
+it was implemented against exactly that branch. (The first revision of the same file was written against `main` line numbers and fully
+rewritten on 2026-09-25, when it became clear that the change would land on the #1331 branch — section 0 of the file lists
+which conclusions of the `main`-based revision no longer hold on the new base.) All consumers of
+`folderDeletedStatus`/`statusByPrefix` were reviewed; Swift is not affected. Two existing tests failed intentionally and were
+fixed: `:649-706` pinned the broken behavior and was rewritten; `:815-849`, added by #1331 itself,
+was inverted while keeping its test data, rather than deleted.
 
-**Смежные пункты:** ни п. 1, ни п. 10 не закрываются — оба про ветку Deleted, которую правка не
-трогает. Но п. 1 становится важнее (после правки у `checkDeletedContent.isPartialScan` не остаётся
-клиентских читателей — поле не удалять), а у п. 17 снимается главное возражение против дешёвого
-фикса. Тексты пп. 1, 10, 17 актуализированы этой же правкой реестра.
+**Related items:** neither item 1 nor item 10 is closed — both concern the Deleted branch, which the change does not
+touch. But item 1 becomes more important (after the change `checkDeletedContent.isPartialScan` has no
+client-side readers left — do not remove the field), and item 17 loses its main objection to the cheap
+fix. The texts of items 1, 10, 17 were updated in this same registry edit.
 
-**Источник:** фидбэк пользователя по Ceph, разбор 25.09.2026; регрессия из `f66da80a` (PR #1121,
-07.08.2026).
+**Source:** user feedback on Ceph, analysis on 2026-09-25; regression from `f66da80a` (PR #1121,
+2026-08-07).
+
+**Status:** open.
 
 ---
 
-### 33. Оркестрация авто-раскрытия секретов живёт в компоненте, а не в хуке
+### 33. Secret auto-reveal orchestration lives in the component, not in a hook
 
-**Что:** в `ManageCredentialsModal.tsx` механика загрузки секретов — это два рефа
-(`isOpenRef`, `requestedSecretIds`), две карты состояния (`revealedSecrets`, `failedSecretIds`),
-эффект, запускающий N параллельных `mutateAsync`, ручная уборка в `handleClose` и запись из
-`createMutation.onSuccess`. Это единственная нетривиальная логика в файле и единственная, которую
-нельзя протестировать отдельно от рендера.
+**What:** in `ManageCredentialsModal.tsx` the secret-loading mechanics consist of two refs
+(`isOpenRef`, `requestedSecretIds`), two state maps (`revealedSecrets`, `failedSecretIds`),
+an effect that fires N parallel `mutateAsync` calls, manual cleanup in `handleClose`, and a write from
+`createMutation.onSuccess`. This is the only non-trivial logic in the file and the only logic that
+cannot be tested separately from rendering.
 
-**Против чего:** в Ceph такая логика живёт в `Ceph/hooks/` — `useBucketInfo`,
+**Compared to:** in Ceph such logic lives in `Ceph/hooks/` — `useBucketInfo`,
 `useCephPermissions`, `invalidateBucketQueries`, `invalidateVersioningStatusQueries`,
 `invalidateCredentialQueries`.
 
-**Побочный запах:** N параллельных вызовов гоняются через одну ручку `useMutation`, поэтому
-`revealMutation.isPending` / `.error` / `.reset()` отражают только последний вызов.
-`revealMutation.reset()` в `handleClose` фактически no-op — от поздних записей защищает
-`isOpenRef`, — но ручка остаётся в области видимости и выглядит осмысленной.
+**Side smell:** N parallel calls are funneled through a single `useMutation` handle, so
+`revealMutation.isPending` / `.error` / `.reset()` reflect only the last call.
+`revealMutation.reset()` in `handleClose` is effectively a no-op — late writes are guarded by
+`isOpenRef` — but the handle stays in scope and looks meaningful.
 
-**Как чинить:** вынести `useCredentialSecrets({ isOpen, projectId, credentials })`, возвращающий
-`{ secrets, failedIds, put(id, secret), clear() }`; в модалке остаётся рендер и две
-пользовательские мутации.
+**How to fix:** extract `useCredentialSecrets({ isOpen, projectId, credentials })`, returning
+`{ secrets, failedIds, put(id, secret), clear() }`; the modal keeps the rendering and the two
+user-facing mutations.
 
-**Источник:** triple-review задачи «Управление S3-кредами (Ceph)», второй прогон, 30.09.2026,
-находка архитектуры 5.
+**Source:** triple review of the "S3 credentials management (Ceph)" task, second run, 2026-09-30,
+architecture finding 5.
 
----
-
-### 34. `CephBuckets` перестроен в лестницу `let content: ReactNode`
-
-**Что:** `Ceph/Buckets/index.tsx` (458 строк) больше не использует ранние `return` для трёх
-ветвей ошибки — вместо этого присваивает в `let content: ReactNode`, а весь happy path уехал в
-`else` на уровень глубже.
-
-**Почему так сделали:** модалка кредов должна пережить переход страницы в ветку
-`NO_CEPH_CREDENTIALS`, когда из самой модалки удалили последний ключ. При ранних `return` она
-размонтировалась бы посреди операции.
-
-**Что не так:** мотивация верная, а приём — нет. `let content: ReactNode` не встречается больше
-нигде в `packages/aurora/src/client`, и именно дополнительный уровень отступа даёт большую часть
-шума в диффе.
-
-**Варианты:** вынести три ветви ошибки в `Buckets/BucketsErrorState.tsx`, принимающий колбэк
-`onManageCredentials` (ранние `return` возвращаются, файл худеет); либо поднять
-`credentialsModalOpen` и `<ManageCredentialsModal />` в
-`storage/$provider/$storageType/index.tsx`, который и так решает, рендерить ли `<CephBuckets />`.
-
-**Источник:** triple-review задачи «Управление S3-кредами (Ceph)», второй прогон, 30.09.2026,
-находка архитектуры 6.
+**Status:** open.
 
 ---
 
-## D. Контракты процедур, схемы, логи
+### 34. `CephBuckets` restructured into a `let content: ReactNode` ladder
 
-### 5. Не пробрасывать сырое `error.message` из AWS SDK в UI
+**What:** `Ceph/Buckets/index.tsx` (458 lines) no longer uses early `return`s for the three
+error branches — instead it assigns to `let content: ReactNode`, and the whole happy path moved into an
+`else` one level deeper.
 
-**Где:** degrade-ветка `bulkDeleteItems` (`objectRouter.ts:199-204`) — в `errors[].message` попадает
-сообщение SDK, на транспортных сбоях содержащее внутренний хост/IP Ceph RGW.
+**Why it was done this way:** the credentials modal must survive the page switching to the
+`NO_CEPH_CREDENTIALS` branch when the last key is deleted from within the modal itself. With early `return`s it
+would be unmounted mid-operation.
 
-**Что сделать:** оригинал оставить в серверном `console.error`, наружу отдавать фиксированный текст.
-Чинит трёх потребителей разом (`DeleteVersionsModal`, `Objects/DeleteVersionModal.tsx:64`,
-`RestoreVersionModal.tsx:65`). В #1331 смягчено ограничением списка тремя записями, источник не
-тронут.
+**What's wrong:** the motivation is right, but the technique is not. `let content: ReactNode` appears nowhere else
+in `packages/aurora/src/client`, and it is precisely the extra indentation level that produces most of the
+noise in the diff.
 
-Тот же источник у общего `s3ErrorMapper.ts:75-107`: для кодов без особой обработки он отдаёт сырое
-`s3Error.message`. Через `containers.list` оно доходит до экрана «Failed to Load Buckets»
-(`Ceph/Buckets/index.tsx`, `Status` body). Чинить там же, где и `bulkDeleteItems`: исходное сообщение
-писать в лог, клиенту отдавать фиксированный текст.
+**Options:** extract the three error branches into `Buckets/BucketsErrorState.tsx`, taking an
+`onManageCredentials` callback (early `return`s come back, the file slims down); or lift
+`credentialsModalOpen` and `<ManageCredentialsModal />` into
+`storage/$provider/$storageType/index.tsx`, which already decides whether to render `<CephBuckets />`.
 
-**Источник:** #1331 раунд 1 (security-ревью, Low); экран бакетов — triple-review правок #1362, 07.10.2026.
+**Source:** triple review of the "S3 credentials management (Ceph)" task, second run, 2026-09-30,
+architecture finding 6.
 
-### 7. Выровнять `checkDeletedContentInputSchema.bucket`
-
-**Где:** `types/versioning.ts:143` — голый `z.string().min(1)`, тогда как соседние процедуры
-используют `existingBucketNameSchema` с ограничением длины.
-
-**Оценка:** не эксплуатируется — имена бакетов уходят в SDK параметром команды и экранируются в
-path-style URL. Убрать при следующей правке файла.
-
-**Источник:** #1331 раунд 1.
-
-### 17. `checkDeletedContent` ограничивает запрос, но не ответ
-
-**Что:** вход держит потолок (`folders` — 1000), а режим `prefix` — теперь единственный, которым
-пользуется клиент, — возвращает по записи на каждую найденную сканом папку-прямого-потомка, вплоть до
-~20 000 записей, которые позволяет потолок страниц. Клиент смотрит только те префиксы, что реально
-загрузил; остальное — payload в мусор. Та же форма «стоимость растёт с бакетом, а не с вопросом»,
-которую #1331 починил на стороне скана, но с другой стороны той же процедуры.
-
-**Осторожно (было — снято п. 28):** очевидный дешёвый фикс — не отдавать записи в полностью
-дефолтном состоянии — был отвергнут при разборе до п. 28: отсутствующая запись заставляла вкладку
-All папку *показать*, а присутствующая запись без `folderMarkerVersionId` — *скрыть*, и папки ровно
-в таком состоянии встречались (одинокий не-latest delete-маркер и никакого folder-marker объекта).
-После п. 28 это возражение снято полностью: вкладка All вообще не читает ответ `checkDeletedContent`
-(запрос туда не отправляется), а во вкладке Deleted отсутствующая запись и запись в дефолтном
-состоянии дают один и тот же результат — `hasDeletedContent` falsy, папка не показана
-(`ObjectBrowserView.tsx:361`). Дешёвый фикс стал допустим, но в п. 28 не тащился — это отдельное
-изменение контракта процедуры (сама схема ответа, серверные тесты, свой changeset), а не клиентская
-правка. Явный потолок ответа с явным «unknown» для отрезанного остаётся альтернативой, если решат не
-брать дешёвый вариант.
-
-**Источник:** issue #1004, `comment-3-out-of-scope.md`; уточнение — план `plans/2026-09-25-ceph-all-tab-folders-vanish.md`, раздел «Ответы», п. 6.
-
-### 19. `console.error` логирует объект ошибки AWS SDK целиком
-
-**Что:** новые вызовы пишут пойманный объект ошибки целиком, а не выбранный набор полей. Только
-сервер, до клиента не доходит, а то, что доходит, санитайзит `mapS3ErrorToTRPCError` — но это ещё
-один экземпляр паттерна, который уже есть в полудюжине мест под `server/Storage`. Менять надо все
-сразу.
-
-**Источник:** issue #1004, `comment-3-out-of-scope.md`.
-
-### 29. Секреты EC2-кред попадают в debug-логи `signal-openstack` открытым текстом
-
-**Что:** при включённом debug-логировании тела запросов и ответов к Keystone пишутся в лог
-дословно, вместе с секретами EC2-кред. Редактирование их не спасает: `redactSensitiveData`
-(`packages/signal-openstack/src/logger.ts:54-95`) сопоставляет только **имена ключей**, а внутрь
-строкового значения не заглядывает никогда. `body` (`client.ts:124-132`) и `bodyPreview`
-(`client.ts:155-192`) — обычные строки, под паттерны `password|token|secret|key|authorization`
-не подходят, и уходят в лог как есть. `blob` Keystone — это тоже строка, внутри которой лежит
-`{"access":…,"secret":…}`; кредовый JSON короче лимита в 500 символов, так что секрет попадает
-целиком.
-
-**Когда включено:** `packages/aurora/src/server/context.ts:105` —
-`debug: config.debug ?? process.env.NODE_ENV !== "production"`. То есть **по умолчанию везде,
-кроме строгого `NODE_ENV=production`**: dev и большинство staging/QA-развёртываний.
-
-**Кто затронут:** любой, у кого есть доступ к логам процесса BFF или к агрегатору логов,
-получает живые S3-ключи с правами на чтение и запись в бакеты проекта.
-
-**Откуда взялось:** корень пре-существующий, `packages/signal-openstack` не менялся. Но UI
-управления кредами канал расширяет: `reveal` — новый путь, который пользователь дёргает сам и
-сколько угодно раз, каждый раз протаскивая секрет через `bodyPreview`; а пре-чек лимита в
-`create` теперь запрашивает блобы **всех** существующих кред пользователя только чтобы их
-посчитать, — раньше `create` чужие блобы не читал вовсе.
-
-**Как чинить:** в `redactSensitiveData` пытаться разобрать строковые значения как JSON и
-редактировать вложенное (с обратной сборкой), плюс добавить `/blob/i` в `SENSITIVE_PATTERNS`.
-Это лечит и `body`, и `bodyPreview`, и будущие случаи во всех доменах. Отдельно пересмотреть
-умолчание `debug` в `context.ts:105`: включать подробное логирование с телами запросов везде,
-кроме строгого прода, — само по себе рискованно.
-
-**Почему не сделано сразу:** правка выходит за пределы пакета `aurora` и меняет форму debug-логов
-всего `signal-openstack`; решение отложить принято осознанно при разборе triple-review
-(29.09.2026).
-
-**Источник:** triple-review плана `plans/2026-09-29-ceph-s3-credentials-management-ui.md`,
-находка security-ревьювера уровня High; механизм перепроверен по коду.
-
-### 30. Ветки `if (!response.ok)` недостижимы по всему репозиторию, а тесты их маскируют
-
-**Что:** `request()` в `packages/signal-openstack/src/client.ts:194-207` на любой не-2xx бросает
-`SignalOpenstackApiError` и никогда не возвращает `{ ok: false }`. Значит каждая проверка вида
-`if (!response.ok) { ... }` в роутерах — мёртвый код: до неё управление не доходит. Реально коды
-отображает `openstackErrorMiddleware` (`server/trpc.ts:15-60`), причём корректно: 401 →
-`UNAUTHORIZED`, 403 → `FORBIDDEN`, 404 → `NOT_FOUND`, 400 → `BAD_REQUEST`. То есть поведение
-правильное, расходится только текст сообщения — локальная ветка написала бы своё, а до клиента
-доходит формулировка middleware.
-
-**Почему держится:** юнит-тесты мокают identity/S3-сервис объектами, которые **резолвятся** с
-`{ ok: false, status: N }` вместо того, чтобы бросать. На таком моке мёртвая ветка выполняется, и
-тест зелёный — то есть тесты подтверждают контракт, которого в проде нет. Это же маскирует и
-обратное: код, который полагается на локальную ветку, в проде ведёт себя иначе, чем в тестах.
-
-**Где всплыло:** `ec2CredentialRouter.fetchOwnedCredential` — там из-за этого не работала
-заявленная идемпотентность `delete` (удаление уже удалённого креда отдавало `NOT_FOUND` вместо
-`{ success: true }`). Точечно починено в задаче про управление S3-кредами: 404 теперь ловится
-там, где он приходит. Остальные вхождения — включая `list` и `create` в том же файле — оставлены
-как есть, потому что чинить надо все сразу вместе с моками.
-
-**Заодно:** `createPermissionRouter` (после сужения `catch` по сообщению) поглощает не только
-отсутствующее правило верхнего уровня, но и вложенное неопределённое правило — `policyEngine.ts`
-бросает для них тот же текст, — а также опечатку в поле `rule` внутри `mappings`. И то и другое
-деградирует в «`false` навсегда» с одним `console.error`. Валидацию имён правил на старте
-сознательно не делали: `policyDir` задаёт потребитель, и падение на старте у оператора с более
-старым policy-файлом было бы хуже скрытой кнопки. Разумный вариант — предупреждение в лог при
-создании роутера, но это отдельный заход в общую фабрику.
-
-**Источник:** code-review задачи «Управление S3-кредами (Ceph)», 29.09.2026, находки 3, 4 и 7;
-механизм перепроверен по `client.ts` и `trpc.ts`.
+**Status:** open.
 
 ---
 
-### 31. `createPermissionRouter` опознаёт ошибку `policy-engine` регуляркой по тексту
+## D. Procedure contracts, schemas, logs
 
-**Что:** `server/policies/createPermissionRouter.ts:13` держит
-`const MISSING_RULE_MESSAGE = /not found and no _default rule available/` и сверяет с ним
-`error.message`. Строка приходит из `packages/policy-engine/src/policyEngine.ts` (три места:
+### 5. Do not pass the raw `error.message` from the AWS SDK through to the UI
+
+**Where:** the degrade branch of `bulkDeleteItems` (`objectRouter.ts:199-204`) — `errors[].message` receives
+the SDK message, which on transport failures contains the internal Ceph RGW host/IP.
+
+**What to do:** keep the original in the server-side `console.error`, return a fixed text to the outside.
+This fixes three consumers at once (`DeleteVersionsModal`, `Objects/DeleteVersionModal.tsx:64`,
+`RestoreVersionModal.tsx:65`). In #1331 this was mitigated by limiting the list to three entries; the source was
+left untouched.
+
+The shared `s3ErrorMapper.ts:75-107` has the same source: for codes without special handling it returns the raw
+`s3Error.message`. Via `containers.list` it reaches the "Failed to Load Buckets" screen
+(`Ceph/Buckets/index.tsx`, `Status` body). Fix it in the same place as `bulkDeleteItems`: write the original message
+to the log, return a fixed text to the client.
+
+**Source:** #1331 round 1 (security review, Low); buckets screen — triple-review of the #1362 changes, 2026-10-07.
+
+**Status:** open.
+
+### 7. Align `checkDeletedContentInputSchema.bucket`
+
+**Where:** `types/versioning.ts:143` — a bare `z.string().min(1)`, whereas the neighboring procedures
+use `existingBucketNameSchema` with a length limit.
+
+**Assessment:** not exploitable — bucket names go to the SDK as a command parameter and are escaped in the
+path-style URL. Remove on the next edit of the file.
+
+**Source:** #1331 round 1.
+
+**Status:** open.
+
+### 17. `checkDeletedContent` limits the request, but not the response
+
+**What:** the input has a cap (`folders` — 1000), but the `prefix` mode — now the only one the
+client uses — returns one entry for every direct-child folder found by the scan, up to the
+~20,000 entries that the page cap allows. The client only looks at the prefixes it has actually
+loaded; the rest is wasted payload. It is the same "cost grows with the bucket, not with the question" shape
+that #1331 fixed on the scan side, but on the other side of the same procedure.
+
+**Caution (was — lifted by item 28):** the obvious cheap fix — not returning entries in the fully
+default state — was rejected during the analysis before item 28: a missing entry made the All tab
+*show* the folder, while a present entry without `folderMarkerVersionId` made it *hide* it, and folders in exactly
+that state did occur (a lone non-latest delete marker and no folder-marker object).
+After item 28 this objection is lifted entirely: the All tab does not read the `checkDeletedContent` response at all
+(the request is not sent there), and in the Deleted tab a missing entry and an entry in the default
+state yield the same result — `hasDeletedContent` is falsy, the folder is not shown
+(`ObjectBrowserView.tsx:361`). The cheap fix became acceptable, but was not pulled into item 28 — it is a separate
+change to the procedure contract (the response schema itself, server tests, its own changeset), not a client-side
+edit. An explicit response cap with an explicit "unknown" for the cut-off part remains an alternative if they decide not
+to take the cheap option.
+
+**Source:** issue #1004, `comment-3-out-of-scope.md`; clarification — plan [`plans/2026-09-25-ceph-all-tab-folders-vanish.md`](plans/2026-09-25-ceph-all-tab-folders-vanish.md), section "Answers", item 6.
+
+**Status:** open.
+
+### 19. `console.error` logs the entire AWS SDK error object
+
+**What:** the new calls write the whole caught error object rather than a selected set of fields. Server
+only, it does not reach the client, and what does reach it is sanitized by `mapS3ErrorToTRPCError` — but this is yet
+another instance of a pattern that already exists in half a dozen places under `server/Storage`. They all need to be changed
+at once.
+
+**Source:** issue #1004, `comment-3-out-of-scope.md`.
+
+**Status:** open.
+
+### 29. EC2 credential secrets end up in `signal-openstack` debug logs in plain text
+
+**What:** with debug logging enabled, the bodies of requests to and responses from Keystone are written to the log
+verbatim, along with EC2 credential secrets. Redaction does not save them: `redactSensitiveData`
+(`packages/signal-openstack/src/logger.ts:54-95`) matches only **key names** and never looks inside
+a string value. `body` (`client.ts:124-132`) and `bodyPreview`
+(`client.ts:155-192`) are plain strings, they do not match the `password|token|secret|key|authorization` patterns,
+and go to the log as is. The Keystone `blob` is also a string, containing
+`{"access":…,"secret":…}`; the credential JSON is shorter than the 500-character limit, so the secret ends up in the log
+in full.
+
+**When enabled:** `packages/aurora/src/server/context.ts:105` —
+`debug: config.debug ?? process.env.NODE_ENV !== "production"`. That is, **by default everywhere
+except strict `NODE_ENV=production`**: dev and most staging/QA deployments.
+
+**Who is affected:** anyone with access to the BFF process logs or to the log aggregator
+obtains live S3 keys with read and write permissions on the project's buckets.
+
+**Where it came from:** the root cause is pre-existing, `packages/signal-openstack` was not changed. But the credential
+management UI widens the channel: `reveal` is a new path that the user triggers themselves, as many
+times as they like, each time pulling the secret through `bodyPreview`; and the limit pre-check in
+`create` now requests the blobs of **all** of the user's existing credentials just to
+count them — previously `create` did not read other blobs at all.
+
+**How to fix:** in `redactSensitiveData`, try to parse string values as JSON and
+redact the nested content (reassembling afterwards), plus add `/blob/i` to `SENSITIVE_PATTERNS`.
+This covers `body`, `bodyPreview`, and future cases in all domains. Separately, reconsider
+the `debug` default in `context.ts:105`: enabling verbose logging with request bodies everywhere
+except strict production is risky in itself.
+
+**Why it was not done right away:** the change goes beyond the `aurora` package and changes the shape of the debug logs
+of all of `signal-openstack`; the decision to postpone was made deliberately during the triple-review analysis
+(2026-09-29).
+
+**Source:** triple-review of the plan [`plans/2026-09-29-ceph-s3-credentials-management-ui.md`](plans/2026-09-29-ceph-s3-credentials-management-ui.md),
+a High-severity finding by the security reviewer; the mechanism was re-verified against the code.
+
+**Status:** open.
+
+### 30. `if (!response.ok)` branches are unreachable across the whole repository, and the tests mask it
+
+**What:** `request()` in `packages/signal-openstack/src/client.ts:194-207` throws `SignalOpenstackApiError`
+on any non-2xx and never returns `{ ok: false }`. So every check of the form
+`if (!response.ok) { ... }` in the routers is dead code: control never reaches it. The codes are actually
+mapped by `openstackErrorMiddleware` (`server/trpc.ts:15-60`), and correctly so: 401 →
+`UNAUTHORIZED`, 403 → `FORBIDDEN`, 404 → `NOT_FOUND`, 400 → `BAD_REQUEST`. So the behavior is
+correct; only the message text differs — the local branch would have written its own, while the client
+receives the middleware's wording.
+
+**Why it persists:** the unit tests mock the identity/S3 service with objects that **resolve** with
+`{ ok: false, status: N }` instead of throwing. With such a mock the dead branch executes, and
+the test is green — that is, the tests confirm a contract that does not exist in production. This also masks the
+reverse: code that relies on the local branch behaves differently in production than in tests.
+
+**Where it surfaced:** `ec2CredentialRouter.fetchOwnedCredential` — there, because of this, the declared
+idempotency of `delete` did not work (deleting an already deleted credential returned `NOT_FOUND` instead of
+`{ success: true }`). Fixed locally in the S3 credentials management task: the 404 is now caught
+where it arrives. The remaining occurrences — including `list` and `create` in the same file — were left
+as is, because they all need to be fixed at once together with the mocks.
+
+**Also:** `createPermissionRouter` (after narrowing the `catch` by message) swallows not only
+a missing top-level rule, but also a nested undefined rule — `policyEngine.ts`
+throws the same text for those — as well as a typo in the `rule` field inside `mappings`. Both
+degrade to "`false` forever" with a single `console.error`. Validation of rule names at startup
+was deliberately not done: `policyDir` is set by the consumer, and a startup crash for an operator with an
+older policy file would be worse than a hidden button. A reasonable option is a warning in the log when
+the router is created, but that is a separate pass over the shared factory.
+
+**Source:** code review of the "S3 credentials management (Ceph)" task, 2026-09-29, findings 3, 4 and 7;
+the mechanism was re-verified against `client.ts` and `trpc.ts`.
+
+**Status:** open.
+
+---
+
+### 31. `createPermissionRouter` recognizes a `policy-engine` error with a regex on the text
+
+**What:** `server/policies/createPermissionRouter.ts:13` holds
+`const MISSING_RULE_MESSAGE = /not found and no _default rule available/` and matches
+`error.message` against it. The string comes from `packages/policy-engine/src/policyEngine.ts` (three places:
 155, 272, 398).
 
-**Почему это не «ну и ладно»:** докблок оправдывает приём тем, что движок бросает обычный
-`Error` и не даёт спросить, существует ли правило. Это верно, но `policy-engine` — не сторонняя
-зависимость, а соседний пакет этого же монорепо, полностью под контролем команды. Чинить надо с
-той стороны границы.
+**Why this is not "oh well":** the docblock justifies the technique by saying the engine throws a plain
+`Error` and offers no way to ask whether a rule exists. That is true, but `policy-engine` is not a third-party
+dependency; it is a sibling package in this same monorepo, fully under the team's control. It should be fixed on
+that side of the boundary.
 
-**Чем грозит:** смена формулировки в `policy-engine` или новое место броска с другим текстом
-молча вернёт падение всего батча `canUser` — ровно ту регрессию, ради устранения которой правка
-и делалась. Тест в `packages/aurora` этого не поймает: он мокает движок и хардкодит ту же строку.
+**What it risks:** a change of wording in `policy-engine` or a new throw site with different text
+will silently bring back the failure of the whole `canUser` batch — exactly the regression the change
+was made to eliminate. The test in `packages/aurora` will not catch this: it mocks the engine and hardcodes the same string.
 
-**Как чинить:** экспортировать из `@cobaltcore-dev/policy-engine` подкласс `RuleNotFoundError`
-(или предикат `hasRule(name): boolean`) и проверять через `instanceof`. Поведение и уже
-написанные докблоки остаются как есть. Правка затрагивает два пакета, поэтому отдельным заходом.
+**How to fix:** export a `RuleNotFoundError` subclass from `@cobaltcore-dev/policy-engine`
+(or a `hasRule(name): boolean` predicate) and check via `instanceof`. The behavior and the already
+written docblocks stay as they are. The change touches two packages, so it is a separate pass.
 
-**Источник:** triple-review задачи «Управление S3-кредами (Ceph)», второй прогон, 30.09.2026,
-находка архитектуры 3.
+**Source:** triple-review of the "S3 credentials management (Ceph)" task, second run, 2026-09-30,
+architecture finding 3.
 
----
-
-### 32. Открытие модалки кредов стоит двух почти одинаковых `GET /v3/credentials`
-
-**Что:** `ManageCredentialsModal` стартует два запроса сразу: `ec2Credentials.list` и
-`containers.status`. Первый идёт в Keystone за `credentials?user_id=…&type=ec2`
-(`ec2CredentialRouter.ts`). Второй построен на `cephProcedure`, чей `cephCredentialMiddleware`
-(`Storage/cephProcedure.ts:72-94`) безусловно зовёт `resolveEC2Credential`
-(`Storage/middleware/resolveEC2Credential.ts:44-47`) — тот же самый запрос, — и результат
-выбрасывается, кроме `.length > 0` для булева `hasCredentials`.
-
-**Почему так вышло:** `containers.status` понадобился модалке только ради `endpoint`/`region`,
-а они приходят из `resolveS3Config`, которая от кредов не зависит вообще. Но процедура сидит на
-`cephProcedure`, и middleware отрабатывает целиком.
-
-**Как чинить:** расщепить `cephProcedure` так, чтобы запрос, которому нужен только
-`resolveS3Config`, не тянул `resolveEC2Credential`. Либо увести `endpoint`/`region` из
-credential-резолвящей процедуры вообще — это константы деплоя из `AuroraServerConfig`, и
-доставлять их таким каналом тяжело.
-
-**Рядом:** `resolveEC2Credential` делает этот некэшированный запрос на **каждый** ceph-запрос и
-фильтрует по проекту уже в процессе, то есть ответ несёт креды пользователя по всем его
-проектам. Лимит в 2 ключа на проект удваивает этот объём. Само по себе мало, но если
-резолв кредов когда-нибудь попросит request-scoped кэш — начинать отсюда.
-
-**Источник:** triple-review задачи «Управление S3-кредами (Ceph)», второй прогон, 30.09.2026,
-находка производительности 1 и находка архитектуры 7 (в части `cephProcedure`).
+**Status:** open.
 
 ---
 
-## E. S3-клиент и транспорт
+### 32. Opening the credentials modal costs two nearly identical `GET /v3/credentials`
 
-### 14. Новый `S3Client` и keep-alive агент на каждый вызов процедуры
+**What:** `ManageCredentialsModal` starts two requests at once: `ec2Credentials.list` and
+`containers.status`. The first goes to Keystone for `credentials?user_id=…&type=ec2`
+(`ec2CredentialRouter.ts`). The second is built on `cephProcedure`, whose `cephCredentialMiddleware`
+(`Storage/cephProcedure.ts:72-94`) unconditionally calls `resolveEC2Credential`
+(`Storage/middleware/resolveEC2Credential.ts:44-47`) — the very same request — and the result
+is thrown away, except for `.length > 0` for the boolean `hasCredentials`.
 
-**Что:** `getCephClient()` конструирует клиент на каждый вызов, и никто его не уничтожает —
-переиспользования соединений между запросами нет, простаивающие сокеты копятся. Нужен небольшой кэш
-по credentials.
+**Why it turned out this way:** the modal needed `containers.status` only for `endpoint`/`region`,
+and those come from `resolveS3Config`, which does not depend on credentials at all. But the procedure sits on
+`cephProcedure`, and the middleware runs in full.
 
-**Связка:** делать вместе с любым изменением таймаутов SDK (п. 21) — общий агент меняет то, на что
-вообще может повлиять `connectionTimeout`.
+**How to fix:** split `cephProcedure` so that a request that needs only
+`resolveS3Config` does not pull in `resolveEC2Credential`. Or move `endpoint`/`region` out of the
+credential-resolving procedure altogether — they are deployment constants from `AuroraServerConfig`, and
+delivering them through such a channel is heavy.
 
-**Источник:** issue #1004, `comment-3-out-of-scope.md`.
+**Nearby:** `resolveEC2Credential` makes this uncached request on **every** ceph request and
+filters by project only in-process, so the response carries the user's credentials across all of their
+projects. The limit of 2 keys per project doubles that volume. Small in itself, but if
+credential resolution ever calls for a request-scoped cache — start here.
 
-### 21. Нет `requestTimeout` и тюнинга `maxAttempts` у общего S3-клиента
+**Source:** triple-review of the "S3 credentials management (Ceph)" task, second run, 2026-09-30,
+performance finding 1 and architecture finding 7 (the `cephProcedure` part).
 
-**Что:** `s3Client.ts` не задаёт `requestTimeout` и оставляет `maxAttempts` дефолтным (3), умножая
-каждый цикл листинга максимум втрое. `connectionTimeout: 5000` добавлен в #1331 именно потому, что он
-ограничивает только установление TCP-соединения и безопасен для стримов.
+**Status:** open.
 
-**Почему не сделано:** `requestTimeout` в `@smithy/node-http-handler` — таймаут неактивности сокета, а
-тот же клиент общий с путями стримингового аплоада/скачивания. Глобально сузить `maxAttempts` — снизить
-устойчивость передачи объектов. Оба требуют своего исследования против установленной версии SDK.
+### 40. Bucket error screens are selected by a substring of the server message
 
-**Источник:** issue #1004, `comment-3-out-of-scope.md`.
+**Where:** `Ceph/Buckets/index.tsx`, the `containers.list` error branch. The "Access Denied" and "S3
+Authentication Failed" screens are selected via `errorMessage.includes("Access denied")` and
+`includes("Invalid access key")`. These are texts from `s3ErrorMapper.ts:80-89`. If the wording on the
+server changes, both screens will silently fall through to the generic "Failed to Load Buckets".
+
+**What to do:** distinguish by `error.data?.code`. The mapper (`s3ErrorMapper.ts:26-31`) already sets
+`FORBIDDEN` for `AccessDenied`/`AllAccessDisabled` and `UNAUTHORIZED` for `InvalidAccessKeyId`,
+`SignatureDoesNotMatch`, `TokenRefreshRequired` and `RequestTimeTooSkewed`. These are exactly the groups that
+are currently caught by substring.
+While at it, remove "may be expired" from the text at `s3ErrorMapper.ts:89`: EC2 credentials have no expiration.
+
+**Why not done right away:** it was like this before #1362; the PR changed only the look of the screens, not how they are selected.
+
+**Source:** triple-review of the changes addressing #1362 feedback (security and architecture, Low), 2026-10-07.
+
+**Status:** open.
+
+### 41. S3 key metadata (`created_at`, `label`) in the EC2 credential blob
+
+**What:** an EC2 credential in Keystone has neither a name nor a creation date: only `id`, `user_id`, `project_id`,
+`type`, `blob`. So in Manage Credentials keys can be told apart only by access key, and "newest first"
+works only within a single opening of the modal (the `createdIds` state in `ManageCredentialsModal.tsx`).
+
+**How:** put the metadata into the blob that `ec2CredentialRouter.create` builds:
+`{ access, secret, created_at, label }`. `list` returns them without the secret, the UI sorts by `created_at`
+and shows the name; renaming is `PATCH /v3/credentials/{id}` with the same `access`. Keys created
+outside Aurora (CLI, `OS-EC2` — 32 hex) don't have these fields, and the UI must show "unknown".
+
+**Not like this:** do not embed data into the access/secret themselves. The secret is an HMAC key; anything embedded in it reduces
+its strength. The access key is public: it goes into the `Authorization` header of every S3 request and is written to RGW logs;
+it can be forged by creating a credential in "our format" via the Keystone API; and the embedded data cannot be changed, because
+the credential id is sha256(access).
+
+**Verify on a test environment first:** that Keystone (`POST`/`PATCH /v3/credentials`, EC2 authentication
+via `s3tokens`) and RGW don't break with extra fields in the blob. As far as is known, Keystone reads from
+the blob only `access`, `secret` and the optional `trust_id`/`app_cred_id`, but on a real deployment
+this has not been verified (also recorded in the out of scope section of issue #1358).
+
+**Why not done right away:** new functionality (key names are explicitly out of scope in #1358), requires
+verification on a test environment.
+
+**Source:** discussion of the feedback on #1362 (ordering of new keys, key format), 2026-10-07.
+
+**Status:** open.
 
 ---
 
-## F. Политики бакетов
+## E. S3 client and transport
 
-### 26. Тесты `set` в `bucketPolicyRouter.test.ts` завязаны на общий rate-limit
+### 14. New `S3Client` and keep-alive agent on every procedure call
 
-**Что:** `checkPolicySetRateLimit` — модульный, ключ `${projectId}:${bucketName}`, лимит 10 за 5 минут,
-и срабатывает **до** любой валидации политики: даже вызов, который потом отобьётся валидацией,
-съедает бюджет. Существующий блок `set` сидит ровно на 10 вызовах по `my-test-bucket`, поэтому каждый
-новый тест там молча роняет тесты ниже по файлу в `TOO_MANY_REQUESTS`.
+**What:** `getCephClient()` constructs a client on every call, and nothing ever destroys it —
+there is no connection reuse between requests, and idle sockets pile up. A small cache keyed
+by credentials is needed.
 
-**Обход сейчас:** новые тесты берут собственные имена бакетов (задокументировано в коде и в описании
-PR).
+**Coupling:** do it together with any change to SDK timeouts (item 21) — a shared agent changes what
+`connectionTimeout` can actually affect.
 
-**Что сделать:** сброс ключа rate-limit между тестами. Помнить сопутствующий подвох vitest:
-`vi.clearAllMocks()` не вычищает очередь `mockResolvedValueOnce`/`mockRejectedValueOnce`, и
-непотреблённое `once`-значение утекает в следующий тест.
+**Source:** issue #1004, `comment-3-out-of-scope.md`.
 
-**Источник:** PR ceph-bucket-policy-tenant-principals,
-`descriptions/pr-ceph-bucket-policy-tenant-principals-description.md`.
+**Status:** open.
 
-### 27. `validatePolicySemantics` отвергает `Deny s3:*` даже суженный `Condition`
+### 21. No `requestTimeout` and no `maxAttempts` tuning on the shared S3 client
 
-**Где:** `bucketPolicyRouter.ts:101-113` — любой `Deny` с `Action` `*` или `s3:*` отбивается
-безусловно.
+**What:** `s3Client.ts` does not set `requestTimeout` and leaves `maxAttempts` at the default (3), multiplying
+each listing loop by up to three. `connectionTimeout: 5000` was added in #1331 precisely because it
+only bounds TCP connection establishment and is safe for streams.
 
-**Что:** это легитимный и распространённый паттерн, когда deny сужен `Condition` (например, «запретить
-всё, кроме запросов с определённого VPC/IP»). Сейчас такую политику нельзя ни создать, ни, что хуже,
-сохранить после правки — хотя RGW её принимает.
+**Why not done:** `requestTimeout` in `@smithy/node-http-handler` is a socket inactivity timeout, and
+the same client is shared with the streaming upload/download paths. Narrowing `maxAttempts` globally would reduce
+the resilience of object transfers. Both require their own investigation against the installed SDK version.
 
-**Почему отложено:** фикс мультитенантных принципалов был про другое; менять правило, защищающее от
-самоблокировки владельца бакета, нужно отдельно и с тестами на оба исхода.
+**Source:** issue #1004, `comment-3-out-of-scope.md`.
 
-**Источник:** PR ceph-bucket-policy-tenant-principals.
+**Status:** open.
 
 ---
 
-## G. Списки и поиск
+## F. Bucket policies
 
-### 25. Поисковый запрос не тримится в клиентских фильтрах Ceph и Swift
+### 26. `set` tests in `bucketPolicyRouter.test.ts` depend on the shared rate limit
 
-**Где:** `Ceph/Buckets/index.tsx:200` и `Swift/Containers/index.tsx:223`:
+**What:** `checkPolicySetRateLimit` is module-level, keyed by `${projectId}:${bucketName}`, with a limit of 10 per 5 minutes,
+and it fires **before** any policy validation: even a call that will later be rejected by validation
+consumes the budget. The existing `set` block sits at exactly 10 calls on `my-test-bucket`, so every
+new test there silently pushes the tests further down the file into `TOO_MANY_REQUESTS`.
+
+**Current workaround:** new tests use their own bucket names (documented in the code and in the
+PR description).
+
+**What to do:** reset the rate-limit key between tests. Keep in mind the related vitest gotcha:
+`vi.clearAllMocks()` does not clear the `mockResolvedValueOnce`/`mockRejectedValueOnce` queue, and
+an unconsumed `once` value leaks into the next test.
+
+**Source:** PR ceph-bucket-policy-tenant-principals,
+[`pr-descriptions/pr-1337-description.md`](pr-descriptions/pr-1337-description.md).
+
+**Status:** open.
+
+### 27. `validatePolicySemantics` rejects `Deny s3:*` even when narrowed by a `Condition`
+
+**Where:** `bucketPolicyRouter.ts:101-113` — any `Deny` with `Action` `*` or `s3:*` is rejected
+unconditionally.
+
+**What:** this is a legitimate and common pattern when the deny is narrowed by a `Condition` (for example, "deny
+everything except requests from a specific VPC/IP"). Currently such a policy can be neither created nor, worse,
+saved after editing — even though RGW accepts it.
+
+**Why deferred:** the multi-tenant principals fix was about something else; changing a rule that protects against
+the bucket owner locking themselves out must be done separately and with tests for both outcomes.
+
+**Source:** PR ceph-bucket-policy-tenant-principals.
+
+**Status:** open.
+
+---
+
+## G. Lists and search
+
+### 25. Search query is not trimmed in the Ceph and Swift client-side filters
+
+**Where:** `Ceph/Buckets/index.tsx:200` and `Swift/Containers/index.tsx:223`:
 
 ```ts
 const filteredBuckets = (buckets || []).filter((bucket) =>
@@ -673,264 +787,231 @@ const filteredBuckets = (buckets || []).filter((bucket) =>
 )
 ```
 
-**Что:** рядом счётчик включается по `searchParam.trim()` (`:384`), а серверный
-`filterBySearchParams` (`server/helpers/filterBySearchParams.ts:20-23`) trim **делает**. Отсюда
-поиск `"bucket-1 "` (пробел в конце — обычное дело при вставке) не находит ничего, а запрос из одних
-пробелов даёт шапку «3 buckets» при нуле строк в таблице. В URL пробел долетает без обрезки:
-`handleSearchChange` коммитит `value || undefined`, а `" "` truthy.
+**What:** nearby, the counter is enabled based on `searchParam.trim()` (`:384`), and the server-side
+`filterBySearchParams` (`server/helpers/filterBySearchParams.ts:20-23`) **does** trim. As a result,
+searching for `"bucket-1 "` (a trailing space is common when pasting) finds nothing, and a query consisting only of
+spaces shows a "3 buckets" header with zero rows in the table. The space reaches the URL untrimmed:
+`handleSearchChange` commits `value || undefined`, and `" "` is truthy.
 
-**Что сделать:** тримить терм в обоих предикатах. Заодно поправить вводящий в заблуждение комментарий
-в `Ceph/Buckets/index.test.tsx` — `// Plural 'one' form: "1 of 3 bucket" (singular)`: рендерится
-«1 of 3 buckets», и это правильно, регулярка теста просто не заякорена.
+**What to do:** trim the term in both predicates. At the same time, fix the misleading comment
+in `Ceph/Buckets/index.test.tsx` — `// Plural 'one' form: "1 of 3 bucket" (singular)`: what renders is
+"1 of 3 buckets", and that is correct; the test's regex simply isn't anchored.
 
-**Контекст:** не регрессия PR #1335 — код восстановлен ревёртом байт в байт таким, каким был до
-#1320. Но относительно `main` с серверным поиском это шаг назад, поэтому и записано.
+**Context:** not a regression of PR #1335 — the code was restored by the revert byte for byte as it was before
+#1320. But relative to `main` with server-side search it is a step back, which is why it is recorded.
 
-**Источник:** Copilot на [PR #1335](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1335),
-находка 1 (находка 2 про `Plural` отклонена — предложенная правка дала бы «1 of 3 bucket»).
+**Source:** Copilot on [PR #1335](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1335),
+finding 1 (finding 2 about `Plural` was rejected — the suggested change would have produced "1 of 3 bucket").
+
+**Status:** open.
 
 ---
 
-### 35. Шапка DataGrid не по паттерну Juno в остальных списках
+### 35. DataGrid header does not follow the Juno pattern in the other lists
 
-**Где:** `network/floatingips/-components/FloatingIpsList.tsx` — `<div className="relative">`, зоны шапки
-не обёрнуты в `Stack` (ровно как было в Security Groups до #1323); `storage/-components/Ceph/Buckets/index.tsx`,
-`Ceph/Objects/ObjectBrowserView.tsx`, `Swift/Objects/index.tsx` — `<div className="relative">` и один
-`Stack direction="vertical"` без разделения на внешний Stack и Stack шапки. При разборе заодно проверить
+**Where:** `network/floatingips/-components/FloatingIpsList.tsx` — `<div className="relative">`, header zones
+are not wrapped in `Stack` (exactly as it was in Security Groups before #1323); `storage/-components/Ceph/Buckets/index.tsx`,
+`Ceph/Objects/ObjectBrowserView.tsx`, `Swift/Objects/index.tsx` — `<div className="relative">` and a single
+`Stack direction="vertical"` without separation into an outer Stack and a header Stack. While at it, also check
 `Swift/Containers/index.tsx`, `compute/images/-components/List.tsx`, `compute/flavors/-components/List.tsx` —
-там тоже есть `div.relative`.
+they also have `div.relative`.
 
-**Что:** привести к структуре из #1323: `Stack direction="vertical" className="juno-pattern-datagrid-outer"` →
-`Stack direction="vertical" className="juno-pattern-datagrid-header"` (зоны 1–3) + `DataGrid` прямым соседом;
-`div.relative` убрать, если внутри ничто не позиционируется относительно него (в Juno 9.4.0 `Modal`, `PopupMenu`,
-`Select`, `ComboBox` порталятся, `SearchInput` сам `relative`). Классы-маркеры есть только в сторис Juno `main`,
-CSS за ними нет — с 9.4.0 безопасны.
+**What:** bring them to the structure from #1323: `Stack direction="vertical" className="juno-pattern-datagrid-outer"` →
+`Stack direction="vertical" className="juno-pattern-datagrid-header"` (zones 1–3) + `DataGrid` as a direct sibling;
+remove `div.relative` if nothing inside is positioned relative to it (in Juno 9.4.0 `Modal`, `PopupMenu`,
+`Select`, `ComboBox` are portaled, and `SearchInput` is itself `relative`). The marker classes exist only in Juno `main` stories,
+there is no CSS behind them — safe as of 9.4.0.
 
-**Почему не сделано сразу:** по решению #1323 ограничен Security Groups; остальные списки — отдельный PR,
-чтобы не раздувать дифф эпика #1327 и проверять каждый список отдельно.
+**Why not done right away:** per the #1323 decision, it was limited to Security Groups; the other lists go in a separate PR,
+so as not to bloat the diff of epic #1327 and to verify each list separately.
 
-**Источник:** план эпика #1327 (задача #1323), 30.09.2026.
+**Source:** plan for epic #1327 (task #1323), 2026-09-30.
 
----
-
-## H. Тексты UI
-
-### 2. «Please» в остальном клиенте
-
-**Что:** ~70 вхождений против собственного правила репозитория
-`.github/copilot-instructions.md:559`, преимущественно `client/utils/useErrorTranslation.ts`
-(Compute/flavors) и `client/components/Errors/RouteError.tsx`.
-
-**Как делать:** отдельный `style(portal):` PR. Причина выноса: каждая правка меняет msgid, и
-`pnpm check-i18n` раздувает дифф `.po`.
-
-**Источник:** #1331 раунд 1, находка 6 (три строки в `EmptyBucketModal`, которые переписал сам PR,
-починены там же).
+**Status:** open.
 
 ---
 
-## I. Security Groups: шаринг (RBAC)
+## H. UI copy
 
-### 36. 409 при шаринге SG всегда показывается как «уже расшарено», в том числе при исчерпанной квоте
+### 2. "Please" in the rest of the client
 
-**Где:** `packages/aurora/src/server/Network/helpers/rbacPolicyHelpers.ts:62-66`, `RBACPolicyErrorHandlers.create`.
+**What:** ~70 occurrences violating the repository's own rule
+`.github/copilot-instructions.md:559`, mostly `client/utils/useErrorTranslation.ts`
+(Compute/flavors) and `client/components/Errors/RouteError.tsx`.
 
-**Что:** любой ответ 409 от `POST /v2.0/rbac-policies` превращается в «This security group is already
-shared with the specified project». Насколько известно по Neutron, превышение квоты (`OverQuota`)
-тоже возвращается как 409 Conflict. Квота `rbac_policy` по умолчанию 10, она общая на проект: на все
-RBAC-правила групп, сетей и QoS вместе. Поэтому при исчерпанной квоте пользователь видит неверную
-причину. Не проверено на DevStack.
+**How to do it:** a separate `style(portal):` PR. Reason for splitting it out: every edit changes the msgid, and
+`pnpm check-i18n` bloats the `.po` diff.
 
-**Как чинить:** сначала проверить на DevStack: поставить квоту `rbac_policy` = 1 и расшарить группу
-на два разных проекта. Если подтвердится, различать причину 409 по телу ответа Neutron
-(`NeutronError.type`: `OverQuota` против конфликта/дубликата) и показывать отдельное сообщение про
-квоту. Добавить тесты на обе ветки. Заодно проверить `update`: там тот же 409.
+**Source:** #1331 round 1, finding 6 (three strings in `EmptyBucketModal` that the PR itself rewrote
+were fixed there).
 
-**Почему не сделано сразу:** вне эпика #1327. Всплыло при разборе ограничений шаринга, к фильтру
-списка отношения не имеет.
+**Status:** open.
 
-**Источник:** разбор ограничений RBAC-шаринга в сессии по эпику #1327, 01.10.2026.
+---
 
-### 37. Шаринг security group сразу на несколько проектов
+## I. Security Groups: sharing (RBAC)
 
-**Где:** `Network/routers/rbacPolicyRouter.ts` (`create` принимает один `targetTenant`),
-`securitygroups/$securityGroupId/-modals/AddRBACPolicyModal.tsx` (одно поле «Target Project ID»).
+### 36. A 409 when sharing an SG is always shown as "already shared", including when the quota is exhausted
 
-**Что:** в Neutron одно RBAC-правило — это одна пара «объект → один проект». Шаринг на N проектов —
-это N правил. Массового создания для `rbac-policies`, насколько известно, нет (не проверено).
-Сейчас пользователь повторяет модалку N раз. Фича: принимать список ID проектов и создавать правила
-пачкой. Варианты: на клиенте (N вызовов `create`) или процедурой `createMany` в BFF с результатом по
-каждому проекту.
+**Where:** `packages/aurora/src/server/Network/helpers/rbacPolicyHelpers.ts:62-66`, `RBACPolicyErrorHandlers.create`.
 
-**Ограничения, которые надо учесть:** операция не атомарна, нужен частичный успех («7 расшарено,
-3 — ошибка: квота/дубликат»). Квота `rbac_policy` общая на проект (см. п. 36), без п. 36 упор в
-квоту будет выглядеть как «уже расшарено». Права те же, что у одиночного шаринга
-(`network:rbac_policies:create` → `create_rbac_policy`, роль `network_admin`). Валидация ID —
-та же, что в модалке (`isValidProjectID`), на каждый элемент.
+**What:** any 409 response from `POST /v2.0/rbac-policies` is turned into "This security group is already
+shared with the specified project". As far as is known about Neutron, a quota overrun (`OverQuota`)
+is also returned as 409 Conflict. The `rbac_policy` quota defaults to 10 and is shared per project: across all
+RBAC rules for groups, networks and QoS combined. So when the quota is exhausted, the user sees the wrong
+reason. Not verified on DevStack.
 
-**Почему не сделано сразу:** это новая фича, не баг эпика #1327. Сначала нужен ответ продукта,
-нужна ли она. Делать после п. 36.
+**How to fix:** first verify on DevStack: set the `rbac_policy` quota = 1 and share a group
+with two different projects. If confirmed, distinguish the cause of the 409 by the Neutron response body
+(`NeutronError.type`: `OverQuota` vs. conflict/duplicate) and show a separate message about
+the quota. Add tests for both branches. Also check `update` while at it: it has the same 409.
 
-**Источник:** разбор ограничений RBAC-шаринга в сессии по эпику #1327, 01.10.2026.
+**Why not done right away:** outside epic #1327. It surfaced while analyzing sharing limitations and has nothing to do
+with the list filter.
 
-## J. Security Groups: правила
+**Source:** analysis of RBAC sharing limitations in the session on epic #1327, 2026-10-01.
 
-### 38. В таблице правил SG нет колонки Remote
+**Status:** open.
 
-**Где:** `securitygroups/$securityGroupId/-components/-details/SecurityGroupRulesTable.tsx:234-238`
-(колонки Direction, Description, Ethertype, Protocol, Range); remote видно только в
-`$securityGroupId/-modals/DeleteRuleDialog.tsx:112-114`, группа — голым ID.
+### 37. Sharing a security group with several projects at once
 
-**Что:** пользователь не видит, для кого открыто правило: «TCP 22 для `0.0.0.0/0`» и «TCP 22 для
-`10.0.0.5/32`» в таблице неотличимы. Из правила с remote-группой нельзя перейти к этой группе: ни
-ссылки, ни имени (в диалоге удаления — голый ID), строка правила не кликабельна, страницы деталей
-правила нет. Колонки не было с первой версии таблицы (`97590495`, #586);
-комментарий в `SecurityGroupRulesTable.test.tsx` («"Remote Source" column was removed in linter
-updates») историей не подтверждается. В Elektra колонка есть (`security_group_rules/list.jsx:141`,
-`item.jsx:49-54`): CIDR как `IP: <cidr>`, группа — по имени со ссылкой на её правила.
+**Where:** `Network/routers/rbacPolicyRouter.ts` (`create` accepts a single `targetTenant`),
+`securitygroups/$securityGroupId/-modals/AddRBACPolicyModal.tsx` (a single "Target Project ID" field).
 
-**Как:** колонка Remote: `remote_ip_prefix`, либо имя remote-группы (резолв по списку групп
-проекта, fallback — ID; для своей же группы — пометка «this group») со ссылкой на её детали; правило
-без remote — «Any». Тот же резолв имени применить в `DeleteRuleDialog`. Учесть ширину таблицы
-(уже 5 колонок + действия).
+**What:** in Neutron, one RBAC rule is one "object → one project" pair. Sharing with N projects
+means N rules. As far as is known, there is no bulk creation for `rbac-policies` (not verified).
+Currently the user repeats the modal N times. Feature: accept a list of project IDs and create the rules
+in a batch. Options: on the client (N `create` calls) or via a `createMany` procedure in the BFF with a result for
+each project.
 
-**Почему не сделано сразу:** отдельная правка таблицы, не входит в PR про help hints форм
-(замечание «Show validation information… on form inputs»).
+**Constraints to take into account:** the operation is not atomic, partial success is needed ("7 shared,
+3 failed: quota/duplicate"). The `rbac_policy` quota is shared per project (see item 36); without item 36, hitting
+the quota will look like "already shared". Permissions are the same as for single sharing
+(`network:rbac_policies:create` → `create_rbac_policy`, role `network_admin`). ID validation is
+the same as in the modal (`isValidProjectID`), per element.
 
-**Источник:** разбор Remote / фильтра текущей группы в модалке Add Rule, 06.10.2026.
+**Why not done right away:** this is a new feature, not a bug of epic #1327. First a product answer is needed
+on whether it is wanted. Do it after item 36.
 
-**Статус:** сделано 06.10.2026 в PR про help hints форм SG (ветка `kiryl-security-groups-form-hints`):
-колонка Remote (CIDR, имя группы текстом, без ссылки — по решению автора PR; `(this group)`, ID для групп вне списка, address group,
-`Any`), Description перенесена в конец; в `DeleteRuleDialog` одна строка `Remote` с тем же значением;
-поиск по правилам находит и по CIDR, и по имени remote-группы. Хелпер — `$securityGroupId/-components/ruleRemote.ts`.
+**Source:** analysis of RBAC sharing limitations in the session on epic #1327, 2026-10-01.
 
-### 39. Сообщения валидации Add Rule не переведены
+**Status:** open.
 
-**Что:** ошибки полей в модалке Add Rule — английские строки в zod-схеме
-(`AddRuleModal/validation/formSchema.ts`) и в `validationHelpers.ts`, около 27 сообщений. Lingui их
-не извлекает, в немецкой локали они остаются английскими. Так было и до PR про help hints; он
-добавил три строки в том же стиле.
+---
 
-**Как:** сделать схему фабрикой от `t` (как `securityGroupValidation.ts` с `msg`) и поправить
-8 тестов секций, которые импортируют `createRuleFormSchema`.
+## J. Security Groups: rules
 
-**Почему не сделано сразу:** отдельный рефакторинг схемы, не относится к подсказкам.
+### 38. The SG rules table has no Remote column
 
-**Источник:** /code-review ветки `kiryl-security-groups-form-hints`, 06.10.2026.
+**Where:** `securitygroups/$securityGroupId/-components/-details/SecurityGroupRulesTable.tsx:234-238`
+(columns Direction, Description, Ethertype, Protocol, Range); remote is visible only in
+`$securityGroupId/-modals/DeleteRuleDialog.tsx:112-114`, and a group as a bare ID.
 
-**Статус:** открыт.
+**What:** the user cannot see whom a rule is open to: "TCP 22 for `0.0.0.0/0`" and "TCP 22 for
+`10.0.0.5/32`" are indistinguishable in the table. From a rule with a remote group you cannot navigate to that group: there is no
+link and no name (the delete dialog shows a bare ID), the rule row is not clickable, and there is no rule
+details page. The column has been missing since the first version of the table (`97590495`, #586);
+the comment in `SecurityGroupRulesTable.test.tsx` (`"Remote Source" column was removed in linter
+updates`) is not supported by the history. Elektra has the column (`security_group_rules/list.jsx:141`,
+`item.jsx:49-54`): CIDR as `IP: <cidr>`, a group by name with a link to its rules.
 
-### 40. Экраны ошибок бакетов выбираются по подстроке сообщения сервера
+**How:** a Remote column: `remote_ip_prefix`, or the remote group's name (resolved from the project's list of groups,
+falling back to the ID; for the group itself — a "this group" label) with a link to its details; a rule
+without a remote — "Any". Apply the same name resolution in `DeleteRuleDialog`. Mind the table width
+(already 5 columns + actions).
 
-**Где:** `Ceph/Buckets/index.tsx`, ветка ошибки `containers.list`. Экраны «Access Denied» и «S3
-Authentication Failed» выбираются через `errorMessage.includes("Access denied")` и
-`includes("Invalid access key")`. Это тексты из `s3ErrorMapper.ts:80-89`. Если формулировку на
-сервере поменяют, оба экрана молча провалятся в общий «Failed to Load Buckets».
+**Why not done right away:** a separate table change, not part of the PR on form help hints
+(the "Show validation information… on form inputs" remark).
 
-**Что сделать:** различать по `error.data?.code`. Маппер (`s3ErrorMapper.ts:26-31`) уже ставит
-`FORBIDDEN` для `AccessDenied`/`AllAccessDisabled` и `UNAUTHORIZED` для `InvalidAccessKeyId`,
-`SignatureDoesNotMatch`, `TokenRefreshRequired` и `RequestTimeTooSkewed`. Это ровно те группы, что
-сейчас ловятся подстрокой.
-Заодно убрать «may be expired» из текста `s3ErrorMapper.ts:89`: срока действия у EC2-кредов нет.
+**Source:** analysis of Remote / the current-group filter in the Add Rule modal, 2026-10-06.
 
-**Почему не сделано сразу:** так было до #1362; PR менял только вид экранов, не способ их выбора.
+**Status:** done 2026-10-06 in [PR #1368](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1368) (SG form help hints, branch `kiryl-security-groups-form-hints`):
+Remote column (CIDR, group name as text, without a link — per the PR author's decision; `(this group)`, ID for groups not in the list, address group,
+`Any`), Description moved to the end; in `DeleteRuleDialog` a single `Remote` row with the same value;
+rule search matches both by CIDR and by remote group name. Helper — `$securityGroupId/-components/ruleRemote.ts`.
 
-**Источник:** triple-review правок по фидбэку #1362 (security и architecture, Low), 07.10.2026.
+### 39. Add Rule validation messages are not translated
 
-**Статус:** открыт.
+**What:** field errors in the Add Rule modal are English strings in the zod schema
+(`AddRuleModal/validation/formSchema.ts`) and in `validationHelpers.ts`, about 27 messages. Lingui does
+not extract them, so in the German locale they remain English. It was like this before the help hints PR too; it
+added three strings in the same style.
 
-### 41. Метаданные S3-ключа (`created_at`, `label`) в blob EC2-креды
+**How:** make the schema a factory taking `t` (like `securityGroupValidation.ts` with `msg`) and fix
+the 8 section tests that import `createRuleFormSchema`.
 
-**Что:** у EC2-креды в Keystone нет ни имени, ни даты создания: только `id`, `user_id`, `project_id`,
-`type`, `blob`. Поэтому в Manage Credentials ключи различаются только по access key, а «новые сверху»
-работает лишь в пределах одного открытия модалки (state `createdIds` в `ManageCredentialsModal.tsx`).
+**Why not done right away:** a separate schema refactoring, unrelated to the hints.
 
-**Как:** класть метаданные в blob, который собирает `ec2CredentialRouter.create`:
-`{ access, secret, created_at, label }`. `list` отдаёт их без секрета, UI сортирует по `created_at`
-и показывает имя; переименование — `PATCH /v3/credentials/{id}` с тем же `access`. Ключи, созданные
-не через Aurora (CLI, `OS-EC2` — 32 hex), этих полей не имеют, UI должен показывать «неизвестно».
+**Source:** /code-review of branch `kiryl-security-groups-form-hints`, 2026-10-06.
 
-**Не так:** не вшивать данные в сами access/secret. Secret — ключ HMAC, вшитое в него снижает
-стойкость. Access key публичен: он уходит в `Authorization` каждого S3-запроса и пишется в логи RGW;
-его можно подделать, создав креду в «нашем формате» через Keystone API; сменить вшитое нельзя, потому что
-id креды — sha256(access).
+**Status:** open.
 
-**Сначала проверить на стенде:** что Keystone (`POST`/`PATCH /v3/credentials`, EC2-аутентификация
-через `s3tokens`) и RGW не ломаются от лишних полей в blob. Насколько известно, Keystone читает из
-blob только `access`, `secret` и опциональные `trust_id`/`app_cred_id`, но на реальном развёртывании
-это не проверено (так же записано в out of scope issue #1358).
+### 43. SG details page state (tab, search, sorting, rule filters) in the URL
 
-**Почему не сделано сразу:** новая функциональность (имена ключей в #1358 явно вне рамок), требует
-проверки на стенде.
+**Where:**
+- `securitygroups/$securityGroupId/-components/SecurityGroupDetailsView.tsx:58`: `activeTab` in `useState`;
+- `securitygroups/$securityGroupId/index.tsx:87-100`: rule search, sorting and filters via
+  `useListWithFiltering` (`client/utils/useListWithFiltering.ts:97-119`, also `useState`);
+- the `$securityGroupId/index.tsx` route has no `validateSearch`.
 
-**Источник:** обсуждение фидбэка по #1362 (порядок новых ключей, формат ключей), 07.10.2026.
+**What:** rule B.9 in `.github/copilot-instructions.md` requires keeping such state in search
+params (`tab`, `search`, `sortBy`/`sortDirection`). Currently a reload or a link to the page always
+opens Rules with no search and with default sorting.
 
-**Статус:** открыт.
+**How:**
+1. `validateSearch` on the route: `tab: z.enum(["rules", "rbac"]).optional().default("rules")` plus
+   search and sorting parameters. Reference — `storage/$provider/$storageType/$containerName/objects/index.tsx:44`.
+2. Pass `tab` and `navigate` to `SecurityGroupDetailsView` instead of the local `activeTab`.
+3. If RBAC is unavailable but the URL has `tab=rbac`, replace it with `rules` (`navigate` with `replace`). Currently
+   `currentTab` (`SecurityGroupDetailsView.tsx:63-64`) only masks the value, and when permissions are restored
+   RBAC will open again.
+4. Rule search and sorting will need a URL variant of `useListWithFiltering` or passing search
+   params through, as on the list pages.
 
-### 43. Состояние страницы деталей SG (вкладка, поиск, сортировка, фильтры правил) в URL
+**Why not done right away:** `activeTab` and the rule state lived in `useState` before PR #1375 too. Moving
+them to the URL is a separate routing task, while PR #1375 is about layout and Juno components.
 
-**Где:**
-- `securitygroups/$securityGroupId/-components/SecurityGroupDetailsView.tsx:58`: `activeTab` в `useState`;
-- `securitygroups/$securityGroupId/index.tsx:87-100`: поиск, сортировка и фильтры правил через
-  `useListWithFiltering` (`client/utils/useListWithFiltering.ts:97-119`, тоже `useState`);
-- у маршрута `$securityGroupId/index.tsx` нет `validateSearch`.
+**Source:** Copilot remark in PR #1375 (`SecurityGroupDetailsView.tsx:64`), 2026-10-07.
 
-**Что:** правило B.9 в `.github/copilot-instructions.md` требует держать такое состояние в search
-params (`tab`, `search`, `sortBy`/`sortDirection`). Сейчас перезагрузка или ссылка на страницу всегда
-открывает Rules без поиска и с сортировкой по умолчанию.
+**Status:** open.
 
-**Как:**
-1. `validateSearch` на маршруте: `tab: z.enum(["rules", "rbac"]).optional().default("rules")` плюс
-   параметры поиска и сортировки. Образец — `storage/$provider/$storageType/$containerName/objects/index.tsx:44`.
-2. Передать `tab` и `navigate` в `SecurityGroupDetailsView` вместо локального `activeTab`.
-3. Если RBAC недоступен, а в URL `tab=rbac`, заменить его на `rules` (`navigate` с `replace`). Сейчас
-   `currentTab` (`SecurityGroupDetailsView.tsx:63-64`) только маскирует значение, и при возврате прав
-   снова откроется RBAC.
-4. Для поиска и сортировки правил понадобится URL-вариант `useListWithFiltering` или проброс search
-   params, как на списочных страницах.
+---
 
-**Почему не сделано сразу:** `activeTab` и состояние правил жили в `useState` и до PR #1375. Перенос
-в URL — отдельная задача по маршруту, а PR #1375 про раскладку и компоненты Juno.
+## K. Juno: component consistency
 
-**Источник:** замечание Copilot в PR #1375 (`SecurityGroupDetailsView.tsx:64`), 07.10.2026.
+### 42. `TabNavigation` tabs: `tabStyle="content"` and a controlled `activeItem` everywhere
 
-**Статус:** открыт.
-
-## K. Juno: консистентность компонентов
-
-### 42. Вкладки `TabNavigation`: `tabStyle="content"` и управляемый `activeItem` везде
-
-**Где:** все пять `TabNavigation` в `packages/aurora/src/client`: `components/ListToolbar/index.tsx:163`,
+**Where:** all five `TabNavigation` instances in `packages/aurora/src/client`: `components/ListToolbar/index.tsx:163`,
 `compute/images/-components/List.tsx:247`, `storage/-components/Ceph/Buckets/BucketDetailTabs.tsx:21`,
 `storage/-components/Ceph/Objects/ObjectBrowserView.tsx:655`,
 `network/securitygroups/$securityGroupId/-components/-details/SecurityGroupTabs.tsx`.
 
-**Что, две части:**
+**What, in two parts:**
 
-1. **`tabStyle`.** Нигде не задан, везде `main` по умолчанию. По документации Juno 9.4.0
-   (`TabNavigation.component.tsx:77`) `main` — для первого ребёнка AppShell, для вкладок внутри
-   страницы нужен `content` (у неактивных вкладок появляется тёмная нижняя граница). Все пять стоят
-   внутри страницы.
-2. **Полуправляемые вкладки.** `BucketDetailTabs` и `ObjectBrowserView` передают только `active` +
-   `onClick`. В Juno 9.4.0 `Navigation` после первого клика хранит активный пункт у себя, и
-   `NavigationItem` дальше игнорирует `active`: если вкладку переключит не клик, подсветка останется
-   на старой. Ключ пункта при этом — переведённый `label`. `ListToolbar`, `images/List.tsx` и
-   `SecurityGroupTabs` уже управляемые.
+1. **`tabStyle`.** It is not set anywhere, so `main` is used by default everywhere. According to the Juno 9.4.0 docs
+   (`TabNavigation.component.tsx:77`), `main` is for the first child of AppShell; tabs inside a
+   page need `content` (inactive tabs get a dark bottom border). All five sit
+   inside a page.
+2. **Semi-controlled tabs.** `BucketDetailTabs` and `ObjectBrowserView` pass only `active` +
+   `onClick`. In Juno 9.4.0, after the first click `Navigation` keeps the active item in its own state, and
+   `NavigationItem` then ignores `active`: if the tab is switched by something other than a click, the highlight stays
+   on the old one. The item key in this case is the translated `label`. `ListToolbar`, `images/List.tsx` and
+   `SecurityGroupTabs` are already controlled.
 
-**Как:**
-1. `tabStyle="content"` во всех пяти местах сразу, не по одной странице, и проверить вид в браузере.
-2. В `BucketDetailTabs` и `ObjectBrowserView` сделать как в `SecurityGroupTabs.tsx`: стабильный
-   `value` у пунктов, `activeItem` + `onActiveItemChange` на `TabNavigation`, `active` оставить для
-   первого рендера. Тест: клик, затем смена активной вкладки родителем через `rerender`, проверка
+**How:**
+1. `tabStyle="content"` in all five places at once, not one page at a time, and check the look in the browser.
+2. In `BucketDetailTabs` and `ObjectBrowserView`, do it as in `SecurityGroupTabs.tsx`: a stable
+   `value` on the items, `activeItem` + `onActiveItemChange` on `TabNavigation`, keep `active` for
+   the first render. Test: click, then change the active tab from the parent via `rerender`, check
    `aria-selected`.
 
-**Почему не сделано сразу:** затрагивает чужие страницы (Ceph, Images, списки). Менять `tabStyle`
-только у Security Groups — новый разнобой.
+**Why not done right away:** it touches other people's pages (Ceph, Images, lists). Changing `tabStyle`
+only for Security Groups would introduce a new inconsistency.
 
-**Источник:** /triple-review PR про страницу деталей SG (ветка `kiryl-security-groups-detail-page`),
-07.10.2026.
+**Source:** /triple-review of the PR for the SG details page (branch `kiryl-security-groups-detail-page`),
+2026-10-07.
 
-**Статус:** открыт.
+**Status:** open.
 
 ---
-Обновлено: 07.10.2026
+Updated: 2026-10-07

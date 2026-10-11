@@ -1,4 +1,13 @@
+---
+type: issue
+date: 2026-10-07
+issue: [1376]
+kind: task
+scope: network
+---
 # [Task](network): Security Group detail page layout and Juno components
+
+Opened as #1376
 
 **Task Description**
 

@@ -1,3 +1,11 @@
+---
+type: pr-report
+date: 2026-09-02
+status: merged
+pr: [1250]
+author: mark-karnaukh-extern-sap
+branch: mark-fix-datagrid-virtualized-tables
+---
 # PR #1250: fix(aurora): incorrect DataGrid usage in virtualized tables (Swift, Ceph) (#1223)
 
 **Автор:** mark-karnaukh-extern-sap · **Статус:** создан 01.09.2026 → смержен 02.09.2026

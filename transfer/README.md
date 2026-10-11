@@ -1,25 +1,15 @@
+---
+type: index
+---
 # transfer
 
-Незакоммиченные изменения aurora-dashboard, которые едут между машинами через этот репозиторий.
-Каждый файл — `git diff --cached --binary`, снятый с рабочего дерева; имя содержит базовый коммит.
+Everything needed to carry uncommitted `aurora-dashboard` work to another machine. `DOCS` is its own git repository, so this folder travels by commit and push; on the other machine you only pull `DOCS` and use what's here — nothing needs to be run there.
 
-## Как применить
-
-```bash
-cd <путь к aurora-dashboard>
-git fetch origin
-git checkout <база из имени патча>          # напр. 9775e4bb
-git apply <путь к DOCS>/transfer/<файл>.patch
-```
-
-Полезное:
-
-- `git apply --check <файл>.patch` — проверить, ляжет ли, ничего не меняя.
-- `git apply --index <файл>.patch` — применить сразу в индекс (как было на исходной машине).
-- `git apply --3way <файл>.patch` — если база разъехалась: смержит вместо отказа.
-
-## Патчи
-
-| Патч | База | Что внутри |
+| Folder | What it holds | Written by |
 | --- | --- | --- |
-| `security-groups-detail-page-on-505e3e1b.patch` | `505e3e1b` | Ветка `kiryl-security-groups-detail-page`, PR #1375, поверх коммита PR: порядок импортов в `SecurityGroupTabs.tsx` (react → lingui → Juno, `import type { ReactNode }`) по замечанию Copilot. 1 файл. |
+| [`patch/`](./patch/) | The staged change set as a single `git diff --cached --binary` patch, named `<id>-on-<base-sha>.patch`, plus `README.md` with the `git apply` recipe and a one-row table describing the current patch. The patch carries deletions, renames and file modes. | `temp-sync` skill (`sync_patch_to_transfer.sh`) |
+| [`temp-files/`](./temp-files/) | The same staged files as plain copies at their original relative paths — for reading or copying individual files without applying the patch. Does not carry deletions or renames. | `temp-sync` skill (`sync_staged_to_tempfiles.sh`) |
+
+Both subfolders hold only the change set currently in flight: each is emptied on every `temp-sync` run (except `patch/README.md`). This `README.md` sits outside them and is never touched by the scripts.
+
+To apply the work on the other machine, follow [`patch/README.md`](./patch/README.md).

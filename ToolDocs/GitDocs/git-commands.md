@@ -1,144 +1,147 @@
-# Команды Git — практический справочник
+---
+type: tool-notes
+---
+# Git commands — practical reference
 
-Список git-команд по категориям, для повседневной работы (не plumbing/внутренности git — про объекты, refs и `cat-file`/`hash-object` здесь нет). Ориентир — что реально используется в работе, а не полный man `git`.
+A list of git commands by category, for everyday work (not plumbing/git internals — objects, refs and `cat-file`/`hash-object` are not covered here). The focus is on what is actually used in practice, not the full `git` man page.
 
-> Собрано 20.08.2026. Актуальность синтаксиса проверять `git help <команда>` или `git <команда> --help`.
+> Compiled 2026-08-20. Check current syntax with `git help <command>` or `git <command> --help`.
 
-## Настройка и создание репозитория
+## Setup and repository creation
 
-| Команда | Описание |
+| Command | Description |
 | --- | --- |
-| `git init` | Создаёт новый git-репозиторий в текущей папке. |
-| `git clone <url> [dir]` | Клонирует удалённый репозиторий целиком (историю + все ветки, если не указано иное). |
-| `git clone --filter=blob:none <url>` | "Частичный" клон — скачивает историю коммитов без содержимого файлов, они подтягиваются по требованию; быстрее для больших репо, если не нужен весь рабочий каталог сразу. |
-| `git clone --depth 1 <url>` | Неглубокий клон — только последний коммит, без истории. Быстро, но `git log`/`git blame` ограничены. |
-| `git config user.name "..."` / `git config user.email "..."` | Имя/почта автора коммитов для текущего репозитория (без `--global` — только для него). |
-| `git config --global user.name "..."` / `--global user.email "..."` | То же самое, но глобально для всех репозиториев пользователя. |
-| `git config --list` | Показывает все действующие настройки (глобальные + локальные). |
-| `git remote add origin <url>` | Привязывает удалённый репозиторий с именем `origin`. |
-| `git remote -v` | Список удалённых репозиториев и их URL (fetch/push). |
+| `git init` | Creates a new git repository in the current folder. |
+| `git clone <url> [dir]` | Clones a remote repository in full (history + all branches, unless specified otherwise). |
+| `git clone --filter=blob:none <url>` | "Partial" clone — downloads the commit history without file contents, which are fetched on demand; faster for large repos if you don't need the whole working tree right away. |
+| `git clone --depth 1 <url>` | Shallow clone — only the latest commit, no history. Fast, but `git log`/`git blame` are limited. |
+| `git config user.name "..."` / `git config user.email "..."` | Commit author name/email for the current repository (without `--global` — for this repository only). |
+| `git config --global user.name "..."` / `--global user.email "..."` | Same, but globally for all of the user's repositories. |
+| `git config --list` | Shows all effective settings (global + local). |
+| `git remote add origin <url>` | Links a remote repository under the name `origin`. |
+| `git remote -v` | Lists remote repositories and their URLs (fetch/push). |
 
-## Базовая работа: статус, добавление, коммит
+## Basic workflow: status, add, commit
 
-| Команда | Описание |
+| Command | Description |
 | --- | --- |
-| `git status` | Что изменено, что застейджено, что не отслеживается. |
-| `git status --short` (`-s`) | Компактный вывод статуса (`M`/`A`/`??` и т.д.). |
-| `git add <файл>` | Добавляет файл в индекс (staging area) для следующего коммита. |
-| `git add -p` | Интерактивно добавляет изменения по частям (hunk-ам), а не весь файл целиком. |
-| `git add -A` / `git add .` | Добавляет все изменения — использовать осторожно, легко случайно закоммитить лишнее (секреты, мусорные файлы). |
-| `git commit -m "сообщение"` | Коммитит застейдженные изменения. |
-| `git commit -am "сообщение"` | Коммитит все изменённые (но не новые/untracked) файлы, минуя явный `git add`. |
-| `git commit --amend` | Изменяет последний коммит (сообщение и/или застейдженные изменения) — **не делать после `push`** в общую ветку без явной необходимости (переписывает историю). |
-| `git diff` | Diff незастейдженных изменений в рабочей директории. |
-| `git diff --staged` (`--cached`) | Diff того, что уже застейджено и попадёт в следующий коммит. |
-| `git diff <файл1> <файл2>` | Diff двух конкретных файлов/коммитов/веток. |
-| `git mv <откуда> <куда>` | Переименование/перемещение файла с сохранением истории — эквивалентно `mv` + `git add`. |
-| `git rm <файл>` | Удаляет файл из рабочей директории и индекса. |
-| `git rm --cached <файл>` | Убирает файл из отслеживания, но оставляет на диске (например, забыли добавить в `.gitignore`). |
+| `git status` | What is modified, what is staged, what is untracked. |
+| `git status --short` (`-s`) | Compact status output (`M`/`A`/`??` etc.). |
+| `git add <file>` | Adds a file to the index (staging area) for the next commit. |
+| `git add -p` | Interactively stages changes piece by piece (by hunks) instead of the whole file. |
+| `git add -A` / `git add .` | Stages all changes — use with care, it's easy to accidentally commit something unwanted (secrets, junk files). |
+| `git commit -m "message"` | Commits the staged changes. |
+| `git commit -am "message"` | Commits all modified (but not new/untracked) files, skipping an explicit `git add`. |
+| `git commit --amend` | Modifies the last commit (message and/or staged changes) — **don't do this after `push`** to a shared branch unless truly necessary (it rewrites history). |
+| `git diff` | Diff of unstaged changes in the working directory. |
+| `git diff --staged` (`--cached`) | Diff of what is already staged and will go into the next commit. |
+| `git diff <file1> <file2>` | Diff of two specific files/commits/branches. |
+| `git mv <from> <to>` | Renames/moves a file while preserving history — equivalent to `mv` + `git add`. |
+| `git rm <file>` | Removes a file from the working directory and the index. |
+| `git rm --cached <file>` | Stops tracking a file but keeps it on disk (e.g., you forgot to add it to `.gitignore`). |
 
-## Ветки
+## Branches
 
-| Команда | Описание |
+| Command | Description |
 | --- | --- |
-| `git branch` | Список локальных веток, текущая отмечена `*`. |
-| `git branch -a` | Список всех веток, включая удалённые (`remotes/origin/...`). |
-| `git branch <имя>` | Создаёт новую ветку от текущего коммита (не переключается на неё). |
-| `git branch -d <имя>` | Удаляет локальную ветку (только если она уже слита). |
-| `git branch -D <имя>` | Принудительно удаляет локальную ветку, даже если не слита. |
-| `git checkout <ветка>` | Переключается на существующую ветку. |
-| `git checkout -b <новая-ветка>` | Создаёт новую ветку и сразу переключается на неё. |
-| `git switch <ветка>` | Современный аналог `git checkout <ветка>` — только переключение веток, без побочных эффектов на файлы. |
-| `git switch -c <новая-ветка>` | Аналог `git checkout -b` — создать и переключиться. |
-| `git merge <ветка>` | Слить указанную ветку в текущую. |
-| `git merge --no-ff <ветка>` | Слить с явным merge-коммитом даже если возможен fast-forward — сохраняет в истории факт, что была отдельная ветка. |
-| `git branch --merged` / `--no-merged` | Какие ветки уже слиты в текущую / ещё не слиты — удобно для чистки. |
+| `git branch` | Lists local branches; the current one is marked with `*`. |
+| `git branch -a` | Lists all branches, including remote ones (`remotes/origin/...`). |
+| `git branch <name>` | Creates a new branch from the current commit (does not switch to it). |
+| `git branch -d <name>` | Deletes a local branch (only if it has already been merged). |
+| `git branch -D <name>` | Force-deletes a local branch, even if it is not merged. |
+| `git checkout <branch>` | Switches to an existing branch. |
+| `git checkout -b <new-branch>` | Creates a new branch and immediately switches to it. |
+| `git switch <branch>` | Modern equivalent of `git checkout <branch>` — only switches branches, with no side effects on files. |
+| `git switch -c <new-branch>` | Equivalent of `git checkout -b` — create and switch. |
+| `git merge <branch>` | Merges the specified branch into the current one. |
+| `git merge --no-ff <branch>` | Merges with an explicit merge commit even if a fast-forward is possible — preserves in history the fact that there was a separate branch. |
+| `git branch --merged` / `--no-merged` | Which branches are already merged into the current one / not yet merged — handy for cleanup. |
 
 ## Rebase
 
-| Команда | Описание |
+| Command | Description |
 | --- | --- |
-| `git rebase <ветка>` | Переносит коммиты текущей ветки поверх указанной — переписывает историю (новые хэши коммитов). |
-| `git rebase -i <коммит>` (интерактивный) | Интерактивная переработка истории — `reword`/`squash`/`drop`/переставить коммиты. |
-| `git rebase --continue` | Продолжить rebase после разрешения конфликта. |
-| `git rebase --abort` | Отменить rebase и вернуться к состоянию до его начала. |
-| `git pull --rebase` | Аналог `git pull`, но накатывает свои коммиты поверх подтянутых, а не создаёт merge-коммит. |
+| `git rebase <branch>` | Moves the current branch's commits on top of the specified one — rewrites history (new commit hashes). |
+| `git rebase -i <commit>` (interactive) | Interactive history rewriting — `reword`/`squash`/`drop`/reorder commits. |
+| `git rebase --continue` | Continues a rebase after resolving a conflict. |
+| `git rebase --abort` | Cancels a rebase and returns to the state before it started. |
+| `git pull --rebase` | Like `git pull`, but replays your commits on top of the fetched ones instead of creating a merge commit. |
 
-> Правило безопасности: не рабейзить ветку, которая уже запушена и с которой работают другие — история переписывается, у остальных разойдётся с их локальными копиями.
+> Safety rule: don't rebase a branch that has already been pushed and that others are working on — history gets rewritten and will diverge from everyone else's local copies.
 
-## Синхронизация с удалённым репозиторием
+## Syncing with the remote repository
 
-| Команда | Описание |
+| Command | Description |
 | --- | --- |
-| `git fetch` | Скачивает новые коммиты/ветки с удалённого репозитория, но не трогает рабочую директорию/текущую ветку. |
-| `git fetch origin refs/pull/<n>/head:<local-branch>` | Затягивает конкретный GitHub PR по номеру в локальную ветку без `gh` CLI. |
-| `git pull` | `fetch` + `merge` (или `rebase`, если настроено) текущей ветки с её upstream. |
-| `git push` | Отправляет коммиты текущей ветки в её upstream. |
-| `git push -u origin <ветка>` | Первый push новой ветки — задаёт upstream, дальше можно просто `git push`. |
-| `git push --force-with-lease` | Форс-push, который откатится, если на удалённой стороне появились чужие коммиты, которых у тебя нет (безопаснее чистого `--force`). |
-| `git push --force` | Безусловный форс-push — перезатирает удалённую ветку как есть; опасно на общих ветках. |
+| `git fetch` | Downloads new commits/branches from the remote repository, but doesn't touch the working directory/current branch. |
+| `git fetch origin refs/pull/<n>/head:<local-branch>` | Fetches a specific GitHub PR by number into a local branch without the `gh` CLI. |
+| `git pull` | `fetch` + `merge` (or `rebase`, if configured) of the current branch with its upstream. |
+| `git push` | Pushes the current branch's commits to its upstream. |
+| `git push -u origin <branch>` | First push of a new branch — sets the upstream, after which a plain `git push` is enough. |
+| `git push --force-with-lease` | A force push that is rejected if the remote has gained someone else's commits that you don't have (safer than a plain `--force`). |
+| `git push --force` | Unconditional force push — overwrites the remote branch as is; dangerous on shared branches. |
 
-**Аутентификация по HTTPS:** GitHub с 2021 года не принимает обычный пароль аккаунта для git-операций по HTTPS — нужен Personal Access Token в поле пароля (или SSH-ключ вместо HTTPS). Это касается и GUI-клиентов (например, Fork) — если в клиенте выбран "простой логин" (username+password), туда всё равно нужно вставлять PAT, а не реальный пароль. Для организаций с SAML SSO (как `cobaltcore-dev`) токен дополнительно нужно авторизовать под конкретную организацию через "Configure SSO" на странице токена в настройках GitHub.
+**HTTPS authentication:** since 2021, GitHub no longer accepts a regular account password for git operations over HTTPS — you need a Personal Access Token in the password field (or an SSH key instead of HTTPS). This also applies to GUI clients (e.g., Fork) — if the client is set to "simple login" (username+password), you still need to paste a PAT there, not your real password. For organizations with SAML SSO (such as `cobaltcore-dev`), the token must additionally be authorized for the specific organization via "Configure SSO" on the token's page in GitHub settings.
 
-## История и просмотр
+## History and inspection
 
-| Команда | Описание |
+| Command | Description |
 | --- | --- |
-| `git log` | История коммитов текущей ветки. |
-| `git log --oneline` | По одной строке на коммит (короткий хэш + сообщение). |
-| `git log --oneline --graph --all` | То же самое + ASCII-граф веток и мержей по всем веткам. |
-| `git log -p <файл>` | История коммитов с diff'ами, затрагивающими конкретный файл. |
-| `git log --follow <файл>` | История файла с учётом переименований (`git mv`). |
-| `git show <коммит>` | Полная информация о коммите: метаданные + diff. |
-| `git blame <файл>` | Кто и в каком коммите последний раз менял каждую строку файла. |
-| `git grep <шаблон>` | Поиск текста по файлам, отслеживаемым git (в отслеживаемой версии, не по рабочей директории вслепую). |
-| `git diff <коммит1>..<коммит2>` | Diff между двумя произвольными коммитами/ветками/тегами. |
+| `git log` | Commit history of the current branch. |
+| `git log --oneline` | One line per commit (short hash + message). |
+| `git log --oneline --graph --all` | Same + an ASCII graph of branches and merges across all branches. |
+| `git log -p <file>` | Commit history with diffs affecting a specific file. |
+| `git log --follow <file>` | File history including renames (`git mv`). |
+| `git show <commit>` | Full information about a commit: metadata + diff. |
+| `git blame <file>` | Who last changed each line of a file, and in which commit. |
+| `git grep <pattern>` | Searches text in files tracked by git (in the tracked version, not blindly across the working directory). |
+| `git diff <commit1>..<commit2>` | Diff between any two commits/branches/tags. |
 
-## Отмена изменений
+## Undoing changes
 
-| Команда | Описание |
+| Command | Description |
 | --- | --- |
-| `git restore <файл>` | Откатывает файл в рабочей директории к версии из индекса/последнего коммита (современный аналог `git checkout -- <файл>`). |
-| `git restore --staged <файл>` | Убирает файл из индекса (unstage), не трогая изменения в рабочей директории. |
-| `git reset <файл>` | То же самое, что `restore --staged` — старый синтаксис. |
-| `git reset --soft <коммит>` | Двигает текущую ветку на указанный коммит, оставляя все изменения застейдженными. |
-| `git reset --mixed <коммит>` (по умолчанию) | То же, но изменения остаются в рабочей директории, не застейджены. |
-| `git reset --hard <коммит>` | Полностью откатывает ветку и рабочую директорию к коммиту — **теряет незакоммиченные изменения безвозвратно**. |
-| `git revert <коммит>` | Создаёт новый коммит, отменяющий изменения указанного — безопасно для уже запушенной/общей истории (в отличие от `reset`). |
-| `git clean -n` | Показывает, какие untracked-файлы удалит `git clean` (dry-run, ничего не удаляет). |
-| `git clean -fd` | Удаляет untracked-файлы и папки — без бэкапа, применять после `-n`. |
+| `git restore <file>` | Reverts a file in the working directory to the version from the index/last commit (modern equivalent of `git checkout -- <file>`). |
+| `git restore --staged <file>` | Removes a file from the index (unstage) without touching changes in the working directory. |
+| `git reset <file>` | Same as `restore --staged` — the old syntax. |
+| `git reset --soft <commit>` | Moves the current branch to the specified commit, keeping all changes staged. |
+| `git reset --mixed <commit>` (default) | Same, but the changes stay in the working directory, unstaged. |
+| `git reset --hard <commit>` | Fully resets the branch and working directory to the commit — **irreversibly loses uncommitted changes**. |
+| `git revert <commit>` | Creates a new commit that undoes the changes of the specified one — safe for already pushed/shared history (unlike `reset`). |
+| `git clean -n` | Shows which untracked files `git clean` would delete (dry run, deletes nothing). |
+| `git clean -fd` | Deletes untracked files and folders — no backup, use after `-n`. |
 
-## Stash (временное убирание изменений)
+## Stash (temporarily shelving changes)
 
-| Команда | Описание |
+| Command | Description |
 | --- | --- |
-| `git stash` | Убирает незакоммиченные изменения во временное хранилище, рабочая директория становится чистой. |
-| `git stash -u` | То же самое, включая untracked-файлы. |
-| `git stash list` | Список сохранённых stash'ей. |
-| `git stash pop` | Возвращает последний stash и удаляет его из списка. |
-| `git stash apply` | Возвращает последний stash, но оставляет его в списке (можно применить ещё раз в другом месте). |
-| `git stash drop` | Удаляет stash из списка без применения. |
+| `git stash` | Moves uncommitted changes to temporary storage; the working directory becomes clean. |
+| `git stash -u` | Same, including untracked files. |
+| `git stash list` | Lists saved stashes. |
+| `git stash pop` | Restores the latest stash and removes it from the list. |
+| `git stash apply` | Restores the latest stash but keeps it in the list (can be applied again elsewhere). |
+| `git stash drop` | Removes a stash from the list without applying it. |
 
-## Теги
+## Tags
 
-| Команда | Описание |
+| Command | Description |
 | --- | --- |
-| `git tag` | Список тегов в репозитории. |
-| `git tag <имя>` | Создаёт lightweight-тег на текущем коммите. |
-| `git tag -a <имя> -m "сообщение"` | Создаёт annotated-тег (с автором/датой/сообщением — рекомендуется для релизов). |
-| `git push origin <тег>` | Отправляет конкретный тег на удалённый репозиторий (теги не пушатся вместе с обычным `git push`). |
-| `git push origin --tags` | Отправляет все локальные теги. |
-| `git checkout <тег>` | Переключается на коммит, зафиксированный тегом (detached HEAD — не ветка). |
+| `git tag` | Lists tags in the repository. |
+| `git tag <name>` | Creates a lightweight tag on the current commit. |
+| `git tag -a <name> -m "message"` | Creates an annotated tag (with author/date/message — recommended for releases). |
+| `git push origin <tag>` | Pushes a specific tag to the remote repository (tags are not pushed with a regular `git push`). |
+| `git push origin --tags` | Pushes all local tags. |
+| `git checkout <tag>` | Switches to the commit pinned by the tag (detached HEAD — not a branch). |
 
-## Диагностика конфликтов и поиск проблем
+## Conflict diagnostics and troubleshooting
 
-| Команда | Описание |
+| Command | Description |
 | --- | --- |
-| `git status` (во время конфликта) | Показывает, какие файлы в конфликте, что уже разрешено. |
-| `git diff` (во время конфликта) | Показывает маркеры конфликта (`<<<<<<<`/`=======`/`>>>>>>>`) в контексте. |
-| `git merge --abort` | Отменяет merge и возвращает состояние к моменту до его начала. |
-| `git bisect start` / `bisect good` / `bisect bad` / `bisect reset` | Бинарный поиск коммита, в котором появился баг, между известным "хорошим" и "плохим" коммитом. |
-| `git reflog` | История перемещений `HEAD` (включая `reset --hard`, rebase, удалённые ветки) — способ найти "потерянный" коммит, если он ещё не собран мусорщиком. |
+| `git status` (during a conflict) | Shows which files are in conflict and what is already resolved. |
+| `git diff` (during a conflict) | Shows the conflict markers (`<<<<<<<`/`=======`/`>>>>>>>`) in context. |
+| `git merge --abort` | Cancels a merge and returns to the state before it started. |
+| `git bisect start` / `bisect good` / `bisect bad` / `bisect reset` | Binary search for the commit that introduced a bug, between a known "good" and "bad" commit. |
+| `git reflog` | History of `HEAD` movements (including `reset --hard`, rebase, deleted branches) — a way to find a "lost" commit if it hasn't been garbage-collected yet. |
 
 ---
-Обновлено: 20.08.2026
+Updated: 2026-08-20

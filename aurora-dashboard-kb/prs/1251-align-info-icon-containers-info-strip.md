@@ -1,3 +1,11 @@
+---
+type: pr-report
+date: 2026-09-02
+status: merged
+pr: [1251]
+author: mark-karnaukh-extern-sap
+branch: mark-fix-align-info-icon
+---
 # PR #1251: fix(aurora): align the info icon in the containers info strip (#1229)
 
 **Автор:** mark-karnaukh-extern-sap · **Статус:** создан 01.09.2026 → смержен 02.09.2026
@@ -58,7 +66,7 @@ return (
 
 ## Ревью
 
-Диф проверен по пяти направлениям: комплаенс с `CLAUDE.md` (корневой, взят из `DOCS/ToolDocs/claude-config/aurora-dashboard-config/CLAUDE.md`), bug-scan самого дифа, исторический контекст (`git log`/`git blame` по файлу, см. выше — #1124), prior-PR-feedback (`git log --oneline` по файлу — только 3 коммита: #1124, #964 upgrade juno, #850 переезд пакета; ничего в духе незакрытого ревью-треда), comment-compliance (комментариев в самом файле, регламентирующих высоту/стили триггера, нет — не с чем сверяться).
+Диф проверен по пяти направлениям: комплаенс с [`CLAUDE.md`](../../CLAUDE.md) (корневой, взят из `DOCS/ToolDocs/claude-config/aurora-dashboard-config/CLAUDE.md`), bug-scan самого дифа, исторический контекст (`git log`/`git blame` по файлу, см. выше — #1124), prior-PR-feedback (`git log --oneline` по файлу — только 3 коммита: #1124, #964 upgrade juno, #850 переезд пакета; ничего в духе незакрытого ревью-треда), comment-compliance (комментариев в самом файле, регламентирующих высоту/стили триггера, нет — не с чем сверяться).
 
 Комплаенс: PR title `fix(aurora): align the info icon in the containers info strip (#1229)` — тип `fix` и scope `aurora` оба входят в списки `commitlint.config.mjs` (`types`/`scopes`), формат `<type>(<scope>): <subject>` соблюдён. Changeset (`.changeset/heavy-dingos-lead.md`, `"@cobaltcore-dev/aurora": patch`) по форме и уровню (`patch` для точечного визуального фикса) совпадает с конвенцией остальных changeset'ов репозитория.
 

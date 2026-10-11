@@ -1,3 +1,9 @@
+---
+type: pr-review
+date: 2026-08-20
+pr: [1178]
+branch: kiryl-ceph-lifecycle-rules
+---
 # PR #1178 Code Review — Ceph Lifecycle Rules UI
 
 Branch: `kiryl-ceph-lifecycle-rules` vs `main`
@@ -64,3 +70,10 @@ Reviewed: 2026-08-20
 ---
 
 *Generated via the `code-review` skill against `kiryl-ceph-lifecycle-rules` vs `main`. All findings independently verified.*
+
+<!-- related:auto — generated from pr/issue properties by tools/update-related.py; do not edit by hand -->
+## Related
+
+- plan · 2026-08-18 · [2026-08-18-pr-1178-review-findings-fixes-implementation](../plans/2026-08-18-pr-1178-review-findings-fixes-implementation.md)
+- plan · 2026-08-18 · [2026-08-18-pr-1178-review-findings-fixes](../plans/2026-08-18-pr-1178-review-findings-fixes.md)
+- plan · 2026-08-20 · [2026-08-20-pr-1178-code-review-fixes](../plans/2026-08-20-pr-1178-code-review-fixes.md)

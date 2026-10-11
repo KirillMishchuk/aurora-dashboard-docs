@@ -1,3 +1,8 @@
+---
+type: plan
+date: 2026-08-12
+status: implemented
+---
 # Plan: Ceph bucket list — gate the row-level "Empty" action + align row action naming (Issues #1107, #1109)
 
 **Date:** 2026-08-12 · **Status:** implemented 2026-09-01 (naming/#1109 had already landed separately via PR #1207's Ceph permission-controls work; this pass added the remaining #1107 emptiness gate — `canEmptyBucket && !bucketHasNoContent` — plus test coverage. typecheck/lint/tests/check-i18n all green, security review clean — no findings, `EmptyBucketModal`/server `deleteAll` confirmed to independently re-validate state so this gate is UI-only as designed)

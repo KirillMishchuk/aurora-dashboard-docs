@@ -1,6 +1,11 @@
+---
+type: plan
+date: 2026-08-07
+status: implemented
+---
 # Plan: Bucket details page tabs (Overview / Cors Rules)
 
-**Date:** 2026-08-07 · **Status:** not implemented
+**Date:** 2026-08-07 · **Status:** implemented
 
 ## Resolved decisions
 
@@ -436,4 +441,4 @@ None blocking — all four prior decision points (base branch, routing shape, CR
 - `packages/aurora/src/client/routes/_auth/projects/$projectId/storage/-components/Ceph/Buckets/{CorsModal,CorsRulesViewer,CorsRuleForm,TagInput,DeleteCorsModal}.tsx`
 
 **Reference**
-- `../DOCS/aurora-dashboard-kb/prs/1092-cors-configuration-ceph-buckets.md` (the 5 scored review findings referenced above)
+- [`../DOCS/aurora-dashboard-kb/prs/1092-cors-configuration-ceph-buckets.md`](../aurora-dashboard-kb/prs/1092-cors-configuration-ceph-buckets.md) (the 5 scored review findings referenced above)

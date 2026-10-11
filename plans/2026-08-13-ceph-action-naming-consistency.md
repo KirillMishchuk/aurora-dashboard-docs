@@ -1,6 +1,11 @@
+---
+type: plan
+date: 2026-08-13
+status: implemented
+---
 # Plan: Ceph/S3 action-naming consistency (specific nouns on destructive + upload actions)
 
-**Date:** 2026-08-13 · **Status:** not implemented
+**Date:** 2026-08-13 · **Status:** implemented
 
 ## 📋 IMPLEMENTATION PLAN: Ceph/S3 action-naming consistency (specific nouns on destructive + upload actions)
 
@@ -11,7 +16,7 @@
 
 ### Overview
 
-Continue the naming convention established by PR #1092's follow-up (`Create rule` → `Create CORS Rule`, plan at `/Users/kirylmishchuk/projects/SAP/DOCS/plans/2026-08-12-cors-rules-designer-fixes.md`): every destructive or upload action must name the *thing* it acts on, both in the row/kebab menu that triggers it and in the footer button of the modal that confirms it. Client-only, string-only work in two folders (`Ceph/Buckets/`, `Ceph/Objects/`) plus the test files that query those strings and the regenerated Lingui catalogs. No tRPC, router, schema, or behaviour change.
+Continue the naming convention established by PR #1092's follow-up (`Create rule` → `Create CORS Rule`, plan at [`/Users/kirylmishchuk/projects/SAP/DOCS/plans/2026-08-12-cors-rules-designer-fixes.md`](2026-08-12-cors-rules-designer-fixes.md)): every destructive or upload action must name the *thing* it acts on, both in the row/kebab menu that triggers it and in the footer button of the modal that confirms it. Client-only, string-only work in two folders (`Ceph/Buckets/`, `Ceph/Objects/`) plus the test files that query those strings and the regenerated Lingui catalogs. No tRPC, router, schema, or behaviour change.
 
 **Decisions confirmed by the user (2026-08-13):** Q1 resolved — only footer buttons are renamed, modal titles are left as-is. Q4 resolved — yes, the CORS Rules row action and modal footers are included in this same plan/PR (see Scope 4 and Step 8 below). Q5 resolved — no, this does not extend to the Swift storage UI; that stays fully out of scope (not even filed as a follow-up by this plan).
 
@@ -125,7 +130,7 @@ i.e. the title carries the count, the footer carries only the noun. Use this sha
 
 **Verification:** `` grep -n 'label={t`Empty`}\|label={t`Delete`}' `` in `Buckets/BucketTableView.tsx` returns nothing. `BucketTableView.test.tsx` asserts nothing about these labels, so it must pass unchanged.
 
-> **Note:** a separate, not-yet-implemented plan (`2026-08-12-ceph-bucket-empty-action-consistency.md`) touches the same two labels on the way to a different fix (gating "Empty Bucket" on emptiness, issues #1107/#1109). Per explicit user decision (2026-08-13), this plan proceeds independently — the two are not being reconciled.
+> **Note:** a separate, not-yet-implemented plan ([`2026-08-12-ceph-bucket-empty-action-consistency.md`](2026-08-12-ceph-bucket-empty-action-consistency.md)) touches the same two labels on the way to a different fix (gating "Empty Bucket" on emptiness, issues #1107/#1109). Per explicit user decision (2026-08-13), this plan proceeds independently — the two are not being reconciled.
 
 ---
 

@@ -1,3 +1,11 @@
+---
+type: pr-report
+date: 2026-09-16
+status: merged
+pr: [1303]
+author: TilmanHaupt
+branch: til-flav-edit-fix
+---
 # PR #1303: fix(portal): fix images and flavor
 
 **Автор:** TilmanHaupt · **Статус:** смержен 16.09.2026 (создан 15.09.2026)

@@ -1,3 +1,11 @@
+---
+type: pr-report
+date: 2026-09-24
+status: open
+pr: [1330]
+author: TilmanHaupt
+branch: til-search-robustness
+---
 # PR #1330: refactor(portal): improve search architecture consistency and UX
 
 **Автор:** TilmanHaupt · **Статус:** open, снят с draft; approve от vlad-schur-external-sap 24.09.2026 (создан 24.09.2026)

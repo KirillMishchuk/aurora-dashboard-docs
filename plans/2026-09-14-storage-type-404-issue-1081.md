@@ -1,3 +1,9 @@
+---
+type: plan
+date: 2026-09-14
+status: implemented
+issue: [1081]
+---
 # Plan: Invalid storage provider/type must render a 404, not a list (issue #1081)
 
 **Date:** 2026-09-14 · **Revised:** 2026-09-15 (scope expanded after resolving all open questions with the user) · **Revised again:** 2026-09-15 (plan audited against HEAD `6f4c35de`; D6–D13 added, several claims corrected, three silent test breakages caught) · **Status:** implemented 2026-09-15 on branch `kiryl-storage-type-404-1081` — all 10 steps done, 27 files, uncommitted per D5; typecheck/lint/format clean, 228 test files · 5671 tests green, build OK; security review clean (no Critical/High); 5 implementation-level deviations documented below; **Manual verification (Testing Plan items 1–10) not yet run** — needs a live dashboard.

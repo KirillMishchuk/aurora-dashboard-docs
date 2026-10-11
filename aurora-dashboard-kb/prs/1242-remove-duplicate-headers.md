@@ -1,3 +1,11 @@
+---
+type: pr-report
+date: 2026-09-01
+status: merged
+pr: [1242]
+author: vlad-schur-external-sap
+branch: vlad-1134-issue
+---
 # PR #1242: refactor(dashboard): remove duplicate breadcrumbs and old headers
 
 **Автор:** vlad-schur-external-sap · **Статус:** смержен 01.09.2026 (создан 01.09.2026)

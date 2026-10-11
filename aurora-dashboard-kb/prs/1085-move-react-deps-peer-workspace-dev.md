@@ -1,3 +1,11 @@
+---
+type: pr-report
+date: 2026-07-23
+status: merged
+pr: [1085]
+author: taymoor89 (Taimoor Aslam)
+branch: 1084-move-dependencies
+---
 # PR #1085: fix(core): move react dependent packages to peerDeps and resolve workspace sources in dev
 
 **Автор:** taymoor89 (Taimoor Aslam) · **Статус:** смержен 24.07.2026 (`8b44234f`; создан 21.07.2026)

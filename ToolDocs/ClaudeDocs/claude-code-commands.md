@@ -1,212 +1,215 @@
-# Встроенные команды Claude Code
+---
+type: tool-notes
+---
+# Built-in Claude Code commands
 
-Слэш-команды, которые даёт сам Claude Code (CLI). В отличие от скиллов (`claude-code-skills.md`) и плагинов (`claude-code-plugins.md`), это не подключаемые модули, а часть ядра: управление сессией, контекстом, конфигурацией, плагинами, аккаунтом. Часть команд помечена в документации как **Skill** или **Workflow**: они поставляются вместе с Claude Code, но реализованы как встроенные скиллы. Такие команды отмечены здесь значком *(скилл)*, а подробнее описаны в `claude-code-skills.md`.
+Slash commands provided by Claude Code (the CLI) itself. Unlike skills ([`claude-code-skills.md`](claude-code-skills.md)) and plugins ([`claude-code-plugins.md`](claude-code-plugins.md)), these are not pluggable modules but part of the core: managing the session, context, configuration, plugins, and account. Some commands are marked in the documentation as **Skill** or **Workflow**: they ship with Claude Code but are implemented as built-in skills. Such commands are marked here with *(skill)* and are described in more detail in `claude-code-skills.md`.
 
-> Список сверен 24.09.2026 с официальной страницей https://code.claude.com/docs/en/commands (упоминаемые версии до v2.1.269). Энтерпрайз- и провайдер-специфичные команды (`/setup-bedrock`, `/setup-vertex`, `/remote-env`, `/passes`) и совсем развлекательные (`/radio`) опущены. Проверить актуальность: `/help` в диалоге или та же страница документации.
+> List checked on 2026-09-24 against the official page https://code.claude.com/docs/en/commands (versions mentioned up to v2.1.269). Enterprise- and provider-specific commands (`/setup-bedrock`, `/setup-vertex`, `/remote-env`, `/passes`) and purely entertainment ones (`/radio`) are omitted. To check whether it is up to date: `/help` in a conversation or the same documentation page.
 
-## Сессия и контекст
+## Session and context
 
-| Команда | Описание |
+| Command | Description |
 | --- | --- |
-| `/clear [name]` | Новый разговор с пустым контекстом; имя помечает предыдущий в пикере `/resume`. Алиасы: `/reset`, `/new`. |
-| `/compact [instructions]` | Освобождает контекст, сжимая разговор в саммари; можно передать, на чём сфокусировать саммари. |
-| `/autocompact [auto\|<tokens>]` | Порог автокомпакта: насколько заполняется окно контекста до автоматического сжатия. |
-| `/resume [session]` | Возобновляет разговор по ID/имени или открывает пикер сессий (фоновые помечены `bg`). |
-| `/rename [name]` | Переименовывает сессию (без имени — генерирует из истории). |
-| `/context [all]` | Использование контекста цветной сеткой + подсказки по тяжёлым тулам и раздутой памяти. |
-| `/rewind` | Откат разговора и/или кода к чекпоинту либо саммари от выбранного сообщения. Алиас: `/checkpoint`. |
-| `/diff` | Изменения в рабочем дереве, включая правки Claude. |
-| `/export [filename]` | Экспорт разговора в plain text — в файл или через диалог в буфер. |
-| `/copy [N]` | Копирует последний (или N-й с конца) ответ в буфер. |
-| `/branch [name]` | Ответвление разговора от текущей точки, чтобы попробовать другое направление. |
-| `/fork [prompt]` | Копирует разговор в новую фоновую сессию, а вы продолжаете здесь. |
-| `/subtask <task>` | Форкнутый фоновый суб-агент с полным контекстом; результат возвращается сюда. |
-| `/background [prompt]` | Отсоединяет текущую сессию в фоновый агент и освобождает терминал. Алиас: `/bg`. |
-| `/stop` | Останавливает фоновую сессию (только когда вы к ней подключены). |
-| `/tasks` | Фоновая работа текущей сессии, включая завершённых суб-агентов. Алиас: `/bashes`. |
-| `/list-agents` | Суб-агенты, тиммейты и другие сессии, которым Claude может писать. Алиас: `/peers`. |
-| `/goal [condition\|clear]` | Цель, к которой Claude работает несколько ходов подряд, пока условие не выполнится. |
-| `/focus` | Focus-вид: только последний промпт, однострочная сводка тулов и финальный ответ. |
-| `/btw [question]` | Побочный вопрос о сессии без добавления в разговор. |
-| `/plan [description]` | Входит в plan mode (с описанием — сразу начинает с этой задачи). |
-| `/recap` | Однострочный recap сессии по запросу. |
-| `/exit` | Выход из CLI (в фоновой сессии — отсоединение). Алиас: `/quit`. |
+| `/clear [name]` | New conversation with an empty context; the name labels the previous one in the `/resume` picker. Aliases: `/reset`, `/new`. |
+| `/compact [instructions]` | Frees up context by compressing the conversation into a summary; you can specify what the summary should focus on. |
+| `/autocompact [auto\|<tokens>]` | Autocompact threshold: how full the context window gets before automatic compression. |
+| `/resume [session]` | Resumes a conversation by ID/name or opens the session picker (background ones are marked `bg`). |
+| `/rename [name]` | Renames the session (without a name, generates one from the history). |
+| `/context [all]` | Context usage as a colored grid + hints about heavy tools and bloated memory. |
+| `/rewind` | Rolls back the conversation and/or code to a checkpoint, or summarizes from the selected message. Alias: `/checkpoint`. |
+| `/diff` | Changes in the working tree, including Claude's edits. |
+| `/export [filename]` | Exports the conversation as plain text, to a file or via a dialog to the clipboard. |
+| `/copy [N]` | Copies the last (or N-th from the end) response to the clipboard. |
+| `/branch [name]` | Branches the conversation from the current point to try a different direction. |
+| `/fork [prompt]` | Copies the conversation into a new background session while you continue here. |
+| `/subtask <task>` | Forked background sub-agent with the full context; the result comes back here. |
+| `/background [prompt]` | Detaches the current session into a background agent and frees the terminal. Alias: `/bg`. |
+| `/stop` | Stops a background session (only when you are attached to it). |
+| `/tasks` | Background work of the current session, including finished sub-agents. Alias: `/bashes`. |
+| `/list-agents` | Sub-agents, teammates, and other sessions Claude can message. Alias: `/peers`. |
+| `/goal [condition\|clear]` | A goal Claude works toward over several consecutive turns until the condition is met. |
+| `/focus` | Focus view: only the last prompt, a one-line tool summary, and the final answer. |
+| `/btw [question]` | A side question about the session without adding it to the conversation. |
+| `/plan [description]` | Enters plan mode (with a description, starts on that task right away). |
+| `/recap` | One-line recap of the session on demand. |
+| `/exit` | Exits the CLI (in a background session, detaches). Alias: `/quit`. |
 
-## Помощь, статус, диагностика
+## Help, status, diagnostics
 
-| Команда | Описание |
+| Command | Description |
 | --- | --- |
-| `/help` | Справка и список доступных команд. |
-| `/status` | Settings на вкладке Status: версия, модель, аккаунт, связь. |
-| `/usage` | Стоимость сессии, лимиты плана, статистика активности. Алиасы: `/cost`, `/stats`. |
-| `/doctor` | *(скилл)* Проверка установки с возможностью починить найденное. Алиас: `/checkup`. |
-| `/debug [description]` | *(скилл)* Включает debug-лог сессии и разбирает проблему по нему. |
-| `/heapdump` | Снимок кучи JS и разбивка памяти для диагностики. |
-| `/skills` | Список скиллов с фильтром и сортировкой по стоимости в токенах. |
-| `/skill-doctor` | Сколько каждый скилл стоит в контексте и как часто используется. |
-| `/insights` | HTML-отчёт по недавним сессиям на этой машине. |
-| `/release-notes` | Changelog с выбором версии. |
-| `/powerup` | Интерактивные уроки по возможностям Claude Code. |
-| `/bug [report]` | Баг-репорт / шаринг разговора (с экраном согласия). Алиас: `/share`. |
-| `/feedback [report]` | Продуктовый фидбек (тот же диалог, что `/bug`). |
+| `/help` | Help and a list of available commands. |
+| `/status` | Settings on the Status tab: version, model, account, connectivity. |
+| `/usage` | Session cost, plan limits, activity statistics. Aliases: `/cost`, `/stats`. |
+| `/doctor` | *(skill)* Checks the installation, with the option to fix what it finds. Alias: `/checkup`. |
+| `/debug [description]` | *(skill)* Enables the session debug log and analyzes the problem using it. |
+| `/heapdump` | JS heap snapshot and memory breakdown for diagnostics. |
+| `/skills` | List of skills with filtering and sorting by token cost. |
+| `/skill-doctor` | How much each skill costs in context and how often it is used. |
+| `/insights` | HTML report on recent sessions on this machine. |
+| `/release-notes` | Changelog with version selection. |
+| `/powerup` | Interactive lessons on Claude Code features. |
+| `/bug [report]` | Bug report / conversation sharing (with a consent screen). Alias: `/share`. |
+| `/feedback [report]` | Product feedback (the same dialog as `/bug`). |
 
-## Модель и режимы работы
+## Model and working modes
 
-| Команда | Описание |
+| Command | Description |
 | --- | --- |
-| `/model [model]` | Смена модели **с сохранением по умолчанию** для новых сессий; стрелками — уровень effort. |
-| `/effort [level\|auto\|status]` | Уровень effort: low…xhigh, max, ultracode, auto. |
+| `/model [model]` | Switches the model, **saving it as the default** for new sessions; arrow keys set the effort level. |
+| `/effort [level\|auto\|status]` | Effort level: low…xhigh, max, ultracode, auto. |
 | `/fast [on\|off]` | Fast mode. |
-| `/advisor [model\|off]` | Advisor-тул: консультация второй модели в ключевые моменты задачи. |
-| `/output-style [style]` | Список стилей вывода или переключение на один. |
+| `/advisor [model\|off]` | Advisor tool: consults a second model at key points of the task. |
+| `/output-style [style]` | Lists output styles or switches to one. |
 
-## Режимы разрешений (auto, manual, plan…)
+## Permission modes (auto, manual, plan…)
 
-Отдельной слэш-команды для смены режима **нет**. Режим переключается сочетанием клавиш, флагом при запуске или настройкой. Сверено с https://code.claude.com/docs/en/permission-modes (24.09.2026).
+There is **no** separate slash command for changing the mode. The mode is switched with a keyboard shortcut, a launch flag, or a setting. Checked against https://code.claude.com/docs/en/permission-modes (2026-09-24).
 
-| Режим | Значение в конфиге / флаге | Что делает |
+| Mode | Value in config / flag | What it does |
 | --- | --- | --- |
-| Manual | `default` (флаг принимает и `manual`) | Спрашивает перед большинством правок, shell-команд и сетевых действий. |
-| Accept edits | `acceptEdits` | Без вопросов применяет правки файлов и простые файловые команды (`mkdir`, `touch`, `rm`, `mv`, `cp`, `sed`…). |
-| Plan | `plan` | Только исследование и план, без изменений. |
-| Auto | `auto` | Действия проверяет модель-классификатор вместо вас. На Pro/Max/Team — стартовый режим по умолчанию. |
-| Bypass | `bypassPermissions` | Без проверок (deny-правила всё равно действуют). |
-| Don't ask | `dontAsk` | Для CI: выполняет только то, что явно разрешено (`--allowedTools`), остальное отклоняет. |
+| Manual | `default` (the flag also accepts `manual`) | Asks before most edits, shell commands, and network actions. |
+| Accept edits | `acceptEdits` | Applies file edits and simple file commands (`mkdir`, `touch`, `rm`, `mv`, `cp`, `sed`…) without asking. |
+| Plan | `plan` | Only research and planning, no changes. |
+| Auto | `auto` | Actions are checked by a classifier model instead of you. On Pro/Max/Team, the default starting mode. |
+| Bypass | `bypassPermissions` | No checks (deny rules still apply). |
+| Don't ask | `dontAsk` | For CI: runs only what is explicitly allowed (`--allowedTools`) and rejects everything else. |
 
-**Переключение во время сессии (CLI, JetBrains):**
+**Switching during a session (CLI, JetBrains):**
 
-- **`Shift+Tab`** — по кругу `default` → `acceptEdits` → `plan` → `default`. Из `auto` первое нажатие ведёт в `default`.
-- Необязательные режимы встают в круг после `plan`, `bypassPermissions` перед `auto`:
-  - `auto` — только когда auto mode доступен плану и организации;
-  - `bypassPermissions` — только если сессия запущена с `--permission-mode bypassPermissions`, `--dangerously-skip-permissions`, `--allow-dangerously-skip-permissions` или с `defaultMode: "bypassPermissions"` в пользовательских или managed-настройках;
-  - `dontAsk` в круг не попадает никогда.
-- `/plan …` — войти в plan mode прямо с промптом. `Shift+Tab` выходит из plan mode без одобрения плана, `Ctrl+G` открывает предложенный план в редакторе.
-- На запросе разрешения для Bash-команды в режимах Manual и `acceptEdits` есть пункт **«Yes, and switch to auto mode»**.
+- **`Shift+Tab`** cycles `default` → `acceptEdits` → `plan` → `default`. From `auto`, the first press goes to `default`.
+- Optional modes join the cycle after `plan`, with `bypassPermissions` before `auto`:
+  - `auto` only when auto mode is available to the plan and organization;
+  - `bypassPermissions` only if the session was started with `--permission-mode bypassPermissions`, `--dangerously-skip-permissions`, `--allow-dangerously-skip-permissions`, or with `defaultMode: "bypassPermissions"` in user or managed settings;
+  - `dontAsk` never joins the cycle.
+- `/plan …` enters plan mode directly with a prompt. `Shift+Tab` exits plan mode without approving the plan; `Ctrl+G` opens the proposed plan in the editor.
+- The permission prompt for a Bash command in Manual and `acceptEdits` modes has a **"Yes, and switch to auto mode"** option.
 
-**Режим при старте:**
+**Mode at startup:**
 
-- одна сессия — `claude --permission-mode <режим>` (работает и с `-p`);
-- по умолчанию — `permissions.defaultMode` в `~/.claude/settings.json`, проектном `.claude/settings.json` или managed-настройках. `auto` и `bypassPermissions` в проектных `.claude/settings.json` / `.claude/settings.local.json` игнорируются.
+- a single session: `claude --permission-mode <mode>` (also works with `-p`);
+- default: `permissions.defaultMode` in `~/.claude/settings.json`, the project `.claude/settings.json`, or managed settings. `auto` and `bypassPermissions` are ignored in project `.claude/settings.json` / `.claude/settings.local.json`.
 
 ```json
 { "permissions": { "defaultMode": "default" } }
 ```
 
-**Другие интерфейсы:**
+**Other interfaces:**
 
-- VS Code — индикатор режима.
-- Desktop, вкладка Code — селектор рядом с кнопкой отправки. Выбор запоминается для папки, кроме Plan.
-- Облачные сессии — Accept edits / Plan / Auto.
-- Вкладка **Cowork** этими режимами не пользуется: у неё свои режимы разрешений.
+- VS Code: mode indicator.
+- Desktop, Code tab: a selector next to the send button. The choice is remembered per folder, except for Plan.
+- Cloud sessions: Accept edits / Plan / Auto.
+- The **Cowork** tab does not use these modes: it has its own permission modes.
 
-Правила allow/ask/deny поверх режима — `/permissions`.
+Allow/ask/deny rules on top of the mode: `/permissions`.
 
-## Настройка и окружение
+## Configuration and environment
 
-| Команда | Описание |
+| Command | Description |
 | --- | --- |
-| `/config [key=value ...]` | Settings; можно сразу задать значения. Алиас: `/settings`. |
-| `/permissions` | Правила allow/ask/deny для тулов. Алиас: `/allowed-tools`. Режим (auto/manual/plan) меняется не здесь, а `Shift+Tab` — см. «Режимы разрешений». |
-| `/update-config [request]` | *(скилл)* Описываете изменение настроек (hook, env, permission) — Claude правит нужный settings-файл. |
-| `/fewer-permission-prompts` | *(скилл)* Allowlist частых read-only вызовов в `.claude/settings.json`. |
-| `/auto-mode-setup` | Черновик `autoMode.environment` по проекту и недавним сессиям. |
-| `/sandbox` | Sandbox mode (на поддерживаемых платформах). |
-| `/memory` | Правка `CLAUDE.md`, вкл/выкл auto memory, просмотр её записей. |
-| `/init` | Создаёт `CLAUDE.md` для проекта. |
-| `/hooks` | Конфигурация hooks для событий тулов. |
-| `/import [codex\|gemini\|cursor]` | Перенос конфигурации из Codex, Gemini CLI, Cursor. |
-| `/add-dir <path>` | Дополнительная рабочая директория для тулов. |
-| `/cd <path>` | Переносит сессию в другую директорию, сохраняя разговор. |
-| `/ide` | Интеграции с IDE и их статус. |
-| `/theme` | Цветовая тема (в т.ч. auto и colorblind-варианты). |
-| `/color [color\|default]` | Цвет строки промпта для сессии. |
-| `/statusline` | Настройка status line. |
-| `/keybindings` | Файл горячих клавиш. |
-| `/terminal-setup` | Shift+Enter для переноса строки в VS Code, Cursor, Alacritty, Zed и др. |
-| `/tui [default\|fullscreen]` | Рендерер терминального UI (fullscreen — без мерцания). |
-| `/scroll-speed` | Скорость прокрутки колёсиком. |
-| `/voice [hold\|tap\|off]` | Голосовая диктовка. |
-| `/privacy-settings` | Настройки приватности (Pro/Max). |
+| `/config [key=value ...]` | Settings; values can be set directly. Alias: `/settings`. |
+| `/permissions` | Allow/ask/deny rules for tools. Alias: `/allowed-tools`. The mode (auto/manual/plan) is changed not here but with `Shift+Tab`; see "Permission modes". |
+| `/update-config [request]` | *(skill)* You describe a settings change (hook, env, permission) and Claude edits the right settings file. |
+| `/fewer-permission-prompts` | *(skill)* Allowlist of frequent read-only calls in `.claude/settings.json`. |
+| `/auto-mode-setup` | Draft of `autoMode.environment` based on the project and recent sessions. |
+| `/sandbox` | Sandbox mode (on supported platforms). |
+| `/memory` | Edit [`CLAUDE.md`](../../CLAUDE.md), toggle auto memory on/off, view its entries. |
+| `/init` | Creates a `CLAUDE.md` for the project. |
+| `/hooks` | Hook configuration for tool events. |
+| `/import [codex\|gemini\|cursor]` | Migrates configuration from Codex, Gemini CLI, Cursor. |
+| `/add-dir <path>` | Additional working directory for tools. |
+| `/cd <path>` | Moves the session to another directory, keeping the conversation. |
+| `/ide` | IDE integrations and their status. |
+| `/theme` | Color theme (including auto and colorblind variants). |
+| `/color [color\|default]` | Prompt line color for the session. |
+| `/statusline` | Status line setup. |
+| `/keybindings` | Keybindings file. |
+| `/terminal-setup` | Shift+Enter for newlines in VS Code, Cursor, Alacritty, Zed, etc. |
+| `/tui [default\|fullscreen]` | Terminal UI renderer (fullscreen is flicker-free). |
+| `/scroll-speed` | Mouse wheel scroll speed. |
+| `/voice [hold\|tap\|off]` | Voice dictation. |
+| `/privacy-settings` | Privacy settings (Pro/Max). |
 
-## Плагины, MCP, скиллы
+## Plugins, MCP, skills
 
-| Команда | Описание |
+| Command | Description |
 | --- | --- |
-| `/plugin [subcommand]` | Меню плагинов или `list`/`install`/`enable`/`disable`… Маркетплейсы — тоже здесь (отдельной `/marketplace` нет). См. `claude-code-plugins.md`. |
-| `/reload-plugins [--force]` | Применяет отложенные изменения плагинов без перезапуска. |
-| `/reload-skills` | Пересканирует директории скиллов и команд. |
-| `/mcp [reconnect\|enable\|disable]` | MCP-серверы и их OAuth. |
-| `/agents` | Больше не управляет агентами: печатает подсказку попросить Claude или править `.claude/agents/` напрямую (с v2.1.198). |
+| `/plugin [subcommand]` | Plugin menu or `list`/`install`/`enable`/`disable`… Marketplaces are here too (there is no separate `/marketplace`). See `claude-code-plugins.md`. |
+| `/reload-plugins [--force]` | Applies pending plugin changes without restarting. |
+| `/reload-skills` | Rescans the skill and command directories. |
+| `/mcp [reconnect\|enable\|disable]` | MCP servers and their OAuth. |
+| `/agents` | No longer manages agents: prints a hint to ask Claude or edit `.claude/agents/` directly (since v2.1.198). |
 
-## Аккаунт и лимиты
+## Account and limits
 
-| Команда | Описание |
+| Command | Description |
 | --- | --- |
-| `/login` / `/logout` | Вход и выход из аккаунта Anthropic. |
-| `/upgrade` | Страница апгрейда плана. |
-| `/usage-credits` | Usage credits или запрос их у админа при упоре в лимит. |
-| `/rate-limit-options` | Варианты продолжить работу при упоре в лимит claude.ai. |
+| `/login` / `/logout` | Log in to and out of an Anthropic account. |
+| `/upgrade` | Plan upgrade page. |
+| `/usage-credits` | Usage credits, or requesting them from an admin when you hit the limit. |
+| `/rate-limit-options` | Options to keep working when you hit the claude.ai limit. |
 
-## Git, ревью, PR
+## Git, review, PR
 
-Нюансы разницы между командами — в `claude-code-skills.md`.
+The nuances of how these commands differ are in `claude-code-skills.md`.
 
-| Команда | Описание |
+| Command | Description |
 | --- | --- |
-| `/code-review [low\|medium\|high\|xhigh\|max\|ultra] [--fix] [--comment] [pr#\|branch\|path]` | *(скилл)* Ревью текущего диффа, PR, ветки или пути на баги корректности. `--fix` применяет правки, `--comment` постит в PR. |
-| `/review` | **Алиас `/code-review`** (те же аргументы, например `/review 1234`). |
-| `/ultrareview [PR or branch]` | Глубокое multi-agent ревью в облачной песочнице. |
-| `/security-review` | Security-анализ диффа текущей ветки относительно основной ветки origin. |
-| `/simplify [target]` | *(скилл)* Ревью изменённого кода на чистку (4 параллельных агента) и применение правок. |
-| `/autofix-pr [prompt]` | Облачная сессия следит за PR ветки и пушит фиксы при падении CI или комментариях ревьюеров. |
-| `/install-github-app` | Claude GitHub App для репозитория (+ опционально GitHub Actions). |
+| `/code-review [low\|medium\|high\|xhigh\|max\|ultra] [--fix] [--comment] [pr#\|branch\|path]` | *(skill)* Reviews the current diff, PR, branch, or path for correctness bugs. `--fix` applies the fixes, `--comment` posts to the PR. |
+| `/review` | **Alias of `/code-review`** (same arguments, e.g. `/review 1234`). |
+| `/ultrareview [PR or branch]` | Deep multi-agent review in a cloud sandbox. |
+| `/security-review` | Security analysis of the current branch's diff against the origin main branch. |
+| `/simplify [target]` | *(skill)* Reviews changed code for cleanup (4 parallel agents) and applies the fixes. |
+| `/autofix-pr [prompt]` | A cloud session watches the branch's PR and pushes fixes when CI fails or reviewers comment. |
+| `/install-github-app` | Claude GitHub App for the repository (+ optionally GitHub Actions). |
 
-## Запуск, проверка, автоматизация
+## Running, verification, automation
 
-| Команда | Описание |
+| Command | Description |
 | --- | --- |
-| `/run` | *(скилл)* Запускает приложение проекта и показывает изменение в работе. |
-| `/verify` | *(скилл)* Проверяет изменение сборкой, запуском и наблюдением результата, а не только тестами. |
-| `/run-skill-generator` | *(скилл)* Пишет проектный скилл, который учит `/run` и `/verify` собирать и запускать приложение. |
-| `/loop [interval] [prompt]` | *(скилл)* Повторяет промпт, пока сессия открыта; без интервала — сам выбирает темп. Алиас: `/proactive`. |
-| `/schedule [description]` | Routines — задачи по расписанию в облаке. |
-| `/batch <instruction>` | *(скилл)* Масштабные изменения по кодовой базе параллельно (5–30 независимых частей). |
-| `/deep-research <question>` | *(workflow)* Веб-поиск веером, перекрёстная проверка источников, отчёт со ссылками. |
-| `/workflows` | Прогресс воркфлоу: смотреть, ставить на паузу, возобновлять, сохранять. |
-| `/workflow-authoring` | *(скилл)* Справочник по написанию скриптов воркфлоу. |
+| `/run` | *(skill)* Launches the project's app and shows the change in action. |
+| `/verify` | *(skill)* Verifies a change by building, running, and observing the result, not just with tests. |
+| `/run-skill-generator` | *(skill)* Writes a project skill that teaches `/run` and `/verify` how to build and launch the app. |
+| `/loop [interval] [prompt]` | *(skill)* Repeats a prompt while the session is open; without an interval, picks its own pace. Alias: `/proactive`. |
+| `/schedule [description]` | Routines: scheduled tasks in the cloud. |
+| `/batch <instruction>` | *(skill)* Large-scale changes across the codebase in parallel (5–30 independent parts). |
+| `/deep-research <question>` | *(workflow)* Fan-out web search, cross-checking of sources, a report with links. |
+| `/workflows` | Workflow progress: view, pause, resume, save. |
+| `/workflow-authoring` | *(skill)* Reference for writing workflow scripts. |
 
-## Облако, устройства, интеграции
+## Cloud, devices, integrations
 
-| Команда | Описание |
+| Command | Description |
 | --- | --- |
-| `/remote-control` | Делает сессию доступной для Remote Control с claude.ai. |
-| `/teleport` | Забирает облачную сессию в терминал. Алиас: `/tp`. |
-| `/desktop` | Продолжить сессию в Claude Code Desktop. Алиас: `/app`. |
-| `/web-setup` | Подключение GitHub-аккаунта для облачных сессий через локальные креды `gh`. |
-| `/mobile` | QR-код для мобильного приложения. Алиасы: `/ios`, `/android`. |
-| `/chrome` | Настройки Claude in Chrome. |
-| `/install-slack-app` | Claude-приложение в Slack. |
-| `/artifacts` | Свои и расшаренные артефакты: прикрепить к сессии, открыть, скопировать ссылку. |
+| `/remote-control` | Makes the session available for Remote Control from claude.ai. |
+| `/teleport` | Pulls a cloud session into the terminal. Alias: `/tp`. |
+| `/desktop` | Continue the session in Claude Code Desktop. Alias: `/app`. |
+| `/web-setup` | Connects a GitHub account for cloud sessions using local `gh` credentials. |
+| `/mobile` | QR code for the mobile app. Aliases: `/ios`, `/android`. |
+| `/chrome` | Claude in Chrome settings. |
+| `/install-slack-app` | Claude app in Slack. |
+| `/artifacts` | Your own and shared artifacts: attach to the session, open, copy link. |
 
-## Прочее
+## Miscellaneous
 
-| Команда | Описание |
+| Command | Description |
 | --- | --- |
-| `/claude-api [...]` | *(скилл)* Справочник по Claude API и Managed Agents для языка проекта. |
-| `/dataviz [request]` | *(скилл)* Гайд по чартам и дашбордам. |
-| `/design [brief]` | *(скилл)* UI-мокапы, флоу, лендинги, постеры как Design-артефакт. |
-| `/design-sync [hint]` / `/design-login` | *(скилл)* Выгрузка React-дизайн-системы репо в Claude Design (и авторизация для этого). |
-| `/team-onboarding` | Гайд для онбординга команды по вашей истории использования. |
-| `/stickers` | Заказ стикеров Claude Code. |
+| `/claude-api [...]` | *(skill)* Reference for the Claude API and Managed Agents for the project's language. |
+| `/dataviz [request]` | *(skill)* Guide to charts and dashboards. |
+| `/design [brief]` | *(skill)* UI mockups, flows, landing pages, posters as a Design artifact. |
+| `/design-sync [hint]` / `/design-login` | *(skill)* Uploads the repo's React design system to Claude Design (and authorization for that). |
+| `/team-onboarding` | Team onboarding guide based on your usage history. |
+| `/stickers` | Order Claude Code stickers. |
 
-## Удалённые команды
+## Removed commands
 
-| Команда | Статус |
+| Command | Status |
 | --- | --- |
-| `/vim` | Удалена в v2.1.92 — режим редактора теперь в `/config` → Editor mode. |
-| `/ultraplan` | Удалена — вместо неё plan mode (`/plan`). |
-| `/pr-comments` | Удалена в v2.1.91 — просто попросите Claude показать комментарии PR. |
+| `/vim` | Removed in v2.1.92: editor mode is now in `/config` → Editor mode. |
+| `/ultraplan` | Removed: use plan mode (`/plan`) instead. |
+| `/pr-comments` | Removed in v2.1.91: just ask Claude to show the PR comments. |
 
-## На заметку
+## Notes
 
-- CLI (`claude <command>`, не слэш-команда в диалоге) отдельно даёт `claude doctor`, `claude mcp`, `claude plugin`, `claude agents` (фоновые агенты), `claude update`, `claude auth`, `claude setup-token` — те же возможности снаружи диалога, до старта сессии. Этот список не сверялся заново 24.09.2026.
+- The CLI (`claude <command>`, not a slash command in a conversation) separately provides `claude doctor`, `claude mcp`, `claude plugin`, `claude agents` (background agents), `claude update`, `claude auth`, `claude setup-token`: the same capabilities outside a conversation, before a session starts. This list was not re-checked on 2026-09-24.

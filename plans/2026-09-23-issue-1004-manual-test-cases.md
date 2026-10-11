@@ -1,3 +1,9 @@
+---
+type: plan
+date: 2026-09-23
+status: passed
+issue: [1004]
+---
 # Issue #1004 — кейсы ручной проверки
 
 **Дата:** 2026-09-23 · Компаньон к [2026-09-22-issue-1004-s3-version-pagination-bucket-state.md](./2026-09-22-issue-1004-s3-version-pagination-bucket-state.md) (раздел «Testing Plan → Ручная проверка» в нём — это 8 строк-напоминаний; здесь они развёрнуты в исполнимые кейсы с фикстурами и признаками провала).
@@ -690,7 +696,7 @@ D2 и D4 — те самые случаи, из-за которых инвали
 | **E5** | ✅ полностью |
 | **E6** | ✅ полностью |
 
-**Итог прогона: все кейсы пройдены, регрессий нет.** Два пункта, найденных по ходу, записаны как follow-up в `2026-09-22-issue-1004-comments/comment-3-out-of-scope.md` (раздел «Genuinely out of scope»); changeset по итогам прогона не менялся — остаётся `minor`.
+**Итог прогона: все кейсы пройдены, регрессий нет.** Два пункта, найденных по ходу, записаны как follow-up в [`2026-09-22-issue-1004-comments/comment-3-out-of-scope.md`](2026-09-22-issue-1004-comments/comment-3-out-of-scope.md) (раздел «Genuinely out of scope»); changeset по итогам прогона не менялся — остаётся `minor`.
 
 **Найдено по ходу (вне скоупа ветки, не регрессия):** окно подтверждения `DeleteVersionModal` всегда подписано «Delete Version», даже когда удаляется delete marker — при том что пункт меню в `ObjectVersionHistoryModal.tsx:226` подписан правильно («Delete Marker»), а сам `DeleteVersionModal` проп `isDeleteMarker` получает и использует, пряча по нему строки Date и Size (`:173`, `:182`). В заголовок (`:118`), кнопку (`:124`) и текст (`:135`) он не заведён. На `dc918d47` ровно то же самое; ветка в этом файле поменяла только блок инвалидации. ✅ Записано в `comment-3-out-of-scope.md` как follow-up.
 
@@ -738,3 +744,12 @@ git status --short | wc -l      # 50 — ровно то, что принёс п
 3. **`ListObjectsV2` считает удалённый ключ живым объектом** — `contents` берёт `versions.find(v => v.isLatest)`, а маркер удаления тоже `isLatest`. `isEmpty` на версионированном бакете врёт (**A4**).
 
 Осмысленны на моке только **A1, A2, A3, D1, D2, E2**. Дописать мок по этим трём точкам — отдельная задача, в скоуп #1004 не входит.
+
+<!-- related:auto — generated from pr/issue properties by tools/update-related.py; do not edit by hand -->
+## Related
+
+- plan · 2026-09-22 · [2026-09-22-issue-1004-s3-version-pagination-bucket-state](2026-09-22-issue-1004-s3-version-pagination-bucket-state.md)
+- issue-comment · 2026-09-23 · [comment-1-verification](2026-09-22-issue-1004-comments/comment-1-verification.md)
+- issue-comment · 2026-09-23 · [comment-2-implementation](2026-09-22-issue-1004-comments/comment-2-implementation.md)
+- issue-comment · 2026-09-23 · [comment-3-out-of-scope](2026-09-22-issue-1004-comments/comment-3-out-of-scope.md)
+- pr-description · 2026-09-24 · [pr-1331-description](../pr-descriptions/pr-1331-description.md)

@@ -1,3 +1,8 @@
+---
+type: plan
+date: 2026-08-13
+status: implemented
+---
 # Plan: Port Ceph Lifecycle Rules onto the CORS tab + DataGrid architecture
 
 **Date:** 2026-08-13 · **Status:** All fixes implemented 2026-08-14 (rounds 1-4 complete). Gate verified green: 228 test files / 5640 tests, all quality gates passing (typecheck, lint, test, build, check-i18n, format:check). Round 1 fixed Critical freshness-check bugs and High form regressions. Round 2 fixed test assertion weaknesses and added missing test coverage. Round 3 achieved UI design parity with CORS (Pill-based tag editor, proper modal footer placement). Round 4 completed action naming consistency and native Modal API adoption for delete confirmations. Security Findings #2-3 remain as low-priority hygiene items (input validation); #1 has been retracted as fabricated. See "Round 2-4 As-Built Summary" at end of file for complete details.
@@ -8,7 +13,7 @@
 
 - `BucketHeaderActions.tsx:10,49` **still has** `hasCors: boolean` and `{hasCors && <PopupMenuItem label={t\`Delete CORS Rules\`} onClick={() => onOpenModal("deleteCors")} />}`.
 - `BucketModals.tsx:9,35,133` still has `DeleteCorsModal`, `"deleteCors"` in `ModalType`.
-- There is **no `CORS Enabled` badge** anywhere — `BucketHeader.tsx:41-59` renders only Versioning + Bucket Policy badges. (The CORS plan's D4 said "keep the badge"; `2026-08-12-cors-rules-designer-fixes.md` finding at Step 4.3 confirms the badge never existed.)
+- There is **no `CORS Enabled` badge** anywhere — `BucketHeader.tsx:41-59` renders only Versioning + Bucket Policy badges. (The CORS plan's D4 said "keep the badge"; [`2026-08-12-cors-rules-designer-fixes.md`](2026-08-12-cors-rules-designer-fixes.md) finding at Step 4.3 confirms the badge never existed.)
 - The button says `Create rule` (`CorsRulesTab.tsx:237`), the grid still has `gridColumnTemplate` + `className="cors-rules-table"` (`CorsRulesTable.tsx:95,103`), the row action is bare `t\`Delete\`` (`:167`), and the tab is wrapped in `<Stack direction="vertical" gap="4">`.
 
 All of the designer fixes + action naming live **unmerged** on `origin/kiryl-ceph-cors-review-findings` (`e6e5196b`), which is *not* in `main`.
@@ -269,7 +274,7 @@ interface LifecycleRulesTableProps {
    | 8 | *(empty)* | kebab `PopupMenu` |
 
    > If the designer prefers `Transitions` and `Abort Incomplete Uploads` as separate columns, split #7 into two and bump to `columns={9}` — a one-line change; flag it rather than guessing.
-3. Kebab: `<PopupMenuItem label={t\`Edit\`} … disabled={effectiveIsMutating} />` and `<PopupMenuItem label={t\`Delete Lifecycle Rule\`} onClick={() => handleOpenDeleteModal(originalIndex, rule.ID)} disabled={effectiveIsMutating} />` (naming per `2026-08-13-ceph-action-naming-consistency.md` Scope 4 — specific from day one). Cell: `<DataGridCell onClick={(e) => e.stopPropagation()} className="justify-end pr-0">` wrapping `<div className="flex h-full items-center justify-end">`.
+3. Kebab: `<PopupMenuItem label={t\`Edit\`} … disabled={effectiveIsMutating} />` and `<PopupMenuItem label={t\`Delete Lifecycle Rule\`} onClick={() => handleOpenDeleteModal(originalIndex, rule.ID)} disabled={effectiveIsMutating} />` (naming per [`2026-08-13-ceph-action-naming-consistency.md`](2026-08-13-ceph-action-naming-consistency.md) Scope 4 — specific from day one). Cell: `<DataGridCell onClick={(e) => e.stopPropagation()} className="justify-end pr-0">` wrapping `<div className="flex h-full items-center justify-end">`.
 4. Empty state: `<DataGridRow><DataGridCell colSpan={8}>` with `isFiltered ? <Trans>No lifecycle rules matching the current search criteria.</Trans> : <Trans>There are no lifecycle rules for this bucket</Trans>`.
 5. `key={originalIndex}`, `data-testid={\`lifecycle-rule-row-${originalIndex}\`}`, `data-testid={\`select-rule-${originalIndex}\`}` — plus the index-identity comment adapted from `CorsRulesTable.tsx:132-134`.
 6. Own `isRowDeleteMutating` + `deleteModalState` state, render `<DeleteLifecycleRuleModal>` as a sibling, fire `getLifecycleRuleDeletedToast` / `getLifecycleRuleDeleteErrorToast` from `handleDeleteSuccess`/`handleDeleteError` — exactly `CorsRulesTable.tsx:53-91`.
@@ -454,7 +459,7 @@ grep -rn "LifecycleModal\|LifecycleRulesViewer\|hasLifecycle\|deleteLifecycle\"\
 > 1. **The plan's §"Two premises that the code contradicts"** — the CORS code on `main` is NOT the version described in the older CORS plan docs. There is no draft-then-Save, no `corsValidation.ts`, and the bucket header still has a `Delete CORS Rules` menu item. Mirror what's in the working tree (`CorsRulesTab.tsx`, `CorsRulesTable.tsx`, `CorsRuleModal.tsx`, `DeleteCorsRuleModal.tsx`, `DeleteCorsRulesModal.tsx`, `utils/corsUtils.ts`), not what the docs say.
 > 2. **Risk 1 and Risk 2 in the plan** — `LifecycleRuleForm.tsx:14` imports `normalizeFilter` from `@/server/Storage/helpers/lifecycleMapper`; that must become a client-local copy in `Ceph/Buckets/utils/lifecycleUtils.ts`. And `LifecycleRuleRead → LifecycleRule` is a real conversion (Date→ISO string, Status narrowing), not a cast — the existing `currentRules as LifecycleRule[]` in `LifecycleModal.tsx` is a bug you are deleting, not a pattern to copy.
 >
-> **Out of scope — do not touch:** `server/Storage/routers/ceph/lifecycleRouter.ts`, `server/Storage/helpers/lifecycleMapper.ts`, `server/Storage/types/ceph.ts`, `server/Storage/helpers/s3ErrorMapper.ts`, or any of their tests. The data-correctness work there is already done and reviewed (see `../DOCS/plans/2026-08-06-ceph-lifecycle-rules-remote-branch-fixes.md`). This is strictly a UI-shell redesign.
+> **Out of scope — do not touch:** `server/Storage/routers/ceph/lifecycleRouter.ts`, `server/Storage/helpers/lifecycleMapper.ts`, `server/Storage/types/ceph.ts`, `server/Storage/helpers/s3ErrorMapper.ts`, or any of their tests. The data-correctness work there is already done and reviewed (see [`../DOCS/plans/2026-08-06-ceph-lifecycle-rules-remote-branch-fixes.md`](2026-08-06-ceph-lifecycle-rules-remote-branch-fixes.md)). This is strictly a UI-shell redesign.
 >
 > Work through Steps 1–12 in order. Step 5 in particular is a **migration**, not a rewrite: `LifecycleRuleForm.tsx` and `LifecycleRuleForm.test.tsx` carry the only regression coverage for four previously-shipped bugs (legacy top-level `Prefix`, `Date`/`ExpiredObjectDeleteMarker` expiration, `Transitions` preservation, the Juno `Select` onChange convention) — every one of those test cases must still exist and pass when you're done.
 >

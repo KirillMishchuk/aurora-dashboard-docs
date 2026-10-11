@@ -1,6 +1,12 @@
+---
+type: plan
+date: 2026-08-18
+status: implemented
+pr: [1178]
+---
 # Plan: Fix PR #1178 review findings (CodeRabbit + Copilot)
 
-**Date:** 2026-08-18 · **Status:** not implemented
+**Date:** 2026-08-18 · **Status:** implemented (PR #1178)
 
 ## Overview
 
@@ -553,3 +559,10 @@ PR branch source is inspected via `git show pr-1178-review:<path>` / `git diff m
   - Even if built, an Aurora-only revision store would **only** catch races between Aurora sessions — it would not protect against concurrent writes from `aws-cli` or any other S3 client hitting Ceph RGW directly, which don't participate in Aurora's token scheme. That defeats the actual goal (protection against *any* concurrent modification), so the heavy investment wouldn't even fully solve the stated problem.
 - **What's kept instead:** the existing client-side best-effort mitigation (refetch immediately before mutating, compare via `JSON.stringify`, reject on mismatch with a "configuration has changed" message) already present in the edit path here and in both delete modals, now also extended to the add path via 5a above. This narrows the race window to the time between refetch and mutate (sub-second in practice) without inventing new infrastructure that can't fully deliver on the ask anyway.
 - **Status:** not fixed, by design — infeasible with the current Ceph RGW/S3 API surface; revisit only if RGW/S3 ever add a conditional-write primitive for bucket lifecycle configuration.
+
+<!-- related:auto — generated from pr/issue properties by tools/update-related.py; do not edit by hand -->
+## Related
+
+- plan · 2026-08-18 · [2026-08-18-pr-1178-review-findings-fixes-implementation](2026-08-18-pr-1178-review-findings-fixes-implementation.md)
+- plan · 2026-08-20 · [2026-08-20-pr-1178-code-review-fixes](2026-08-20-pr-1178-code-review-fixes.md)
+- pr-review · 2026-08-20 · [pr-1178-review](../pr-reviews/pr-1178-review.md)

@@ -1,3 +1,11 @@
+---
+type: pr-report
+date: 2026-08-03
+status: merged
+pr: [1120]
+author: mark-karnaukh-extern-sap
+branch: mark-ceph-object-pre-signed-urls
+---
 # PR #1120: feat(portal): generate pre-signed URLs for objects
 
 **Автор:** mark-karnaukh-extern-sap · **Статус:** смержен 05.08.2026 (коммит `502a1e92`)

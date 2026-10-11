@@ -1,3 +1,9 @@
+---
+type: plan
+date: 2026-08-11
+status: implemented
+pr: [1092]
+---
 # PR #1092 — 4 fix prompts for `dev-executor`
 
 Source: `document-pr` review of PR #1092 (`kiryl-ceph-cors`, head `5d8fb2d`), findings carried over unfixed from the 11.08.2026 report:
@@ -225,7 +231,7 @@ Use the same "bubble a boolean up via a callback prop" pattern already establish
 
 ## After all 4 are done
 
-Run the full local gate before pushing, per `CLAUDE.md`:
+Run the full local gate before pushing, per [`CLAUDE.md`](../CLAUDE.md):
 ```bash
 pnpm --filter @cobaltcore-dev/aurora typecheck
 pnpm --filter @cobaltcore-dev/aurora lint
@@ -233,3 +239,9 @@ pnpm --filter @cobaltcore-dev/aurora test
 pnpm check-i18n
 ```
 Then `pnpm changeset status` (if available) to sanity-check Prompt 1's changeset edit didn't break the changeset tooling. Commit each prompt's changes separately with a Conventional Commit message (`fix(aurora): ...`), so the PR history stays reviewable — don't squash all 4 into one commit.
+
+<!-- related:auto — generated from pr/issue properties by tools/update-related.py; do not edit by hand -->
+## Related
+
+- plan · 2026-07-25 · [2026-07-25-cors-configuration-testing-plan](2026-07-25-cors-configuration-testing-plan.md)
+- pr-report · 2026-08-11 · [1092-cors-configuration-ceph-buckets](../aurora-dashboard-kb/prs/1092-cors-configuration-ceph-buckets.md)

@@ -1,3 +1,8 @@
+---
+type: plan
+date: 2026-10-05
+status: analysis
+---
 # Security Groups: help hints на полях форм — разбор замечания
 
 **Дата:** 2026-10-05
@@ -153,7 +158,7 @@ security group design" — со ссылкой на
 
 - Колонки Direction, Description, Ethertype, Protocol, Range (`SecurityGroupRulesTable.tsx:234-238`); remote виден только в диалоге удаления, группа — ID. Не было с первой версии (#586).
 - Пользователь не видит, для кого открыто правило; в Elektra колонка есть.
-- Заведено: `FOLLOW-UPS.md` → пункт 38.
+- Заведено: [`FOLLOW-UPS.md`](../FOLLOW-UPS.md) → пункт 38.
 - **Сделано:** колонка Remote текстом (CIDR, имя группы, `(this group)`, ID для групп вне списка, address group, `Any`), без ссылки на группу; Description перенесена в конец. В `DeleteRuleDialog` одна строка `Remote` с тем же значением; поиск по правилам ищет по CIDR и имени remote-группы. Хелпер `$securityGroupId/-components/ruleRemote.ts`. Пункт 38 закрыт.
 
 ### 3.5. Мелочи

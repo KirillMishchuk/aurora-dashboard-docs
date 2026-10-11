@@ -1,3 +1,9 @@
+---
+type: plan
+date: 2026-09-25
+status: not-implemented
+pr: [1331]
+---
 # Plan: PR #1331 — Copilot review findings, round 4
 
 **Date:** 2026-09-25 · **Status:** not implemented — все находки вынесены в follow-up по решению пользователя 2026-09-25
@@ -188,3 +194,10 @@
 > The `EditMetadataModal` argument misses the other half, though: `updateMetadata` is a `CopyObjectCommand`, and on a versioned bucket it writes a new version, which flips `hasOldVersionsOrDeleteMarkers` — so it moves `containers.getState` for real. Skipping that invalidation would reintroduce exactly the staleness the helper exists to prevent.
 >
 > One factual correction: invalidation does not issue requests by itself — a refetch happens only where an observer is mounted. And `checkDeletedContent` is scoped to a single prefix, where `getState` scans the whole bucket, which is why making the cheaper, narrower query the opt-in one had it backwards.
+
+<!-- related:auto — generated from pr/issue properties by tools/update-related.py; do not edit by hand -->
+## Related
+
+- plan · 2026-09-24 · [2026-09-24-pr-1331-copilot-review-findings](2026-09-24-pr-1331-copilot-review-findings.md)
+- plan · 2026-09-24 · [2026-09-24-pr-1331-copilot-review-round-2](2026-09-24-pr-1331-copilot-review-round-2.md)
+- pr-description · 2026-09-24 · [pr-1331-description](../pr-descriptions/pr-1331-description.md)
