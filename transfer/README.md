@@ -3,7 +3,7 @@ type: index
 ---
 # transfer
 
-Everything needed to carry uncommitted `aurora-dashboard` work to another machine. `DOCS` is its own git repository, so this folder travels by commit and push; on the other machine you only pull `DOCS` and use what's here — nothing needs to be run there.
+Everything needed to carry uncommitted `aurora-dashboard` work to another machine. `DOCS` is its own git repository, so this folder travels by commit and push. On the other machine: pull `DOCS`, then apply the patch as described in [`patch/README.md`](./patch/README.md) — no scripts needed there. To send the work back, stage it and run `temp-sync` on that machine.
 
 | Folder | What it holds | Written by |
 | --- | --- | --- |

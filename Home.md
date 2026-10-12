@@ -59,7 +59,6 @@ filters:
     - file.ext == "md"
     - '!file.inFolder("templates")'
     - '!file.inFolder("ToolDocs/claude-config")'
-    - '!file.inFolder("ai-dev-tasks")'
 views:
   - type: table
     name: Recently changed

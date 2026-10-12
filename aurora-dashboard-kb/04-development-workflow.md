@@ -10,7 +10,7 @@ type: kb
 pnpm install
 cp apps/dashboard/.env.example apps/dashboard/.env
 # set at minimum: IDENTITY_ENDPOINT (Keystone v3 URL), VITE_BFF_ENDPOINT="/polaris-bff"
-pnpm dev            # dashboard on http://localhost:4005 (README) / PORT from .env
+pnpm dev            # dashboard on PORT from apps/dashboard/.env; server.ts falls back to 4005, .env.example sets 4001
 ```
 
 Dev mode runs `tsx watch` on `apps/dashboard/src/server/server.ts` with `@fastify/vite`; the aurora client package is aliased to source, so library edits hot-reload without a rebuild. Since #1085, `tsx watch` also passes `--tsconfig tsconfig.server.json --watch-kill-signal=SIGKILL` and explicit `--include` globs for `packages/aurora/src/{server,types}`, `packages/policy-engine/src`, `packages/signal-openstack/src` (excluding `*.test.ts`), so server-side workspace-package edits restart the dev server directly from source too. Note: `turbo.json`'s `dev` task still declares `dependsOn: ["^build"]` — that dependency was not actually removed; the tsx watch include-globs above just make it unnecessary to wait for it during dev.
@@ -70,10 +70,10 @@ Dev mode runs `tsx watch` on `apps/dashboard/src/server/server.ts` with `@fastif
 
 ## Claude Code assets in the repo (`.claude/`)
 
-`.claude/` and the repo-root [`CLAUDE.md`](../CLAUDE.md) are **not** in `origin/main`, so nothing here ships upstream.
+`.claude/` and the repo-root `aurora-dashboard/CLAUDE.md` are **not** in `origin/main`, so nothing here ships upstream.
 
 - **Agents:** `dev-planner` (opus — plan with architecture analysis and risk identification), `dev-executor` (sonnet — execute a plan step by step), and three read-only reviewers: `architecture-reviewer` (opus), `security-reviewer` (sonnet, auth/authz/data protection), `performance-reviewer` (sonnet, frontend + backend).
-- **Skills — project workflow:** `create-plan` (analyze the architecture for a task → written plan in `../DOCS/plans/`), `implement-plan` (build an existing plan), `create-pr` (sync with main → guided conflict resolution, never resolves non-locale conflicts itself → PR description from template → draft PR via `gh`; never force-push/no-verify), `rework-commits` (split a branch into small semantic commits, backup branch first, before/after diff validation), `document-pr` (fetch a PR and write the report under `../DOCS/aurora-dashboard-kb/prs/`), `update-kb` (this knowledge base's update procedure), `triple-review` (review working changes from three angles), `quick-security-check` (focused audit of one file/component).
-- **Skills — spec-kit:** `speckit-constitution`, `-specify`, `-clarify`, `-plan`, `-tasks`, `-taskstoissues`, `-analyze`, `-checklist`, `-implement`, `-converge` — the spec-driven workflow, alongside the `.specify/` and `specs/` directories.
+- **Skills — project workflow:** `create-plan` (analyze the architecture for a task → written plan in `../DOCS/plans/`), `implement-plan` (build an existing plan), `create-pr` (sync with main → guided conflict resolution, never resolves non-locale conflicts itself → PR description from template → draft PR via `gh`; never force-push/no-verify), `temp-sync` (snapshot the staged change set into `../DOCS/transfer/` as files + a patch for another machine, and write its PR description to `../DOCS/pr-descriptions/`), `rework-commits` (split a branch into small semantic commits, backup branch first, before/after diff validation), `document-pr` (fetch a PR and write the report under `../DOCS/aurora-dashboard-kb/prs/`), `update-kb` (this knowledge base's update procedure), `triple-review` (review working changes from three angles), `quick-security-check` (focused audit of one file/component).
+- **Skills — spec-kit:** `speckit-constitution`, `-specify`, `-clarify`, `-plan`, `-tasks`, `-taskstoissues`, `-analyze`, `-checklist`, `-implement`, `-converge` — the spec-driven workflow. They expect a `.specify/` folder (scripts, templates, constitution), which isn't set up in this repo, so they don't work as-is.
 - **`.claude/docs/`** holds one-off analyses (`ERROR-I18N-ANALYSIS.md`, `ISSUE-1055-ANALYSIS.md`).
 - **`CLAUDE.md` exists** at the repo root (guidance for Claude Code, points at this knowledge base); the workspace-level `SAP/CLAUDE.md` one directory up covers the whole workspace folder.

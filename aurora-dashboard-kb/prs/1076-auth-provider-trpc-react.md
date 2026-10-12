@@ -1,7 +1,7 @@
 ---
 type: pr-report
 date: 2026-07-20
-status: merged
+status: open
 pr: [1076]
 author: andypf
 branch: andypf/refactor-auth-provider-to-trpc-react

@@ -64,6 +64,9 @@ review/analysis but deliberately not done in the PR where they came up.
 | 39 | Add Rule validation messages are not translated | Client (SG) | open |
 | 42 | `TabNavigation` tabs: `tabStyle="content"` and controlled `activeItem` everywhere | Juno | open |
 | 43 | SG details page state (tab, search, sorting, rule filters) in the URL | Client (SG) | open |
+| 44 | Stale package READMEs (config, policy-engine, signal-openstack, e2e) | Documentation | open |
+| 45 | `packages/aurora/README.md` + `.env.example`: removed `crossDomainCookie`, missing `cookieDomain`/`debug` | Documentation | open |
+| 46 | Root `README.md`, `CONTRIBUTING.md`, release docs: stale prerequisites, port, Semantic Release | Documentation | open |
 
 ---
 
@@ -87,7 +90,7 @@ shipped code that permanently deletes objects — in the same diff as the new ve
 procedure. A reviewer would not be able to tell one from the other. It deserves its own PR and its own review pass.
 
 **Source:** #1331 round 1 (the main tech debt according to the architecture review); again —
-[`plans/2026-09-22-issue-1004-comments/comment-3-out-of-scope.md`](plans/2026-09-22-issue-1004-comments/comment-3-out-of-scope.md).
+[`issues/issue-1004-comments.md`](issues/issue-1004-comments.md) (comment 3).
 
 **Status:** open.
 
@@ -1014,4 +1017,129 @@ only for Security Groups would introduce a new inconsistency.
 **Status:** open.
 
 ---
-Updated: 2026-10-07
+
+## L. Documentation
+
+### 44. Stale package READMEs: config, policy-engine, signal-openstack, e2e
+
+**Where:** `packages/config/README.md`, `packages/policy-engine/README.md:108`,
+`packages/signal-openstack/README.md` (examples from line 21, image link at the end),
+`apps/dashboard/e2e/README.md:27,48-49,58,347`.
+
+**What:** the package READMEs no longer match the code.
+- `config` still describes the Juno package it was copied from in `696af89a`: it names the package
+  `@cloudoperators/juno-config` (real: `@cobaltcore-dev/aurora-config`, private), shows
+  `typescript/base.json` as the base (packages extend `typescript/tsconfig.lib.json`; there is also
+  `tsconfig.react.json`) and `eslint/juno.mjs` / `juno-typescript.mjs` (the only config is
+  `eslint/index.mjs`). The example mentions files that don't exist here (`test/__mocks__/svgLib.js`,
+  `setupTests.js`), and the "package-a" tree block was mangled by prettier.
+- `policy-engine` imports from `"openstack-policy-engine"`; the package is `@cobaltcore-dev/policy-engine`.
+- `signal-openstack`: `SignalOpenstackSession` is `async` (`src/session.ts:23`), but every example uses
+  it without `await` and chains `.service()` on the Promise. The architecture image points at
+  `docs/SignalOpenstackArch.svg`; the file is `docs/AuroraSignalArch.svg`. The API list omits
+  `rescope`, `hasService` and `isValid`, and lists `put` without its `values` argument.
+- `e2e`: says the app runs on `localhost:3000` — that is only the `playwright.config.ts` fallback; the
+  dev server defaults to 4005 and `.env.example` sets 4001. Line 27 refers to
+  `/workspace/aurora-dashboard-OS/...`.
+
+**How to fix:** one `docs:` PR. Rewrite `config/README.md` (~25 lines: real name, the three tsconfig
+files and when to use each, the one ESLint config, examples taken from `signal-openstack`). Fix the
+import name, the `await`s, the image path and the API list; replace port 3000 with the configured
+port and drop the `/workspace` path.
+
+**Why not done right away:** these are tracked upstream files; changing them as a side effect of
+another task would mix unrelated docs edits into that PR.
+
+**Source:** workspace documentation audit, 2026-10-11.
+
+**Status:** open.
+
+### 45. `packages/aurora/README.md` and `.env.example` document the removed `crossDomainCookie`
+
+**Where:** `packages/aurora/README.md:57-69` (the `createServer(config)` table) and `:19`,
+`README.md:24` (root, "two entry points"), `apps/dashboard/.env.example:22-23`,
+`packages/aurora/src/types/index.ts` (`policyDir` doc comment).
+
+**What:** the consumer-facing docs describe a cookie option that no longer exists.
+- The `createServer` table lists `crossDomainCookie: boolean`, default `true`, "Share cookie across
+  subdomains". It was removed in `e070437c` (#998, aurora 0.12.0, 2026-06-30; marked breaking in
+  `CHANGELOG.md`) and replaced by `cookieDomain?: string` — unset by default, i.e. cookies are
+  host-specific, the opposite of what the table says. A consumer following the README passes a field
+  that is silently ignored and gets no cross-subdomain cookie.
+- `debug?: boolean` (OpenStack session HTTP logging; default `false` in production, `true` in dev)
+  is in `AuroraServerConfig` but not in the table.
+- `policyDir` is described as a directory of policy **YAML** files (the type's doc comment says
+  `compute.yaml`); the permission routers load `compute.json`, `image.json`, `networking.json`,
+  `storage.json`.
+- `identityEndpoint` is marked required; the type has `identityEndpoint?: string` and
+  `server.ts` falls back to `""`.
+- Both READMEs say the package has two entry points; `package.json` exports three
+  (`./server`, `./client`, `./types` — the last one types only).
+- `apps/dashboard/.env.example` still offers `# ENABLE_CROSS_DASHBOARD_COOKIE=true` ("default: true"),
+  which nothing reads; `COOKIE_DOMAIN`, which `apps/dashboard/src/server/server.ts` does read, is
+  missing.
+
+**How to fix:** one `docs:` PR (can be merged with #44 — same kind of change). Replace the
+`crossDomainCookie` row with `cookieDomain` (`string`, default unset → host-specific cookies,
+example `".example.com"`), add a `debug` row, change YAML → JSON for `policyDir` (README and doc
+comment), mark `identityEndpoint` as optional or make the type match, mention the `./types` entry
+point. In `.env.example` replace the two lines with
+`# Share the session cookie across subdomains (default: unset — host-specific)` /
+`# COOKIE_DOMAIN=".example.com"`.
+
+**Why not done right away:** tracked upstream files; found during a workspace audit, not as part of
+a change to this code.
+
+**Source:** workspace documentation audit, 2026-10-12.
+
+**Status:** open.
+
+### 46. Root `README.md`, `CONTRIBUTING.md` and release docs: stale setup facts
+
+**Where:** `README.md:53-56` (Prerequisites), `:65-84` (Configure environment, Run in development),
+`:112-116` (Release Management); `CONTRIBUTING.md:20-21,33`; `docs/semantic_release.md`;
+`docs/aurora_architecture_overview.md:242-251`.
+
+**What:** the getting-started and release sections contradict the repo.
+- Prerequisites say Node.js `>= 18` and pnpm `>= 10`; the repo requires Node 24 (`.nvmrc`
+  `24.15.0`, `engines` `>=24.15.0`) and pnpm 11 (`packageManager` `pnpm@11.20.0`).
+  `CONTRIBUTING.md` says Node `>= 24` but pnpm `>= 9`, and copies `.env` from the old
+  `apps/aurora-portal/` path.
+- "Configure environment" lists only `IDENTITY_ENDPOINT` and `VITE_BFF_ENDPOINT`. Without
+  `CEPH_REGION` every Ceph procedure throws "Ceph region not configured"
+  (`Storage/cephProcedure.ts:49`).
+- "The dashboard starts at `http://localhost:4005` by default" — true only when `PORT` is unset;
+  `.env.example`, which the README tells you to copy, sets `PORT="4001"`.
+- "Release Management" says the project uses Semantic Release and links `docs/semantic_release.md`.
+  Releases are done with Changesets: `.github/workflows/release.yaml` runs on push to `main`,
+  `changesets/action` opens a version PR, merging it bumps versions, updates changelogs and
+  publishes to npm. `docs/aurora_architecture_overview.md` ("Release Process – Semantic Release")
+  says the same outdated thing.
+
+**How to fix:** one `docs:` PR. A draft of the `README.md` part already existed (uncommitted on
+`main`, reverted 2026-10-12 so it doesn't sit in the working tree); its wording, verified against the
+code:
+- Prerequisites: "Node.js 24 (exact version in `.nvmrc`)", "pnpm 11 (exact version pinned in
+  `packageManager` in `package.json`)".
+- After the `.env` block: "To use Ceph object storage (S3), also set `CEPH_REGION` to your Ceph RGW
+  region; without it, Ceph operations fail with a configuration error. The other variables in
+  `.env.example` are optional."
+- Run in development: "The dashboard starts on the port set by `PORT` in `.env` —
+  `http://localhost:4001` with the values from `.env.example`, or `http://localhost:4005` if `PORT`
+  is not set."
+- Release Management: Changesets — `pnpm changeset` in the PR; "On every push to `main`, the release
+  workflow collects pending changesets into a version PR; merging that PR bumps the versions,
+  updates the changelogs and publishes the packages to npm."
+In the same PR: fix the pnpm version and the `apps/aurora-portal` path in `CONTRIBUTING.md`, and
+delete `docs/semantic_release.md` (or mark it as obsolete) and rewrite the release section of
+`docs/aurora_architecture_overview.md`.
+
+**Why not done right away:** tracked upstream files; the README draft was sitting uncommitted on
+`main` with no PR, where it would end up in an unrelated change.
+
+**Source:** workspace documentation audit, 2026-10-12.
+
+**Status:** open.
+
+---
+Updated: 2026-10-12

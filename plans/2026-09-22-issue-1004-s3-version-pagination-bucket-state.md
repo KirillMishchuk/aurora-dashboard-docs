@@ -798,7 +798,7 @@ pnpm --filter @cobaltcore-dev/aurora test
 
 ## 📝 Оформление в GitHub
 
-> **РЕШЕНО 2026-09-22 (пользователь):** новые тикеты НЕ заводим — issue #1004 остаётся единственным, к нему дописываются три комментария. Готовые тексты лежат в [`2026-09-22-issue-1004-comments/`](./2026-09-22-issue-1004-comments/): [`comment-1-verification.md`](2026-09-22-issue-1004-comments/comment-1-verification.md), [`comment-2-implementation.md`](2026-09-22-issue-1004-comments/comment-2-implementation.md), [`comment-3-out-of-scope.md`](2026-09-22-issue-1004-comments/comment-3-out-of-scope.md). Тело самого issue не правится — неверные места перекрываются комментарием ①. Постит пользователь сам. Заготовки тикетов ниже оставлены как черновой материал, из которого собраны комментарии.
+> **РЕШЕНО 2026-09-22 (пользователь):** новые тикеты НЕ заводим — issue #1004 остаётся единственным, к нему дописываются три комментария. Готовые тексты лежат в [`issues/issue-1004-comments.md`](../issues/issue-1004-comments.md) (comments 1–3). Тело самого issue не правится — неверные места перекрываются комментарием ①. Постит пользователь сам. Заготовки тикетов ниже оставлены как черновой материал, из которого собраны комментарии.
 
 Issue #1004 предлагалось закрыть как superseded и завести два тикета — **этот вариант отклонён**, см. выше. Ниже — исходный текст заготовок.
 
@@ -1125,8 +1125,6 @@ semver-обязательством. Решение команды, не аге�
 <!-- related:auto — generated from pr/issue properties by tools/update-related.py; do not edit by hand -->
 ## Related
 
-- issue-comment · 2026-09-23 · [comment-1-verification](2026-09-22-issue-1004-comments/comment-1-verification.md)
-- issue-comment · 2026-09-23 · [comment-2-implementation](2026-09-22-issue-1004-comments/comment-2-implementation.md)
-- issue-comment · 2026-09-23 · [comment-3-out-of-scope](2026-09-22-issue-1004-comments/comment-3-out-of-scope.md)
+- issue-comment · 2026-09-23 · [issue-1004-comments](../issues/issue-1004-comments.md)
 - plan · 2026-09-23 · [2026-09-23-issue-1004-manual-test-cases](2026-09-23-issue-1004-manual-test-cases.md)
 - pr-description · 2026-09-24 · [pr-1331-description](../pr-descriptions/pr-1331-description.md)

@@ -6,6 +6,8 @@ pr: [1092]
 ---
 # PR #1092 — 4 fix prompts for `dev-executor`
 
+**Status:** implemented (PR #1092)
+
 Source: `document-pr` review of PR #1092 (`kiryl-ceph-cors`, head `5d8fb2d`), findings carried over unfixed from the 11.08.2026 report:
 `[Было #1, 100]`, `[Было #3, 95]`, `[F, 50]`, `[A, 50]`.
 

@@ -1,12 +1,12 @@
 ---
 type: plan
-date: 2026-08-12
+date: 2026-08-04
 status: not-implemented
 ---
 # Tasks: Bucket Tagging (Ceph S3)
 
 > Источник: [`prd-bucket-tagging.md`](./prd-bucket-tagging.md) (Issue [#608](https://github.com/cobaltcore-dev/aurora-dashboard/issues/608), Section 14).
-> Сгенерировано `generate-tasks.md` из `DOCS/ai-dev-tasks/`.
+> Сгенерировано `generate-tasks.md` из `SAP/ai-dev-tasks/`.
 
 ## Relevant Files
 

@@ -21,25 +21,17 @@ It is intended for two readers: Kiryl (planning, reference, refreshing context) 
 
 Files 01–05 themselves are written in English — the language of the codebase, commits and upstream documentation.
 
-`prs/` is a separate folder with reviews of specific PRs (currently 38 files), which 01–05 link to as needed (`prs/<number>-<slug>.md`). It is not a standalone section of the index — read them via the links from the main file, not directly from this page. The knowledge base update procedure (below) writes new reviews here.
+`prs/` is a separate folder with reviews of specific PRs (one file per PR), which 01–05 link to as needed (`prs/<number>-<slug>.md`). It is not a standalone section of the index — read them via the links from the main file, not directly from this page. New reports are written by the `document-pr` skill; the update procedure (below) only refreshes the status of existing ones.
 
 ## Using the knowledge base with Claude
 
-- **In Cowork / Claude Code sessions for this repository:** specify this folder as context or ask Claude to read the relevant file before planning (for example: "read 02-architecture.md and 05-domain-map.md, then plan the feature"). [`CLAUDE.md`](../CLAUDE.md) at the repository root already contains a pointer to this knowledge base.
+- **In Cowork / Claude Code sessions for this repository:** specify this folder as context or ask Claude to read the relevant file before planning (for example: "read 02-architecture.md and 05-domain-map.md, then plan the feature"). `aurora-dashboard/CLAUDE.md` (the repository root) already contains a pointer to this knowledge base.
 - **Planning a new BFF feature:** 02 (architectural patterns) + 05 (where similar features live) is usually enough; the design docs in `packages/aurora/docs/` provide depth on specific features.
-- **Updating the knowledge base:** in a session with the SAP folder connected, ask to "update the knowledge base" — the agent will run the procedure from the section below. In Claude Code there is an `update-kb` skill for this.
+- **Updating the knowledge base:** in a session with the SAP folder connected, ask to "update the knowledge base" — the agent follows the `update-kb` skill (see the section below).
 
-## How to update the knowledge base (instructions for the agent)
+## How to update the knowledge base
 
-Perform the steps in order. Do not move the pinned commit until the affected files have been updated.
-
-1. **Determine the range.** Take the pinned commit `<PIN>` from the header of this README. Run `git fetch origin` (if the network is available), then `git log --oneline <PIN>..origin/main`. Empty list → the knowledge base is up to date; report this and stop.
-2. **Filter out the noise.** Commits `chore(version): update versions with Changesets` and lock-file edits do not need analysis — take only the new package versions from them.
-3. **Analyze the significant commits.** For each one: `git show --stat <sha>`, and, if needed, the diff of the relevant files. Verify claims against the actual code, not the commit message text: the message may embellish or be outdated.
-4. **Determine the affected knowledge base files.** Stack, monorepo structure, versions, gotchas → [`01-overview.md`](01-overview.md). Architecture, auth, permissions, server/client patterns → [`02-architecture.md`](02-architecture.md). Package APIs and builds → [`03-packages.md`](03-packages.md). Commands, CI/CD, conventions, releases, tests → [`04-development-workflow.md`](04-development-workflow.md). New routers, routes, design docs, feature map → [`05-domain-map.md`](05-domain-map.md).
-5. **Update the affected files.** Preserve the language and style of each file (01–05 are in English, the README is in Russian). Correct outdated statements rather than adding new ones next to them.
-6. **Update the README.** Move the pinned commit to the new HEAD of `origin/main`, update the date, and add an entry to the update log at the top of the list (at the very bottom of the file) in the format: `date · <old pin> → <new pin> (N commits, PR #x–#y): summary of changes; version changes`. If there were no significant changes, move the pin anyway and write "no significant changes". Do not shorten the log — keep all entries in full.
-7. **Report.** Briefly tell the user what landed in main and which knowledge base files were updated.
+The procedure lives in the `update-kb` skill — `aurora-dashboard/.claude/skills/update-kb/SKILL.md`, the single source of truth. In Claude Code run the skill; elsewhere read that `SKILL.md` and follow it. The pinned commit moves only after the affected files are updated.
 
 ## Key facts
 
@@ -47,7 +39,7 @@ Perform the steps in order. Do not move the pinned commit until the affected fil
 - **Purpose:** a modern user dashboard for OpenStack (successor to the legacy Elektra dashboard), BFF architecture
 - **Stack:** React 19 + TanStack Router · Fastify + tRPC + Zod · Tailwind v4 · Lingui i18n · pnpm + Turborepo · Vitest + Playwright
 - **Published package:** `@cobaltcore-dev/aurora` (server + client library); `apps/dashboard` is a thin reference consumer application
-- **Dev server:** `pnpm dev` → http://localhost:4005 (requires Keystone `IDENTITY_ENDPOINT` in `apps/dashboard/.env`)
+- **Dev server:** `pnpm dev` → `http://localhost:$PORT` (`PORT` from `apps/dashboard/.env`; 4005 if unset) (requires Keystone `IDENTITY_ENDPOINT` in `apps/dashboard/.env`)
 
 ## Update log
 

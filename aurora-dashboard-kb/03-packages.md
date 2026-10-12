@@ -60,7 +60,7 @@ Shared base configs: `typescript/base.json`, `tsconfig.react.json`, `tsconfig.li
 
 Owns only:
 
-- `src/server/server.ts` — validates `PORT` (default 4005 per README; `.env.example` uses 4001), maps env vars → `createServer()` config, resolves `policyDir` (src in dev, dist in prod), `listen`s.
+- `src/server/server.ts` — validates `PORT` (from `apps/dashboard/.env`; falls back to 4005, `.env.example` sets 4001), maps env vars → `createServer()` config, resolves `policyDir` (src in dev, dist in prod), `listen`s.
 - `src/client/App.tsx` — `<AuroraApp bffEndpoint={import.meta.env.VITE_BFF_ENDPOINT} theme=… />` with theme persisted to localStorage.
 - `src/policies/*.json` — compute, networking, image, storage policy files (copied to dist on build).
 - `vite.config.mjs` — dev alias of `@cobaltcore-dev/aurora/client` to package source (instant HMR into the library), `@fastify/vite` integration, static copy of policies.

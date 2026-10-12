@@ -1,12 +1,12 @@
 ---
 type: plan
-date: 2026-08-12
+date: 2026-08-04
 status: not-implemented
 ---
 # PRD: Bucket Tagging (Ceph S3)
 
 > Источник: [Issue #608](https://github.com/cobaltcore-dev/aurora-dashboard/issues/608), Section 14 (P3).
-> Сгенерировано `create-prd.md` из `DOCS/ai-dev-tasks/`.
+> Сгенерировано `create-prd.md` из `SAP/ai-dev-tasks/`.
 
 ## Introduction/Overview
 
