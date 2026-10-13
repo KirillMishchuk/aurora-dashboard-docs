@@ -32,7 +32,7 @@ It's a **pnpm monorepo** orchestrated by **Turborepo**:
 apps/
   dashboard/            # Reference consumer app — wires env vars into createServer(), owns nothing else
 packages/
-  aurora/                # Published npm library (@cobaltcore-dev/aurora) — the server + client, two entry points
+  aurora/                # Published npm library (@cobaltcore-dev/aurora) — the server + client, three entry points (`./server`, `./client`, `./types`)
   signal-openstack/      # Typed OpenStack HTTP client (built on undici) — auth, service catalog, sessions
   policy-engine/         # Evaluator for OpenStack's oslo.policy rule format
   config/                # Shared tsconfig and ESLint config
@@ -42,10 +42,10 @@ packages/
 
 ## Commands
 
-Run from the repo root unless noted. Turborepo fans these out to every package.
+Run from the repo root unless noted. `build`, `test`, `typecheck`, `lint` and `check-i18n` go through Turborepo and fan out to every package that has the script; `dev` runs only `apps/dashboard`; `format*`, `commit` and `licenses:check` run once at the root.
 
 ```bash
-pnpm install                     # install deps (Node >= 24, pnpm >= 10 — see .nvmrc / packageManager)
+pnpm install                     # install deps (Node 24 — see .nvmrc; pnpm 11 — pinned in packageManager)
 pnpm dev                         # start apps/dashboard dev server (tsx watch), http://localhost:4005 by default (code fallback; .env.example ships PORT=4001)
 pnpm build                       # build all packages (turbo build, respects dependency graph)
 pnpm test                        # run all vitest suites across packages
@@ -90,7 +90,7 @@ CI (`.github/workflows/ci-checks.yaml`) runs `licenses:check`, `lint`, `check-i1
 
 ## Server architecture (`packages/aurora/src/server`)
 
-Fastify server exposing OpenStack functionality via **tRPC**. Domain code is grouped into PascalCase folders — `Authentication`, `Compute`, `Network`, `Project`, `Services`, `Storage` — each internally split into `routers/`, `types/` (Zod schemas), and `helpers/`. `routers.ts` merges each domain's router tree into the app router (`buildAppRouter`), which is exported via `packages/aurora/src/server/index.ts` along with `createServer`.
+Fastify server exposing OpenStack functionality via **tRPC**. Domain code is grouped into PascalCase folders — `AppConfig`, `Authentication`, `Compute`, `Network`, `Project`, `Storage` — typically split into `routers/`, `types/` (Zod schemas) and `helpers/` (`AppConfig` is a flat folder; `Storage` adds `clients/` and `middleware/`). `routers.ts` merges each domain's router tree into the app router (`buildAppRouter`, internal — called by `createServer` in `server.ts`). `packages/aurora/src/server/index.ts` is the canonical list of the package's public server exports — the main ones are `createServer`, `auroraRouter` and the procedure builders; check it before changing or adding an export.
 
 **Procedure builders** (`trpc.ts`) are the key abstraction — always build routers from these, not raw `initTRPC`:
 
@@ -101,7 +101,7 @@ Fastify server exposing OpenStack functionality via **tRPC**. Domain code is gro
 
 Consumers extending the server pass extra routers via `createServer({ routers: [...] })`; those routers **must** be built with the exported `auroraRouter` (== `t.router`) so their context type matches — a different `initTRPC` instance breaks `ctx.openstack`/`ctx.validateSession` at runtime.
 
-**Permissions**: `packages/policy-engine` evaluates OpenStack `oslo.policy` YAML rule files (checked out of `apps/dashboard/src/policies/*`). Each domain exposes a `canUser` query built with the generic factory `createPermissionRouter` (`policies/createPermissionRouter.ts`) — you give it `{ policyDir, engines: { <engine>: { fileName } }, mappings }` and it handles engine loading, single/bulk permission checks, and Zod validation. See `PERMISSION_ROUTER_IMPLEMENTATION.md` for the factory contract and `PERMISSION_KEY_PATTERN.md` for the permission-key naming convention.
+**Permissions**: `packages/policy-engine` evaluates OpenStack `oslo.policy` rule files, stored as JSON (`apps/dashboard/src/policies/*.json` — `compute`, `image`, `networking`, `storage`). `Compute`, `Network` and `Storage` each expose a `canUser` query built with the generic factory `createPermissionRouter` (`policies/createPermissionRouter.ts`) — you give it `{ policyDir, engines: { <engine>: { fileName } }, mappings }` and it handles engine loading, single/bulk permission checks, and Zod validation. See `PERMISSION_ROUTER_IMPLEMENTATION.md` for the factory contract and `PERMISSION_KEY_PATTERN.md` for the permission-key naming convention.
 
 Permission keys follow `scope:resource:action` (e.g. `storage:containers:create`, `network:routers:attach_interface`) — scope and resource are UI/domain vocabulary, never the OpenStack service name (`storage`, not `swift`/`ceph`; `network`, not `neutron`). Resources are plural snake_case; actions are consistent verbs (`read`, `list`, `create`, `update`, `delete`, plus specific ones like `attach`/`associate`/`empty`/`copy`).
 
@@ -117,7 +117,11 @@ Routing conventions under `client/routes/`:
 - Project/domain-scoped tRPC calls (token rescoping) happen in route `loader`s, not inside components — components receive already-scoped data
 - `routeTree.gen.ts` is generated; don't hand-edit it
 
-`AuroraApp` (the package's public client export, `client/AuroraApp.tsx` / `App.tsx`) accepts `slots` — named extension points (`logo`, `sideNavBanner`, `pageFooter`, `login`, `serviceBadge`, `servicePageActions`, `projectsBanner`, `projectOverviewBanner`) letting host apps inject components without forking, and `enabledServices` to whitelist which OpenStack services show in the nav. See `packages/aurora/README.md` for the full consumer-facing contract (props, slots, analytics via `onTrackEvent`) — treat that file as the source of truth when changing any of `AuroraApp`'s public props.
+`AuroraApp` (the package's public client export, `client/AuroraApp.tsx` / `App.tsx`) accepts `slots` — named extension points (`logo`, `sideNavBanner`, `pageFooter`, `login`, `serviceBadge`, `servicePageActions`, `serviceBanner`, `projectsBanner` — canonical list: `SLOT_NAMES` in `packages/aurora/src/types/appConfig.ts`) letting host apps inject components without forking, and `enabledServices` to whitelist which OpenStack services show in the nav. Server-side, `createServer({ appConfig })` (`AuroraAppConfig`, served by the `AppConfig` domain) sets service/slot visibility and feature flags, globally and per domain; when omitted, everything is visible. See `packages/aurora/README.md` for the full consumer-facing contract (props, slots, analytics via `onTrackEvent`) — treat that file as the source of truth when changing any of `AuroraApp`'s public props.
+
+## Review conventions
+
+`.github/copilot-instructions.md` holds the rules GitHub Copilot reviews every PR against (Part A — stack conventions; Part B — UI conventions: list-page structure, spacing, color tokens, modals, toasts, empty/loading/error states, form validation, import order, a11y, DataGrid). Follow it when writing client code — anything it flags will come back as a review comment.
 
 ## Commit conventions
 
@@ -126,4 +130,4 @@ Conventional Commits are enforced by commitlint (`commitlint.config.mjs`) and ch
 - `type` must be one of the values in `commitlint.config.mjs` (`feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `perf`, `ci`, `build`, `revert`, `publish`)
 - `scope` must be one of the allow-listed scopes in the same file (kebab-case), or an `ISSUE-<number>` pattern
 - Breaking changes: `!` after the type or a `BREAKING CHANGE:` footer
-- Releases are automated via Changesets/Semantic Release from commit history (see `docs/semantic_release.md`) — commit type/scope directly affects the next version bump, so get it right.
+- Releases are automated via **Changesets** (`.changeset/`, `.github/workflows/release.yaml` runs `changesets/action`): the version bump comes from the changeset file a PR adds (`pnpm changeset`), not from commit messages. `docs/semantic_release.md` is outdated — semantic-release is not used. Commit type/scope still matter: commitlint enforces them on commits and the title-lint workflow on PR titles.

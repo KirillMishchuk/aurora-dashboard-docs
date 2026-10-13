@@ -1,19 +1,19 @@
 ---
 name: document-pr
 description: >-
-  Fetch a GitHub pull request against aurora-dashboard (by number, URL, or the
-  current branch's PR) via `gh`, and produce one combined Russian-language
-  report that (1) describes what the PR does and how — with verbatim code
-  excerpts and file:line citations — (2) traces what it impacts, including
-  consumers elsewhere in the monorepo beyond the PR's own changed files, and
-  (3) reviews it for bugs, CLAUDE.md compliance, and simplification, using
-  confidence-scored findings so only real issues surface. Saves the result as
-  a markdown file in ../DOCS/aurora-dashboard-kb/prs/ and updates its index.
-  Use whenever the user asks to document, разобрать, задокументировать,
-  проанализировать a specific merged or open PR by number/URL for the
-  knowledge base, or wants "full analysis + review" of a PR going into main —
-  not for reviewing the current uncommitted working diff (that's
-  `code-review`).
+    Fetch a GitHub pull request against aurora-dashboard (by number, URL, or the
+    current branch's PR) via `gh`, and produce one combined English-language
+    report that (1) describes what the PR does and how — with verbatim code
+    excerpts and file:line citations — (2) traces what it impacts, including
+    consumers elsewhere in the monorepo beyond the PR's own changed files, and
+    (3) reviews it for bugs, CLAUDE.md compliance, and simplification, using
+    confidence-scored findings so only real issues surface. Saves the result as
+    a markdown file in ../DOCS/aurora-dashboard-kb/prs/ and updates its index.
+    Use whenever the user asks to document, разобрать, задокументировать,
+    проанализировать a specific merged or open PR by number/URL for the
+    knowledge base, or wants "full analysis + review" of a PR going into main —
+    not for reviewing the current uncommitted working diff (that's
+    `code-review`).
 ---
 
 # Document a pull request
@@ -32,7 +32,7 @@ commit messages" discipline.
 - **Never check out the PR branch or touch the user's working tree/HEAD.**
   Everything here is read-only: `gh pr view`/`gh pr diff` for metadata and
   diff, `git fetch origin <sha>` + `git show <sha>:<path>` / `git grep -n
-  <pattern> <sha> -- <pathspec>` for reading the repo at the PR's head commit
+<pattern> <sha> -- <pathspec>` for reading the repo at the PR's head commit
   without checking it out. If the user is mid-work on another branch, this
   skill must not disturb that.
 - **Verify against real code, not the PR description or commit message.**
@@ -46,8 +46,11 @@ commit messages" discipline.
 - **Findings need a confidence pass before they're reported as issues** (see
   Step 5). An unfiltered "here's everything that looks off" list is not a
   review, it's noise — this mirrors the project's `code-review` skill.
-- Report body is Russian, matching the KB's `README.md`. Code, identifiers,
-  and file paths stay as-is (English/code, unchanged).
+- Report body is English, like the rest of the KB. Code, identifiers and
+  file paths stay as-is. Older reports in `prs/` are in Russian and are kept
+  as historical records — don't translate or rewrite them; write new ones in
+  English. The user may still ask in Russian — that doesn't change the
+  report language.
 
 ## Steps
 
@@ -104,7 +107,7 @@ where two components could refresh the same session token — see the
 
 **Impact / blast radius** — this is the part a plain diff can't tell you.
 For every changed export, tRPC procedure key, exported React
-component/hook, or public type in the diff, search for consumers *outside*
+component/hook, or public type in the diff, search for consumers _outside_
 the PR's own changed files, across the whole monorepo at `<headRefOid>`:
 
 ```bash
@@ -132,31 +135,31 @@ not to gate a merge), and don't post anything to GitHub.
    from Step 3 (give them the diff directly, they don't need to re-fetch
    it):
    a. **CLAUDE.md compliance** — audit against the gathered CLAUDE.md files.
-      Remember CLAUDE.md is guidance for writing code; not every line
-      applies to review.
+   Remember CLAUDE.md is guidance for writing code; not every line
+   applies to review.
    b. **Bug scan** — shallow scan of the diff itself for obvious bugs. Don't
-      wander into unrelated context; focus on large bugs, skip nitpicks.
+   wander into unrelated context; focus on large bugs, skip nitpicks.
    c. **Historical context** — `git log`/`git blame` on the modified files
-      to catch bugs that only make sense in light of history.
+   to catch bugs that only make sense in light of history.
    d. **Prior PR feedback** — `gh pr list --search` / `git log` on these
-      files for earlier PRs; check whether old review comments still apply.
-      Best-effort — don't burn much time if nothing turns up quickly.
+   files for earlier PRs; check whether old review comments still apply.
+   Best-effort — don't burn much time if nothing turns up quickly.
    e. **Comment compliance** — read code comments in the modified files,
-      check the change complies with any guidance those comments state.
+   check the change complies with any guidance those comments state.
    Each agent returns a list of issues with the reason each was flagged.
 2. For every issue from step 1, launch a Haiku confidence-scoring agent with
    the PR, the issue, and the CLAUDE.md file list. Score 0-100 using this
    rubric (give it verbatim):
-   - **0**: not confident at all — false positive or pre-existing issue.
-   - **25**: might be real, might not; agent couldn't verify. If stylistic,
-     not explicitly called out in the relevant CLAUDE.md.
-   - **50**: verified real, but a nitpick or rare in practice; not very
-     important relative to the rest of the PR.
-   - **75**: highly confident — double-checked, will likely be hit in
-     practice, existing approach is insufficient, or directly called out in
-     CLAUDE.md.
-   - **100**: absolutely certain, confirmed by direct evidence, will happen
-     frequently.
+    - **0**: not confident at all — false positive or pre-existing issue.
+    - **25**: might be real, might not; agent couldn't verify. If stylistic,
+      not explicitly called out in the relevant CLAUDE.md.
+    - **50**: verified real, but a nitpick or rare in practice; not very
+      important relative to the rest of the PR.
+    - **75**: highly confident — double-checked, will likely be hit in
+      practice, existing approach is insufficient, or directly called out in
+      CLAUDE.md.
+    - **100**: absolutely certain, confirmed by direct evidence, will happen
+      frequently.
 3. Keep only issues scoring ≥80. If none clear that bar, the review section
    says so plainly — don't manufacture nitpicks to fill space.
 
@@ -186,34 +189,44 @@ File name:
 Use this template:
 
 ```markdown
+---
+type: pr-report
+date: <today, YYYY-MM-DD>
+status: <merged | open | closed>
+pr: [<number>]
+author: <author>
+branch: <headRefName>
+---
+
 # PR #<number>: <title>
 
-**Автор:** <author> · **Статус:** <merged DD.MM.YYYY / open / draft / closed>
-**Ветки:** `<headRefName>` → `<baseRefName>` · **Файлов:** <changedFiles> (+<additions>/-<deletions>)
-**Ссылка:** <url>
+**Author:** <author> · **Status:** <merged YYYY-MM-DD / open / draft / closed>
+**Branches:** `<headRefName>` → `<baseRefName>` · **Files:** <changedFiles> (+<additions>/-<deletions>)
+**Link:** <url>
 
-> Если `baseRefName` ≠ `main`, отметить это явно здесь.
+> If `baseRefName` ≠ `main`, call that out explicitly here.
 
-## Что сделано
+## What was done
 
 <narrative — the story of the change, grouped by area, not a file list>
 
-## Как это реализовано
+## How it is implemented
 
 <walkthrough with verbatim excerpts and file:line citations, at <headRefOid>>
 
-## Что затронуло
+## What it affects
 
 <impact/blast-radius findings from Step 4 — consumers found elsewhere in the
 monorepo, contract changes, anything left inconsistent>
 
-## Ревью
+## Review
 
 <findings scoring ≥80, each with: description, why it was flagged, and a
-file:line citation — or "проблем с уверенностью ≥80 не найдено" if none>
+file:line citation — or "no issues with confidence ≥80 found" if none>
 
 ---
-Проанализировано: <today's date> · коммит `<headRefOid short sha>`
+
+Analyzed: <today's date, YYYY-MM-DD> · commit `<headRefOid short sha>`
 ```
 
 ### 7. Update the index
@@ -222,16 +235,20 @@ Maintain `$PRS_DIR/README.md` as a lookup table,
 newest first:
 
 ```markdown
-# PR-отчёты
+# PR reports
 
-| PR | Дата | Заголовок | Затронуло | Файл |
-| --- | --- | --- | --- | --- |
-| [#1079](https://github.com/.../pull/1079) | 16.07.2026 | fix(aurora): add slot support again for custom login component | `slots.login`, `LoginForm` | [1079-slot-support-login.md](./1079-slot-support-login.md) |
+| PR                                        | Date       | Title                                                          | Affected                   | File                                                       |
+| ----------------------------------------- | ---------- | -------------------------------------------------------------- | -------------------------- | ---------------------------------------------------------- |
+| [#1079](https://github.com/.../pull/1079) | 2026-07-16 | fix(aurora): add slot support again for custom login component | `slots.login`, `LoginForm` | [1079-slot-support-login.md](./1079-slot-support-login.md) |
 ```
 
 If the file doesn't exist yet, create it with this header and one row. If it
 exists, insert the new row directly below the header (keep the full history,
 newest on top — same principle as the KB's own update log: don't trim).
+
+Then run `python3 "$(dirname "$(dirname "$PRS_DIR")")/tools/update-related.py"`
+to refresh the vault's "Related" links (skip silently if the script is
+missing).
 
 ### 8. Report back
 
