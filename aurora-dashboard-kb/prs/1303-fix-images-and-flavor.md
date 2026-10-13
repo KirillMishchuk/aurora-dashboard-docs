@@ -8,32 +8,32 @@ branch: til-flav-edit-fix
 ---
 # PR #1303: fix(portal): fix images and flavor
 
-**Автор:** TilmanHaupt · **Статус:** смержен 16.09.2026 (создан 15.09.2026)
-**Ветки:** `til-flav-edit-fix` → `main` · **Файлов:** 14 (+133/-152)
-**Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1303
+**Author:** TilmanHaupt · **Status:** merged 2026-09-16 (created 2026-09-15)
+**Branches:** `til-flav-edit-fix` → `main` · **Files:** 14 (+133/-152)
+**Link:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1303
 
-## Что сделано
+## What was done
 
-PR правит UX двух модалок метаданных (Images/Flavors) и попап-меню в Compute (Images, Flavors), плюс терминологию в форме sharing образов. Формально закрывает 6 issue: #1301, #1293, #1296, #1302, #1300, #1294.
+The PR fixes the UX of two metadata modals (Images/Flavors) and of the popup menus in Compute (Images, Flavors), plus the terminology in the image sharing form. Formally it closes 6 issues: #1301, #1293, #1296, #1302, #1300, #1294.
 
-**1. Метаданные-модалки** (`EditImageMetadataModal.tsx`, `EditSpecModal.tsx`) — три независимых изменения в одном месте:
-- Одиночный клик на "Delete" теперь сразу убирает свойство из локального state — раньше был паттерн "первый клик показывает подтверждение, второй клик удаляет" с authotimeout сбросом через 3 секунды (`confirmDeleteIndex` + `useEffect`/`setTimeout`), полностью убран.
-- Заголовок и Save-кнопка модалки стали зависеть от нового пропа `canEdit` (`EditImageMetadataModal`) / уже существовавшего `canEdit` (`EditSpecModal`, введён в #1247): `canEdit ? "Edit Metadata" : "Show Metadata"`, кнопка "Save Changes" рендерится только когда `canEdit`.
-- Убрана шапка списка (`DescriptionTerm`/`DescriptionDefinition` "Property Key"/"Value"), вместо неё `<DescriptionList alignTerms="left">`; размер модалки `"large"` → `"xl"`.
+**1. Metadata modals** (`EditImageMetadataModal.tsx`, `EditSpecModal.tsx`) — three independent changes in one place:
+- A single click on "Delete" now immediately removes the property from local state — previously there was a "first click shows a confirmation, second click deletes" pattern with an automatic timeout reset after 3 seconds (`confirmDeleteIndex` + `useEffect`/`setTimeout`); it has been removed entirely.
+- The modal title and Save button now depend on a new `canEdit` prop (`EditImageMetadataModal`) / the already existing `canEdit` (`EditSpecModal`, introduced in #1247): `canEdit ? "Edit Metadata" : "Show Metadata"`, and the "Save Changes" button is rendered only when `canEdit`.
+- The list header (`DescriptionTerm`/`DescriptionDefinition` "Property Key"/"Value") was removed and replaced with `<DescriptionList alignTerms="left">`; the modal size changed from `"large"` → `"xl"`.
 
-**2. Терминология "Member ID" → "Project ID"** (image sharing, #1296): заголовок колонки, текст ошибки валидации, placeholder инпута — во всех местах, где именно они встречаются в UI образов.
+**2. Terminology "Member ID" → "Project ID"** (image sharing, #1296): the column header, the validation error text, the input placeholder — in every place where they appear in the images UI.
 
-**3. Реорганизация попап-меню** (#1302) — в трёх местах (список Flavors, список Images, страница деталей Image) действия отсортированы алфавитно, "Delete" перенесён в конец за `PopupMenuSectionSeparator`.
+**3. Popup menu reorganization** (#1302) — in three places (Flavors list, Images list, Image details page) the actions are sorted alphabetically, and "Delete" is moved to the end behind a `PopupMenuSectionSeparator`.
 
-**4. "Manage Access" скрывается, а не дизейблится**, когда flavor публичный (#1294) — но только в `FlavorListContainer.tsx` (список), не в `$flavorId.tsx` (страница деталей самого flavor) — см. "Что затронуло".
+**4. "Manage Access" is hidden rather than disabled** when the flavor is public (#1294) — but only in `FlavorListContainer.tsx` (the list), not in `$flavorId.tsx` (the details page of the flavor itself) — see "What it affects".
 
-**5.** Один changeset (`patch` на `@cobaltcore-dev/aurora`), локали `en`/`de` обновлены под новые/удалённые строки.
+**5.** One changeset (`patch` for `@cobaltcore-dev/aurora`); the `en`/`de` locales are updated for the new/removed strings.
 
-## Как это реализовано
+## How it is implemented
 
-### Одиночный delete в метаданных
+### Single-click delete in metadata
 
-`EditImageMetadataModalInner` (`packages/aurora/src/client/routes/_auth/projects/$projectId/compute/images/-components/EditImageMetadataModal.tsx:52-166`, головной коммит `8c54ea84d`) раньше держал `confirmDeleteIndex` и таймер:
+`EditImageMetadataModalInner` (`packages/aurora/src/client/routes/_auth/projects/$projectId/compute/images/-components/EditImageMetadataModal.tsx:52-166`, head commit `8c54ea84d`) used to hold `confirmDeleteIndex` and a timer:
 
 ```tsx
 const [confirmDeleteIndex, setConfirmDeleteIndex] = useState<number | null>(null)
@@ -46,13 +46,13 @@ useEffect(() => {
 }, [confirmDeleteIndex])
 ```
 
-Всё это (плюс сброс `confirmDeleteIndex` в `handleEdit`/`handleDelete`, ветвление кнопки "Delete"/"confirm-delete" в JSX) удалено; кнопка удаления теперь один `<Button onClick={() => handleDelete(index)} icon="deleteForever" aria-label={t\`Delete\`} data-testid={\`delete-${entry.key}\`} .../>` без второго шага. Тест `EditImageMetadata.test.tsx:98-115` синхронно упрощён: убран клик по `confirm-delete-${key}` и ожидание текста "Edit Image Metadata" заменено на "Edit Metadata" (заголовок модалки тоже переименован).
+All of this (plus the reset of `confirmDeleteIndex` in `handleEdit`/`handleDelete`, and the "Delete"/"confirm-delete" button branching in JSX) was removed; the delete button is now a single `<Button onClick={() => handleDelete(index)} icon="deleteForever" aria-label={t\`Delete\`} data-testid={\`delete-${entry.key}\`} .../>` without a second step. The test `EditImageMetadata.test.tsx:98-115` was simplified in step: the click on `confirm-delete-${key}` was removed, and the wait for the text "Edit Image Metadata" was replaced with "Edit Metadata" (the modal title was renamed too).
 
-Тот же паттерн уже отсутствовал в `EditSpecModal` (Flavors) — там подтверждения удаления никогда не было; изменения в этом файле касаются только пунктов 2 ниже.
+The same pattern was already absent from `EditSpecModal` (Flavors) — there was never a delete confirmation there; the changes in that file concern only item 2 below.
 
-### `canEdit` → заголовок/кнопка Save
+### `canEdit` → title/Save button
 
-`EditImageMetadataModal.tsx:391-452` (внешний экспортируемый компонент) прокидывает новый проп `canEdit = true` дальше во `EditImageMetadataModalInner` и в заголовки состояний загрузки/ошибки:
+`EditImageMetadataModal.tsx:391-452` (the outer exported component) passes the new prop `canEdit = true` down into `EditImageMetadataModalInner` and into the titles of the loading/error states:
 
 ```tsx
 if (isLoadingExcluded) {
@@ -60,7 +60,7 @@ if (isLoadingExcluded) {
     <Modal open onCancel={onClose} size="xl" title={canEdit ? t`Edit Metadata` : t`Show Metadata`}>
 ```
 
-Для `EditSpecModal` это уже существовавший (#1247) `canEdit`, но модалка резолвит его отдельно — сравните `EditSpecModal.tsx:493,503` (внешний loading/error early-return, использует пропс `canEdit` дословно) с финальным рендером `EditSpecModal.tsx:509-519`, который использует **другую** переменную:
+For `EditSpecModal` this is the already existing (#1247) `canEdit`, but the modal resolves it separately — compare `EditSpecModal.tsx:493,503` (the outer loading/error early return, uses the `canEdit` prop verbatim) with the final render `EditSpecModal.tsx:509-519`, which uses a **different** variable:
 
 ```tsx
 return (
@@ -72,11 +72,11 @@ return (
 )
 ```
 
-`resolvedCanEdit` — состояние, которое заполняется асинхронно (`EditSpecModal.tsx:460-477`) либо из самого пропа `canEdit` (если он передан явно — `canEdit !== undefined ? Promise.resolve(...) : createPermissionsPromise(...)`), либо из `canUser`-запроса. См. "Ревью" — на практике оба вызывающих места передают `canEdit` явным булевым значением, так что расхождение title в loading/error веток не проявляется сегодня, но осталось потенциальной ловушкой.
+`resolvedCanEdit` is state that is populated asynchronously (`EditSpecModal.tsx:460-477`) either from the `canEdit` prop itself (if it is passed explicitly — `canEdit !== undefined ? Promise.resolve(...) : createPermissionsPromise(...)`) or from a `canUser` query. See "Review" — in practice both call sites pass `canEdit` as an explicit boolean, so the title mismatch in the loading/error branches does not show up today, but it remains a potential trap.
 
-### Убранная шапка списка / `alignTerms`
+### Removed list header / `alignTerms`
 
-`EditSpecModal.tsx:301-304` и `EditImageMetadataModal.tsx` (аналогично):
+`EditSpecModal.tsx:301-304` and `EditImageMetadataModal.tsx` (similarly):
 
 ```tsx
 -            <DescriptionList className="mb-6">
@@ -86,25 +86,25 @@ return (
 +            <DescriptionList className="mb-6" alignTerms="left">
 ```
 
-`alignTerms` и `PopupMenuSectionSeparator` (используется в реорганизации меню ниже) проверены напрямую в установленном пакете `@cloudoperators/juno-ui-components@9.4.0` (`packages/aurora/node_modules/.pnpm/.../build/components/DescriptionList/DescriptionList.component.d.ts`, `.../PopupMenu/PopupMenu.component.d.ts`) — оба реально существуют в пинованной версии, это не опечатка и не несуществующий проп.
+`alignTerms` and `PopupMenuSectionSeparator` (used in the menu reorganization below) were checked directly in the installed package `@cloudoperators/juno-ui-components@9.4.0` (`packages/aurora/node_modules/.pnpm/.../build/components/DescriptionList/DescriptionList.component.d.ts`, `.../PopupMenu/PopupMenu.component.d.ts`) — both really exist in the pinned version; this is neither a typo nor a non-existent prop.
 
-### Терминология Member ID → Project ID
+### Terminology Member ID → Project ID
 
-`ImageMemberFormRow.tsx:33`, `ImageMembersTable.tsx:83,201` — три места, все в блоке "поделиться образом":
+`ImageMemberFormRow.tsx:33`, `ImageMembersTable.tsx:83,201` — three places, all in the "share image" block:
 
 ```tsx
-placeholder={t`Enter project ID`}   // было: t`Enter member ID`
+placeholder={t`Enter project ID`}   // was: t`Enter member ID`
 ...
-newErrors.memberId = t`Project ID (project UUID) is required.`   // было: Member ID (...)
+newErrors.memberId = t`Project ID (project UUID) is required.`   // was: Member ID (...)
 ...
-<DataGridHeadCell>{t`Project ID`}</DataGridHeadCell>   // было: Member ID
+<DataGridHeadCell>{t`Project ID`}</DataGridHeadCell>   // was: Member ID
 ```
 
-Локали (`en`/`de` `messages.po`) синхронно теряют старые `msgid` и получают новые; `de` для двух новых строк (`"Show Metadata"`, `"No custom metadata properties found."`) получил пустой `msgstr` — это ожидаемо для непереведённых строк, не блокирует `check-i18n` (только extract/compile).
+The locales (`en`/`de` `messages.po`) correspondingly lose the old `msgid`s and gain new ones; `de` got an empty `msgstr` for two new strings (`"Show Metadata"`, `"No custom metadata properties found."`) — this is expected for untranslated strings and does not block `check-i18n` (extract/compile only).
 
-### Реорганизация попап-меню
+### Popup menu reorganization
 
-Общий паттерн во всех трёх местах: элементы отсортированы алфавитно по видимому лейблу, "Delete" перенесён в конец с `PopupMenuSectionSeparator`. Пример — `FlavorListContainer.tsx:150-176`:
+The common pattern in all three places: items are sorted alphabetically by visible label, and "Delete" is moved to the end with a `PopupMenuSectionSeparator`. Example — `FlavorListContainer.tsx:150-176`:
 
 ```tsx
 <PopupMenuOptions>
@@ -124,30 +124,30 @@ newErrors.memberId = t`Project ID (project UUID) is required.`   // было: Me
 </PopupMenuOptions>
 ```
 
-`canMangageAccess` (опечатка "Mangage") — существующее имя переменной, не тронуто этим PR, не относится к диффу.
+`canMangageAccess` (typo "Mangage") is an existing variable name, not touched by this PR and not part of the diff.
 
-Такой же паттерн (перестановка + separator) применён в `ImageTableRow.tsx:135-190` и `images/$imageId.tsx:358-403`.
+The same pattern (reordering + separator) is applied in `ImageTableRow.tsx:135-190` and `images/$imageId.tsx:358-403`.
 
-## Что затронуло
+## What it affects
 
-**`alignTerms`/`PopupMenuSectionSeparator` — реальные API пинованной версии juno.** Проверено напрямую в установленном `@cloudoperators/juno-ui-components@9.4.0` (см. выше) — не риск.
+**`alignTerms`/`PopupMenuSectionSeparator` are real APIs of the pinned juno version.** Checked directly in the installed `@cloudoperators/juno-ui-components@9.4.0` (see above) — not a risk.
 
-**`EditImageMetadataModal`'s `canEdit` не используется НИ ОДНИМ вызывающим местом — read-only режим для Images недостижим.** Оба потребителя компонента —
+**`EditImageMetadataModal`'s `canEdit` is not used by ANY call site — the read-only mode for Images is unreachable.** Both consumers of the component —
 
 ```
 packages/aurora/src/client/routes/_auth/projects/$projectId/compute/images/$imageId.tsx:451
 packages/aurora/src/client/routes/_auth/projects/$projectId/compute/images/-components/ImageListView.tsx:718
 ```
 
-— рендерят `<EditImageMetadataModal image=... isOpen=... onSave=... isLoading=... onClose=.../>` без пропа `canEdit`, так что он всегда падает на дефолт `true`. Это не случайность: в обоих местах модалка открывается только из пункта меню "Edit Metadata", который сам уже спрятан за `permissions.canUpdate` (`$imageId.tsx:361-374`, `ImageTableRow.tsx` через `onEditMetadata`, вызывается только внутри `!isExternalImage && permissions.canUpdate`). Т.е. для Images просто не существует сценария "открыть эту модалку без прав на редактирование" — весь новый read-only UI (заголовок "Show Metadata", скрытая кнопка Save) добавлен, но никогда не срабатывает. У Flavors, наоборот, `canEdit` реально прокидывается как `canManageSpecs` из пункта меню, доступного и при `canListSpecs` (без прав на изменение) — там read-only режим осмыслен и работает. PR-описание заявляет параллельную реализацию для "Images & Flavors" — на деле она рабочая только для одной из двух сущностей.
+— render `<EditImageMetadataModal image=... isOpen=... onSave=... isLoading=... onClose=.../>` without the `canEdit` prop, so it always falls back to the default `true`. This is not accidental: in both places the modal is opened only from the "Edit Metadata" menu item, which is itself already hidden behind `permissions.canUpdate` (`$imageId.tsx:361-374`, `ImageTableRow.tsx` via `onEditMetadata`, called only inside `!isExternalImage && permissions.canUpdate`). I.e. for Images there simply is no "open this modal without edit permissions" scenario — the whole new read-only UI (the "Show Metadata" title, the hidden Save button) was added but never fires. For Flavors, by contrast, `canEdit` really is passed as `canManageSpecs` from a menu item that is available with `canListSpecs` too (without modify permissions) — there the read-only mode makes sense and works. The PR description claims a parallel implementation for "Images & Flavors" — in reality it works for only one of the two entities.
 
-**`$flavorId.tsx` (страница деталей flavor) не обновлён — расходится с `FlavorListContainer.tsx` по обоим пунктам PR.** Тот же паттерн "Manage Access", что чинится в списке (`FlavorListContainer.tsx:158`, теперь скрывается через `flavor["os-flavor-access:is_public"] === false`), в файле `$flavorId.tsx:200` остаётся старым:
+**`$flavorId.tsx` (the flavor details page) was not updated — it diverges from `FlavorListContainer.tsx` on both points of the PR.** The same "Manage Access" pattern that is fixed in the list (`FlavorListContainer.tsx:158`, now hidden via `flavor["os-flavor-access:is_public"] === false`) remains old in `$flavorId.tsx:200`:
 
 ```tsx
 <PopupMenuItem label={t`Manage Access`} onClick={toggleAccessModal} disabled={isPublicFlavor} />
 ```
 
-— пункт меню всё ещё дизейблится, а не скрывается, для публичного flavor. Там же (`$flavorId.tsx:206-209`) кнопка метаданных использует старую терминологию, не тронутую этим PR:
+— the menu item is still disabled rather than hidden for a public flavor. In the same file (`$flavorId.tsx:206-209`) the metadata button uses the old terminology, untouched by this PR:
 
 ```tsx
 <Button variant="primary" onClick={toggleSpecModal}>
@@ -155,17 +155,17 @@ packages/aurora/src/client/routes/_auth/projects/$projectId/compute/images/-comp
 </Button>
 ```
 
-вместо новой пары `"Edit Metadata"/"Show Metadata"`, введённой в `EditSpecModal.tsx` этим же PR. `$flavorId.tsx` не входит в список изменённых файлов PR #1303 — обе несогласованности не затронуты диффом.
+instead of the new `"Edit Metadata"/"Show Metadata"` pair introduced in `EditSpecModal.tsx` by this same PR. `$flavorId.tsx` is not in the list of files changed by PR #1303 — neither inconsistency is touched by the diff.
 
-**Терминология "member ID" вне UI образов не тронута** (`server/Compute/helpers/imageHelpers.ts:360` — текст серверной ошибки) — вне скоупа заявленных issue (#1296 про интерфейс sharing), не репортится как находка.
+**The "member ID" terminology outside the images UI is untouched** (`server/Compute/helpers/imageHelpers.ts:360` — a server error text) — out of scope of the stated issues (#1296 is about the sharing interface), not reported as a finding.
 
-## Ревью
+## Review
 
-**[90]** `$flavorId.tsx:200` — страница деталей flavor не мигрирована на паттерн "скрыть, а не дизейблить" пункт "Manage Access" для публичного flavor, хотя PR заявляет закрытие #1294 без оговорки "только в списке". Пользователь, открывший flavor напрямую (не из списка) и находящийся на публичном flavor, продолжает видеть ту же дизейбленную (не скрытую) кнопку, которую issue просил убрать. Верифицировано построчно, воспроизводится в 100% случаев на публичном flavor, независимая переменная `isPublicFlavor` в том же файле подтверждает, что паттерн просто не портирован.
+**[90]** `$flavorId.tsx:200` — the flavor details page was not migrated to the "hide rather than disable" pattern for the "Manage Access" item on a public flavor, even though the PR claims to close #1294 without a "list only" caveat. A user who opens a flavor directly (not from the list) and is on a public flavor still sees the same disabled (not hidden) button that the issue asked to remove. Verified line by line, reproduces 100% of the time on a public flavor; the independent `isPublicFlavor` variable in the same file confirms that the pattern simply was not ported.
 
-**[80]** `EditImageMetadataModal.tsx` (весь файл) — новый read-only режим (`canEdit=false` → заголовок "Show Metadata", скрытая кнопка Save) недостижим в текущем дереве вызовов: оба потребителя (`$imageId.tsx:451`, `ImageListView.tsx:718`) не передают `canEdit`, а единственный путь открытия модалки уже гейтится на `permissions.canUpdate`. PR-описание прямо заявляет параллельную реализацию для "Metadata Modals (Images & Flavors)" — по факту для Images это мёртвый код на сегодняшний день, а не работающая фича. Не блокирующий бинарный баг (ничего не ломается — дефолт `true` всегда совпадает с реальным правом), поэтому не 90+, но само расхождение с описанием PR и потенциальная ловушка для будущего кода (кто-то один раз в будущем передаст `canEdit={false}` откуда-то не из-под `permissions.canUpdate` — заголовок отработает верно, но специально протестировано это не было) даёт уверенность выше порога.
+**[80]** `EditImageMetadataModal.tsx` (the whole file) — the new read-only mode (`canEdit=false` → "Show Metadata" title, hidden Save button) is unreachable in the current call tree: both consumers (`$imageId.tsx:451`, `ImageListView.tsx:718`) do not pass `canEdit`, and the only path to opening the modal is already gated on `permissions.canUpdate`. The PR description explicitly claims a parallel implementation for "Metadata Modals (Images & Flavors)" — in fact, for Images it is dead code as of today, not a working feature. Not a blocking binary bug (nothing breaks — the default `true` always matches the real permission), hence not 90+, but the divergence from the PR description itself and the potential trap for future code (someone at some point passes `canEdit={false}` from somewhere not under `permissions.canUpdate` — the title will work correctly, but this was never specifically tested) put the confidence above the threshold.
 
-Ниже порога (не репортится): расхождение title в loading/error ветках `EditSpecModal.tsx:493,503` (использует внешний проп `canEdit`, а финальный рендер — `resolvedCanEdit`) — оба текущих вызывающих места передают `canEdit` явным булевым значением, так что на практике title в loading-состоянии совпадает с итоговым; проявится только если будущий вызывающий код положится на асинхронное разрешение прав через `canUser`, сегодня такого нет (~40/100).
+Below the threshold (not reported): the title mismatch in the loading/error branches of `EditSpecModal.tsx:493,503` (uses the outer `canEdit` prop, while the final render uses `resolvedCanEdit`) — both current call sites pass `canEdit` as an explicit boolean, so in practice the title in the loading state matches the final one; it would only show up if future calling code relied on asynchronous permission resolution via `canUser`, which doesn't exist today (~40/100).
 
 ---
-Проанализировано: 16.09.2026 · коммит `8c54ea84d`
+Analyzed: 2026-09-16 · commit `8c54ea84d`

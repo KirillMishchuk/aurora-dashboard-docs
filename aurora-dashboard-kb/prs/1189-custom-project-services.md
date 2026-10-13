@@ -8,23 +8,23 @@ branch: 1102-support-custom-services
 ---
 # PR #1189: feat(aurora): allow consumers to register custom srevices
 
-**Автор:** taymoor89 (Taimoor Aslam) · **Статус:** смержен 24.08.2026 (коммит `a9c257a1`; создан 20.08.2026)
-**Ветки:** `1102-support-custom-services` → `main` · **Файлов:** 61 (+840/-7582)
-**Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1189
+**Author:** taymoor89 (Taimoor Aslam) · **Status:** merged 2026-08-24 (commit `a9c257a1`; created 2026-08-20)
+**Branches:** `1102-support-custom-services` → `main` · **Files:** 61 (+840/-7582)
+**Link:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1189
 
-> Закрывает issue #1102. Коммит заголовка содержит опечатку — "srevices" вместо "services"; формат `<type>(<scope>): <subject>` для commitlint это не нарушает (проверяется только тип/скоуп, не орфография).
+> Closes issue #1102. The title commit contains a typo — "srevices" instead of "services"; this doesn't violate the `<type>(<scope>): <subject>` format for commitlint (only type/scope are checked, not spelling).
 
-## Что сделано
+## What was done
 
-PR вводит общий механизм расширения `AuroraApp` — новый проп `additionalProjectServices`, позволяющий консьюмеру зарегистрировать свой проект-скоуп-сервис (клиентские роуты + пункт навигации) без форка пакета — и одновременно, в том же PR, целиком удаляет из OSS-пакета встроенную реализацию PCA (Clavis): серверный роутер, Zod-схемы, весь клиентский UI и тесты под `services/pca/**`, i18n-строки. Формулировка из changeset'а: «This replaces the previously hardcoded PCA (Clavis) integration. PCA and any other consumer-specific service should now be registered this way rather than living inside the OSS package.»
+The PR introduces a general extension mechanism for `AuroraApp` — a new `additionalProjectServices` prop that lets a consumer register their own project-scoped service (client-side routes + a nav item) without forking the package — and at the same time, in the same PR, completely removes the built-in PCA (Clavis) implementation from the OSS package: the server router, Zod schemas, the entire client UI and tests under `services/pca/**`, i18n strings. Wording from the changeset: "This replaces the previously hardcoded PCA (Clavis) integration. PCA and any other consumer-specific service should now be registered this way rather than living inside the OSS package."
 
-Итог для консьюмера: вместо жёстко вшитого «PCA всегда есть» пакет теперь ничего специфичного не знает про PCA — если он нужен, приложение-консьюмер регистрирует его само через новый API, при этом получая тот же UX (пункт в нав-секции «Services», карточка на странице проекта), что раньше давал встроенный PCA.
+The net result for the consumer: instead of a hardwired "PCA is always there", the package now knows nothing specific about PCA — if it's needed, the consumer app registers it itself via the new API, while getting the same UX (an item in the "Services" nav section, a card on the project page) that the built-in PCA used to provide.
 
-## Как это реализовано
+## How it is implemented
 
-### Новый публичный API `AuroraApp`
+### New public `AuroraApp` API
 
-`AdditionalProjectService` — новый экспортируемый тип (`packages/aurora/src/client/AuroraApp.tsx:64-78`):
+`AdditionalProjectService` is a new exported type (`packages/aurora/src/client/AuroraApp.tsx:64-78`):
 
 ```ts
 export type AdditionalProjectService = {
@@ -38,11 +38,11 @@ export type AdditionalProjectService = {
 }
 ```
 
-и новый проп на `AuroraAppProps` (`AuroraApp.tsx:115-116`): `additionalProjectServices?: AdditionalProjectService[]`. Активация сервиса завязана на то же условие, что раньше проверяла `canAccessClavisPca` для PCA — присутствие `serviceType`/`serviceName` в каталоге OpenStack проекта плюс (если задан) `enabledServices`.
+and a new prop on `AuroraAppProps` (`AuroraApp.tsx:115-116`): `additionalProjectServices?: AdditionalProjectService[]`. Service activation is tied to the same condition that `canAccessClavisPca` used to check for PCA — the presence of `serviceType`/`serviceName` in the project's OpenStack catalog plus (if set) `enabledServices`.
 
-### Вживление роутов в дерево TanStack Router
+### Splicing routes into the TanStack Router tree
 
-Самая нетривиальная часть — `createAuroraRouter` (`packages/aurora/src/client/router.ts:12-45`) теперь принимает третий параметр `additionalProjectServices` и до создания роутера вручную дописывает переданные роуты в дерево:
+The most non-trivial part — `createAuroraRouter` (`packages/aurora/src/client/router.ts:12-45`) now takes a third parameter `additionalProjectServices` and, before creating the router, manually appends the passed routes to the tree:
 
 ```ts
 const parent = parentFn() as unknown as RouteWithChildren
@@ -50,7 +50,7 @@ const existing = parent.children ?? {}
 parent._addFileChildren({ ...existing, [`_extra_${i}`]: route })
 ```
 
-(`router.ts:26-28`). Каждый элемент `additionalProjectServices[].routes` обязан иметь `options.getParentRoute` (по конвенции — указывающий на новый `servicesRoute`), иначе бросается `Error` (`router.ts:23-24`). Новый файл-роут `services.tsx` (`packages/aurora/src/client/routes/_auth/projects/$projectId/services.tsx`, создан этим PR) — минимальный layout-роут, который и служит точкой подвеса:
+(`router.ts:26-28`). Each element of `additionalProjectServices[].routes` must have `options.getParentRoute` (by convention pointing to the new `servicesRoute`), otherwise an `Error` is thrown (`router.ts:23-24`). The new file route `services.tsx` (`packages/aurora/src/client/routes/_auth/projects/$projectId/services.tsx`, created by this PR) is a minimal layout route that serves as the attachment point:
 
 ```tsx
 export const Route = createFileRoute("/_auth/projects/$projectId/services")({
@@ -59,11 +59,11 @@ export const Route = createFileRoute("/_auth/projects/$projectId/services")({
 export { Route as servicesRoute }
 ```
 
-`servicesRoute` экспортирован из публичного `packages/aurora/src/client/index.ts` вместе с `RouteInfo`/`Crumb`/`isRouteInfo` — консьюмеру нужно всё это, чтобы собрать свой под-роут и передать его в `additionalProjectServices`.
+`servicesRoute` is exported from the public `packages/aurora/src/client/index.ts` together with `RouteInfo`/`Crumb`/`isRouteInfo` — the consumer needs all of these to build its own sub-route and pass it into `additionalProjectServices`.
 
-### Навигация и карточки на странице проекта
+### Navigation and cards on the project page
 
-`buildNavSections.ts` (`packages/aurora/src/client/routes/_auth/projects/-components/buildNavSections.ts`) убрал хардкод `canAccessClavisPca`/`clavisServices` и завёл `Map` встроенных секций (compute/network/storage/services), в которую цикл (строки 117-128) домешивает разрешённые доп.сервисы:
+`buildNavSections.ts` (`packages/aurora/src/client/routes/_auth/projects/-components/buildNavSections.ts`) dropped the hardcoded `canAccessClavisPca`/`clavisServices` and introduced a `Map` of built-in sections (compute/network/storage/services), into which a loop (lines 117-128) mixes in the permitted additional services:
 
 ```ts
 for (const module of additionalProjectServices ?? []) {
@@ -73,37 +73,37 @@ for (const module of additionalProjectServices ?? []) {
 }
 ```
 
-Аналогичный цикл в `$projectId/index.tsx:102-114` рисует карточку сервиса на странице обзора проекта, но строит ссылку иначе — не через `nav({ to, params })`, а строковой подстановкой: `additionalService.routes.fullPath.replace("$projectId", projectId)` (`index.tsx:111`, подробнее в разделе «Ревью»).
+A similar loop in `$projectId/index.tsx:102-114` renders the service card on the project overview page, but builds the link differently — not via `nav({ to, params })` but by string substitution: `additionalService.routes.fullPath.replace("$projectId", projectId)` (`index.tsx:111`, more in the "Review" section).
 
-### Серверные экспорты
+### Server exports
 
-`packages/aurora/src/server/index.ts` теперь дополнительно экспортирует `validateOpenstackService` (существовавший ранее внутренний хелпер, начиная с #850, впервые сделан публичным) и `parseOrThrow` (ранее — внутренний хелпер `Network/helpers`, использовался только `pcaRouter.ts`/floating-ip роутерами) — оба нужны консьюмеру, чтобы писать свой BFF-роутер в тех же конвенциях, что описывает [`CLAUDE.md`](../../CLAUDE.md) («routers must be built with the exported `auroraRouter`»). `routers.ts` убрал `serviceRouters` (бывший `Services/routers` с единственным содержимым — PCA) из `buildBaseRouter` (`routers.ts:6,15`).
+`packages/aurora/src/server/index.ts` now additionally exports `validateOpenstackService` (a previously existing internal helper, since #850, made public for the first time) and `parseOrThrow` (previously an internal `Network/helpers` helper, used only by `pcaRouter.ts`/floating-ip routers) — both are needed by the consumer to write its own BFF router following the same conventions described in [`CLAUDE.md`](../../CLAUDE.md) ("routers must be built with the exported `auroraRouter`"). `routers.ts` removed `serviceRouters` (the former `Services/routers`, whose only content was PCA) from `buildBaseRouter` (`routers.ts:6,15`).
 
-### Прочее
+### Other
 
-Из `packages/aurora/package.json` убраны зависимости `@peculiar/x509` и `reflect-metadata` (использовались только PCA-парсингом CSR/сертификатов) — `git grep` по `pr-1189-head` не находит больше ни одного импорта ни того, ни другого. `apps/dashboard/package.json` добавил `@tanstack/router-plugin` в devDependencies (нужен, по-видимому, для регенерации `routeTree.gen.ts`). Changeset `move-pca-to-sci-scope-modules.md` помечен `minor`.
+The `@peculiar/x509` and `reflect-metadata` dependencies were removed from `packages/aurora/package.json` (they were used only by PCA's CSR/certificate parsing) — `git grep` over `pr-1189-head` no longer finds a single import of either. `apps/dashboard/package.json` added `@tanstack/router-plugin` to devDependencies (apparently needed for regenerating `routeTree.gen.ts`). The changeset `move-pca-to-sci-scope-modules.md` is marked `minor`.
 
-## Что затронуло
+## What it affects
 
-**Собственный design-doc пакета устарел.** `packages/aurora/docs/0011_clavis.md` — design-doc, описывающий PCA/Clavis-интеграцию во всех деталях (роуты, компоненты, состояния) — этим PR не тронут вообще (`git diff` по файлу пуст), хотя описываемая функциональность полностью удалена. Он продолжает утверждать «The active UI entry point is the project service route at `/projects/$projectId/services/pca/`» и т.д. — то есть теперь описывает код, которого больше нет, без пометки «устарело» и без указателя на новый `additionalProjectServices`.
+**The package's own design doc is outdated.** `packages/aurora/docs/0011_clavis.md` — a design doc describing the PCA/Clavis integration in full detail (routes, components, states) — is not touched by this PR at all (`git diff` on the file is empty), even though the functionality it describes has been removed entirely. It continues to claim "The active UI entry point is the project service route at `/projects/$projectId/services/pca/`" and so on — i.e. it now describes code that no longer exists, without an "outdated" marker and without a pointer to the new `additionalProjectServices`.
 
-**Наша собственная KB на это тоже завязана.** [`DOCS/aurora-dashboard-kb/05-domain-map.md`](../05-domain-map.md) в этой базе знаний ссылается на `0011_clavis.md` как на «living doc, current scope» для строки Services — PCA/Clavis. Если этот PR смержится в текущем виде, наш domain-map тоже станет неточным (ссылается на design-doc, который описывает удалённую функциональность) — стоит учесть при следующем прогоне `update-kb` после мержа.
+**Our own KB depends on this too.** [`DOCS/aurora-dashboard-kb/05-domain-map.md`](../05-domain-map.md) in this knowledge base references `0011_clavis.md` as the "living doc, current scope" for the Services — PCA/Clavis row. If this PR is merged as is, our domain map will also become inaccurate (it references a design doc describing removed functionality) — worth taking into account on the next `update-kb` run after the merge.
 
-**Свежая работа по PCA удаляется день в день.** Merge-base этого PR (`35095b4f`) — это ровно голова `main` сразу после мержа PR #1177 (19.08.2026, «different changes(api/ui-ux) with downloading functionality» — скачивание/импорт сертификатов, рефакторинг `parseCsrInfo` и т.д.). PR #1189 удаляет весь этот код на следующий день (коммиты 20.08.2026). Ни commit-сообщения, ни changeset не упоминают #1177 или то, что только вчера смерженная функциональность выбрасывается целиком — стоит явно сверить с автором #1177 (или консьюмером PCA), что эта работа перенесена/учтена на стороне будущей внешней реализации, а не потеряна.
+**Fresh PCA work is deleted the very next day.** This PR's merge base (`35095b4f`) is exactly the head of `main` right after PR #1177 was merged (2026-08-19, "different changes(api/ui-ux) with downloading functionality" — certificate download/import, refactoring of `parseCsrInfo`, etc.). PR #1189 deletes all of this code the next day (commits of 2026-08-20). Neither the commit messages nor the changeset mention #1177 or that functionality merged just the day before is being thrown out entirely — it's worth explicitly checking with the author of #1177 (or the PCA consumer) that this work has been carried over/accounted for on the side of the future external implementation, rather than lost.
 
-**Публичный контракт расширяется без раздувания серверного роутинга.** Grep по `pca`/`clavis` за пределами удаляемых файлов показывает, что упоминания остаются только в `CHANGELOG.md` (историческая запись, ожидаемо), `docs/0011_clavis.md` (см. выше) и — что важнее — в `README.md` дважды (см. «Ревью»). Никакой другой код/тест за пределами удаляемых файлов и правок этого PR не ссылается на `pca`/`Clavis`, `serviceRouters` или сам `pcaRouter` — то есть удаление серверной/клиентской части внутренне самодостаточно и ничего стороннего не роняет.
+**The public contract is extended without bloating server routing.** A grep for `pca`/`clavis` outside the deleted files shows that mentions remain only in `CHANGELOG.md` (a historical entry, as expected), `docs/0011_clavis.md` (see above) and — more importantly — twice in `README.md` (see "Review"). No other code/test outside the deleted files and this PR's edits references `pca`/`Clavis`, `serviceRouters` or `pcaRouter` itself — i.e. the removal of the server/client parts is internally self-contained and doesn't break anything else.
 
-**Проверено и не является проблемой:** самостоятельная security-правка path traversal (#1153, `validateAndEncodeResourceId`) внутри `pcaRouter.ts` была самодостаточной — общий хелпер живёт в `signal-openstack` и продолжает использоваться остальными роутерами (`flavorRouter`, `floatingIpRouter`, `securityGroupRouter`, `projectRouter`), удаление `pcaRouter.ts` её не затрагивает.
+**Checked and not a problem:** the standalone path traversal security fix (#1153, `validateAndEncodeResourceId`) inside `pcaRouter.ts` was self-contained — the shared helper lives in `signal-openstack` and continues to be used by the other routers (`flavorRouter`, `floatingIpRouter`, `securityGroupRouter`, `projectRouter`); deleting `pcaRouter.ts` does not affect it.
 
-## Ревью
+## Review
 
-**[100] `README.md` не обновлён под новый публичный проп `additionalProjectServices` — единственную содержательную фичу PR.** `CLAUDE.md` прямо называет `packages/aurora/README.md` источником истины при изменении публичных пропсов `AuroraApp`: «treat that file as the source of truth when changing any of `AuroraApp`'s public props». Таблица пропсов (`README.md:117-125`) заканчивается на `enabledServices` и не содержит ни строки, ни примера использования для `additionalProjectServices`/`AdditionalProjectService` — консьюмер, открывший README сегодня, не узнает о существовании этого механизма вообще.
+**[100] `README.md` is not updated for the new public prop `additionalProjectServices` — the PR's only substantive feature.** `CLAUDE.md` explicitly names `packages/aurora/README.md` as the source of truth when changing `AuroraApp`'s public props: "treat that file as the source of truth when changing any of `AuroraApp`'s public props". The props table (`README.md:117-125`) ends at `enabledServices` and contains neither a row nor a usage example for `additionalProjectServices`/`AdditionalProjectService` — a consumer opening the README today won't learn that this mechanism exists at all.
 
-**[100] `README.md` в двух местах продолжает называть `"pca"` действующим встроенным сервис-ключом, хотя этот же PR удаляет всю встроенную реализацию PCA.** `README.md:176` («**Service key reference:** ... `"pca"`») и `README.md:203` («**Available service keys:** ... `"pca"`») не тронуты этим PR — при этом после мержа `"pca"` не существует нигде во встроенном коде пакета. Консьюмер, следующий этой инструкции, будет ожидать рабочий сервис-ключ, которого не будет.
+**[100] `README.md` in two places continues to call `"pca"` a working built-in service key, even though this same PR removes the entire built-in PCA implementation.** `README.md:176` ("**Service key reference:** ... `"pca"`") and `README.md:203` ("**Available service keys:** ... `"pca"`") are not touched by this PR — yet after the merge `"pca"` exists nowhere in the package's built-in code. A consumer following these instructions will expect a working service key that won't be there.
 
-**[80] `createAuroraRouter` мутирует общий модуль-синглтон `routeTree`, не сбрасывая его между вызовами — роуты могут накапливаться при повторных вызовах фабрики.** `router.ts:26-28` берёт родительский роут через `parentFn()`, который возвращает объект из общего дерева `routeTree` (импортированного один раз из `./routeTree.gen`), и вызывает `parent._addFileChildren({...existing, [`_extra_${i}`]: route})`. Реализация `_addFileChildren` в `@tanstack/router-core` мутирует сам объект роута (`this.children = ...; return this`), а не клонирует его; ничего в `createAuroraRouter` не очищает `parent.children` перед примешиванием. Поскольку `AuroraApp` — публикуемая библиотека, встраиваемая внешними консьюмерами (а не единственная фиксированная страница, которую контролируют мейнтейнеры), повторный вызов этой фабрики в рамках одного загруженного экземпляра модуля — HMR-remount в dev-режиме, второй смонтированный `<AuroraApp/>` на той же странице, или просто future test-suite для `router.ts` (которого сейчас нет) — будет дописывать `_extra_i` поверх того, что уже приросло от предыдущих вызовов, без механизма удаления старых. Ни один тест на `router.ts` в PR не добавлен, так что CI это не поймает.
+**[80] `createAuroraRouter` mutates the shared module-singleton `routeTree` without resetting it between calls — routes may accumulate on repeated factory calls.** `router.ts:26-28` gets the parent route via `parentFn()`, which returns an object from the shared `routeTree` (imported once from `./routeTree.gen`), and calls `parent._addFileChildren({...existing, [`_extra_${i}`]: route})`. The `_addFileChildren` implementation in `@tanstack/router-core` mutates the route object itself (`this.children = ...; return this`) rather than cloning it; nothing in `createAuroraRouter` clears `parent.children` before mixing in. Since `AuroraApp` is a published library embedded by external consumers (not a single fixed page controlled by the maintainers), calling this factory again within one loaded module instance — an HMR remount in dev mode, a second mounted `<AuroraApp/>` on the same page, or simply a future test suite for `router.ts` (which doesn't exist now) — will append `_extra_i` on top of whatever has already accrued from previous calls, with no mechanism for removing the old ones. No test for `router.ts` was added in the PR, so CI won't catch this.
 
-*Проверено и не подтвердилось (ниже порога ≥80, не репортится отдельно):* orphaned-файлы `PcaToastNotifications.tsx`/`.test.tsx` (не удалены вместе с остальным PCA-UI, но и ни на что не влияют — мёртвый код); `additionalService.routes.fullPath.replace("$projectId", projectId)` в `index.tsx:111` — работает при документированном ограничении «один `$projectId`-сегмент», но менее надёжно, чем соседний `nav({ to, params })`-подход в `buildNavSections.ts:125`; типизация `RouteWithChildren.children` как `Record<string, AnyRoute>` в `router.ts:9` не совпадает с реальной формой (массив) — расхождение только на уровне типов, на поведение не влияет.
+*Checked and not confirmed (below the ≥80 threshold, not reported separately):* orphaned files `PcaToastNotifications.tsx`/`.test.tsx` (not deleted along with the rest of the PCA UI, but they don't affect anything either — dead code); `additionalService.routes.fullPath.replace("$projectId", projectId)` in `index.tsx:111` — works under the documented "single `$projectId` segment" constraint, but is less robust than the neighboring `nav({ to, params })` approach in `buildNavSections.ts:125`; the typing of `RouteWithChildren.children` as `Record<string, AnyRoute>` in `router.ts:9` doesn't match the actual shape (an array) — a type-level discrepancy only, it doesn't affect behavior.
 
 ---
-Проанализировано: 20.08.2026 · коммит `c086aa4`
+Analyzed: 2026-08-20 · commit `c086aa4`

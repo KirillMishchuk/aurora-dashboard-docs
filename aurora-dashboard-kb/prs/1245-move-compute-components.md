@@ -8,46 +8,46 @@ branch: andypf/refactor-compute-components-1244
 ---
 # PR #1245: refactor(aurora): move compute components to their feature directories
 
-**Автор:** andypf · **Статус:** смержен 01.09.2026 (создан 01.09.2026)
-**Ветки:** `andypf/refactor-compute-components-1244` → `main` · **Файлов:** 80 (+37/-810)
-**Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1245
+**Author:** andypf · **Status:** merged 2026-09-01 (created 2026-09-01)
+**Branches:** `andypf/refactor-compute-components-1244` → `main` · **Files:** 80 (+37/-810)
+**Link:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1245
 
 > Closes #1244.
 
-## Что сделано
+## What was done
 
-Чисто структурный рефакторинг без изменения поведения: `Flavors`/`Images` компоненты переезжают из общей папки `compute/-components/` в подпапки самих feature-роутов — `compute/flavors/-components/` и `compute/images/-components/` соответственно (63 файла, git корректно распознал как rename с сохранением истории, similarity 98-100%). Мотивация — колокация: компоненты теперь лежат рядом с route-файлами, которые их используют (`flavors/index.tsx`, `flavors/$flavorId.tsx`, `images/index.tsx`, `images/$imageId.tsx`), а не в отдельном дереве на уровень выше. Заодно удалены три полностью неиспользуемые директории: `compute/-components/Instances/`, `compute/-components/KeyPairs/`, `compute/-components/ServerGroups/` (9 файлов, чистое удаление, не переезд) — см. "Ревью" на предмет того, был ли этот код действительно мёртв.
+A purely structural refactoring with no behavior change: the `Flavors`/`Images` components move from the shared folder `compute/-components/` into subfolders of the feature routes themselves — `compute/flavors/-components/` and `compute/images/-components/` respectively (63 files; git correctly recognized them as renames with history preserved, similarity 98-100%). The motivation is colocation: the components now sit next to the route files that use them (`flavors/index.tsx`, `flavors/$flavorId.tsx`, `images/index.tsx`, `images/$imageId.tsx`), rather than in a separate tree one level up. Along the way, three completely unused directories were deleted: `compute/-components/Instances/`, `compute/-components/KeyPairs/`, `compute/-components/ServerGroups/` (9 files, a pure deletion, not a move) — see "Review" regarding whether this code was really dead.
 
-Остаются на месте (не Flavors/Images-специфичны): `compute/-components/ActivitySummary.tsx`, `compute/-components/Overview.tsx`.
+Remaining in place (not Flavors/Images-specific): `compute/-components/ActivitySummary.tsx`, `compute/-components/Overview.tsx`.
 
-## Как это реализовано
+## How it is implemented
 
-Move выполнен консистентно: все относительные импорты внутри переехавших файлов пересчитаны под новую глубину вложенности. Пример:
+The move was done consistently: all relative imports inside the moved files were recalculated for the new nesting depth. Example:
 
 ```tsx
 // packages/aurora/src/client/routes/_auth/projects/$projectId/compute/images/-components/ImageListView.tsx
-// было (на уровень глубже): "../../../-constants/filters"
+// was (one level deeper): "../../../-constants/filters"
 import { IMAGE_STATUSES } from "../../-constants/filters"
 ```
-Старый путь `compute/-components/Images/-components/ImageListView.tsx` был на 4 уровня ниже `compute/`, новый `compute/images/-components/ImageListView.tsx` — на 3; `../../../` → `../../` корректно указывает на тот же `compute/-constants/filters` в обоих случаях — проверено для всех файлов с непустым диффом (не только переименованных без изменений).
+The old path `compute/-components/Images/-components/ImageListView.tsx` was 4 levels below `compute/`, the new `compute/images/-components/ImageListView.tsx` is 3; `../../../` → `../../` correctly points to the same `compute/-constants/filters` in both cases — checked for all files with a non-empty diff (not only for those renamed without changes).
 
-Route-файлы (`flavors/index.tsx`, `flavors/$flavorId.tsx`, `images/index.tsx`, `images/$imageId.tsx`) обновили импорты с абсолютных на пакета `../-components/Flavors/...`/`../-components/Images/...` на локальные `./-components/...` — тоже корректно, компоненты теперь буквально в их собственной `-components/` подпапке (соответствует конвенции CLAUDE.md: префикс `-` исключает папку из генерации роутов).
+The route files (`flavors/index.tsx`, `flavors/$flavorId.tsx`, `images/index.tsx`, `images/$imageId.tsx`) updated their imports from the package-absolute `../-components/Flavors/...`/`../-components/Images/...` to local `./-components/...` — also correct; the components are now literally in their own `-components/` subfolder (in line with the CLAUDE.md convention: the `-` prefix excludes a folder from route generation).
 
-## Что затронуло
+## What it affects
 
-Только внутреннее использование — ни один из переехавших/удалённых файлов не имеет потребителей за пределами `packages/aurora/src/client/routes/_auth/projects/$projectId/compute/`. Проверено:
-- Ни одной оставшейся ссылки на старые пути (`compute/-components/Flavors`, `compute/-components/Images`) в кодовой базе на головном коммите не осталось.
-- `routeTree.gen.ts` в диффе не участвует — ожидаемо, поскольку сами пути роутов (`/compute/flavors`, `/compute/images/$imageId` и т.д.) не менялись, переехали только `-`-папки, исключённые из генерации роутов.
-- Удалённые `Instances`/`KeyPairs`/`ServerGroups` уже были orphan code до этого PR: ни в базовом коммите (до PR), ни в текущем нет ни одного route-файла `compute/instances`/`compute/keypairs`/`compute/servergroups`, и ни один другой файл их `List.tsx`/`-components/*` не импортировал — эти три директории не использовались уже как минимум с PR #1222 (последний коммит, трогавший эти файлы, три недели назад), просто до сих пор не были удалены.
-- Строки, убранные из `de`/`en` `messages.po` (по 57 в каждом: "CPU", "Fingerprint", "Group Name", "IPv4"/"IPv6", "Key Name", "Loading Instances...", "Members", "Policy", "Restart", "Server Name", "Type", "View Details" и т.д.) — все они принадлежали удалённым компонентам; для каждой проверено, что после PR ни один `t\`...\`\`/`<Trans>` с точно таким же исходным текстом нигде в кодовой базе больше не встречается, то есть `pnpm check-i18n` отработал корректно и не задел ничего, что всё ещё используется.
+Internal use only — none of the moved/deleted files has consumers outside `packages/aurora/src/client/routes/_auth/projects/$projectId/compute/`. Checked:
+- No remaining references to the old paths (`compute/-components/Flavors`, `compute/-components/Images`) are left in the codebase at the head commit.
+- `routeTree.gen.ts` is not part of the diff — as expected, since the route paths themselves (`/compute/flavors`, `/compute/images/$imageId` etc.) have not changed; only the `-` folders, which are excluded from route generation, were moved.
+- The deleted `Instances`/`KeyPairs`/`ServerGroups` were already orphan code before this PR: neither in the base commit (before the PR) nor in the current one is there any `compute/instances`/`compute/keypairs`/`compute/servergroups` route file, and no other file imported their `List.tsx`/`-components/*` — these three directories have been unused since at least PR #1222 (the last commit to touch these files, three weeks ago); they simply had not been deleted until now.
+- The strings removed from the `de`/`en` `messages.po` (57 in each: "CPU", "Fingerprint", "Group Name", "IPv4"/"IPv6", "Key Name", "Loading Instances...", "Members", "Policy", "Restart", "Server Name", "Type", "View Details", etc.) all belonged to the deleted components; for each one it was checked that after the PR no `t\`...\`\`/`<Trans>` with exactly the same source text occurs anywhere else in the codebase, i.e. `pnpm check-i18n` worked correctly and did not touch anything that is still in use.
 
-## Ревью
+## Review
 
-Проблем с уверенностью ≥80 не найдено. Отдельно проверены места, где подобный move обычно ломается:
-- Арифметика относительных импортов (`../../../` → `../../` и т.п.) во всех файлах с непустым диффом — совпадает с новой глубиной вложенности.
-- Полнота обновления импортов — ни одной оставшейся ссылки на старые пути `compute/-components/Flavors|Images` в репозитории не найдено.
-- Действительная "мертвизна" удалённых `Instances`/`KeyPairs`/`ServerGroups` — подтверждена отсутствием потребителей и в базовом, и в головном коммите (не просто "PR удаляет то, что сам же и перестаёт использовать").
-- i18n-каталоги — убранные строки не имеют оставшихся потребителей в коде.
+No issues found with confidence ≥80. The places where such a move usually breaks were checked separately:
+- The arithmetic of relative imports (`../../../` → `../../` etc.) in all files with a non-empty diff — it matches the new nesting depth.
+- Completeness of the import updates — no remaining references to the old paths `compute/-components/Flavors|Images` were found in the repository.
+- The actual "deadness" of the deleted `Instances`/`KeyPairs`/`ServerGroups` — confirmed by the absence of consumers in both the base and the head commit (not merely "the PR deletes what it itself stops using").
+- The i18n catalogs — the removed strings have no remaining consumers in the code.
 
 ---
-Проанализировано: 01.09.2026 · коммит `26bd222e`
+Analyzed: 2026-09-01 · commit `26bd222e`

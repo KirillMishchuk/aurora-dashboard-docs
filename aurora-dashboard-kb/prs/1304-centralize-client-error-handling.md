@@ -8,30 +8,30 @@ branch: vlad-centralized-error-handling
 ---
 # PR #1304: feat(dashboard): centralize client error handling
 
-**Автор:** vlad-schur-external-sap · **Статус:** смержен 17.09.2026 (создан 15.09.2026)
-**Ветки:** `vlad-centralized-error-handling` → `main` · **Файлов:** 94 (+837/-527)
-**Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1304
+**Author:** vlad-schur-external-sap · **Status:** merged 2026-09-17 (created 2026-09-15)
+**Branches:** `vlad-centralized-error-handling` → `main` · **Files:** 94 (+837/-527)
+**Link:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1304
 
-## Что сделано
+## What was done
 
-Крупный (94 файла) рефакторинг клиентской обработки ошибок вокруг Epic #1055, без изменений на сервере. Три слоя, по PR description: **global** (просроченный токен и т.п. — уже существовало), **service-level** (несуществующий роут типа `netrowk/floatingips`) и **$id-level** (несуществующий конкретный ресурс: flavor/image/floating IP/security group/storage container).
+A large (94 files) refactoring of client-side error handling around Epic #1055, with no server changes. Three layers, per the PR description: **global** (expired token and the like — already existed), **service-level** (a non-existent route such as `netrowk/floatingips`) and **$id-level** (a non-existent specific resource: flavor/image/floating IP/security group/storage container).
 
-**1. Новые общие компоненты** (`client/components/Errors/`, переименовано из `Error/`, единственного числа):
-- `RouteError` (переименован, без функциональных изменений, только добавлен doc-комментарий) — полноэкранная ошибка вне layout (протухшая сессия и т.п.), уже существовала.
-- `RouteIdLevelDefaultError` (новый) — ошибка ресурса **внутри** layout (сайдбар/хедер остаются), обёртка над `<Status code={404} status="error">`, с дефолтным заголовком/текстом/кнопкой "Go to Project Home", переопределяемыми пропами.
-- `ServiceLevelDefaultError` (новый) — аналог для несуществующего роута целиком, зарегистрирован как `defaultNotFoundComponent` роутера (`router.ts:14`).
+**1. New shared components** (`client/components/Errors/`, renamed from the singular `Error/`):
+- `RouteError` (renamed, no functional changes, only a doc comment added) — a full-screen error outside the layout (expired session, etc.); it already existed.
+- `RouteIdLevelDefaultError` (new) — a resource error **inside** the layout (sidebar/header stay), a wrapper over `<Status code={404} status="error">`, with a default title/text/"Go to Project Home" button that can be overridden via props.
+- `ServiceLevelDefaultError` (new) — the equivalent for an entirely non-existent route, registered as the router's `defaultNotFoundComponent` (`router.ts:14`).
 
-**2. Пять роутов получили собственный `errorComponent`** (не было раньше): `compute/flavors/$flavorId.tsx`, `compute/images/$imageId.tsx`, `network/floatingips.tsx`, `network/securitygroups.tsx`, `storage/$provider/$storageType/$containerName/objects/index.tsx` (тут же и `notFoundComponent`, было `<p>Storage container not found</p>`). Все пять — обёртки, рендерящие `RouteIdLevelDefaultError` с кнопкой "Назад к <раздел>". `images/$imageId.tsx` также вручную использует `RouteIdLevelDefaultError`/свой `ImageErrorComponent` в собственных ветках `status === "error"` / `!image` компонента (данные из `useQuery`, отдельно от роутерного `errorComponent`).
+**2. Five routes got their own `errorComponent`** (they had none before): `compute/flavors/$flavorId.tsx`, `compute/images/$imageId.tsx`, `network/floatingips.tsx`, `network/securitygroups.tsx`, `storage/$provider/$storageType/$containerName/objects/index.tsx` (here also a `notFoundComponent`; it used to be `<p>Storage container not found</p>`). All five are wrappers rendering `RouteIdLevelDefaultError` with a "Back to <section>" button. `images/$imageId.tsx` also manually uses `RouteIdLevelDefaultError`/its own `ImageErrorComponent` in the component's own `status === "error"` / `!image` branches (data from `useQuery`, separate from the router's `errorComponent`).
 
-**3. Механическая замена `Spinner`/`Message` на `<Status/>`** в ~50 модалках (Delete/Empty/Move/Copy/Edit — Ceph Buckets/Objects, Swift Containers/Objects, Flavors, Images, Security Groups): `<Spinner/>` + текст → `<Status status="progress" title=.../>`, `<Message variant="error">` → `<Status status="error" title=... body=.../>`, `variant="warning"` → `status="empty"`. Везде сохранена семантика 1:1, попутно поправлена пара мест, где спиннер и текст ошибки могли отрендериться одновременно (см. "Как реализовано").
+**3. Mechanical replacement of `Spinner`/`Message` with `<Status/>`** in ~50 modals (Delete/Empty/Move/Copy/Edit — Ceph Buckets/Objects, Swift Containers/Objects, Flavors, Images, Security Groups): `<Spinner/>` + text → `<Status status="progress" title=.../>`, `<Message variant="error">` → `<Status status="error" title=... body=.../>`, `variant="warning"` → `status="empty"`. The semantics are preserved 1:1 everywhere; along the way, a couple of places where the spinner and the error text could render at the same time were fixed (see "How it is implemented").
 
-**4.** Локали `en`/`de` `messages.po` синхронизированы (91/90 строк изменено — новые заголовки Status, убранные inline-тексты спиннеров).
+**4.** The `en`/`de` `messages.po` locales are synchronized (91/90 lines changed — new Status titles, removed inline spinner texts).
 
-## Как это реализовано
+## How it is implemented
 
-### Новые примитивы (`client/components/Errors/`)
+### New primitives (`client/components/Errors/`)
 
-`RouteIdLevelDefaultError.tsx` (новый файл, 44 строки):
+`RouteIdLevelDefaultError.tsx` (new file, 44 lines):
 
 ```tsx
 export const RouteIdLevelDefaultError = ({ errorTitle, errorDescription, action }: RouteIdLevelDefaultErrorProps) => {
@@ -51,11 +51,11 @@ export const RouteIdLevelDefaultError = ({ errorTitle, errorDescription, action 
 }
 ```
 
-`code={404}` и оба текста — жёстко закодированные дефолты, снимаемые только явно переданными `errorTitle`/`errorDescription`/`action`. Это важно для "Что затронуло" ниже: везде, где эту обёртку регистрируют как `errorComponent:` роута без передачи этих пропов, компонент показывает статичный 404, независимо от реальной причины сбоя.
+`code={404}` and both texts are hardcoded defaults, overridden only by explicitly passed `errorTitle`/`errorDescription`/`action`. This matters for "What it affects" below: wherever this wrapper is registered as a route's `errorComponent:` without passing these props, the component shows a static 404 regardless of the actual cause of failure.
 
-### Пять новых `errorComponent`
+### Five new `errorComponent`s
 
-Паттерн одинаковый во всех пяти местах — например `compute/flavors/$flavorId.tsx:25-44`:
+The pattern is the same in all five places — for example `compute/flavors/$flavorId.tsx:25-44`:
 
 ```tsx
 function FlavorErrorComponent() {
@@ -80,9 +80,9 @@ export const Route = createFileRoute(...)({
 })
 ```
 
-Идентично в `compute/images/$imageId.tsx:41-60` (`ImageErrorComponent`), `network/floatingips.tsx:6-23` (`FloatingIpsErrorComponent`), `network/securitygroups.tsx:6-23` (`SecurityGroupsErrorComponent`), `storage/.../objects/index.tsx:12-30` (`ObjectStorageErrorComponent`, назначен и на `errorComponent`, и на `notFoundComponent`).
+Identical in `compute/images/$imageId.tsx:41-60` (`ImageErrorComponent`), `network/floatingips.tsx:6-23` (`FloatingIpsErrorComponent`), `network/securitygroups.tsx:6-23` (`SecurityGroupsErrorComponent`), `storage/.../objects/index.tsx:12-30` (`ObjectStorageErrorComponent`, assigned to both `errorComponent` and `notFoundComponent`).
 
-Во всех пяти случаях функция объявлена **без параметров** — ни одна не принимает `error`. Отдельно `images/$imageId.tsx:325-336` показывает верный паттерн для **другого** источника ошибки — собственного `useQuery`-состояния компонента (не роутерного `errorComponent`):
+In all five cases the function is declared **without parameters** — none of them accepts `error`. Separately, `images/$imageId.tsx:325-336` shows the correct pattern for a **different** error source — the component's own `useQuery` state (not the router's `errorComponent`):
 
 ```tsx
 if (status === "error") {
@@ -97,11 +97,11 @@ if (status === "error") {
 }
 ```
 
-Здесь реальный текст ошибки передаётся явно — контраст с `errorComponent: ImageErrorComponent`, которая эту же обёртку вызывает без единого прокинутого прома. Тест на это расхождение не пишется — см. "Ревью".
+Here the actual error text is passed explicitly — in contrast to `errorComponent: ImageErrorComponent`, which calls the same wrapper without passing a single prop. There is no test for this discrepancy — see "Review".
 
-### Спиннер/Message → Status (пример)
+### Spinner/Message → Status (example)
 
-`storage/-components/Swift/Objects/DeleteObjectModal.tsx:134-152` — заодно устранён порядок, при котором ошибка загрузки метаданных могла отрендериться одновременно с состоянием `isLoading`/`isPending` (структура `if/else if metadataError` вместо отдельного блока `{metadataError && (...)}` перед основным деревом):
+`storage/-components/Swift/Objects/DeleteObjectModal.tsx:134-152` — this also fixes an ordering in which a metadata loading error could render at the same time as the `isLoading`/`isPending` state (an `if/else if metadataError` structure instead of a separate `{metadataError && (...)}` block before the main tree):
 
 ```tsx
 {isPending ? (
@@ -115,23 +115,23 @@ if (status === "error") {
 )}
 ```
 
-Паттерн идентичен во всех ~50 затронутых модалках — механическая, консистентная замена, проверена выборочно (Ceph `DeleteBucketPolicyModal`, `DeleteCorsRuleModal`; Swift `DeleteObjectModal`, `CopyObjectModal`; Security Groups `AddRuleModal`, `CreateSecurityGroupModal`, `EditSecurityGroupModal`) — везде 1:1 перенос семантики, находок нет.
+The pattern is identical in all ~50 affected modals — a mechanical, consistent replacement, spot-checked (Ceph `DeleteBucketPolicyModal`, `DeleteCorsRuleModal`; Swift `DeleteObjectModal`, `CopyObjectModal`; Security Groups `AddRuleModal`, `CreateSecurityGroupModal`, `EditSecurityGroupModal`) — semantics carried over 1:1 everywhere, no findings.
 
-## Что затронуло
+## What it affects
 
-**`errorComponent` игнорирует переданный `error` во всех пяти новых местах — подтверждено типами.** `@tanstack/router-core@1.171.15` (пинована в проекте, `node_modules/.pnpm/@tanstack+router-core@1.171.15/.../route.d.ts:432`) типизирует пропы `errorComponent` как `ErrorComponentProps<TError = Error> = { error: TError; info?; reset: () => void }` — то есть роутер реально передаёт `error` в компонент. Ни `FlavorErrorComponent`, ни `ImageErrorComponent`, ни `FloatingIpsErrorComponent`, ни `SecurityGroupsErrorComponent`, ни `ObjectStorageErrorComponent` не объявляют параметров и не читают `error` — типы это разрешают (структурная совместимость по недостающим пропам), так что `typecheck`/CI это не поймает. См. "Ревью".
+**`errorComponent` ignores the passed `error` in all five new places — confirmed by the types.** `@tanstack/router-core@1.171.15` (pinned in the project, `node_modules/.pnpm/@tanstack+router-core@1.171.15/.../route.d.ts:432`) types the `errorComponent` props as `ErrorComponentProps<TError = Error> = { error: TError; info?; reset: () => void }` — i.e. the router really does pass `error` to the component. None of `FlavorErrorComponent`, `ImageErrorComponent`, `FloatingIpsErrorComponent`, `SecurityGroupsErrorComponent`, `ObjectStorageErrorComponent` declares parameters or reads `error` — the types allow this (structural compatibility with missing props), so `typecheck`/CI won't catch it. See "Review".
 
-**Переименование `Error/` → `Errors/` — само по себе чистое** (проверено: во всём дереве на головном коммите PR не осталось ссылок на `components/Error/` в единственном числе), **но прямо конфликтует с текущей незакоммиченной веткой пользователя** `kiryl-storage-type-404-1081`: там в рабочем дереве лежат новые файлы `packages/aurora/src/client/components/Error/RouteNotFound.tsx` и `RouteNotFound.test.tsx` — в **той же** директории, которую этот PR переименовывает. Если #1304 смержится первым, эта ветка при ребейзе/мерже получит несуществующую (переименованную) директорию под новыми файлами; если наоборот — придётся вручную повторить переименование для файлов из #1081.
+**The `Error/` → `Errors/` rename is clean in itself** (checked: across the whole tree at the PR's head commit no references to the singular `components/Error/` remain), **but it directly conflicts with the user's current uncommitted branch** `kiryl-storage-type-404-1081`: its working tree contains new files `packages/aurora/src/client/components/Error/RouteNotFound.tsx` and `RouteNotFound.test.tsx` — in the **same** directory that this PR renames. If #1304 is merged first, that branch will, on rebase/merge, end up with a non-existent (renamed) directory under its new files; if the other way round, the rename will have to be repeated manually for the files from #1081.
 
-**Тот же файл `storage/.../objects/index.tsx` одновременно переписывается в незакоммиченной ветке `kiryl-storage-type-404-1081`** (issue #1081) — по совершенно другой схеме: там `notFound({ data: { reason } })` с разными сообщениями на `provider-not-found`/`storage-type-mismatch` (см. план [`DOCS/plans/2026-09-14-storage-type-404-issue-1081.md`](../../plans/2026-09-14-storage-type-404-issue-1081.md)), тогда как #1304 здесь просто ставит один и тот же `ObjectStorageErrorComponent` на оба (`notFoundComponent`/`errorComponent`) без различения причины. Оба PR трогают один и тот же роут с несовместимыми дизайнами — независимо от порядка мержа потребуется ручная сверка.
+**The same file `storage/.../objects/index.tsx` is simultaneously being rewritten in the uncommitted branch `kiryl-storage-type-404-1081`** (issue #1081) — following a completely different scheme: there it is `notFound({ data: { reason } })` with different messages for `provider-not-found`/`storage-type-mismatch` (see the plan [`DOCS/plans/2026-09-14-storage-type-404-issue-1081.md`](../../plans/2026-09-14-storage-type-404-issue-1081.md)), whereas #1304 here simply puts the same `ObjectStorageErrorComponent` on both (`notFoundComponent`/`errorComponent`) without distinguishing the cause. Both PRs touch the same route with incompatible designs — whichever order they are merged in, a manual reconciliation will be needed.
 
-**Покрытие `errorComponent` неравномерно между Network и Compute.** Для Network (`floatingips.tsx`, `securitygroups.tsx`) новый `errorComponent` поставлен на **родительский layout-роут** раздела — значит, он перехватывает ошибки и из списка, и из страницы деталей (`floatingips/$floatingIpId/index.tsx`, `securitygroups/$securityGroupId/index.tsx` через `Outlet`). Для Compute аналогичные layout-роуты (`compute/flavors.tsx`, `compute/images.tsx`) не тронуты этим PR вообще — `errorComponent` есть только на самой странице деталей (`$flavorId.tsx`/`$imageId.tsx`), список (`flavors/index.tsx`/`images/index.tsx`) при ошибке загрузки по-прежнему всплывёт до полноэкранного `ProjectErrorComponent` на уровне `$projectId.tsx`. Не баг (то же поведение, что было везде до PR), но заявленное покрытие "Compute, Network and Object Storage" по факту неполное и несимметричное между разделами.
+**`errorComponent` coverage is uneven between Network and Compute.** For Network (`floatingips.tsx`, `securitygroups.tsx`) the new `errorComponent` is placed on the section's **parent layout route** — so it catches errors from both the list and the details page (`floatingips/$floatingIpId/index.tsx`, `securitygroups/$securityGroupId/index.tsx` via `Outlet`). For Compute, the equivalent layout routes (`compute/flavors.tsx`, `compute/images.tsx`) are not touched by this PR at all — `errorComponent` exists only on the details page itself (`$flavorId.tsx`/`$imageId.tsx`), and on a loading error the list (`flavors/index.tsx`/`images/index.tsx`) will still bubble up to the full-screen `ProjectErrorComponent` at the `$projectId.tsx` level. Not a bug (the same behaviour as everywhere before the PR), but the claimed coverage of "Compute, Network and Object Storage" is in fact incomplete and asymmetric between sections.
 
-## Ревью
+## Review
 
-**[90]** Все пять новых `errorComponent` (`FlavorErrorComponent`, `ImageErrorComponent`, `FloatingIpsErrorComponent`, `SecurityGroupsErrorComponent`, `ObjectStorageErrorComponent`) отбрасывают реальный `error`, переданный роутером, и рендерят жёстко закодированный `RouteIdLevelDefaultError` без `errorTitle`/`errorDescription` — код 404 и текст "Resource Not Found / ...does not exist or is not accessible" показываются **для любой** брошенной ошибки, не только для реального "не найдено". Конкретный воспроизводимый случай: `compute/images/$imageId.tsx` `beforeLoad` (не изменён этим PR, но подпадает под новый `errorComponent: ImageErrorComponent`) вызывает `trpcClient?.auth.getAvailableServices.query()` без try/catch — сетевой сбой или ошибка BFF здесь выдаст пользователю "Resource Not Found" вместо реальной причины. Контраст в том же файле: собственная ручная ветка `status === "error"` (строки 325-336) правильно прокидывает `errorMessage` через `errorTitle`/`errorDescription` — то есть авторы знали о параметрах компонента, но забыли их прокинуть именно в роутерном `errorComponent`. Ни один из пяти wrapper-компонентов не покрыт тестом, который бросает ошибку через сам роут и проверяет отрендеренный текст — только примитивы `RouteIdLevelDefaultError`/`ServiceLevelDefaultError` протестированы напрямую, с руками заданными пропами; путь "реальная ошибка → `errorComponent` → экран" ни разу не воспроизведён в тестах этого PR. Прямо противоречит заявленной цели PR "Improved error messages".
+**[90]** All five new `errorComponent`s (`FlavorErrorComponent`, `ImageErrorComponent`, `FloatingIpsErrorComponent`, `SecurityGroupsErrorComponent`, `ObjectStorageErrorComponent`) discard the actual `error` passed by the router and render a hardcoded `RouteIdLevelDefaultError` without `errorTitle`/`errorDescription` — the 404 code and the text "Resource Not Found / ...does not exist or is not accessible" are shown **for any** thrown error, not only for a genuine "not found". A concrete reproducible case: `compute/images/$imageId.tsx` `beforeLoad` (not changed by this PR, but falling under the new `errorComponent: ImageErrorComponent`) calls `trpcClient?.auth.getAvailableServices.query()` without try/catch — a network failure or BFF error here will show the user "Resource Not Found" instead of the actual cause. The contrast in the same file: its own manual `status === "error"` branch (lines 325-336) correctly passes `errorMessage` via `errorTitle`/`errorDescription` — i.e. the authors knew about the component's parameters but forgot to pass them specifically in the router's `errorComponent`. None of the five wrapper components is covered by a test that throws an error through the route itself and checks the rendered text — only the primitives `RouteIdLevelDefaultError`/`ServiceLevelDefaultError` are tested directly, with hand-specified props; the "real error → `errorComponent` → screen" path is never reproduced in this PR's tests. This directly contradicts the PR's stated goal of "Improved error messages".
 
-Ниже порога (не репортится, но стоит держать в уме): неравномерное покрытие `errorComponent` между Network (список+детали) и Compute (только детали) — архитектурное решение, не регрессия, но заявлено как единая политика для всех трёх доменов (70/100).
+Below the threshold (not reported, but worth keeping in mind): uneven `errorComponent` coverage between Network (list+details) and Compute (details only) — an architectural decision, not a regression, but presented as a single policy for all three domains (70/100).
 
 ---
-Проанализировано: 16.09.2026 · коммит `aac6f9ed9`
+Analyzed: 2026-09-16 · commit `aac6f9ed9`

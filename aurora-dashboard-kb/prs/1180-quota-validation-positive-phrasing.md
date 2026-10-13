@@ -8,19 +8,19 @@ branch: mark-use-positive-quota-validation-message
 ---
 # PR #1180: fix(portal): use positive phrasing for quota validation message
 
-**Автор:** mark-karnaukh-extern-sap · **Статус:** смержен 21.08.2026 (коммит `a7b73a1e`; создан 18.08.2026)
-**Ветки:** `mark-use-positive-quota-validation-message` → `main` · **Файлов:** 7 (+40/-16)
-**Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1180
+**Author:** mark-karnaukh-extern-sap · **Status:** merged 2026-08-21 (commit `a7b73a1e`; created 2026-08-18)
+**Branches:** `mark-use-positive-quota-validation-message` → `main` · **Files:** 7 (+40/-16)
+**Link:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1180
 
-## Что сделано
+## What was done
 
-Правит сообщение об ошибке валидации квот Swift-контейнера (issue #1164, "Bug: use positive instruction, not double-negative"): вместо двойного отрицания "Must be a non-negative integer" — прямая инструкция "Must be a whole number, 0 or greater" (рус. по смыслу: «Должно быть целым числом, 0 или больше»). Затронуты оба поля квоты — `quota-bytes` (Total size quota) и `quota-count` (Object count quota) — в модалке `EditContainerMetadataModal` (Storage → Swift → Containers).
+Fixes the validation error message for Swift container quotas (issue #1164, "Bug: use positive instruction, not double-negative"): instead of the double negative "Must be a non-negative integer" — a direct instruction "Must be a whole number, 0 or greater". Both quota fields are affected — `quota-bytes` (Total size quota) and `quota-count` (Object count quota) — in the `EditContainerMetadataModal` modal (Storage → Swift → Containers).
 
-PR состоит из 4 коммитов: сама смена формулировки (`cdd7d55`), обновление переводов (`ae0dc58`), **отдельный фикс-коммит `f7f577c` "reject non-integer quota values"**, добавляющий проверку `Number.isInteger` — то есть до этого коммита валидация пропускала дробные значения типа `1.5`, и это было исправлено в рамках того же PR, — и, наконец, changeset (`2aeef4c`, текущий head).
+The PR consists of 4 commits: the wording change itself (`cdd7d55`), the translation update (`ae0dc58`), **a separate fix commit `f7f577c` "reject non-integer quota values"** that adds a `Number.isInteger` check — i.e. before this commit the validation let fractional values like `1.5` through, and this was fixed within the same PR — and finally the changeset (`2aeef4c`, the current head).
 
-## Как это реализовано
+## How it is implemented
 
-`validateQuotas` (`EditContainerMetadataModal.tsx:209-230`) проверяет оба поля тремя условиями вместо двух:
+`validateQuotas` (`EditContainerMetadataModal.tsx:209-230`) checks both fields with three conditions instead of two:
 
 ```ts
 // EditContainerMetadataModal.tsx:211-219
@@ -35,23 +35,23 @@ if (
 }
 ```
 
-Симметричный блок для `quotaCount` — `EditContainerMetadataModal.tsx:220-228`, та же троица проверок и тот же текст ошибки. Оба поля — обычные `TextInput` (не `type="number"`, `EditContainerMetadataModal.tsx:498-510`), состояние — строки (`useState("")`, строки 116/118), так что вся защита от нецелых/отрицательных значений держится на этой ручной проверке. На сохранении (`EditContainerMetadataModal.tsx:328` — `if (!validateQuotas()) return`) форма блокируется при ошибке; при успехе значение уходит в мутацию как `Number(quotaBytes)` (`EditContainerMetadataModal.tsx:377`) — уже безопасно, раз `Number.isInteger` прошёл проверку на этапе валидации.
+The symmetric block for `quotaCount` is `EditContainerMetadataModal.tsx:220-228`, with the same three checks and the same error text. Both fields are plain `TextInput`s (not `type="number"`, `EditContainerMetadataModal.tsx:498-510`), and the state is strings (`useState("")`, lines 116/118), so all protection against non-integer/negative values rests on this manual check. On save (`EditContainerMetadataModal.tsx:328` — `if (!validateQuotas()) return`) the form is blocked on error; on success the value goes into the mutation as `Number(quotaBytes)` (`EditContainerMetadataModal.tsx:377`) — already safe, since `Number.isInteger` passed at the validation stage.
 
-Тесты (`EditContainerMetadataModal.test.tsx`) обновлены на новый текст ошибки везде, где он проверялся (было "Must be a non-negative integer"), и добавлен новый кейс "shows validation error for decimal quota-bytes" (ввод `"1.5"` для Total size quota) — но симметричного теста на дробное значение для `quotaCount` не добавлено, хотя код обрабатывает оба поля одинаково.
+The tests (`EditContainerMetadataModal.test.tsx`) are updated to the new error text everywhere it was checked (previously "Must be a non-negative integer"), and a new case "shows validation error for decimal quota-bytes" is added (input `"1.5"` for Total size quota) — but no symmetric test for a fractional value of `quotaCount` is added, even though the code handles both fields identically.
 
-Переводы: `packages/aurora/src/locales/{en,de}/messages.po` — старая строка `msgid "Must be a non-negative integer"` удалена, добавлена новая `msgid "Must be a whole number, 0 or greater"` (нем. `"Muss eine ganze Zahl sein, 0 oder größer"`); скомпилированные `messages.ts` регенерированы вместе с ней. Changeset `.changeset/witty-numbers-poke.md` — `patch` для `@cobaltcore-dev/aurora`, корректно (текстовая правка + расширение валидации, без изменения публичного контракта).
+Translations: `packages/aurora/src/locales/{en,de}/messages.po` — the old string `msgid "Must be a non-negative integer"` is removed, a new one `msgid "Must be a whole number, 0 or greater"` is added (German `"Muss eine ganze Zahl sein, 0 oder größer"`); the compiled `messages.ts` are regenerated along with it. Changeset `.changeset/witty-numbers-poke.md` — `patch` for `@cobaltcore-dev/aurora`, correct (a text edit + extended validation, with no change to the public contract).
 
-## Что затронуло
+## What it affects
 
-`EditContainerMetadataModal` не экспортируется из пакета — единственный потребитель найден в той же папке, `ContainerTableView.tsx` (`import { EditContainerMetadataModal } from "./EditContainerMetadataModal"`). Изменение полностью внутреннее, наружу (за пределы Swift Containers UI) не ripple-ит.
+`EditContainerMetadataModal` is not exported from the package — the only consumer is found in the same folder, `ContainerTableView.tsx` (`import { EditContainerMetadataModal } from "./EditContainerMetadataModal"`). The change is entirely internal and does not ripple outward (beyond the Swift Containers UI).
 
-Поиск по остальному монорепо на похожие формулировки валидации количества (`non-negative`, `isInteger`) нашёл только несвязанный сосед — `EditImageDetailsModal.tsx` (Compute/Images, поля `min_disk`/`min_ram`) использует свой текст «Minimum disk/RAM must be 0 or greater», уже позитивный и не тронутый этим PR — не тот же текст, что менялся здесь, так что это не пропущенный дубликат, а изначально другая формулировка; упоминаю только чтобы явно исключить как ложную находку.
+A search across the rest of the monorepo for similar quantity-validation wording (`non-negative`, `isInteger`) found only an unrelated neighbor — `EditImageDetailsModal.tsx` (Compute/Images, fields `min_disk`/`min_ram`) uses its own text "Minimum disk/RAM must be 0 or greater", already positive and not touched by this PR — not the same text that was changed here, so this is not a missed duplicate but an originally different wording; I mention it only to explicitly rule it out as a false finding.
 
-**Важно для читателя отчёта:** описание PR (раздел "Notes") утверждает, что «валидатор не проверяет целочисленность» и характеризует это как нерешённый follow-up для будущего UX-ревью. Это устарело относительно текущего head-коммита — коммит `f7f577c`, уже входящий в этот PR, добавил именно эту проверку (`!Number.isInteger(...)`) до создания changeset'а. На момент анализа (head `2aeef4c`) валидация целочисленности реализована и покрыта тестом.
+**Important for the reader of this report:** the PR description ("Notes" section) states that "the validator does not check for integers" and characterizes this as an unresolved follow-up for a future UX review. This is outdated relative to the current head commit — commit `f7f577c`, already part of this PR, added exactly this check (`!Number.isInteger(...)`) before the changeset was created. At the time of analysis (head `2aeef4c`) integer validation is implemented and covered by a test.
 
-## Ревью
+## Review
 
-Проблем с уверенностью ≥80 не найдено. Логика симметрична для обоих полей, конвертация в payload (`Number(quotaBytes)`) безопасна благодаря предшествующей проверке `Number.isInteger`, коммит-сообщения и scope (`portal`) соответствуют `commitlint.config.mjs`, changeset корректен по типу (`patch`). Ниже порога: отсутствие теста на дробное значение для `quotaCount` (код идентичен `quotaBytes`, тестовая асимметрия не влияет на поведение) — нитпик, не репортится как находка.
+No issues with confidence ≥80 were found. The logic is symmetric for both fields, the conversion into the payload (`Number(quotaBytes)`) is safe thanks to the preceding `Number.isInteger` check, the commit messages and scope (`portal`) conform to `commitlint.config.mjs`, and the changeset type is correct (`patch`). Below the threshold: the missing test for a fractional value of `quotaCount` (the code is identical to `quotaBytes`, the test asymmetry does not affect behavior) — a nitpick, not reported as a finding.
 
 ---
-Проанализировано: 18.08.2026 · коммит `2aeef4c`
+Analyzed: 2026-08-18 · commit `2aeef4c`

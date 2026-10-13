@@ -8,31 +8,31 @@ branch: til-all-search
 ---
 # PR #1320: feat(portal): expand search to all visible columns including numeric
 
-**Автор:** TilmanHaupt · **Статус:** смержен 23.09.2026 (andypf; создан 23.09.2026). Отчёт писался, пока PR был open.
-**Ветки:** `til-all-search` → `main` · **Файлов:** 20 (+195/-73)
-**Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1320
-**Закрывает:** #1226 («Ensure search placeholder instructs user what to search by»)
+**Author:** TilmanHaupt · **Status:** merged 2026-09-23 (andypf; created 2026-09-23). The report was written while the PR was open.
+**Branches:** `til-all-search` → `main` · **Files:** 20 (+195/-73)
+**Link:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1320
+**Closes:** #1226 ("Ensure search placeholder instructs user what to search by")
 
-## Что сделано
+## What was done
 
-Issue #1226 предлагала два пути: либо искать по *всем* показанным полям, либо написать в placeholder, по каким полям идёт поиск. PR выбирает первый путь. Placeholder'ы не менялись (например, `Search...` в `ProjectOverviewNavBar.tsx:51`), и второй пункт issue (единый стиль placeholder'ов) не закрыт.
+Issue #1226 proposed two options: either search across *all* displayed fields, or state in the placeholder which fields are searched. The PR takes the first option. The placeholders were not changed (for example, `Search...` in `ProjectOverviewNavBar.tsx:51`), and the issue's second point (a consistent placeholder style) is not addressed.
 
-По областям:
+By area:
 
-1. **Общий хелпер `filterBySearchParams`** теперь ищет и по числовым полям: число приводится к строке и проверяется подстрокой. От этого зависят Ceph, Swift, Images, Projects и Floating IPs.
-2. **Compute.** Flavors ищут ещё по `vcpus`/`ram`/`disk`/`swap` (у flavor'ов свой regex-хелпер, а не `filterBySearchParams`). Images ищут ещё по `id`/`owner`/`size`, но это только в двух из трёх процедур (см. ниже).
-3. **Storage (Ceph + Swift): фильтрация по имени переехала с клиента на сервер.** В input-схемы `listContainersInputSchema` (обе) добавлен `searchTerm`. Роутеры фильтруют через `filterBySearchParams` по name/count/bytes/last_modified (у Ceph ещё creationDate). Клиент передаёт `searchParam` в `useQuery` и больше не фильтрует сам. Счётчик «X of Y buckets/containers» убран, осталось просто «N buckets». Поэтому из каталогов `en`/`de` удалены два msgid.
-4. **Projects: новая процедура `project.listProjectsWithSearch`.** Страница `/projects` раньше грузила все проекты через `getAuthProjects` и фильтровала на клиенте по name/description. Теперь серверу уходит `searchTerm`, а поиск идёт по id/name/description/domain_name/domain_id.
-5. **Network.** Floating IPs ищут ещё и по `id`. В PR description сказано «no changes», но изменение в диффе есть.
-6. Changeset `minor` для `@cobaltcore-dev/aurora` и тесты: числовой поиск в `filterBySearchParams.test.ts`, моки tRPC в тестах Ceph/Swift теперь отдают уже отфильтрованный список.
+1. **The shared helper `filterBySearchParams`** now also searches numeric fields: the number is converted to a string and checked as a substring. Ceph, Swift, Images, Projects and Floating IPs depend on this.
+2. **Compute.** Flavors are now also searched by `vcpus`/`ram`/`disk`/`swap` (flavors have their own regex helper rather than `filterBySearchParams`). Images are now also searched by `id`/`owner`/`size`, but only in two of the three procedures (see below).
+3. **Storage (Ceph + Swift): name filtering moved from the client to the server.** `searchTerm` was added to the `listContainersInputSchema` input schemas (both). The routers filter via `filterBySearchParams` by name/count/bytes/last_modified (Ceph also by creationDate). The client passes `searchParam` to `useQuery` and no longer filters on its own. The "X of Y buckets/containers" counter was removed; what remains is just "N buckets". Two msgids were therefore removed from the `en`/`de` catalogs.
+4. **Projects: a new procedure `project.listProjectsWithSearch`.** The `/projects` page used to load all projects via `getAuthProjects` and filter them on the client by name/description. Now `searchTerm` is sent to the server, and the search covers id/name/description/domain_name/domain_id.
+5. **Network.** Floating IPs are now also searched by `id`. The PR description says "no changes", but the change is in the diff.
+6. A `minor` changeset for `@cobaltcore-dev/aurora` and tests: numeric search in `filterBySearchParams.test.ts`; the tRPC mocks in the Ceph/Swift tests now return an already filtered list.
 
-Changeset расходится с кодом. В нём заявлено «Images: owner and size», а PR description добавляет «excluded filter arrays (status, visibility, disk_format)». В ветке shared images (`listSharedImagesByMemberStatus`) поиск по-прежнему идёт только по `id`/`name`.
+The changeset diverges from the code. It claims "Images: owner and size", while the PR description adds "excluded filter arrays (status, visibility, disk_format)". In the shared images branch (`listSharedImagesByMemberStatus`) the search still covers only `id`/`name`.
 
-## Как это реализовано
+## How it is implemented
 
-Код приведён по коммиту `e0737fe`.
+Code is quoted as of commit `e0737fe`.
 
-### `filterBySearchParams`: числовая ветка
+### `filterBySearchParams`: the numeric branch
 
 `packages/aurora/src/server/helpers/filterBySearchParams.ts:26-39`:
 
@@ -53,11 +53,11 @@ Changeset расходится с кодом. В нём заявлено «Image
   )
 ```
 
-Это подстрочный поиск по *сырому* значению. Поиск `"512"` находит и `512`, и `5120`, а `"0"` находит почти всё. В UI Ceph и Swift `bytes` показывается в человекочитаемом виде, а даты форматируются. Поэтому «поиск по видимым колонкам» здесь на деле означает поиск по сырым данным: запрос «1.5 KB» или дата в формате UI ничего не найдут, а год из ISO-строки найдёт.
+This is a substring search on the *raw* value. Searching for `"512"` finds both `512` and `5120`, and `"0"` finds almost everything. In the Ceph and Swift UI, `bytes` is shown in human-readable form and dates are formatted. So "search by visible columns" here actually means search by raw data: a query like "1.5 KB" or a date in the UI format will find nothing, while a year from the ISO string will.
 
-В тестах (`filterBySearchParams.test.ts`) ожидания посчитаны верно. Copilot в ревью писал, что кейс `"1"` должен падать, потому что `medium` (count=512) якобы не совпадает. Это ложное срабатывание: `"512"` содержит `"1"`.
+In the tests (`filterBySearchParams.test.ts`) the expectations are computed correctly. Copilot wrote in its review that the `"1"` case should fail because `medium` (count=512) supposedly does not match. This is a false positive: `"512"` contains `"1"`.
 
-### Flavors: отдельный regex-хелпер
+### Flavors: a separate regex helper
 
 `packages/aurora/src/server/Compute/helpers/flavorHelpers.ts:162-181`:
 
@@ -77,11 +77,11 @@ export function includesSearchTerm(flavor: Flavor, searchTerm: string): boolean 
   ]
 ```
 
-Flavors не переведены на `filterBySearchParams`, хотя PR заявляет «unified search». `new RegExp(searchTerm)` без экранирования был и раньше: ввод `(` бросит исключение. PR эту строку не менял, но теперь через неё проходит больше полей.
+Flavors were not moved to `filterBySearchParams`, even though the PR claims "unified search". `new RegExp(searchTerm)` without escaping was already there before: typing `(` will throw an exception. The PR did not change this line, but more fields now pass through it.
 
 ### Images
 
-`packages/aurora/src/server/Compute/routers/imageRouter.ts:128` (`listImagesWithSearch`) и `:244` (`listImagesWithPagination`):
+`packages/aurora/src/server/Compute/routers/imageRouter.ts:128` (`listImagesWithSearch`) and `:244` (`listImagesWithPagination`):
 
 ```ts
           filteredImages = filterBySearchParams(filteredImages, queryInput.name, ["id", "name", "owner", "size"])
@@ -93,7 +93,7 @@ Flavors не переведены на `filterBySearchParams`, хотя PR за�
           filteredImages = filterBySearchParams(filteredImages, name, ["id", "name"])
 ```
 
-### Ceph: серверная фильтрация после fan-out по метаданным
+### Ceph: server-side filtering after the metadata fan-out
 
 `packages/aurora/src/server/Storage/routers/ceph/containerRouter.ts:130-136`:
 
@@ -107,9 +107,9 @@ Flavors не переведены на `filterBySearchParams`, хотя PR за�
       ])
 ```
 
-Фильтр стоит *после* цикла, который для каждого bucket'а делает `ListObjectsV2` батчами по 5 (`containerRouter.ts:62-128`). Поэтому каждый новый поисковый запрос повторяет весь S3 fan-out. Раньше поиск был чисто клиентским и к серверу не ходил. На быстром пути без метаданных (`:57`) фильтр идёт только по `name`.
+The filter comes *after* the loop that runs `ListObjectsV2` for each bucket in batches of 5 (`containerRouter.ts:62-128`). So every new search query repeats the entire S3 fan-out. Previously the search was purely client-side and never hit the server. On the fast path without metadata (`:57`) the filter applies only to `name`.
 
-Клиент, `Ceph/Buckets/index.tsx:153-163` и `:200-201`:
+Client, `Ceph/Buckets/index.tsx:153-163` and `:200-201`:
 
 ```tsx
   } = trpcReact.storage.ceph.containers.list.useQuery(
@@ -128,17 +128,17 @@ Flavors не переведены на `filterBySearchParams`, хотя PR за�
   const filteredBuckets = buckets || []
 ```
 
-`searchParam` попадает в URL через SearchInput с debounce 500 мс (`index.tsx:330`), значит, новый query key появляется после каждой паузы в наборе.
+`searchParam` gets into the URL via SearchInput with a 500 ms debounce (`index.tsx:330`), so a new query key appears after every pause in typing.
 
 ### Swift
 
-`packages/aurora/src/server/Storage/routers/swift/swiftRouter.ts:134` достаёт `searchTerm` из input, чтобы он не ушёл в query string Swift API. На строке `:168` применяется фильтр:
+`packages/aurora/src/server/Storage/routers/swift/swiftRouter.ts:134` pulls `searchTerm` out of the input so that it does not end up in the Swift API query string. The filter is applied on line `:168`:
 
 ```ts
         return filterBySearchParams(parsedData.data, searchTerm, ["name", "count", "bytes", "last_modified"])
 ```
 
-Клиент (`Swift/Containers/index.tsx:169-173`) устроен так же, как у Ceph: передаёт `searchTerm: searchParam`.
+The client (`Swift/Containers/index.tsx:169-173`) works the same way as Ceph's: it passes `searchTerm: searchParam`.
 
 ### Projects
 
@@ -154,7 +154,7 @@ function ProjectsContent({ searchTerm }: ProjectsContentProps) {
 }
 ```
 
-`packages/aurora/src/server/Project/routers/projectRouter.ts:195` задаёт `listProjectsWithSearch`. Тело процедуры построчно повторяет `getAuthProjects` (`:89-129`): те же проверки токена, тот же `Promise.all` на `auth/projects` и `auth/domains`, тот же `domainMap`, то же обогащение `domain_name` (сравните `:127` и `:239`). В конце добавлен фильтр (`:243`):
+`packages/aurora/src/server/Project/routers/projectRouter.ts:195` defines `listProjectsWithSearch`. The procedure body repeats `getAuthProjects` (`:89-129`) line for line: the same token checks, the same `Promise.all` on `auth/projects` and `auth/domains`, the same `domainMap`, the same `domain_name` enrichment (compare `:127` and `:239`). A filter is added at the end (`:243`):
 
 ```ts
       return filterBySearchParams(projectsWithDomain, input.searchTerm, [
@@ -166,24 +166,24 @@ function ProjectsContent({ searchTerm }: ProjectsContentProps) {
       ])
 ```
 
-## Что затронуло
+## What it affects
 
-- **`storage.ceph.containers.list`.** К input добавлено опциональное поле, так что контракт расширен обратно совместимо. Другие потребители (`Ceph/Objects/CopyObjectModal.tsx:72`, `MoveObjectModal.tsx:75`, `Ceph/hooks/useBucketInfo.ts:50`) `searchTerm` не передают и поведение не меняют. Все `invalidate()` в модалках (Create/Delete/Empty/DeleteVersions bucket, операции с объектами) вызываются без input и по-прежнему задевают все варианты ключа, включая ключи с `searchTerm`. Кэш списка bucket'ов и `useBucketInfo` и раньше жили под разными ключами (`includeMetadata: true` против отсутствия поля), тут ничего не изменилось.
-- **`storage.swift.listContainers`.** Ситуация та же. `EditContainerMetadataModal.tsx:88`, `Swift/Objects/CopyObjectModal.tsx:97` и `MoveRenameObjectModal.tsx:106` не затронуты, инвалидации без input работают.
-- **`project.getAuthProjects`.** После PR у процедуры не осталось ни одного клиентского потребителя (grep по монорепо находит только определение и `projectRouter.test.ts`). В роутере теперь три пересекающиеся процедуры загрузки проектов: `getAuthProjects`, `searchProjects` (без domain-обогащения, с сортировкой, тоже без клиентских потребителей) и новая `listProjectsWithSearch`. Copilot указал на это дублирование, в PR оно не устранено. Для новой процедуры нет router-тестов.
-- **Внешние потребители `AuroraRouter`.** Новая процедура в `project.*` и новые поля input — это аддитивное расширение публичного типа роутера, ничего не ломается.
-- **i18n.** Удалены два msgid («X of Y container(s)», «X of Y bucket(s)»), каталоги `messages.ts` перекомпилированы, `check-i18n` не должен падать.
-- **UX-контракт выбора (bulk actions) в Storage** незаметно изменился, подробности в ревью.
-- **Тесты клиента** теперь мокают уже отфильтрованный ответ сервера. Они проверяют рендер, но не то, что `searchTerm` действительно уходит в запрос.
+- **`storage.ceph.containers.list`.** An optional field was added to the input, so the contract is extended in a backward-compatible way. Other consumers (`Ceph/Objects/CopyObjectModal.tsx:72`, `MoveObjectModal.tsx:75`, `Ceph/hooks/useBucketInfo.ts:50`) do not pass `searchTerm` and their behavior does not change. All `invalidate()` calls in the modals (Create/Delete/Empty/DeleteVersions bucket, object operations) are made without input and still hit all key variants, including keys with `searchTerm`. The bucket list cache and `useBucketInfo` already lived under different keys before (`includeMetadata: true` versus the field being absent); nothing changed here.
+- **`storage.swift.listContainers`.** The situation is the same. `EditContainerMetadataModal.tsx:88`, `Swift/Objects/CopyObjectModal.tsx:97` and `MoveRenameObjectModal.tsx:106` are unaffected; invalidations without input work.
+- **`project.getAuthProjects`.** After the PR the procedure has no client consumers left (a grep across the monorepo finds only the definition and `projectRouter.test.ts`). The router now has three overlapping project-loading procedures: `getAuthProjects`, `searchProjects` (no domain enrichment, with sorting, also without client consumers) and the new `listProjectsWithSearch`. Copilot pointed out this duplication; it is not resolved in the PR. There are no router tests for the new procedure.
+- **External consumers of `AuroraRouter`.** The new procedure in `project.*` and the new input fields are an additive extension of the router's public type; nothing breaks.
+- **i18n.** Two msgids were removed ("X of Y container(s)", "X of Y bucket(s)"), the `messages.ts` catalogs were recompiled, and `check-i18n` should not fail.
+- **The selection UX contract (bulk actions) in Storage** changed silently; details in the review.
+- **The client tests** now mock an already filtered server response. They check rendering, but not that `searchTerm` is actually sent in the request.
 
-## Ревью
+## Review
 
-Ревью выполнено в одном проходе по пяти направлениям из скилла (CLAUDE.md, баги, история, прошлые PR, комментарии в коде) с последующей оценкой уверенности. Ниже только находки с оценкой ≥80.
+The review was done in a single pass across the five directions from the skill (CLAUDE.md, bugs, history, previous PRs, code comments), followed by confidence scoring. Only findings with a score ≥80 are listed below.
 
-**1. Каждый новый поисковый запрос в Ceph Buckets и Swift Containers заменяет всю страницу, включая поле поиска, на спиннер загрузки (85/100).** *На 24.09.2026 не исправлено ни в `main`, ни в [#1330](./1330-search-architecture-consistency-ux.md).*
-`searchTerm` входит в query key. Каждый debounced-коммит поиска создаёт ключ без кэша, и в TanStack Query v5 (`^5.0.0`) `isLoading` становится `true`. Компонент при этом делает ранний return: `Ceph/Buckets/index.tsx:231-233` (`if (isLoading) return <Status … Loading Buckets... />`) и `Swift/Containers/index.tsx:253-255`. Тулбар с `SearchInput` размонтируется посреди набора: теряется фокус, мигает весь интерфейс. `placeholderData`/`keepPreviousData` не заданы. У Ceph каждое такое переключение ещё и повторяет `ListObjectsV2` по всем bucket'ам (`containerRouter.ts:62-128`). Раньше поиск был мгновенным и клиентским. Copilot отметил стоимостную сторону проблемы, а размонтирование поля поиска — нет.
+**1. Every new search query in Ceph Buckets and Swift Containers replaces the whole page, including the search field, with a loading spinner (85/100).** *As of 2026-09-24 not fixed either in `main` or in [#1330](./1330-search-architecture-consistency-ux.md).*
+`searchTerm` is part of the query key. Each debounced search commit creates a key with no cache, and in TanStack Query v5 (`^5.0.0`) `isLoading` becomes `true`. The component then does an early return: `Ceph/Buckets/index.tsx:231-233` (`if (isLoading) return <Status … Loading Buckets... />`) and `Swift/Containers/index.tsx:253-255`. The toolbar with `SearchInput` unmounts mid-typing: focus is lost and the whole interface flickers. `placeholderData`/`keepPreviousData` are not set. For Ceph, each such switch also repeats `ListObjectsV2` across all buckets (`containerRouter.ts:62-128`). Previously the search was instant and client-side. Copilot noted the cost side of the problem, but not the unmounting of the search field.
 
-**2. После серверной фильтрации выбор, сделанный до поиска, перестаёт работать. Это прямо противоречит комментарию в коде (85/100).**
+**2. After server-side filtering, a selection made before the search stops working. This directly contradicts a comment in the code (85/100).**
 `Ceph/Buckets/index.tsx:269-272`:
 
 ```tsx
@@ -193,19 +193,19 @@ function ProjectsContent({ searchTerm }: ProjectsContentProps) {
   const selectedBucketSummaries = (buckets || []).filter((c) => selectedBuckets.includes(c.name))
 ```
 
-Теперь `buckets` — это уже отфильтрованный сервером список, а не «full unfiltered list». Если пользователь выбрал bucket A и затем ищет B, A остаётся в `selectedBuckets`, но пропадает из `selectedBucketSummaries`. `hasSelection` становится `false`, счётчик и bulk actions не видят выбора. Если очистить поиск, A снова окажется «выбранным». То же в `Swift/Containers/index.tsx:267-272`. Copilot флагнул это для обоих файлов.
+`buckets` is now the server-filtered list, not the "full unfiltered list". If the user selects bucket A and then searches for B, A stays in `selectedBuckets` but disappears from `selectedBucketSummaries`. `hasSelection` becomes `false`, and the counter and bulk actions do not see the selection. If the search is cleared, A is "selected" again. The same applies to `Swift/Containers/index.tsx:267-272`. Copilot flagged this for both files.
 
-> **Обновление 24.09.2026. Частично исправлено до мержа.** В смерженную версию (`6ce6aeac`) попал эффект, который очищает выбор при каждой смене `searchParam`: `Ceph/Buckets/index.tsx:79-84`, `Swift/Containers/index.tsx:80-85`. Массовые действия больше не ломаются, но выбор теперь просто сбрасывается при поиске, то есть поведение выбрано противоположное прежнему. Комментарий «from the full unfiltered list» над `selectedBucketSummaries` / `selectedContainerSummaries` остался и теперь неверен.
+> **Update 2026-09-24. Partially fixed before merge.** The merged version (`6ce6aeac`) includes an effect that clears the selection on every `searchParam` change: `Ceph/Buckets/index.tsx:79-84`, `Swift/Containers/index.tsx:80-85`. Bulk actions no longer break, but the selection is now simply reset on search, i.e. the opposite behavior to the previous one was chosen. The comment "from the full unfiltered list" above `selectedBucketSummaries` / `selectedContainerSummaries` remains and is now wrong.
 
-**3. Поиск на странице Projects теперь на каждый запрос показывает Suspense-fallback и делает два запроса к Keystone (80/100).** *На 24.09.2026 не исправлено ни в `main`, ни в #1330.*
-`projects/index.tsx:37` вызывает `useSuspenseQuery` с `searchTerm` в ключе. `handleSearch` (`:50-52`) вызывает `navigate` без `startTransition`, поэтому каждый новый запрос (debounce 300 мс, `ProjectOverviewNavBar.tsx:32-35`) подвешивает `ProjectsContent`, и вместо карточек появляется «Loading...» (`:73`). Плюс уходят два вызова (`auth/projects` и `auth/domains`). Раньше фильтрация шла по уже загруженному списку без сетевых запросов. Строка поиска остаётся на месте (она вне Suspense), но список мигает при каждом вводе.
+**3. Search on the Projects page now shows a Suspense fallback on every query and makes two requests to Keystone (80/100).** *As of 2026-09-24 not fixed either in `main` or in #1330.*
+`projects/index.tsx:37` calls `useSuspenseQuery` with `searchTerm` in the key. `handleSearch` (`:50-52`) calls `navigate` without `startTransition`, so every new query (300 ms debounce, `ProjectOverviewNavBar.tsx:32-35`) suspends `ProjectsContent`, and "Loading..." (`:73`) appears instead of the cards. On top of that, two calls go out (`auth/projects` and `auth/domains`). Previously filtering ran over the already loaded list without network requests. The search bar stays in place (it is outside Suspense), but the list flickers on every keystroke.
 
-Ниже порога. В отчёт как ревью-замечания не входят, но стоит учитывать:
+Below the threshold. Not included in the report as review findings, but worth keeping in mind:
 
-- `listSharedImagesByMemberStatus` ищет только по `id`/`name`, а changeset описывает Images шире, чем реализовано (70).
-- `listProjectsWithSearch` дублирует `getAuthProjects`, а `getAuthProjects`/`searchProjects` остались без потребителей. Проще было бы добавить опциональный input в `getAuthProjects` (65).
-- Числовой и датовый поиск идёт по сырым значениям, а не по тому, что отображается (50).
-- Замечания Copilot про импорты через `../../` уже неактуальны: на head все новые импорты используют `@/`.
+- `listSharedImagesByMemberStatus` searches only by `id`/`name`, while the changeset describes Images more broadly than what is implemented (70).
+- `listProjectsWithSearch` duplicates `getAuthProjects`, and `getAuthProjects`/`searchProjects` were left without consumers. It would have been simpler to add an optional input to `getAuthProjects` (65).
+- Numeric and date search runs over raw values, not over what is displayed (50).
+- Copilot's remarks about `../../` imports are no longer relevant: at head, all new imports use `@/`.
 
 ---
-Проанализировано: 23.09.2026 · коммит `e0737fe` · статус проблем обновлён 24.09.2026 по смерженному `6ce6aeac`
+Analyzed: 2026-09-23 · commit `e0737fe` · issue status updated 2026-09-24 against merged `6ce6aeac`

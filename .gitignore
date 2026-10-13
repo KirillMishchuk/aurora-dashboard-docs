@@ -2,3 +2,4 @@
 
 .netrc
 .obsidian/workspace*.json
+__pycache__/

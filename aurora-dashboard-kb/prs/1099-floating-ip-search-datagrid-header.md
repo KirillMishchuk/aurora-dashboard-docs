@@ -8,25 +8,25 @@ branch: til-datahead
 ---
 # PR #1099: feat(portal): use DataGrid Header, stop blocking search, extend searchfields
 
-**Автор:** TilmanHaupt · **Статус:** смержен 28.07.2026 (`e04eed17`)
-**Ветки:** `til-datahead` → `main` · **Файлов:** 11 (+244/-34)
-**Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1099
+**Author:** TilmanHaupt · **Status:** merged 2026-07-28 (`e04eed17`)
+**Branches:** `til-datahead` → `main` · **Files:** 11 (+244/-34)
+**Link:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1099
 
-## Что сделано
+## What was done
 
-PR переписывает тулбар списка Floating IPs (`FloatingIpsList.tsx`), заменяя универсальный `<ListToolbar>` на композицию из `SortInput`/`FiltersInput`/`SelectedFilters`/`SearchInput`/`DataGridToolbar` — тот же паттерн двухзонного хедера (сортировка+действие сверху, фильтры+поиск снизу), что уже применялся в Images/Flavors (`compute/-components/Images`) и Security Groups (PR #952). Заявленная цель — исправить issue #1096 ("поиск блокирует весь UI полноэкранным Loading") и #1097 ("сделать IP и subnet искомыми"), а также #887 (использовать DataGrid Header, как в Images).
+The PR rewrites the toolbar of the Floating IPs list (`FloatingIpsList.tsx`), replacing the generic `<ListToolbar>` with a composition of `SortInput`/`FiltersInput`/`SelectedFilters`/`SearchInput`/`DataGridToolbar` — the same two-zone header pattern (sorting+action on top, filters+search below) already used in Images/Flavors (`compute/-components/Images`) and Security Groups (PR #952). The stated goal is to fix issue #1096 ("search blocks the entire UI with a full-screen Loading") and #1097 ("make IP and subnet searchable"), as well as #887 (use the DataGrid Header, as in Images).
 
-Ключевые изменения:
-1. **Локальное эхо-состояние поиска** — `localSearchTerm` синхронизируется с закоммиченным `searchTerm` через `useEffect`, ввод дебаунсится на 500ms перед вызовом `handleSearchChange`.
-2. **`placeholderData: (prev) => prev`** добавлен в `trpcReact.network.floatingIp.list.useQuery` — цель: не терять показанные данные при рефетче по новому ключу запроса.
-3. **Permission-gated кнопка** — `<Button>Allocate Floating IP</Button>` теперь рендерится только если `trpcReact.network.canUser.useQuery({ permission: ["network:floatingips:create"] })` вернул `canCreate: true` (существующая процедура, ключ `network:floatingips:create` подтверждён в `permissionRouter.ts:51`).
-4. **Расширен серверный поиск** — `floatingIpRouter.ts` теперь ищет не только по `description`, но и по `floating_ip_address`, `fixed_ip_address`, `floating_network_id`.
-5. **Новый файл `floatingips/urlHelpers.ts`** с функцией `applyFilterSelection` — код побайтово идентичен уже существующим копиям в `network/securitygroups/urlHelpers.ts` и `compute/-components/Images/urlHelpers.ts`.
-6. Обновлены тесты, добавлен changeset, добавлены i18n-строки (`en`/`de` `.po`/`.ts`).
+Key changes:
+1. **Local echo state for search** — `localSearchTerm` is synchronized with the committed `searchTerm` via `useEffect`; input is debounced for 500ms before `handleSearchChange` is called.
+2. **`placeholderData: (prev) => prev`** is added to `trpcReact.network.floatingIp.list.useQuery` — the goal: not to lose the displayed data when refetching under a new query key.
+3. **Permission-gated button** — `<Button>Allocate Floating IP</Button>` is now rendered only if `trpcReact.network.canUser.useQuery({ permission: ["network:floatingips:create"] })` returned `canCreate: true` (an existing procedure; the key `network:floatingips:create` is confirmed in `permissionRouter.ts:51`).
+4. **Extended server-side search** — `floatingIpRouter.ts` now searches not only by `description` but also by `floating_ip_address`, `fixed_ip_address`, `floating_network_id`.
+5. **A new file `floatingips/urlHelpers.ts`** with the function `applyFilterSelection` — the code is byte-for-byte identical to the already existing copies in `network/securitygroups/urlHelpers.ts` and `compute/-components/Images/urlHelpers.ts`.
+6. Tests updated, a changeset added, i18n strings added (`en`/`de` `.po`/`.ts`).
 
-## Как это реализовано
+## How it is implemented
 
-Ранний выход при первой загрузке/ошибке без данных:
+Early exit on first load/error with no data:
 ```tsx
 // FloatingIpsList.tsx:91-105
 if (isLoading && !floatingIps.length) {
@@ -46,7 +46,7 @@ if (isError && !floatingIps.length) {
 }
 ```
 
-Запрос с `placeholderData` и передача состояния в контейнер таблицы:
+The query with `placeholderData` and passing state to the table container:
 ```tsx
 // FloatingIpsList.tsx:73-90, 190-196
 } = trpcReact.network.floatingIp.list.useQuery(
@@ -62,7 +62,7 @@ if (isError && !floatingIps.length) {
 />
 ```
 
-Новый `urlHelpers.ts` (идентичен паттерну из securitygroups/Images):
+The new `urlHelpers.ts` (identical to the pattern from securitygroups/Images):
 ```ts
 // floatingips/urlHelpers.ts:9-19
 export const applyFilterSelection = (
@@ -77,31 +77,31 @@ export const applyFilterSelection = (
 }
 ```
 
-## Что затронуло
+## What it affects
 
-- **Внутреннее изменение, без внешних потребителей**: `applyFilterSelection` из нового `urlHelpers.ts` используется только внутри `FloatingIpsList.tsx`, ничего не экспортируется наружу. `FloatingIpListContainer`'s props (`floatingIps`/`isLoading`/`isError`/`error`) не изменились по форме — только добавлена локальная переменная `columnCount`.
-- **`floatingIpRouter.ts`**: расширение списка полей `filterBySearchParams` — единственный потребитель `floatingIp.list` в клиенте не изменился (тот же `FloatingIpsList.tsx`); существующий серверный тест `floatingIpRouter.test.ts` (не в списке изменённых файлов) не обновлён под новые поля поиска — покрытие новых search-полей тестами отсутствует.
-- **`network.canUser` используется inline**, в отличие от Security Groups, где для этого есть отдельный хук `useSecurityGroupPermissions` (PR #952) — минорная несогласованность паттерна, не баг.
-- **Неточность в описании PR**: текст PR утверждает *"Fixed import path: Corrected `urlHelpers` import from `./urlHelpers` to `../urlHelpers`... since the helper file is in the parent directory"*. Проверено против базового коммита (`8a56eef9d`) — в нём `FloatingIpsList.tsx` вообще не импортировал `urlHelpers` (использовался `<ListToolbar>`), а сам файл `floatingips/urlHelpers.ts` — новый, добавлен этим PR. Чинить было нечего: это не багфикс, а полностью новый код, который в описании ошибочно выдан за исправление.
-- **Issue #1097 закрыт не полностью**: issue просит сделать искомыми IP **и subnet**. IP-адреса теперь ищутся (`floating_ip_address`, `fixed_ip_address`, `floating_network_id`), но subnet — нет: `FloatingIpSchema` (схема, которую реально возвращает `list`) не содержит поля `subnet_id` на верхнем уровне; ближайший аналог — `port_details.fixed_ips[].subnet_id`, вложенный в необязательное/nullable поле, добыть который для поиска — отдельная работа, а не просто добавление имени поля в массив. PR помечен как закрывающий #1097, но по факту закрывает только его IP-часть.
-- **Положительный момент, подтверждённый через историю**: `localSearchTerm`-ресинхронизация (`useEffect(() => setLocalSearchTerm(searchTerm), [searchTerm])`) корректно устраняет тот самый класс бага, который CodeRabbit явно указал в ревью PR #952 для `SecurityGroupRulesTable.tsx` ("localSearchTerm инициализируется из searchTerm один раз и не ресинхронизируется") — но там баг так и не был исправлен. Здесь он решён верно.
+- **Internal change, no external consumers**: `applyFilterSelection` from the new `urlHelpers.ts` is used only inside `FloatingIpsList.tsx`; nothing is exported outward. The shape of `FloatingIpListContainer`'s props (`floatingIps`/`isLoading`/`isError`/`error`) has not changed — only a local variable `columnCount` was added.
+- **`floatingIpRouter.ts`**: the list of `filterBySearchParams` fields is extended — the only client consumer of `floatingIp.list` has not changed (the same `FloatingIpsList.tsx`); the existing server test `floatingIpRouter.test.ts` (not among the changed files) was not updated for the new search fields — there is no test coverage for the new search fields.
+- **`network.canUser` is used inline**, unlike Security Groups, which has a dedicated hook for this, `useSecurityGroupPermissions` (PR #952) — a minor pattern inconsistency, not a bug.
+- **An inaccuracy in the PR description**: the PR text claims *"Fixed import path: Corrected `urlHelpers` import from `./urlHelpers` to `../urlHelpers`... since the helper file is in the parent directory"*. Checked against the base commit (`8a56eef9d`) — in it, `FloatingIpsList.tsx` did not import `urlHelpers` at all (`<ListToolbar>` was used), and the file `floatingips/urlHelpers.ts` itself is new, added by this PR. There was nothing to fix: this is not a bug fix but entirely new code that the description mistakenly presents as a fix.
+- **Issue #1097 is not fully closed**: the issue asks to make IP **and subnet** searchable. IP addresses are now searchable (`floating_ip_address`, `fixed_ip_address`, `floating_network_id`), but subnet is not: `FloatingIpSchema` (the schema that `list` actually returns) has no top-level `subnet_id` field; the closest equivalent is `port_details.fixed_ips[].subnet_id`, nested inside an optional/nullable field, and extracting it for search is separate work, not just adding a field name to an array. The PR is marked as closing #1097, but in fact closes only its IP part.
+- **A positive point, confirmed via history**: the `localSearchTerm` re-synchronization (`useEffect(() => setLocalSearchTerm(searchTerm), [searchTerm])`) correctly eliminates the exact class of bug that CodeRabbit explicitly pointed out in the review of PR #952 for `SecurityGroupRulesTable.tsx` ("localSearchTerm is initialized from searchTerm once and is not re-synchronized") — but there the bug was never fixed. Here it is solved correctly.
 
-## Ревью
+## Review
 
-Из 6 проверенных гипотез только одна прошла порог уверенности ≥80 (confidence-scoring агентами на базе Haiku, независимо друг от друга; для отклонённых ниже указана причина):
+Of the 6 hypotheses checked, only one passed the confidence ≥80 threshold (confidence scoring by Haiku-based agents, independently of each other; for the rejected ones the reason is given below):
 
-**1. [100] Спиннер полностью перекрывает таблицу при каждом изменении поиска/фильтра/сортировки — прямо противоречит заявленной цели PR ("stop blocking search")**
-- `FloatingIpsList.tsx:192` передаёт необработанный `isLoading` в `<FloatingIpListContainer isLoading={isLoading} .../>`.
-- `FloatingIpListContainer.tsx:27` — `if (isLoading) { return <Spinner/> }` — без проверки на `floatingIps.length`, полностью заменяет таблицу спиннером.
-- Проверено напрямую по установленным исходникам `@tanstack/query-core@5.99.0` (`queryObserver.cjs`): `placeholderData` подставляет только `data`, но не трогает `status`; `isLoading = isPending && isFetching`, а `isPending = status === "pending"` остаётся `true` для **любого** нового ключа запроса (то есть при каждом дебаунснутом вводе поиска, смене фильтра или сортировки) вплоть до завершения фетча — даже когда `floatingIps` уже показывает старые данные через плейсхолдер.
-- Итог: при вводе текста в поиск (после 500ms дебаунса) или смене фильтра/сортировки таблица целиком пропадает и показывается только спиннер — именно то поведение (issue #1096), которое PR заявляет как исправленное.
+**1. [100] The spinner completely covers the table on every search/filter/sort change — directly contradicting the PR's stated goal ("stop blocking search")**
+- `FloatingIpsList.tsx:192` passes the raw `isLoading` into `<FloatingIpListContainer isLoading={isLoading} .../>`.
+- `FloatingIpListContainer.tsx:27` — `if (isLoading) { return <Spinner/> }` — with no check on `floatingIps.length`, it replaces the table entirely with a spinner.
+- Verified directly against the installed sources of `@tanstack/query-core@5.99.0` (`queryObserver.cjs`): `placeholderData` substitutes only `data` and does not touch `status`; `isLoading = isPending && isFetching`, and `isPending = status === "pending"` stays `true` for **any** new query key (that is, on every debounced search input, filter change or sort change) until the fetch completes — even when `floatingIps` is already showing the old data via the placeholder.
+- Result: when typing into the search (after the 500ms debounce) or changing a filter/sort, the whole table disappears and only the spinner is shown — exactly the behavior (issue #1096) that the PR claims to have fixed.
 
-Отклонённые ниже 80 (не формальные issues, упомянуты в "Что затронуло" как фактические неточности, а не баги поведения):
-- [75] Баннер `<Message variant="error">` для "non-blocking refetch failure" фактически недостижим для ошибок, вызванных вводом поиска/фильтра (та же причина — `placeholderData` не действует при `status === "error"`, `floatingIps` схлопывается в `[]`, срабатывает более ранний блокирующий `return`).
-- [75] Неточность описания PR про "исправление" импорта `urlHelpers` (см. "Что затронуло").
-- [75] Issue #1097 закрыт не полностью — subnet-поиск не реализован (см. "Что затронуло").
-- [50] `FloatingIpListContainer.tsx:36` (`if (isError) {...}`) — недостижимый код: родительский ранний `return` при `isError && !floatingIps.length` гарантирует, что до контейнера `isError` доходит только `false`.
-- [50] Гонка `localSearchTerm` vs `startTransition`-обёрнутый `setSearchTerm` в `useListWithFiltering.ts` — механизм подтверждён, но окно гонки узкое (транзишн обычно коммитится быстрее, чем успевает прийти следующее нажатие клавиши при обычной скорости печати).
+Rejected below 80 (not formal issues; mentioned in "What it affects" as factual inaccuracies rather than behavioral bugs):
+- [75] The `<Message variant="error">` banner for a "non-blocking refetch failure" is effectively unreachable for errors caused by search/filter input (same cause — `placeholderData` has no effect when `status === "error"`, `floatingIps` collapses to `[]`, and the earlier blocking `return` fires).
+- [75] The inaccuracy in the PR description about the "fix" of the `urlHelpers` import (see "What it affects").
+- [75] Issue #1097 is not fully closed — subnet search is not implemented (see "What it affects").
+- [50] `FloatingIpListContainer.tsx:36` (`if (isError) {...}`) — unreachable code: the parent's early `return` on `isError && !floatingIps.length` guarantees that `isError` only ever reaches the container as `false`.
+- [50] A race between `localSearchTerm` and the `startTransition`-wrapped `setSearchTerm` in `useListWithFiltering.ts` — the mechanism is confirmed, but the race window is narrow (the transition usually commits before the next keystroke arrives at normal typing speed).
 
 ---
-Проанализировано: 2026-07-28 · коммит `233f2ac1d`
+Analyzed: 2026-07-28 · commit `233f2ac1d`

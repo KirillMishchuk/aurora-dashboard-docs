@@ -8,19 +8,19 @@ branch: andypf/refactor-auth-provider-to-trpc-react
 ---
 # PR #1076: refactor(aurora): migrate AuthProvider to tRPC React Query hooks
 
-**Автор:** andypf · **Статус:** open, draft (не смержен)
-**Ветки:** `andypf/refactor-auth-provider-to-trpc-react` → `main` · **Файлов:** 6 значимых (+~230/-~380, без учёта шума changesets/CHANGELOG/локалей, см. ниже)
-**Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1076
+**Author:** andypf · **Status:** open, draft (not merged)
+**Branches:** `andypf/refactor-auth-provider-to-trpc-react` → `main` · **Files:** 6 meaningful (+~230/-~380, excluding changesets/CHANGELOG/locale noise, see below)
+**Link:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1076
 
-> ⚠️ PR открыт как **draft** и не смержен. `baseRefOid`, который отдаёт `gh`, указывает на коммит `3e8f1bf` (#1074), который с тех пор ушёл вперёд по `main` (сейчас `main` на `28cc3ff`, включая #1079/#1080). `gh pr diff` из-за этого подмешивает шумовые реверты `CHANGELOG.md`/`package.json`/локалей — отчёт ниже построен на `git diff <baseRefOid>..<headRefOid>`, что даёт чистый диф только по файлам, которые реально тронул этот PR.
+> ⚠️ The PR is open as a **draft** and not merged. The `baseRefOid` returned by `gh` points to commit `3e8f1bf` (#1074), which `main` has since moved past (`main` is now at `28cc3ff`, including #1079/#1080). Because of this, `gh pr diff` mixes in noisy reverts of `CHANGELOG.md`/`package.json`/locales — the report below is built on `git diff <baseRefOid>..<headRefOid>`, which gives a clean diff of only the files this PR actually touched.
 
-## Что сделано
+## What was done
 
-PR продолжает рефакторинг auth-флоу, начатый в PR #1072 (см. [1072-simplify-auth-flow.md](./1072-simplify-auth-flow.md)): `AuthProvider` переводится с вызовов vanilla `trpcClient` + ручного `useState`/`useEffect` на хуки `trpcReact` (`useQuery`/`useMutation`), то есть на тот же паттерн, что уже используется в остальном клиентском коде пакета. Помимо самого `AuthProvider`, PR правит два небольших layout-фикса (центрирование `LoginForm` и спиннера на `/projects`) и синхронно переписывает три тестовых файла под новый паттерн моков.
+The PR continues the auth-flow refactoring started in PR #1072 (see [1072-simplify-auth-flow.md](./1072-simplify-auth-flow.md)): `AuthProvider` is moved from vanilla `trpcClient` calls + manual `useState`/`useEffect` to `trpcReact` hooks (`useQuery`/`useMutation`), i.e. to the same pattern already used in the rest of the package's client code. Besides `AuthProvider` itself, the PR includes two small layout fixes (centering `LoginForm` and the spinner on `/projects`) and correspondingly rewrites three test files for the new mocking pattern.
 
-## Как это реализовано
+## How it is implemented
 
-**Сессия как React Query-запрос** (`packages/aurora/src/client/store/AuthProvider.tsx:19-32`):
+**The session as a React Query query** (`packages/aurora/src/client/store/AuthProvider.tsx:19-32`):
 
 ```tsx
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -38,9 +38,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const error = sessionQuery.error?.message ?? null
 ```
 
-Раньше сессия жила в четырёх `useState` и грузилась вручную в `useEffect` (см. #1072). Теперь источник истины — кэш React Query; `staleTime: Infinity` осознанно отключает фоновые рефетчи по времени (сессия меняется только явным `login`/`logout`), `retry: false` сохраняет прежнее поведение "не ретраить".
+Previously the session lived in four `useState`s and was loaded manually in a `useEffect` (see #1072). Now the source of truth is the React Query cache; `staleTime: Infinity` deliberately disables time-based background refetches (the session changes only via explicit `login`/`logout`), and `retry: false` keeps the previous "don't retry" behavior.
 
-**Login/logout — мутации, кэш обновляется вручную** (`AuthProvider.tsx:68-93`):
+**Login/logout are mutations; the cache is updated manually** (`AuthProvider.tsx:68-93`):
 
 ```tsx
 const loginMutation = trpcReact.auth.createUserSession.useMutation()
@@ -67,9 +67,9 @@ const logout = async () => {
 }
 ```
 
-После успешного логина кэш `getCurrentUserSession` заполняется напрямую результатом мутации (`trpcUtils...setData`), без повторного похода на сервер — экономит один round-trip по сравнению с инвалидацией+рефетчем. `logout` намеренно всегда чистит локальное состояние и редиректит, даже если серверный `terminateUserSession` упал — это то же поведение, что было и до PR (см. #1072), просто перенесённое на мутацию.
+After a successful login, the `getCurrentUserSession` cache is populated directly with the mutation result (`trpcUtils...setData`), without another trip to the server — saving one round-trip compared to invalidate+refetch. `logout` intentionally always clears local state and redirects, even if the server-side `terminateUserSession` failed — this is the same behavior as before the PR (see #1072), just moved onto the mutation.
 
-**`redirectToLogin` больше не проверяет путь до построения `returnUrl`** (`AuthProvider.tsx:34-47`):
+**`redirectToLogin` no longer checks the path before building `returnUrl`** (`AuthProvider.tsx:34-47`):
 
 ```tsx
 const redirectToLogin = (saveReturnUrl: boolean = false) => {
@@ -87,41 +87,41 @@ const redirectToLogin = (saveReturnUrl: boolean = false) => {
 }
 ```
 
-Если уже на `/`, вместо `window.location.href` (что раньше не делало вообще ничего) теперь явно чистится кэш сессии через `setData(undefined, undefined)` — иначе, при `staleTime: Infinity`, устаревшие `user`/`expiresAt` продолжали бы висеть в кэше без полной перезагрузки страницы.
+If already on `/`, instead of `window.location.href` (which previously did nothing at all), the session cache is now explicitly cleared via `setData(undefined, undefined)` — otherwise, with `staleTime: Infinity`, stale `user`/`expiresAt` would keep lingering in the cache without a full page reload.
 
-**Комбинированный `isLoading`, который не учитывает logout** (`AuthProvider.tsx:95-96`, разобрано подробно в разделе "Ревью"):
+**A combined `isLoading` that does not account for logout** (`AuthProvider.tsx:95-96`, analyzed in detail in the "Review" section):
 
 ```tsx
 // Combined loading state (initial load, during login, or refetching after login)
 const combinedLoading = isInitialLoading || loginMutation.isPending || isRefetching
 ```
 
-**Layout-фиксы**: `LoginForm.tsx:9` — контейнер сменил `<div className="mt-8 flex justify-center">` на `<Stack className="fixed inset-0 overflow-auto px-4 py-8" distribution="center" alignment="center">` (форма теперь центрируется по всему вьюпорту, а не только горизонтально от верха страницы); `routes/_auth/projects/index.tsx:85` — то же самое для спиннера Suspense-фолбэка на странице списка проектов.
+**Layout fixes**: `LoginForm.tsx:9` — the container changed from `<div className="mt-8 flex justify-center">` to `<Stack className="fixed inset-0 overflow-auto px-4 py-8" distribution="center" alignment="center">` (the form is now centered in the whole viewport, not just horizontally from the top of the page); `routes/_auth/projects/index.tsx:85` — the same for the Suspense fallback spinner on the project list page.
 
-**Тесты** (`AuthProvider.test.tsx`, `LoginForm.test.tsx`, `MainNavigation.test.tsx`) переписаны с моков `trpcClient.auth.X.query/mutate` на моки `trpcReact.auth.X.useQuery/useMutation` + обёртку `QueryClientProvider`. По пути часть поведенческих проверок ослаблена или убрана (например, тест логина больше не проверяет `result.current.isAuthenticated`/`user` после успешного `login()` — при статическом моке `useQuery` вызов `trpcUtils.setData` не отражается на возвращаемых данных хука, так что раньше эта проверка либо не работала бы, либо её вообще убрали как несовместимую с новым способом мокать). Это не тянет на самостоятельную находку по правилам ревью (общее качество тестового покрытия — не баг), но объясняет, почему регрессия из раздела "Ревью" ниже осталась незамеченной юнит-тестами.
+**Tests** (`AuthProvider.test.tsx`, `LoginForm.test.tsx`, `MainNavigation.test.tsx`) were rewritten from mocks of `trpcClient.auth.X.query/mutate` to mocks of `trpcReact.auth.X.useQuery/useMutation` + a `QueryClientProvider` wrapper. Along the way some behavioral checks were weakened or removed (for example, the login test no longer checks `result.current.isAuthenticated`/`user` after a successful `login()` — with a static `useQuery` mock, calling `trpcUtils.setData` is not reflected in the hook's returned data, so this check either wouldn't have worked or was removed outright as incompatible with the new mocking approach). This doesn't qualify as a standalone finding under the review rules (general test coverage quality is not a bug), but it explains why the regression from the "Review" section below went unnoticed by unit tests.
 
-## Что затронуло
+## What it affects
 
-`AuthProvider`/`useAuth` — часть публичного API пакета (экспортируются из `packages/aurora/src/client/index.ts`, см. #1072). Контракт `AuthContext` (`isAuthenticated`, `isLoading`, `error`, `user`, `expiresAt`, `login`, `logout`) не меняется по форме — меняется только то, что стоит за `isLoading` внутри. Проверка потребителей `useAuth()` на головном коммите (`git grep -n "useAuth()" 15f8590`) показала тот же список, что и в #1072:
+`AuthProvider`/`useAuth` are part of the package's public API (exported from `packages/aurora/src/client/index.ts`, see #1072). The `AuthContext` contract (`isAuthenticated`, `isLoading`, `error`, `user`, `expiresAt`, `login`, `logout`) does not change in shape — only what lies behind `isLoading` internally changes. Checking `useAuth()` consumers at the head commit (`git grep -n "useAuth()" 15f8590`) showed the same list as in #1072:
 
-- **`UserMenu.tsx:14`** — читает `isLoading`, чтобы показать `"Signing out…"` и задизейблить кнопку логаута на время выхода. Это единственный потребитель, для которого смена реализации `isLoading` реально меняет поведение (см. находку ниже) — остальные читают `isLoading` только для гейта первого рендера (`LoginForm.tsx`, `routes/index.tsx`) или не читают его вовсе (`useDomainId.ts`, `useScope.ts`, `routes/_auth.tsx`, `routes/_auth/aurora.tsx`).
-- `App.tsx:130` подключает `AuthProvider` внутри уже существующего `<QueryClientProvider>` (добавлен в #1072) — новый `useQuery`/`useMutation` внутри `AuthProvider` не требует изменений в дереве провайдеров приложения, крash-риска на рантайме нет.
-- В `apps/dashboard` прямых обращений к `useAuth`/`AuthProvider` нет — потребители получают auth-функциональность через смонтированный `<App>`, так что для них рефактор прозрачен на уровне API.
-- `UserMenu.tsx` не имеет собственного тестового файла (`git grep -l "UserMenu" -- '*.test.tsx'` — пусто) — регрессия ниже не покрыта тестами ни до, ни после PR.
+- **`UserMenu.tsx:14`** — reads `isLoading` to show `"Signing out…"` and disable the logout button while signing out. This is the only consumer for which the change in the `isLoading` implementation actually changes behavior (see the finding below) — the others read `isLoading` only to gate the first render (`LoginForm.tsx`, `routes/index.tsx`) or don't read it at all (`useDomainId.ts`, `useScope.ts`, `routes/_auth.tsx`, `routes/_auth/aurora.tsx`).
+- `App.tsx:130` mounts `AuthProvider` inside the already existing `<QueryClientProvider>` (added in #1072) — the new `useQuery`/`useMutation` inside `AuthProvider` require no changes to the app's provider tree; there is no runtime crash risk.
+- There are no direct references to `useAuth`/`AuthProvider` in `apps/dashboard` — consumers get auth functionality through the mounted `<App>`, so for them the refactor is transparent at the API level.
+- `UserMenu.tsx` has no test file of its own (`git grep -l "UserMenu" -- '*.test.tsx'` — empty) — the regression below is not covered by tests either before or after the PR.
 
-## Ревью
+## Review
 
-Пайплайн (5 параллельных агентов: CLAUDE.md-соответствие, беглый поиск багов, исторический контекст git blame/log, прежние PR-комментарии CodeRabbit/Copilot на этот PR, соответствие кодовым комментариям) плюс независимый confidence-scoring дал одну находку с уверенностью ≥80:
+The pipeline (5 parallel agents: CLAUDE.md compliance, a quick bug scan, historical context from git blame/log, prior CodeRabbit/Copilot PR comments on this PR, conformance to code comments) plus independent confidence scoring produced one finding with confidence ≥80:
 
-1. **Индикатор логаута в `UserMenu` перестал показываться** (confidence 90) — `AuthProvider.tsx:96`, `UserMenu.tsx:33-38`. Комбинированный `isLoading` теперь считается как `isInitialLoading || loginMutation.isPending || isRefetching` — `logoutMutation.isPending` в формулу не входит. `UserMenu` завязан именно на `isLoading`, чтобы во время выхода показать `label={isLoading ? "Signing out…" : "Log Out"}` и задизейблить кнопку (`disabled={isLoading}`). После этого PR кнопка "Log Out" во время реального сетевого запроса `terminateUserSession` остаётся активной и не меняет текст — пользователь может кликнуть повторно, пока запрос ещё летит. Комментарий над строкой (`// Combined loading state (initial load, during login, or refetching after login)`) сам не упоминает logout — это похоже на непреднамеренный пропуск при переносе состояния из ручных `useState` (в старой версии `logout()` явно делал `setIsLoading(true)` на всё время вызова, см. историю в #1072). Функциональность "Signing out…" была осознанно добавлена в этом же файле в PR #1072 буквально накануне ([`0021456`](https://github.com/cobaltcore-dev/aurora-dashboard/commit/0021456)) — то есть это тихая регрессия недавно добавленного, специально протестированного вручную UX-поведения. Юнит-тестами не покрыто (у `UserMenu.tsx` вообще нет тестового файла), так что регрессия не всплывёт ни в одном существующем прогоне.
+1. **The logout indicator in `UserMenu` no longer shows** (confidence 90) — `AuthProvider.tsx:96`, `UserMenu.tsx:33-38`. The combined `isLoading` is now computed as `isInitialLoading || loginMutation.isPending || isRefetching` — `logoutMutation.isPending` is not part of the formula. `UserMenu` relies specifically on `isLoading` to show `label={isLoading ? "Signing out…" : "Log Out"}` during sign-out and to disable the button (`disabled={isLoading}`). After this PR, the "Log Out" button stays enabled and doesn't change its text during the actual `terminateUserSession` network request — the user can click again while the request is still in flight. The comment above the line (`// Combined loading state (initial load, during login, or refetching after login)`) itself doesn't mention logout — this looks like an unintentional omission when moving state over from manual `useState`s (in the old version, `logout()` explicitly did `setIsLoading(true)` for the duration of the call, see the history in #1072). The "Signing out…" functionality was deliberately added in this very file in PR #1072 literally the day before ([`0021456`](https://github.com/cobaltcore-dev/aurora-dashboard/commit/0021456)) — so this is a silent regression of recently added, specifically manually tested UX behavior. Not covered by unit tests (`UserMenu.tsx` has no test file at all), so the regression won't surface in any existing run.
 
-Ещё одна находка подтверждена независимо (историческим контекстом — уже была поднята CodeRabbit на этом самом PR и не устранена к финальному коммиту `15f8590`, который является головным на момент анализа), но по вероятности реального срабатывания в проде тянет только на "также замечено":
+One more finding was confirmed independently (by historical context — it had already been raised by CodeRabbit on this very PR and was not fixed by the final commit `15f8590`, which is the head at the time of analysis), but given the likelihood of it actually triggering in production it only qualifies as "also noticed":
 
-- **Переполнение `setTimeout` для долгоживущих сессий** (confidence 55) — `AuthProvider.tsx:50-66`. `setTimeout(handleExpiry, timeUntilExpiry)` использует `timeUntilExpiry` без ограничения сверху; `setTimeout` в JS хранит задержку как 32-битное целое (лимит ≈ 24.8 дня, 2 147 483 647 мс) — если `expiresAt` дальше в будущем, таймер переполняется и синхронно стреляет `handleExpiry` (то есть мгновенный логаут) сразу после логина. CodeRabbit поднимал это на диапазоне коммитов `9297de8..15f8590` (том самом, что вошёл в финальный `head`) с готовым фиксом (рекурсивный `setTimeout` с капом на `MAX_TIMEOUT`) — фикс в код не попал. Понижаю с потенциальных 75+ до 55, потому что реальный TTL токенов Keystone в этом проекте типично измеряется часами, а не неделями — баг реален и подтверждён построчно, но шанс, что срок жизни сессии в проде когда-либо превысит ~25 дней, невысок.
+- **`setTimeout` overflow for long-lived sessions** (confidence 55) — `AuthProvider.tsx:50-66`. `setTimeout(handleExpiry, timeUntilExpiry)` uses `timeUntilExpiry` without an upper bound; `setTimeout` in JS stores the delay as a 32-bit integer (limit ≈ 24.8 days, 2 147 483 647 ms) — if `expiresAt` is further in the future, the timer overflows and fires `handleExpiry` synchronously (i.e. an instant logout) right after login. CodeRabbit raised this on the commit range `9297de8..15f8590` (the very one that went into the final `head`) with a ready-made fix (a recursive `setTimeout` capped at `MAX_TIMEOUT`) — the fix did not make it into the code. I lower it from a potential 75+ to 55 because the real Keystone token TTL in this project is typically measured in hours, not weeks — the bug is real and confirmed line by line, but the chance that a session lifetime in production will ever exceed ~25 days is low.
 
-Также проверено и отклонено как false positive/намеренное поведение: два более поздних комментария CodeRabbit на финальном коммите (`setData(undefined, undefined)` вместо `null` при логауте на `/`, и предложение не редиректить при неудачном `terminateUserSession`) — оба воспроизводят уже существовавшее до этого PR поведение (см. #1072: "локальный стейт чистится, даже если серверный вызов упал") и явно протестированы новым тестом `"should clear session immediately if already expired"` (`AuthProvider.test.tsx:479-551`), то есть это осознанный дизайн, а не побочный эффект рефакторинга (confidence 20).
+Also checked and rejected as false positives/intentional behavior: two later CodeRabbit comments on the final commit (`setData(undefined, undefined)` instead of `null` on logout at `/`, and the suggestion not to redirect when `terminateUserSession` fails) — both reproduce behavior that already existed before this PR (see #1072: "local state is cleared even if the server call failed") and are explicitly tested by the new test `"should clear session immediately if already expired"` (`AuthProvider.test.tsx:479-551`), i.e. this is a deliberate design, not a side effect of the refactoring (confidence 20).
 
-**Что сделано хорошо:** заполнение кэша `getCurrentUserSession` результатом мутации логина вместо инвалидации+рефетча (`trpcUtils.auth.getCurrentUserSession.setData(undefined, tokenData)`) убирает лишний round-trip к серверу сразу после успешного входа — раньше в первой версии рефакторинга (до этого PR) такого оптимизма не было.
+**What was done well:** populating the `getCurrentUserSession` cache with the login mutation result instead of invalidate+refetch (`trpcUtils.auth.getCurrentUserSession.setData(undefined, tokenData)`) removes an extra round-trip to the server right after a successful sign-in — the first version of the refactoring (before this PR) didn't have this optimism.
 
 ---
-Проанализировано: 20.07.2026 · коммит `15f8590`
+Analyzed: 2026-07-20 · commit `15f8590`

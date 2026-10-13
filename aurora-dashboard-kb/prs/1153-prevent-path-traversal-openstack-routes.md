@@ -8,27 +8,27 @@ branch: til-sec-3
 ---
 # PR #1153: fix(core): prevent path traversal in OpenStack API routes
 
-**Автор:** TilmanHaupt · **Статус:** смержен 12.08.2026 (коммит `9645ac6`; открыт 07.08.2026)
-**Ветки:** `til-sec-3` → `main` · **Файлов:** 11 (+311/-28)
-**Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1153
+**Author:** TilmanHaupt · **Status:** merged 2026-08-12 (commit `9645ac6`; opened 2026-08-07)
+**Branches:** `til-sec-3` → `main` · **Files:** 11 (+311/-28)
+**Link:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1153
 
-## Что сделано
+## What was done
 
-PR закрывает security-находку CWE-22 (path traversal) в BFF-слое: часть роутеров подставляла ID ресурса (полученный от клиента через tRPC-инпут) прямо в URL запроса к OpenStack без какой-либо проверки. Строка вида `"../admin"` в качестве `flavorId`/`floatingip_id`/`securityGroupId` могла увести запрос за пределы ожидаемого эндпоинта. По описанию PR затронуто 6 роутеров / 22 операции; по факту в диффе изменены 5 роутеров/хелперов плюс общий error-mapping.
+The PR closes a CWE-22 (path traversal) security finding in the BFF layer: some routers substituted a resource ID (received from the client via tRPC input) directly into the URL of the request to OpenStack without any check. A string like `"../admin"` as `flavorId`/`floatingip_id`/`securityGroupId` could take the request outside the expected endpoint. According to the PR description, 6 routers / 22 operations are affected; in fact, the diff changes 5 routers/helpers plus the shared error mapping.
 
-Изменения естественно делятся на три группы:
+The changes naturally fall into three groups:
 
-**Новый security-хелпер (`packages/signal-openstack`)** — единая точка валидации и кодирования сегмента пути. `encodeOpenstackPathSegment` отвергает `.`, `..`, `./`, слэши и `?`/`#`, остальное кодирует через `encodeURIComponent`; `validateAndEncodeResourceId` — обёртка над ней специально для ID ресурсов (UUID или произвольная строка типа `m1.small` — UUID не требуется). Обе функции и сам класс `SignalOpenstackError` (раньше экспортировался только как тип, теперь и как значение — иначе `instanceof`-проверки ниже не скомпилировались бы) выведены из пакета.
+**New security helper (`packages/signal-openstack`)** — a single point for validating and encoding a path segment. `encodeOpenstackPathSegment` rejects `.`, `..`, `./`, slashes and `?`/`#`, and encodes everything else via `encodeURIComponent`; `validateAndEncodeResourceId` is a wrapper over it specifically for resource IDs (a UUID or an arbitrary string like `m1.small` — a UUID is not required). Both functions and the `SignalOpenstackError` class itself (previously exported only as a type, now also as a value — otherwise the `instanceof` checks below wouldn't compile) are exported from the package.
 
-**Проводка валидации в потребителей** — `flavorHelpers.ts`/`flavorRouter.ts` (Compute), `floatingIpRouter.ts`/`securityGroupRouter.ts` (Network), `projectRouter.ts` (Project), `pcaRouter.ts` (Services): каждый вызов, который раньше подставлял raw ID в URL, теперь сначала прогоняет его через `validateAndEncodeResourceId` и использует закодированный результат.
+**Wiring validation into consumers** — `flavorHelpers.ts`/`flavorRouter.ts` (Compute), `floatingIpRouter.ts`/`securityGroupRouter.ts` (Network), `projectRouter.ts` (Project), `pcaRouter.ts` (Services): every call that previously substituted a raw ID into the URL now first runs it through `validateAndEncodeResourceId` and uses the encoded result.
 
-**Общий error-mapping** — `errorHandling.ts`: `wrapError` (используется всеми, кто оборачивает хендлер в `withErrorHandling`) теперь превращает `SignalOpenstackError` в `TRPCError({code: "BAD_REQUEST"})` вместо того, чтобы уронить его в generic `INTERNAL_SERVER_ERROR`.
+**Shared error mapping** — `errorHandling.ts`: `wrapError` (used by everyone who wraps a handler in `withErrorHandling`) now turns `SignalOpenstackError` into `TRPCError({code: "BAD_REQUEST"})` instead of letting it fall into a generic `INTERNAL_SERVER_ERROR`.
 
-Показательна собственная история branch'а (`git log main..pr-1153-head`): первый коммит (`a2152ca9`) добавил валидацию, но не единообразно её обрабатывал; второй (`aebd0cba`) добавил маппинг в `wrapError` и обработку в `projectRouter`; третий (`71c85454`) убрал добавленный и тут же оказавшийся ненужным `validateUUID`; финальный, `cee23177` (текущий `HEAD`, он же `headRefOid`), — донёс проверку одиночной точки (`segment === "."`, изначально не отлавливалась) и добавил недостающие try/catch в 8 функциях `flavorHelpers.ts`, где `SignalOpenstackError` до этого проваливался в generic `INTERNAL_SERVER_ERROR` вместо `BAD_REQUEST`. То есть PR уже самостоятельно исправил ровно те два класса дефектов («точку не отловили», «код ошибки не тот»), которые характерны для двух предыдущих security-PR того же автора (#1144, #1148) — см. раздел «Что затронуло».
+The branch's own history is telling (`git log main..pr-1153-head`): the first commit (`a2152ca9`) added validation but did not handle it uniformly; the second (`aebd0cba`) added the mapping in `wrapError` and handling in `projectRouter`; the third (`71c85454`) removed `validateUUID`, which had been added and immediately turned out to be unnecessary; the final one, `cee23177` (the current `HEAD`, also `headRefOid`), added the single-dot check (`segment === "."`, not caught originally) and added the missing try/catch in 8 functions of `flavorHelpers.ts`, where `SignalOpenstackError` had previously fallen through into a generic `INTERNAL_SERVER_ERROR` instead of `BAD_REQUEST`. That is, the PR has already fixed on its own exactly the two classes of defects ("the dot wasn't caught", "wrong error code") that are characteristic of the same author's two previous security PRs (#1144, #1148) — see the "What it affects" section.
 
-## Как это реализовано
+## How it is implemented
 
-Ядро — новый файл `packages/signal-openstack/src/pathHelpers.ts`:
+The core is the new file `packages/signal-openstack/src/pathHelpers.ts`:
 
 ```ts
 // packages/signal-openstack/src/pathHelpers.ts:16-37
@@ -56,13 +56,13 @@ export function encodeOpenstackPathSegment(segment: string, label = "Path segmen
 }
 ```
 
-`validateAndEncodeResourceId` (`pathHelpers.ts:56-58`) — тонкая обёртка для ID ресурсов, без требования формата UUID (важно: часть ID в проекте не UUID, например `m1.small` для flavor — см. ниже).
+`validateAndEncodeResourceId` (`pathHelpers.ts:56-58`) is a thin wrapper for resource IDs, without requiring the UUID format (important: some IDs in the project are not UUIDs, e.g. `m1.small` for a flavor — see below).
 
-В `packages/signal-openstack/src/index.ts:1-11` экспорт добавлен, а `SignalOpenstackError` перенесён из type-only в value-экспорт (строка 2 vs старая строка 9) — без этого `error instanceof SignalOpenstackError` в потребителях не работал бы.
+In `packages/signal-openstack/src/index.ts:1-11` the export is added, and `SignalOpenstackError` is moved from a type-only to a value export (line 2 vs the old line 9) — without this, `error instanceof SignalOpenstackError` would not work in consumers.
 
-Два разных стиля проводки в потребителях:
+Two different wiring styles in consumers:
 
-*Явный try/catch с собственным `ERROR_CODES`* — `flavorHelpers.ts` и `flavorRouter.ts` (Compute). Пример, `getFlavorById` (`flavorHelpers.ts:197-217`):
+*Explicit try/catch with its own `ERROR_CODES`* — `flavorHelpers.ts` and `flavorRouter.ts` (Compute). Example, `getFlavorById` (`flavorHelpers.ts:197-217`):
 
 ```ts
 // packages/aurora/src/server/Compute/helpers/flavorHelpers.ts:205-217
@@ -81,7 +81,7 @@ try {
 }
 ```
 
-Этот же паттерн повторён ещё в 7 функциях `flavorHelpers.ts` (`deleteFlavor`, `createExtraSpecs`, `getExtraSpecs`, `deleteExtraSpec`, `getFlavorAccess`, `addTenantAccess`, `removeTenantAccess`) и один раз в `flavorRouter.ts` (`getFlavorAccess`, строки 329-341). Разница между первыми двумя (`getFlavorById`/`deleteFlavor`) и остальными шестью — в том, какой `ERROR_CODES`-константой помечена ошибка валидации: у первых двух это выделенные `*_INVALID_ID`-коды, у остальных шести — тот же код, которым в той же функции уже помечен generic catch-all (пример — `flavorRouter.ts:329-341`, `getFlavorAccess`):
+The same pattern is repeated in 7 more functions of `flavorHelpers.ts` (`deleteFlavor`, `createExtraSpecs`, `getExtraSpecs`, `deleteExtraSpec`, `getFlavorAccess`, `addTenantAccess`, `removeTenantAccess`) and once in `flavorRouter.ts` (`getFlavorAccess`, lines 329-341). The difference between the first two (`getFlavorById`/`deleteFlavor`) and the remaining six is which `ERROR_CODES` constant labels the validation error: the first two use dedicated `*_INVALID_ID` codes, the other six use the same code that already labels the generic catch-all in the same function (example — `flavorRouter.ts:329-341`, `getFlavorAccess`):
 
 ```ts
 // packages/aurora/src/server/Compute/routers/flavorRouter.ts:329-341
@@ -92,7 +92,7 @@ try {
   if (error instanceof SignalOpenstackError) {
     throw new TRPCError({
       code: "BAD_REQUEST",
-      message: ERROR_CODES.GET_FLAVOR_ACCESS_FAILED,   // ← тем же кодом уже помечен generic catch этой функции
+      message: ERROR_CODES.GET_FLAVOR_ACCESS_FAILED,   // ← the same code already labels this function's generic catch
       cause: error,
     })
   }
@@ -100,7 +100,7 @@ try {
 }
 ```
 
-*Без локального try/catch, через общий `withErrorHandling`* — `floatingIpRouter.ts`, `securityGroupRouter.ts`, `pcaRouter.ts` (все три домена уже оборачивали процедуры в `withErrorHandling`, поэтому проводка тут — однострочник):
+*No local try/catch, via the shared `withErrorHandling`* — `floatingIpRouter.ts`, `securityGroupRouter.ts`, `pcaRouter.ts` (all three domains already wrapped their procedures in `withErrorHandling`, so the wiring here is a one-liner):
 
 ```ts
 // packages/aurora/src/server/Network/routers/floatingIpRouter.ts:108-113
@@ -112,9 +112,9 @@ return withErrorHandling(async () => {
   const response = await network.get(`${FLOATING_IPS_BASE_URL}/${encodedId}`)
 ```
 
-Брошенный здесь `SignalOpenstackError` долетает до `wrapError` (`errorHandling.ts:19-26`) и корректно превращается в `BAD_REQUEST` — цепочка проверена по всем трём файлам, разрывов не нашлось.
+A `SignalOpenstackError` thrown here reaches `wrapError` (`errorHandling.ts:19-26`) and is correctly turned into `BAD_REQUEST` — the chain was checked across all three files, no gaps found.
 
-Особый случай — `projectRouter.ts:205-214` (`getProject`): вместо `throw` при невалидном ID процедура тихо возвращает `null`:
+A special case is `projectRouter.ts:205-214` (`getProject`): instead of a `throw` on an invalid ID, the procedure silently returns `null`:
 
 ```ts
 // packages/aurora/src/server/Project/routers/projectRouter.ts:205-214
@@ -130,11 +130,11 @@ const response = await callIdentityAPI(ctx.identityEndpoint, token.authToken, `p
 )
 ```
 
-На первый взгляд это расходится с паттерном «BAD_REQUEST везде», но по истории коммита (`aebd0cba`) и по остальному телу функции это соответствует уже существовавшему в этой процедуре контракту «любая неудача (сетевая, парсинг, HTTP-ошибка) → `null`» — то есть не новая непоследовательность, а сохранение старого поведения.
+At first glance this diverges from the "BAD_REQUEST everywhere" pattern, but according to the commit history (`aebd0cba`) and the rest of the function body, it matches the contract that already existed in this procedure, "any failure (network, parsing, HTTP error) → `null`" — i.e. not a new inconsistency but preservation of the old behavior.
 
-`pcaRouter.ts` (Services) — та же однострочная проводка через `withErrorHandling`, применена в 6 местах (`getById`, `delete`, `importCertificate`, `listCertificates`, `createCertificate`, `getCertificate` — последний с двумя ID, authority и certificate, оба валидируются отдельно).
+`pcaRouter.ts` (Services) — the same one-line wiring via `withErrorHandling`, applied in 6 places (`getById`, `delete`, `importCertificate`, `listCertificates`, `createCertificate`, `getCertificate` — the last one with two IDs, authority and certificate, both validated separately).
 
-Наконец, `errorHandling.ts:19-26` — сам маппинг:
+Finally, `errorHandling.ts:19-26` — the mapping itself:
 
 ```ts
 // packages/aurora/src/server/helpers/errorHandling.ts:19-26
@@ -148,31 +148,31 @@ if (error instanceof SignalOpenstackError) {
 }
 ```
 
-Docstring над `wrapError` (строка 8) обновлён синхронно с кодом — заявленное поведение соответствует реализации.
+The docstring above `wrapError` (line 8) is updated in sync with the code — the stated behavior matches the implementation.
 
-Тесты: добавлен только `packages/signal-openstack/src/pathHelpers.test.ts` (unit-тесты хелпера — happy path, path traversal, URL-спецсимволы). Ни один из шести существующих colocated test-файлов роутеров/хелперов (`flavorHelpers.test.ts`, `flavorRouter.test.ts`, `floatingIpRouter.test.ts`, `securityGroupRouter.test.ts`, `projectRouter.test.ts`, `pcaRouter.test.ts`) не обновлён — новое поведение (BAD_REQUEST на невалидный ID) проверено только на уровне хелпера, не через сами tRPC-процедуры.
+Tests: only `packages/signal-openstack/src/pathHelpers.test.ts` is added (unit tests of the helper — happy path, path traversal, URL special characters). None of the six existing colocated test files of the routers/helpers (`flavorHelpers.test.ts`, `flavorRouter.test.ts`, `floatingIpRouter.test.ts`, `securityGroupRouter.test.ts`, `projectRouter.test.ts`, `pcaRouter.test.ts`) is updated — the new behavior (BAD_REQUEST on an invalid ID) is tested only at the helper level, not through the tRPC procedures themselves.
 
-## Что затронуло
+## What it affects
 
-`validateAndEncodeResourceId`/`encodeOpenstackPathSegment` — новый экспорт, внешних потребителей за пределами файлов этого PR пока нет (проверено `git grep` по всему монорепо на `pr-1153-head`).
+`validateAndEncodeResourceId`/`encodeOpenstackPathSegment` are new exports; there are no external consumers outside this PR's files yet (verified with `git grep` across the whole monorepo at `pr-1153-head`).
 
-Важнее — что PR **не** покрывает, хотя рисунок уязвимости тот же (raw ID в шаблонной строке URL, схема входа — просто `z.string()` без ограничений):
+More important is what the PR does **not** cover, even though the vulnerability pattern is the same (a raw ID in a URL template string, the input schema is just `z.string()` without constraints):
 
-- **`packages/aurora/src/server/Compute/routers/imageRouter.ts`** — `memberId` (`types/image.ts:134`, `z.string()` без ограничений) подставляется без валидации в `v2/images/${imageId}/members/${memberId}` (`imageRouter.ts:746`, `:796` и ещё несколько мест). `imageId` там же защищён `z.string().uuid()`, `memberId` — нет.
-- **`packages/aurora/src/server/Network/routers/rbacPolicyRouter.ts`** — `policyId` без валидации в `${RBAC_POLICIES_BASE_URL}/${policyId}` (строки 99, 116).
-- **`packages/aurora/src/server/Network/routers/securityGroupRuleRouter.ts`** — `ruleId` без валидации в `${SECURITY_GROUP_RULES_BASE_URL}/${ruleId}` (строка 31).
+- **`packages/aurora/src/server/Compute/routers/imageRouter.ts`** — `memberId` (`types/image.ts:134`, `z.string()` without constraints) is substituted without validation into `v2/images/${imageId}/members/${memberId}` (`imageRouter.ts:746`, `:796` and several other places). `imageId` there is protected by `z.string().uuid()`, `memberId` is not.
+- **`packages/aurora/src/server/Network/routers/rbacPolicyRouter.ts`** — `policyId` without validation in `${RBAC_POLICIES_BASE_URL}/${policyId}` (lines 99, 116).
+- **`packages/aurora/src/server/Network/routers/securityGroupRuleRouter.ts`** — `ruleId` without validation in `${SECURITY_GROUP_RULES_BASE_URL}/${ruleId}` (line 31).
 
-Это не регрессия этого PR — просто у него, по собственному описанию, обозначенный периметр (6 роутеров/22 операции), и три вышеперечисленных места в этот периметр не попали. Учитывая, что тот же автор чинил соседние SSRF/path-related находки этой же серией PR (#1144 — абсолютные URL в пагинации изображений, #1148 — Swift account SSRF), похоже на точечное закрытие находок пентеста одна за другой, а не на системный проход — стоит явно спросить автора/ревьюеров, входят ли эти три места в следующую итерацию.
+This is not a regression of this PR — it simply has, per its own description, a defined perimeter (6 routers/22 operations), and the three places above did not fall within it. Given that the same author fixed neighboring SSRF/path-related findings in the same series of PRs (#1144 — absolute URLs in image pagination, #1148 — Swift account SSRF), this looks like closing pentest findings one at a time rather than a systematic pass — it's worth explicitly asking the author/reviewers whether these three places are part of the next iteration.
 
-Отдельно: в репозитории теперь два security-хелпера с непересекающейся зоной ответственности и без взаимных ссылок — `packages/aurora/src/server/helpers/urlValidation.ts` (добавлен тем же автором двумя PR раньше, для защиты от SSRF через абсолютные URL) и новый `packages/signal-openstack/src/pathHelpers.ts` (для path traversal через сегменты пути). Разные слои и разные уязвимости, конфликта нет, но при поиске «где у нас в проекте валидация небезопасного пользовательского ввода для OpenStack-запросов» человек без контекста найдёт только один из двух.
+Separately: the repository now has two security helpers with non-overlapping responsibilities and no cross-references — `packages/aurora/src/server/helpers/urlValidation.ts` (added by the same author two PRs earlier, to protect against SSRF via absolute URLs) and the new `packages/signal-openstack/src/pathHelpers.ts` (for path traversal via path segments). Different layers and different vulnerabilities, no conflict, but someone without context searching for "where in the project do we validate unsafe user input for OpenStack requests" will find only one of the two.
 
-## Ревью
+## Review
 
-Проблем с уверенностью ≥80 не найдено.
+No issues with confidence ≥80 were found.
 
-Ближе всего к порогу — переиспользование одного и того же кода `ERROR_CODES.*_FAILED` для двух разных причин отказа (валидация ID и обычный сетевой/backend-сбой) в шести функциях `flavorHelpers.ts` и один раз в `flavorRouter.getFlavorAccess` (см. цитаты выше в «Как это реализовано»): независимая проверка подтвердила, что на уровне `TRPCError.code` (`BAD_REQUEST` vs `INTERNAL_SERVER_ERROR`) различие сохраняется, но клиентский `useErrorTranslation` переключается по строке `ERROR_CODES`, а не по `code`, так что пользователь в обоих случаях увидит одно и то же сообщение «...Please try again» — включая невалидный ID, повторять запрос для которого бессмысленно. Оценка независимой проверки — 75/100 («выявится на практике при каждом обращении с невалидным ID», но не 100, так как сам защитный механизм это не ломает, страдает только диагностика/UX). Порог ≥80 не пройден, но стоит на заметке у ревьюера — тем более что в этом же PR для `getFlavorById`/`deleteFlavor` автор использовал более точный паттерн (выделенные `*_INVALID_ID`-коды), так что исправление — просто привести шесть остальных функций к тому же виду.
+Closest to the threshold is the reuse of the same `ERROR_CODES.*_FAILED` code for two different failure reasons (ID validation and a regular network/backend failure) in six functions of `flavorHelpers.ts` and once in `flavorRouter.getFlavorAccess` (see the quotes above in "How it is implemented"): an independent check confirmed that at the `TRPCError.code` level (`BAD_REQUEST` vs `INTERNAL_SERVER_ERROR`) the distinction is preserved, but the client-side `useErrorTranslation` switches on the `ERROR_CODES` string, not on `code`, so in both cases the user will see the same "...Please try again" message — including for an invalid ID, for which retrying the request is pointless. The independent check's score is 75/100 ("will surface in practice on every request with an invalid ID", but not 100, since it does not break the protective mechanism itself; only diagnostics/UX suffer). The ≥80 threshold was not met, but the reviewer should keep it in mind — all the more so since in this same PR the author used a more precise pattern for `getFlavorById`/`deleteFlavor` (dedicated `*_INVALID_ID` codes), so the fix is simply to bring the other six functions to the same form.
 
-Отдельно проверено и отклонено как не баг: возврат `null` вместо `BAD_REQUEST` в `projectRouter.getProject` при невалидном ID (согласуется с уже существовавшим в этой процедуре поведением «любой сбой → null»); повторная валидация одного и того же `flavorId` в `flavorRouter.getFlavorAccess` (сначала в самой процедуре, затем ещё раз внутри вызываемого хелпера) — избыточно, но не некорректно; предположение про обход проверки через `%2e%2e` — не работает, `encodeURIComponent` экранирует сам символ `%` до того, как строка попадёт в URL.
+Separately checked and rejected as not a bug: returning `null` instead of `BAD_REQUEST` in `projectRouter.getProject` on an invalid ID (consistent with the "any failure → null" behavior that already existed in this procedure); repeated validation of the same `flavorId` in `flavorRouter.getFlavorAccess` (first in the procedure itself, then again inside the called helper) — redundant but not incorrect; the hypothesis about bypassing the check via `%2e%2e` — does not work, `encodeURIComponent` escapes the `%` character itself before the string reaches the URL.
 
 ---
-Проанализировано: 12.08.2026 · коммит `cee23177`
+Analyzed: 2026-08-12 · commit `cee23177`

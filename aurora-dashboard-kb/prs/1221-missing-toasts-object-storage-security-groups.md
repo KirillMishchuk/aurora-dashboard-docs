@@ -8,15 +8,15 @@ branch: vlad-missing-toasts-for-secgroups-and-storages
 ---
 # PR #1221: feat(dashboard): add missing toasts for object-storage and security-groups
 
-**Автор:** vlad-schur-external-sap · **Статус:** смержен 31.08.2026 (создан 28.08.2026)
-**Ветки:** `vlad-missing-toasts-for-secgroups-and-storages` → `main` · **Файлов:** 19 (+1068/-101)
-**Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1221
+**Author:** vlad-schur-external-sap · **Status:** merged 2026-08-31 (created 2026-08-28)
+**Branches:** `vlad-missing-toasts-for-secgroups-and-storages` → `main` · **Files:** 19 (+1068/-101)
+**Link:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1221
 
-## Что сделано
+## What was done
 
-Часть issue #1136 — добивает покрытие toast-уведомлениями (`NotificationManager`/Sonner-based `toast.success/error()`, тот же паттерн, что уже стоит у Ceph/Swift/Images, см. отчёт по #1132) для двух фич, где часть операций молча проходила без обратной связи: Security Groups (сама группа + правила + RBAC-политики шаринга на другой проект) и Ceph Bucket Policy (сохранение политики бакета — до этого была только у удаления).
+Part of issue #1136 — it completes toast notification coverage (`NotificationManager`/Sonner-based `toast.success/error()`, the same pattern already used by Ceph/Swift/Images, see the report on #1132) for two features where some operations silently went through without feedback: Security Groups (the group itself + rules + RBAC policies for sharing with another project) and Ceph Bucket Policy (saving a bucket policy — previously only deletion had it).
 
-**Security Groups.** До PR отдельная страница деталей группы (`useSecurityGroupDetails.ts`) вообще не показывала тостов ни на один из трёх мутейшенов (update группы, create/delete правила) — только error-состояние в форме. Список групп (`SecurityGroupsList.tsx`) уже показывал inline-ошибку через `Message`, но не toast, и не показывал успех никак. RBAC-политики (шаринг группы на другой проект) были в таком же состоянии. PR добавляет toast на все шесть операций разом, используя единый новый файл билдеров:
+**Security Groups.** Before the PR, the separate group details page (`useSecurityGroupDetails.ts`) showed no toasts at all for any of its three mutations (group update, rule create/delete) — only an error state in the form. The group list (`SecurityGroupsList.tsx`) already showed an inline error via `Message`, but not a toast, and did not show success in any way. RBAC policies (sharing a group with another project) were in the same state. The PR adds a toast to all six operations at once, using a single new builders file:
 
 ```tsx
 // SecurityGroupToastNotifications.tsx:5-27
@@ -26,10 +26,10 @@ export const getSecurityGroupDeletedToast = (name: string): ToastReturnType => (
   message: <Trans>Security Group Deleted</Trans>,
   description: <Trans>Security group "{name}" was successfully deleted.</Trans>,
 })
-// ... симметричные Update/RuleCreated/RuleDeleted/RBACPolicyAdded/RBACPolicyDeleted билдеры
+// ... symmetric Update/RuleCreated/RuleDeleted/RBACPolicyAdded/RBACPolicyDeleted builders
 ```
 
-На стороне вызова, например `useSecurityGroupDetails.ts:99-113`, тост для успешного переименования берёт имя из отправленных `variables`, с фолбэком на закэшированные данные, если поле не менялось (например, при чистом добавлении правила):
+On the call side, for example `useSecurityGroupDetails.ts:99-113`, the toast for a successful rename takes the name from the submitted `variables`, falling back to the cached data if the field did not change (for example, when only a rule is added):
 
 ```tsx
 // useSecurityGroupDetails.ts:99-113
@@ -50,7 +50,7 @@ const updateMutation = trpcReact.network.securityGroup.update.useMutation({
 })
 ```
 
-В `SecurityGroupsList.tsx` (список групп) успех теперь идёт либо через `.mutateAsync` + `try/catch` (update, create), либо через колбэк, переданный прямо в `.mutate()` (delete) — два разных стиля для соседних операций в одном файле, но без функциональной проблемы (см. «Ревью»):
+In `SecurityGroupsList.tsx` (the group list), success is now handled either via `.mutateAsync` + `try/catch` (update, create) or via a callback passed directly to `.mutate()` (delete) — two different styles for neighboring operations in the same file, but without a functional problem (see "Review"):
 
 ```tsx
 // SecurityGroupsList.tsx:170-197
@@ -79,9 +79,9 @@ const handleUpdateSecurityGroup = async (securityGroupId, data) => {
 }
 ```
 
-RBAC-политики получили тост на добавление (`AddRBACPolicyModal.tsx:41-53`, тост зависит от `variables.targetTenant`, т.е. реально отправленного значения) и на удаление (`SecurityGroupRBACPolicies.tsx:58-84`) — на удалении успех и ошибка обрабатываются в разных местах: `onError` тостит из конфига мутейшена (:64-67), а `onSuccess`-тост передан инлайн в `.mutate()` (:76-84), а не в конфиг — асимметрично, но обе ветки реально срабатывают.
+RBAC policies got a toast on add (`AddRBACPolicyModal.tsx:41-53`; the toast depends on `variables.targetTenant`, i.e. the value actually submitted) and on delete (`SecurityGroupRBACPolicies.tsx:58-84`) — on delete, success and error are handled in different places: `onError` toasts from the mutation config (:64-67), while the `onSuccess` toast is passed inline to `.mutate()` (:76-84) rather than in the config — asymmetric, but both branches actually fire.
 
-**Ceph Bucket Policy.** До PR `BucketPolicyModal` (общая модалка просмотра/редактирования/удаления политики бакета) принимала `onSuccess?: (bucketName: string) => void` / `onError?: (...) => void`, не различая, была ли операция сохранением или удалением политики. Единственный потребитель, который реально передавал эти колбэки (`BucketModals.tsx`), поэтому не мог показать разный текст тоста для save/delete — и фактически не показывал тост на save вообще, только на delete (через отдельный `getBucketPolicyDeletedToast`). PR расширяет сигнатуру третьим параметром `action: "saved" | "deleted"`:
+**Ceph Bucket Policy.** Before the PR, `BucketPolicyModal` (the shared modal for viewing/editing/deleting a bucket policy) accepted `onSuccess?: (bucketName: string) => void` / `onError?: (...) => void`, without distinguishing whether the operation was saving or deleting the policy. The only consumer that actually passed these callbacks (`BucketModals.tsx`) therefore could not show different toast text for save/delete — and in practice did not show a toast on save at all, only on delete (via a separate `getBucketPolicyDeletedToast`). The PR extends the signature with a third parameter `action: "saved" | "deleted"`:
 
 ```tsx
 // BucketPolicyModal.tsx:11-17, 119-140
@@ -103,36 +103,36 @@ const deleteMutation = trpcReact.storage.ceph.bucketPolicy.delete.useMutation({
 })
 ```
 
-и `BucketModals.tsx:113-129` branches on `action` to pick the right pair of toast builders (new `getBucketPolicySavedToast`/`getBucketPolicySaveErrorToast`, added to `BucketToastNotifications.tsx` alongside the existing `getBucketPolicyDeletedToast`/`getBucketPolicyDeleteErrorToast`). Попутно `BucketToastNotifications.tsx` вынес повторяющийся инлайн-тип `{ message: ReactNode } & NotificationOptions` во всех ~24 билдерах в общий `type ToastReturnType` (чисто рефакторинг, поведение не меняет).
+and `BucketModals.tsx:113-129` branches on `action` to pick the right pair of toast builders (new `getBucketPolicySavedToast`/`getBucketPolicySaveErrorToast`, added to `BucketToastNotifications.tsx` alongside the existing `getBucketPolicyDeletedToast`/`getBucketPolicyDeleteErrorToast`). Along the way, `BucketToastNotifications.tsx` extracted the repeated inline type `{ message: ReactNode } & NotificationOptions` in all ~24 builders into a shared `type ToastReturnType` (pure refactoring, no behavior change).
 
-Locale-файлы (`packages/aurora/src/locales/{de,en}/messages.{po,ts}`) — стандартная `lingui extract`-регенерация под новые строки `<Trans>`, оба каталога синхронны, пустых `msgstr ""` нет.
+The locale files (`packages/aurora/src/locales/{de,en}/messages.{po,ts}`) are a standard `lingui extract` regeneration for the new `<Trans>` strings; both catalogs are in sync, and there are no empty `msgstr ""`.
 
-## Как это реализовано
+## How it is implemented
 
-См. фрагменты выше — вся работа сводится к (1) новому файлу `SecurityGroupToastNotifications.tsx` с шестью билдерами по образцу уже существующих `BucketToastNotifications.tsx`/`ImageToastNotifications.tsx`/`ObjectToastNotifications.tsx`, (2) добавлению `onSuccess`/`onError` в существующие `useMutation`-конфиги пяти security-group компонентов и (3) добавлению третьего параметра `action` в контракт `BucketPolicyModal`, чтобы единая модалка могла сообщить, какая из двух её мутаций сработала. Ни один новый tRPC-вызов не добавлен — PR только навешивает UI-обратную связь на уже существующие мутации.
+See the snippets above — all the work comes down to (1) a new file `SecurityGroupToastNotifications.tsx` with six builders modeled on the existing `BucketToastNotifications.tsx`/`ImageToastNotifications.tsx`/`ObjectToastNotifications.tsx`, (2) adding `onSuccess`/`onError` to the existing `useMutation` configs of five security-group components, and (3) adding a third parameter `action` to the `BucketPolicyModal` contract so that the single modal can report which of its two mutations fired. No new tRPC call was added — the PR only attaches UI feedback to already existing mutations.
 
-Тесты добавлены/расширены под каждый новый тост: два новых тестовых файла (`useSecurityGroupDetails.test.ts`, `SecurityGroupToastNotifications.test.tsx`, `AddRBACPolicyModal.test.tsx`, `SecurityGroupsList.test.tsx` — фактически все новые), плюс расширения существующих (`SecurityGroupRBACPolicies.test.tsx`, `BucketPolicyModal.test.tsx`, `BucketToastNotifications.test.tsx`). `BucketPolicyModal.test.tsx` явно проверяет ветвление по `action` (`reports whether a policy was saved or deleted`, :277-286).
+Tests were added/extended for each new toast: two new test files (`useSecurityGroupDetails.test.ts`, `SecurityGroupToastNotifications.test.tsx`, `AddRBACPolicyModal.test.tsx`, `SecurityGroupsList.test.tsx` — in fact all of them are new), plus extensions of existing ones (`SecurityGroupRBACPolicies.test.tsx`, `BucketPolicyModal.test.tsx`, `BucketToastNotifications.test.tsx`). `BucketPolicyModal.test.tsx` explicitly checks the branching on `action` (`reports whether a policy was saved or deleted`, :277-286).
 
-## Что затронуло
+## What it affects
 
-Все шесть новых экспортов `SecurityGroupToastNotifications.tsx` потребляются только файлами, изменёнными в этом же PR (`git grep` по монорепо на head-коммите подтверждает — 4 потребителя, все в диффе). `BucketToastNotifications.tsx` уже имеет более широкий круг потребителей (`CorsRulesTab/Table`, `LifecycleRulesTab/Table`, `index.tsx` реэкспортирует всё через `export *`) — они не тронуты этим PR и не ссылаются на новые `getBucketPolicySavedToast`/`getBucketPolicySaveErrorToast`, так что расширение файла безопасно для них.
+All six new exports of `SecurityGroupToastNotifications.tsx` are consumed only by files changed in this same PR (`git grep` across the monorepo at the head commit confirms it — 4 consumers, all in the diff). `BucketToastNotifications.tsx` already has a wider set of consumers (`CorsRulesTab/Table`, `LifecycleRulesTab/Table`, `index.tsx` re-exports everything via `export *`) — they are not touched by this PR and do not reference the new `getBucketPolicySavedToast`/`getBucketPolicySaveErrorToast`, so extending the file is safe for them.
 
-`BucketPolicyModal` — единственный компонент, чья публичная сигнатура (`onSuccess`/`onError`) реально меняется — имеет **двух** потребителей в монорепо, не одного: `BucketModals.tsx` (обновлён этим PR) и `ObjectBrowserView.tsx:918-922` (Ceph Object Browser, **не тронут этим PR**). Сигнатура расширяется, а не сужается (добавлен третий параметр), поэтому обратной совместимости на уровне TypeScript/рантайма ничего не угрожает — но стоит зафиксировать для истории: `ObjectBrowserView.tsx` вообще не передаёт `onSuccess`/`onError` в `BucketPolicyModal` (оба пропа опциональны), то есть сохранение/удаление политики бакета из Object Browser как не показывало тост до PR, так и не показывает после. Это никогда не было в объёме этого PR (заголовок и changeset говорят только про security-groups и object-storage списки/детали, не про Object Browser) и не регрессия этого PR — просто соседний пробел в том же покрытии, который стоит иметь в виду при следующей итерации issue #1136.
+`BucketPolicyModal` — the only component whose public signature (`onSuccess`/`onError`) actually changes — has **two** consumers in the monorepo, not one: `BucketModals.tsx` (updated by this PR) and `ObjectBrowserView.tsx:918-922` (Ceph Object Browser, **not touched by this PR**). The signature is widened rather than narrowed (a third parameter is added), so backward compatibility at the TypeScript/runtime level is not at risk — but it is worth recording for history: `ObjectBrowserView.tsx` does not pass `onSuccess`/`onError` to `BucketPolicyModal` at all (both props are optional), meaning that saving/deleting a bucket policy from the Object Browser showed no toast before the PR and still shows none after. This was never in the scope of this PR (the title and changeset talk only about security groups and object-storage lists/details, not the Object Browser) and is not a regression of this PR — just an adjacent gap in the same coverage that is worth keeping in mind for the next iteration of issue #1136.
 
-Аналогично в Security Groups: `createSecurityGroupMutation` (`SecurityGroupsList.tsx:117-133`) — единственная из четырёх мутаций группы, которая так и не получила success-тост (только `setCreateError`/inline `Message` на ошибку) — строки этого мутейшена PR не трогает вообще, значит это тоже не регрессия, а нетронутый остаток той же задачи.
+Similarly in Security Groups: `createSecurityGroupMutation` (`SecurityGroupsList.tsx:117-133`) is the only one of the four group mutations that never got a success toast (only `setCreateError`/inline `Message` on error) — the PR does not touch this mutation's lines at all, so this is not a regression either, but an untouched remainder of the same task.
 
-## Ревью
+## Review
 
-Через диф и полные файлы на head-коммите (`e6332b18b`) прогнаны параллельно: CLAUDE.md-комплаенс, bug-scan, historical context (`git log -p`/`git blame` по всем 8 нетестовым источникам, сверка с тем, как аналогичный паттерн вводили #1092/#1132 CORS/Lifecycle/Images), prior-feedback (публичный REST API GitHub — `gh` в окружении недоступен без токена, поэтому вместо `gh pr list`/`gh api` использовался неаутентифицированный `curl` к `api.github.com`, лимит запросов ниже, но заняло меньше 60) и comment-compliance.
+The following were run in parallel over the diff and the full files at the head commit (`e6332b18b`): CLAUDE.md compliance, bug-scan, historical context (`git log -p`/`git blame` across all 8 non-test sources, compared with how the analogous pattern was introduced in #1092/#1132 CORS/Lifecycle/Images), prior-feedback (GitHub's public REST API — `gh` is unavailable in the environment without a token, so unauthenticated `curl` to `api.github.com` was used instead of `gh pr list`/`gh api`; the rate limit is lower, but it took fewer than 60 requests) and comment-compliance.
 
-**Проблем с уверенностью ≥80 не найдено.**
+**No issues found with confidence ≥80.**
 
-Кандидаты, не прошедшие порог (для полноты, чтобы не искать заново):
+Candidates that did not pass the threshold (for completeness, so they do not have to be searched for again):
 
-- **Два идентичных комментария `// onError handles error state and UI feedback`** (`SecurityGroupsList.tsx:166` в `handleCreateSecurityGroup` и `:195` в `handleUpdateSecurityGroup`) на деле описывают разный уровень обратной связи: `onError` у create-мутации (:130-132) выставляет только inline-состояние `setCreateError`, тост на создание в этом PR не добавлен вовсе; `onError` у update-мутации (:154-158) выставляет inline-состояние **и** тостит. Формально комментарий не врёт («UI feedback» покрывает оба случая), поэтому не тянет на нарушение — 25/100.
-- **Одновременный показ inline `Message`-баннера и `toast.error` на одну и ту же ошибку** (`SecurityGroupsList.tsx:141-144, 154-158`, аналогично `SecurityGroupRBACPolicies.tsx`) — это ровно то, что заявлено целью PR (добавить тосты поверх уже существующего inline-состояния, не заменяя его), не отклонение — 0/100.
-- **Пропуск найден предыдущим прогоном по prior-feedback**: PR #1092 (CORS для бакетов) получил ревью-замечание «репортить удаление как удаление, а не как сохранение» для точно такого же паттерна общей save/delete-модалки — этот PR следует той же рекомендации на своём коде (`action: "saved" | "deleted"`), так что тут не пропуск, а подтверждение, что конвенция соблюдена — не репортится как находка, зафиксировано для истории.
-- Не находки, а зафиксированные для истории out-of-scope пробелы (см. «Что затронуло»): `ObjectBrowserView.tsx`'s `BucketPolicyModal` без `onSuccess`/`onError` и `createSecurityGroupMutation` без success-тоста — оба на строках, которые этот PR не трогает, поэтому не репортятся как находки этого PR.
+- **Two identical comments `// onError handles error state and UI feedback`** (`SecurityGroupsList.tsx:166` in `handleCreateSecurityGroup` and `:195` in `handleUpdateSecurityGroup`) actually describe different levels of feedback: `onError` of the create mutation (:130-132) sets only the inline `setCreateError` state, and no toast on create is added in this PR at all; `onError` of the update mutation (:154-158) sets the inline state **and** toasts. Formally the comment is not wrong ("UI feedback" covers both cases), so it does not qualify as a violation — 25/100.
+- **Showing both an inline `Message` banner and `toast.error` for the same error at once** (`SecurityGroupsList.tsx:141-144, 154-158`, similarly `SecurityGroupRBACPolicies.tsx`) — this is exactly the stated goal of the PR (to add toasts on top of the existing inline state, not replace it), not a deviation — 0/100.
+- **A gap found by the previous prior-feedback run**: PR #1092 (CORS for buckets) received a review comment "report deletion as deletion, not as saving" for exactly the same shared save/delete modal pattern — this PR follows the same recommendation in its own code (`action: "saved" | "deleted"`), so this is not a gap but confirmation that the convention is followed — not reported as a finding, recorded for history.
+- Not findings but out-of-scope gaps recorded for history (see "What it affects"): `ObjectBrowserView.tsx`'s `BucketPolicyModal` without `onSuccess`/`onError` and `createSecurityGroupMutation` without a success toast — both on lines this PR does not touch, so they are not reported as findings of this PR.
 
 ---
-Проанализировано: 28.08.2026 · коммит `e6332b18becbef4b9934dbbe1b138b8cb7a81a35`
+Analyzed: 2026-08-28 · commit `e6332b18becbef4b9934dbbe1b138b8cb7a81a35`

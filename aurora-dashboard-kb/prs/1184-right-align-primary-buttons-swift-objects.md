@@ -8,16 +8,16 @@ branch: mark-right-align-primary-buttons
 ---
 # PR #1184: fix(portal): right-align primary buttons / fix button order (#1183)
 
-**Автор:** mark-karnaukh-extern-sap · **Статус:** смержен 18.08.2026 (коммит `9cdf0ae`; создан 18.08.2026)
-**Ветки:** `mark-right-align-primary-buttons` → `main` · **Файлов:** 2 (+9/-3)
-**Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1184
+**Author:** mark-karnaukh-extern-sap · **Status:** merged 2026-08-18 (commit `9cdf0ae`; created 2026-08-18)
+**Branches:** `mark-right-align-primary-buttons` → `main` · **Files:** 2 (+9/-3)
+**Link:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1184
 
-## Что сделано
+## What was done
 
-Закрывает issue #1183 (AC: primary create-действие должно быть последней кнопкой, все primary-кнопки — выровнены по правому краю). В тулбаре Swift Objects (Zone 1) кнопки "Create Folder" (primary) и "Upload Object" стояли в порядке "Create Folder → Upload Object" — primary-кнопка была не последней. PR меняет порядок на "Upload Object → Create Folder", ничего больше не трогая: сам JSX, обработчики и структура `Stack` идентичны, поменялись только две соседние строки.
+Closes issue #1183 (AC: the primary create action must be the last button, and all primary buttons must be right-aligned). In the Swift Objects toolbar (Zone 1), the "Create Folder" (primary) and "Upload Object" buttons were in the order "Create Folder → Upload Object" — the primary button was not last. The PR changes the order to "Upload Object → Create Folder" and touches nothing else: the JSX itself, the handlers and the `Stack` structure are identical; only two adjacent lines swapped places.
 
 ```tsx
-// SwiftObjects/index.tsx:424-429 (после правки)
+// SwiftObjects/index.tsx:424-429 (after the change)
 <Button className="whitespace-nowrap" onClick={() => setUploadModalOpen(true)}>
   <Trans>Upload Object</Trans>
 </Button>
@@ -26,17 +26,17 @@ branch: mark-right-align-primary-buttons
 </Button>
 ```
 
-Changeset `.changeset/open-maps-burn.md` (`patch`, `@cobaltcore-dev/aurora`) идёт в этом же PR — в отличие от #1181, здесь он был добавлен сразу, а не отдельным поздним коммитом.
+The changeset `.changeset/open-maps-burn.md` (`patch`, `@cobaltcore-dev/aurora`) ships in the same PR — unlike #1181, here it was added right away rather than in a separate late commit.
 
-## Что затронуло
+## What it affects
 
-Описание PR утверждает, что `SwiftContainers` уже удовлетворяет требованиям issue — проверено по коду (`Swift/Containers/index.tsx:295-311`): там всего одна кнопка ("Create Container", `variant="primary"`) в `Stack distribution="end"`, она тривиально последняя и правее всех. Утверждение верное.
+The PR description claims that `SwiftContainers` already satisfies the issue's requirements — verified against the code (`Swift/Containers/index.tsx:295-311`): there is only one button there ("Create Container", `variant="primary"`) in a `Stack distribution="end"`, so it is trivially last and rightmost. The claim is correct.
 
-Дальше issue сформулирован широко ("all primary buttons are right-aligned consistently across the layout"), хотя заголовок помечен `[Bug](Swift)`, так что стоило проверить, не остался ли где-то ещё в приложении тот же паттерн "primary-кнопка не последняя". Прошёлся по всем аналогичным тулбарам (Zone 1 "sort + create") в Compute/Network/Storage: `Flavors/List.tsx`, `Images/List.tsx`, `FloatingIpsList.tsx`, `SecurityGroupsList.tsx`, `Ceph/Buckets/index.tsx` — везде ровно одна primary-кнопка ("Create ...") в `Stack distribution="end"`, тривиально последняя и правая. Единственное другое место с *двумя* кнопками в одной зоне — Ceph-аналог того же экрана, `Ceph/Objects/ObjectBrowserView.tsx:644-659` — там порядок уже правильный: `Upload Object` первой, `Create Folder` (primary) последней. Похоже, именно с этого Ceph-паттерна и была скопирована Swift-версия, но при копировании порядок кнопок перепутали — этот PR просто приводит Swift к уже существующему в Ceph эталону. Пропущенных мест с той же проблемой не найдено.
+Beyond that, the issue is worded broadly ("all primary buttons are right-aligned consistently across the layout"), even though its title is tagged `[Bug](Swift)`, so it was worth checking whether the same "primary button is not last" pattern remained anywhere else in the app. I went through all similar toolbars (Zone 1 "sort + create") in Compute/Network/Storage: `Flavors/List.tsx`, `Images/List.tsx`, `FloatingIpsList.tsx`, `SecurityGroupsList.tsx`, `Ceph/Buckets/index.tsx` — everywhere there is exactly one primary button ("Create ...") in a `Stack distribution="end"`, trivially last and rightmost. The only other place with *two* buttons in one zone is the Ceph counterpart of the same screen, `Ceph/Objects/ObjectBrowserView.tsx:644-659` — there the order is already correct: `Upload Object` first, `Create Folder` (primary) last. It looks like the Swift version was copied from exactly this Ceph pattern, but the button order got swapped during copying — this PR simply brings Swift in line with the reference that already exists in Ceph. No other places with the same problem were missed.
 
-## Ревью
+## Review
 
-Проблем с уверенностью ≥80 не найдено. Изменение минимальное и точное (две строки поменялись местами, никакой другой логики не тронуто), changeset на месте и соответствует масштабу (`patch`), сопоставление с Ceph-аналогом подтверждает и корректность, и полноту исправления. Существующие тесты (`index.test.tsx`) находят кнопки через `getByRole("button", { name: ... })` — они не зависят от DOM-порядка и не проверяют его; новый тест на сам порядок кнопок не добавлен, но это ниже порога (CLAUDE.md не требует тестов на визуальный порядок, а поведение кнопок не изменилось).
+No issues with confidence ≥80 found. The change is minimal and precise (two lines swapped, no other logic touched), the changeset is present and matches the scope (`patch`), and the comparison with the Ceph counterpart confirms both the correctness and the completeness of the fix. The existing tests (`index.test.tsx`) locate the buttons via `getByRole("button", { name: ... })` — they do not depend on DOM order and do not check it; no new test for the button order itself was added, but this is below the threshold (CLAUDE.md does not require tests for visual order, and the buttons' behavior has not changed).
 
 ---
-Проанализировано: 18.08.2026 · коммит `dd74644`
+Analyzed: 2026-08-18 · commit `dd74644`

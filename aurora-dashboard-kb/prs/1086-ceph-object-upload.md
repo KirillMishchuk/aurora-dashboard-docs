@@ -8,21 +8,21 @@ branch: mark-ceph-object-upload-setup
 ---
 # PR #1086: feat(portal): add object upload for Ceph (S3) buckets
 
-**Автор:** mark-karnaukh-extern-sap · **Статус:** смержен 24.07.2026 (`1e9ba790`)
-**Ветки:** `mark-ceph-object-upload-setup` → `main` · **Файлов:** 12 (+1691/-10)
-**Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1086
+**Author:** mark-karnaukh-extern-sap · **Status:** merged 2026-07-24 (`1e9ba790`)
+**Branches:** `mark-ceph-object-upload-setup` → `main` · **Files:** 12 (+1691/-10)
+**Link:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1086
 
-Закрывает #1087.
+Closes #1087.
 
-## Что сделано
+## What was done
 
-До этого PR в Ceph (S3) бакетах можно было браузить, скачивать и управлять объектами, но не загружать новые — пользователям приходилось идти во внешние S3-тулы. PR добавляет upload с паритетом уже существующего Swift-аплоада: кнопка в тулбаре объект-браузера, модалка с drag-and-drop/file-picker, live-прогресс, отмена, тосты успеха/отмены/ошибки.
+Before this PR, Ceph (S3) buckets could be browsed, and objects could be downloaded and managed, but new ones could not be uploaded — users had to turn to external S3 tools. The PR adds upload at parity with the existing Swift upload: a button in the object browser toolbar, a modal with drag-and-drop/file picker, live progress, cancellation, and success/cancellation/error toasts.
 
-Реализация буквально **порт** существующего Swift-аплоада на S3: серверная и клиентская части почти построчно копируют структуру `swiftRouter.uploadObject`/`watchUploadProgress` и клиентский `Swift/Objects/UploadObjectModal.tsx`, с заменой Swift-специфики (`x-upload-account` заголовок, которого у Ceph нет — это явно проверено отдельным тестом) на S3 (`PutObjectCommand`). Ключевая архитектурная деталь, вынесшая логику в отдельную процедуру: `octetInputParser` (для приёма файла как raw-потока) нельзя присоединить к `cephProtectedProcedure`, потому что та построена на `projectScopedProcedure`, которая уже несёт объектный `project_id` инпут — а tRPC отказывается сливать объектный инпут с raw-stream инпутом ("All input parsers did not resolve to an object"). Поэтому метаданные (project id, бакет, ключ объекта, тип, размер, id для прогресса) едут заголовками `x-upload-*`, а не tRPC-инпутом — тот же приём, что уже использует Swift-аплоад.
+The implementation is literally a **port** of the existing Swift upload to S3: the server and client parts copy the structure of `swiftRouter.uploadObject`/`watchUploadProgress` and the client-side `Swift/Objects/UploadObjectModal.tsx` almost line by line, replacing the Swift specifics (the `x-upload-account` header, which Ceph does not have — this is explicitly checked by a separate test) with S3 (`PutObjectCommand`). The key architectural detail that pushed the logic into a separate procedure: `octetInputParser` (for receiving the file as a raw stream) cannot be attached to `cephProtectedProcedure`, because the latter is built on `projectScopedProcedure`, which already carries an object `project_id` input — and tRPC refuses to merge an object input with a raw-stream input ("All input parsers did not resolve to an object"). So the metadata (project id, bucket, object key, type, size, progress id) travels in `x-upload-*` headers rather than as tRPC input — the same technique the Swift upload already uses.
 
-## Как это реализовано
+## How it is implemented
 
-Новая `cephUploadProcedure` (`packages/aurora/src/server/Storage/cephProcedure.ts:135-178`) строится на базовой `protectedProcedure` (не `cephProtectedProcedure`) и вручную рескоупит OpenStack-сессию из заголовка `x-upload-project-id`:
+The new `cephUploadProcedure` (`packages/aurora/src/server/Storage/cephProcedure.ts:135-178`) is built on the base `protectedProcedure` (not `cephProtectedProcedure`) and manually rescopes the OpenStack session from the `x-upload-project-id` header:
 
 ```ts
 // cephProcedure.ts:135-144
@@ -34,9 +34,9 @@ export const cephUploadProcedure = protectedProcedure.use(async function resolve
   }
 ```
 
-Далее рескоупленная сессия (`scopedCtx`, не исходный `ctx`) идёт и в резолв EC2-credentials, и в возвращаемый контекст (`cephProcedure.ts:165-177`) — в самой ветке PR это изначально было упущено (spread шёл от `ctx`, а не `scopedCtx`), баг поймал Copilot-ревьюер на самом PR и это было исправлено отдельным коммитом `38bcf24` ("scope upload session to the rescoped project") ещё до текущего head — на актуальном коде всё верно.
+The rescoped session (`scopedCtx`, not the original `ctx`) then goes both into the EC2-credentials resolution and into the returned context (`cephProcedure.ts:165-177`) — on the PR branch itself this was initially missed (the spread came from `ctx`, not `scopedCtx`); the Copilot reviewer caught the bug on the PR itself, and it was fixed in a separate commit `38bcf24` ("scope upload session to the rescoped project") before the current head — on the current code everything is correct.
 
-`uploadObject` (`objectRouter.ts:1092-1216`) читает метаданные из заголовков, валидирует их как непустые строки после `trim()` (то же самое, не более строгое, что и Zod-схемы `containerName`/`objectKey` для остальных Ceph-процедур в `types/ceph.ts` — не ослабление, а совпадение с конвенцией), затем гоняет файл через `Transform`-поток, который считает байты и эмитит прогресс, прежде чем передать `PutObjectCommand`:
+`uploadObject` (`objectRouter.ts:1092-1216`) reads the metadata from the headers, validates it as non-empty strings after `trim()` (the same as, not stricter than, the `containerName`/`objectKey` Zod schemas for the other Ceph procedures in `types/ceph.ts` — not a weakening, but a match with the convention), then runs the file through a `Transform` stream that counts bytes and emits progress before handing it to `PutObjectCommand`:
 
 ```ts
 // objectRouter.ts:1099-1117
@@ -49,26 +49,26 @@ if (!bucket) { throw new TRPCError({ code: "BAD_REQUEST", message: "x-upload-con
 if (!objectKey) { throw new TRPCError({ code: "BAD_REQUEST", message: "x-upload-object header is required" }) }
 ```
 
-`watchUploadProgress` (`objectRouter.ts:1227-...`) — async-generator subscription, отдаёт снапшот текущего прогресса сразу при подписке, затем слушает `EventEmitter` до completion/error или до 30-секундного bounded wait (на случай, если аплоад уже завершился до того, как клиент успел подписаться).
+`watchUploadProgress` (`objectRouter.ts:1227-...`) is an async-generator subscription; it yields a snapshot of the current progress immediately on subscription, then listens to an `EventEmitter` until completion/error or until a 30-second bounded wait (in case the upload already finished before the client managed to subscribe).
 
-Клиент — `UploadObjectModal.tsx` (новый файл, 309 строк) — почти дословная копия `Swift/Objects/UploadObjectModal.tsx` с заменой `container`/`account` на `bucketName` (без account — у Ceph нет этого понятия), и вызовом `trpcClient.storage.ceph.objects.uploadObject.mutate` вместо `storage.swift.uploadObject`. Подключается в `ObjectBrowserView.tsx:612-631` новой кнопкой тулбара «Upload Object».
+The client — `UploadObjectModal.tsx` (new file, 309 lines) — is a near-verbatim copy of `Swift/Objects/UploadObjectModal.tsx`, with `container`/`account` replaced by `bucketName` (no account — Ceph has no such concept), and calling `trpcClient.storage.ceph.objects.uploadObject.mutate` instead of `storage.swift.uploadObject`. It is wired into `ObjectBrowserView.tsx:612-631` via a new "Upload Object" toolbar button.
 
-## Что затронуло
+## What it affects
 
-`uploadObject`/`watchUploadProgress` корректно вписаны в экспортируемый `objectRouter` (`routers/ceph/index.ts` → `routers/index.ts`) — новые процедуры реально доступны через `AuroraRouter`, ничего не забыто. `cephUploadProcedure` используется только этим router — внешних потребителей нет. `UploadObjectModal` (Ceph) — самостоятельный компонент, не переиспользуется нигде за пределами `ObjectBrowserView.tsx`; одноимённый Swift-компонент (`Swift/Objects/UploadObjectModal.tsx`) — отдельный, не конфликтует (разные директории, разный tRPC-путь).
+`uploadObject`/`watchUploadProgress` are correctly registered in the exported `objectRouter` (`routers/ceph/index.ts` → `routers/index.ts`) — the new procedures are actually reachable via `AuroraRouter`; nothing is missing. `cephUploadProcedure` is used only by this router — there are no external consumers. `UploadObjectModal` (Ceph) is a standalone component, not reused anywhere outside `ObjectBrowserView.tsx`; the Swift component of the same name (`Swift/Objects/UploadObjectModal.tsx`) is separate and does not conflict (different directories, different tRPC path).
 
-Инвалидация списка после аплоада (`utils.storage.ceph.objects.list.invalidate()`, без аргументов — то есть широко, все варианты списка, не только текущий бакет) — не решение этого PR: ровно тот же паттерн используют все существующие Ceph-модалки объектов (`CreateFolderModal`, `DeleteObjectModal`, `MoveObjectModal`, `EditMetadataModal` и т.д.) — консистентно, не регрессия.
+Invalidating the list after upload (`utils.storage.ceph.objects.list.invalidate()`, without arguments — i.e. broadly, all list variants, not just the current bucket) is not a decision made by this PR: exactly the same pattern is used by all existing Ceph object modals (`CreateFolderModal`, `DeleteObjectModal`, `MoveObjectModal`, `EditMetadataModal`, etc.) — consistent, not a regression.
 
-Права доступа: в этом домене (Storage/Ceph+Swift) ни одна процедура-мутация объектов не делает серверный `canUser`-чек внутри себя — `canUser` (`routers/permissionRouter.ts`) существует только как отдельный query для UI-гейтинга кнопок; реальная авторизация полностью делегирована Keystone-scoped S3/Swift credentials на уровне Ceph RGW. `uploadObject` в этом смысле ничем не отличается от `deleteObject`/`moveObject`/etc. — не новый пробел, существующая архитектура домена.
+Access control: in this domain (Storage/Ceph+Swift), no object-mutation procedure performs a server-side `canUser` check internally — `canUser` (`routers/permissionRouter.ts`) exists only as a separate query for UI gating of buttons; actual authorization is fully delegated to the Keystone-scoped S3/Swift credentials at the Ceph RGW level. In this respect `uploadObject` is no different from `deleteObject`/`moveObject`/etc. — not a new gap, but the existing architecture of the domain.
 
-## Ревью
+## Review
 
-Через диф и историю прогнаны параллельно bug-scan, comment-compliance, historical-context (сравнение построчно со Swift-оригиналом, который этот PR явно заявляет как копируемый) и prior-feedback (issue/PR-комментарии). На самом PR уже были найдены и закрыты в рамках этой же ветки: баг с нерескоупленным `ctx` (Copilot, фикс `38bcf24`), слишком узкая инвалидация списка (Copilot, фикс `2171b5e3`), утечка таймера в тесте (Copilot, фикс `b3bad147`), `setTimeout`→`setImmediate` (CodeRabbit, фикс `4ed90c3`), и позиция кнопки (человек-ревьюер, фикс `4e80607d`, дальше approve). Дальше — то, что этот цикл не поймал.
+The diff and history were run in parallel through bug-scan, comment-compliance, historical-context (a line-by-line comparison with the Swift original, which this PR explicitly states it copies) and prior-feedback (issue/PR comments). The following had already been found and closed on this same branch during the PR: the bug with the non-rescoped `ctx` (Copilot, fix `38bcf24`), overly narrow list invalidation (Copilot, fix `2171b5e3`), a timer leak in a test (Copilot, fix `b3bad147`), `setTimeout`→`setImmediate` (CodeRabbit, fix `4ed90c3`), and the button position (human reviewer, fix `4e80607d`, followed by approve). What follows is what that cycle did not catch.
 
-**Найдено 2 проблемы с уверенностью ≥80:**
+**Found 2 issues with confidence ≥80:**
 
-1. **Отсутствует обработчик `error` на `progressTracker` — необработанное исключение валит весь процесс BFF, а не только текущий запрос.**
-   `packages/aurora/src/server/Storage/routers/ceph/objectRouter.ts:1167-1172`. Слушатель ошибок повешен только на `fileStream`:
+1. **Missing `error` handler on `progressTracker` — an unhandled exception crashes the entire BFF process, not just the current request.**
+   `packages/aurora/src/server/Storage/routers/ceph/objectRouter.ts:1167-1172`. The error listener is attached only to `fileStream`:
    ```ts
    fileStream.on("error", (err) => {
      if (isAbortLike(err)) return
@@ -76,24 +76,24 @@ if (!objectKey) { throw new TRPCError({ code: "BAD_REQUEST", message: "x-upload-
    })
    const trackedStream = fileStream.pipe(progressTracker)
    ```
-   `progressTracker.destroy(err)` эмиттит `'error'` на самом `progressTracker` — а на нём слушателя нет. `trackedStream` (`=== progressTracker`) передаётся напрямую в `PutObjectCommand({ Body: trackedStream })`; `@smithy/node-http-handler`'s `write-request-body.js` только делает `body.pipe(httpRequest)`, слушателя ошибок туда не добавляет. `.pipe()` в Node НЕ защищает источник от собственного необработанного `'error'`. Комментарий в коде утверждает: "Non-abort errors are re-emitted so they surface through PutObject and the catch block" — неверно: при *не*-abort ошибке на `fileStream` (например `EPIPE`/`ETIMEDOUT`/обрыв соединения на большом файле — вполне реалистично для гигабайтных аплоадов) необработанное исключение крашит весь Node-процесс, а не всплывает через `catch`. В `packages/aurora/src/server` нет глобального `uncaughtException`-хендлера — значит, это реальный краш процесса, обрывающий текущие запросы всех пользователей, а не просто неудачный аплоад. Live-репродукция этой ровно этой цепочки (fileStream→Transform→pipe, ошибка без abort-кода) подтверждает падение.
-   Именно этот слушатель присутствует в Swift-оригинале, который PR заявляет как копируемый (`packages/aurora/src/server/Storage/routers/swift/swiftRouter.ts:1426-1429`):
+   `progressTracker.destroy(err)` emits `'error'` on `progressTracker` itself — and there is no listener on it. `trackedStream` (`=== progressTracker`) is passed directly into `PutObjectCommand({ Body: trackedStream })`; `@smithy/node-http-handler`'s `write-request-body.js` only does `body.pipe(httpRequest)` and adds no error listener there. In Node, `.pipe()` does NOT protect the source from its own unhandled `'error'`. The code comment claims: "Non-abort errors are re-emitted so they surface through PutObject and the catch block" — this is wrong: on a *non*-abort error on `fileStream` (e.g. `EPIPE`/`ETIMEDOUT`/a dropped connection on a large file — entirely realistic for gigabyte-sized uploads), the unhandled exception crashes the whole Node process instead of surfacing through `catch`. There is no global `uncaughtException` handler in `packages/aurora/src/server` — so this is a real process crash that kills the in-flight requests of all users, not just a failed upload. A live reproduction of exactly this chain (fileStream→Transform→pipe, an error without an abort code) confirms the crash.
+   This exact listener is present in the Swift original that the PR states it copies (`packages/aurora/src/server/Storage/routers/swift/swiftRouter.ts:1426-1429`):
    ```ts
    progressTracker.on("error", (err) => {
      if (isAbortLike(err)) return
      trackedStream.destroy(err as Error)
    })
    ```
-   В Ceph-порте этот блок просто не перенесён.
+   In the Ceph port this block was simply not carried over.
 
-2. **`watchUploadProgress` не реагирует на `ctx.req.signal` (обрыв соединения клиента) — подписка висит до 30 секунд вместо немедленного завершения, в отличие от Swift.**
-   `packages/aurora/src/server/Storage/routers/ceph/objectRouter.ts:1227-1309`. У Swift-аплоада ровно эта проблема была реальным багом, исправленным отдельным коммитом `665957d` ("cancellable file upload with AbortSignal propagation to Swift", #776) — до фикса генератор так же зависал на 30-секундном таймауте при обрыве клиента; после фикса Swift-версия (`swiftRouter.ts:1557-1563,1597-1599`) регистрирует `ctx.req.signal.addEventListener("abort", onAbort)` и завершается немедленно. Ceph-порт этот кусок не унаследовал — `ctx.req` доступен в контексте (используется рядом же, в `uploadObject`), просто не подключён к `watchUploadProgress`. PR явно заявляет "same abort-signal wiring" как у Swift — по факту не так. (То же самое отсутствует и у соседнего, уже существующего `watchDownloadProgress` — то есть это не новый, специфичный для этого PR изъян, а системный пробел Ceph-модуля, который этот PR унаследовал вместо того, чтобы исправить по пути.)
+2. **`watchUploadProgress` does not react to `ctx.req.signal` (client connection drop) — the subscription hangs for up to 30 seconds instead of terminating immediately, unlike Swift.**
+   `packages/aurora/src/server/Storage/routers/ceph/objectRouter.ts:1227-1309`. For the Swift upload, this exact problem was a real bug fixed in a separate commit `665957d` ("cancellable file upload with AbortSignal propagation to Swift", #776) — before the fix the generator likewise hung on the 30-second timeout when the client dropped; after the fix the Swift version (`swiftRouter.ts:1557-1563,1597-1599`) registers `ctx.req.signal.addEventListener("abort", onAbort)` and terminates immediately. The Ceph port did not inherit this piece — `ctx.req` is available in the context (it is used right next door, in `uploadObject`), it is just not wired into `watchUploadProgress`. The PR explicitly claims the "same abort-signal wiring" as Swift — in fact it is not. (The same thing is also missing from the neighboring, already existing `watchDownloadProgress` — so this is not a new flaw specific to this PR, but a systemic gap in the Ceph module that this PR inherited instead of fixing along the way.)
 
-**Рассмотрено, но не прошло порог ≥80** (для полноты, чтобы не искать заново):
-- Безусловный `await setImmediate` на каждый чанк (`objectRouter.ts:1148-1151`) — реальные, но небольшие накладные расходы на планирование (~900мс на GB в изолированном бенчмарке), растущие с числом параллельных аплоадов; не катастрофично на фоне реального времени сетевой передачи гигабайтного файла.
-- Гонка между `finally`-удалением записи из `uploadProgressMap` (`objectRouter.ts:1213-1215`) и снапшотом в `watchUploadProgress` для очень быстрых/маленьких аплоадов — реальна, но безвредна: `UploadObjectModal.tsx` завязан на резолв самого `mutate()`, а не на подписку; максимум — прогресс-бар не покажет процент для короткоживущего аплоада.
-- `err.name === "AbortError"` в `UploadObjectModal.tsx:150-161` — мёртвый код (`TRPCClientError` всегда имеет `name === "TRPCClientError"`), но реальная детекция отмены сейчас работает через соседний фоллбэк по подстроке `"aborted"` в сообщении, которая эмпирически ловит настоящий abort. Не сломано сейчас, но хрупко (держится на тексте сообщения, а не на структуре ошибки).
-- Валидация `x-upload-size`: `Number.isFinite(fileSize) && fileSize >= 0` пропускает дробные значения (`"1024.5"`), тогда как Swift использует `Number.isInteger`. Низкое влияние.
+**Considered but below the ≥80 threshold** (for completeness, so there is no need to search again):
+- An unconditional `await setImmediate` on every chunk (`objectRouter.ts:1148-1151`) — real but small scheduling overhead (~900ms per GB in an isolated benchmark), growing with the number of concurrent uploads; not catastrophic compared to the real network transfer time of a gigabyte-sized file.
+- A race between the `finally` removal of the entry from `uploadProgressMap` (`objectRouter.ts:1213-1215`) and the snapshot in `watchUploadProgress` for very fast/small uploads — real but harmless: `UploadObjectModal.tsx` relies on the resolution of `mutate()` itself, not on the subscription; at worst the progress bar will not show a percentage for a short-lived upload.
+- `err.name === "AbortError"` in `UploadObjectModal.tsx:150-161` is dead code (`TRPCClientError` always has `name === "TRPCClientError"`), but actual cancellation detection currently works via the neighboring fallback on the substring `"aborted"` in the message, which empirically catches a real abort. Not broken right now, but fragile (it relies on the message text rather than the error structure).
+- `x-upload-size` validation: `Number.isFinite(fileSize) && fileSize >= 0` lets fractional values through (`"1024.5"`), whereas Swift uses `Number.isInteger`. Low impact.
 
 ---
-Проанализировано: 24.07.2026 · коммит `4e80607dacd`
+Analyzed: 2026-07-24 · commit `4e80607dacd`

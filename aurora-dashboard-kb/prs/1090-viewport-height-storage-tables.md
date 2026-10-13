@@ -8,23 +8,23 @@ branch: mark-object-storage-fix-table-view-scroll-issue
 ---
 # PR #1090: fix(portal): size storage tables to the available viewport height
 
-**Автор:** mark-karnaukh-extern-sap · **Статус:** смержен 24.07.2026 (`fa875c73`)
-**Ветки:** `mark-object-storage-fix-table-view-scroll-issue` → `main` · **Файлов:** 13 (+577/-77)
-**Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1090
+**Author:** mark-karnaukh-extern-sap · **Status:** merged 2026-07-24 (`fa875c73`)
+**Branches:** `mark-object-storage-fix-table-view-scroll-issue` → `main` · **Files:** 13 (+577/-77)
+**Link:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1090
 
-Закрывает #1091, часть эпика #1027.
+Closes #1091, part of epic #1027.
 
-## Что сделано
+## What was done
 
-Все четыре списочных вьюхи object storage (Ceph Buckets, Ceph Objects, Swift Containers, Swift Objects) считали высоту тела виртуализированной таблицы через захардкоженный оффсет вьюпорта — `calc(100vh - 490px)`, `470px`, `490px` и `500px` соответственно, каждый — оценка "сколько всего рендерится выше таблицы". Как только эта оценка расходилась с реальностью (баннер в слоте `serviceBanner`/`projectOverviewBanner`, перенос тулбара или breadcrumbs на вторую строку, узкое окно), документ становился выше вьюпорта и появлялся второй скроллбар рядом со скроллбаром самой таблицы.
+All four object storage list views (Ceph Buckets, Ceph Objects, Swift Containers, Swift Objects) computed the height of the virtualized table body via a hardcoded viewport offset — `calc(100vh - 490px)`, `470px`, `490px` and `500px` respectively, each an estimate of "how much is rendered above the table". As soon as that estimate diverged from reality (a banner in the `serviceBanner`/`projectOverviewBanner` slot, the toolbar or breadcrumbs wrapping onto a second line, a narrow window), the document became taller than the viewport and a second scrollbar appeared next to the table's own scrollbar.
 
-Это не гипотетический риск задним числом: `git log` по этим четырём файлам показывает, что магическое число реально "плавало" итерациями подгонки на глазок на протяжении всей истории проекта — например, оффсет Ceph Buckets проходил `400→425→545→520→545→510→490px`, Swift Objects — `485→550→490→470px`, и ни в одном коммите нет пояснения вида "490, потому что X". PR #863, который изначально ввёл этот паттерн, уже получал от CodeRabbit замечание о его хрупкости с явным советом сделать оффсет динамическим — то есть именно то, что делает этот PR.
+This is not a hypothetical risk in hindsight: `git log` on these four files shows that the magic number really did "drift" through iterations of eyeball tuning over the entire history of the project — for example, the Ceph Buckets offset went through `400→425→545→520→545→510→490px`, Swift Objects through `485→550→490→470px`, and not a single commit explains "490 because X". PR #863, which originally introduced this pattern, had already received a remark from CodeRabbit about its fragility with explicit advice to make the offset dynamic — i.e. exactly what this PR does.
 
-Вместо оффсета "сверху" (что рендерится над таблицей — то, что постоянно меняется) PR меряет фактически оставшееся место снизу от текущей позиции таблицы в документе, а не гадает его заранее.
+Instead of an offset "from the top" (what is rendered above the table — the thing that keeps changing), the PR measures the space actually remaining below the table's current position in the document, rather than guessing it in advance.
 
-## Как это реализовано
+## How it is implemented
 
-Новый хук `useAvailableViewportHeight` (`packages/aurora/src/client/hooks/useAvailableViewportHeight.ts:43-107`) меряет позицию элемента через `getBoundingClientRect()` и вычисляет:
+The new hook `useAvailableViewportHeight` (`packages/aurora/src/client/hooks/useAvailableViewportHeight.ts:43-107`) measures the element's position via `getBoundingClientRect()` and computes:
 
 ```ts
 // useAvailableViewportHeight.ts:60-68
@@ -36,16 +36,16 @@ const measure = () => {
 }
 ```
 
-`topInDocument` — не лишняя усложнённость: `getBoundingClientRect().top` возвращает позицию элемента относительно **текущего** вьюпорта, которая меняется при скролле страницы; прибавление `window.scrollY` даёт позицию, инвариантную к текущему скроллу (`rect.top` и `scrollY` меняются в противофазе на одну и ту же величину при чистом скролле, так что их сумма — константа). Это важно: без этого слагаемого, если пользователь прокрутит страницу вниз в момент, когда сработает `MIN_HEIGHT`-фолбэк, следующий пересчёт (по resize/`ResizeObserver`) видел бы таблицу "ближе к верху" текущего вьюпорта и стал бы неограниченно увеличивать её высоту при каждом скролле — сумма с `scrollY` этого не допускает, возвращая одно и то же структурное значение независимо от того, где сейчас проскроллено окно. (Проверено вручную и независимым агентом ревью — подробности в разделе «Ревью».)
+`topInDocument` is not needless complexity: `getBoundingClientRect().top` returns the element's position relative to the **current** viewport, which changes as the page scrolls; adding `window.scrollY` gives a position that is invariant to the current scroll (`rect.top` and `scrollY` change in opposite directions by the same amount on a pure scroll, so their sum is constant). This matters: without this term, if the user scrolled the page down while the `MIN_HEIGHT` fallback was in effect, the next recalculation (on resize/`ResizeObserver`) would see the table "closer to the top" of the current viewport and would keep growing its height without bound on every scroll — the sum with `scrollY` prevents this by returning the same structural value regardless of where the window is currently scrolled. (Verified manually and by an independent review agent — details in the "Review" section.)
 
-Четыре детали реализации, каждая — фикс конкретного найденного при разработке кейса (перечислены в описании PR и подтверждены кодом):
+Four implementation details, each a fix for a specific case found during development (listed in the PR description and confirmed by the code):
 
-- **Callback ref, не ref-объект** (`ref` собирается через `useCallback`, `useAvailableViewportHeight.ts:50-53`) — у пустого/loading-состояния таблицы нет скролл-контейнера вообще; ref-объект прочитался бы один раз как `null` и больше не проверялся бы, оставляя таблицу неизмеренной навсегда.
-- **`height`, не `max-height`** — с `max-height` размер контейнера следует за содержимым, замыкая цикл с виртуализатором (измеренные строки → размер контейнера → виртуализатор пересчитывает диапазон → снова измеряет).
-- **Виртуализатор молчит, пока высота неизвестна** — `useVirtualizedTableBody.ts:47,57-59` отдаёt `virtualItems: []`/`totalSize: 0` пока `height === undefined`, иначе неизмеренный контейнер меряется по высоте контента и виртуализатор на первом коммите рендерит весь список разом.
-- **`ResizeObserver` опционален** (`useAvailableViewportHeight.ts:87`) — измерение и так работает от `resize` окна; там, где `ResizeObserver` отсутствует (jsdom), таблица раньше оставалась полностью пустой.
+- **Callback ref, not a ref object** (`ref` is built via `useCallback`, `useAvailableViewportHeight.ts:50-53`) — the empty/loading state of the table has no scroll container at all; a ref object would be read once as `null` and never checked again, leaving the table unmeasured forever.
+- **`height`, not `max-height`** — with `max-height` the container's size follows its content, closing a loop with the virtualizer (measured rows → container size → virtualizer recalculates the range → measures again).
+- **The virtualizer stays silent while the height is unknown** — `useVirtualizedTableBody.ts:47,57-59` returns `virtualItems: []`/`totalSize: 0` while `height === undefined`; otherwise the unmeasured container is sized by its content height and the virtualizer renders the whole list at once on the first commit.
+- **`ResizeObserver` is optional** (`useAvailableViewportHeight.ts:87`) — measurement works off the window `resize` anyway; where `ResizeObserver` is missing (jsdom), the table used to stay completely empty.
 
-Композиция: `useVirtualizedTableBody` (`packages/aurora/src/client/hooks/useVirtualizedTableBody.ts:32-63`) объединяет измерение с `@tanstack/react-virtual`, держа `rowHeight`/`overscan` едиными для всех четырёх вьюх. Каждая вьюха (например `BucketTableView.tsx:59-68,152-168`) сократилась с трёх раздельных блоков (хук высоты + конфиг виртуализатора + гейтинг) до одного вызова:
+Composition: `useVirtualizedTableBody` (`packages/aurora/src/client/hooks/useVirtualizedTableBody.ts:32-63`) combines the measurement with `@tanstack/react-virtual`, keeping `rowHeight`/`overscan` the same for all four views. Each view (e.g. `BucketTableView.tsx:59-68,152-168`) shrank from three separate blocks (height hook + virtualizer config + gating) to a single call:
 
 ```tsx
 // BucketTableView.tsx:61-68
@@ -69,26 +69,26 @@ const {
 >
 ```
 
-`MIN_HEIGHT = 200` (`useAvailableViewportHeight.ts:16`) — задокументированный намеренный компромисс: если места меньше — таблица клэмпится к минимуму и страница получает скролл, а не таблицу высотой в полторы строки. Это не забытый край случая, а явно описанное поведение (см. JSDoc хука, строки 37-41) — отдельный (последний, отдельный от этой PR) коммит `docs` в этой же ветке специально это документирует.
+`MIN_HEIGHT = 200` (`useAvailableViewportHeight.ts:16`) is a documented, deliberate trade-off: if there is less space, the table is clamped to the minimum and the page gets a scrollbar, rather than a table one and a half rows tall. This is not a forgotten edge case but explicitly described behavior (see the hook's JSDoc, lines 37-41) — a separate (last, separate from this PR) `docs` commit on the same branch documents this specifically.
 
-## Что затронуло
+## What it affects
 
-Оба новых хука используются только этими четырьмя вьюхами — `git grep` по всему монорепо на `useAvailableViewportHeight`/`useVirtualizedTableBody` не находит других потребителей. Изменение полностью внутреннее, наружу (другие пакеты/приложения монорепо) не выходит.
+Both new hooks are used only by these four views — `git grep` across the whole monorepo for `useAvailableViewportHeight`/`useVirtualizedTableBody` finds no other consumers. The change is entirely internal and does not leak outward (to other packages/apps of the monorepo).
 
-Внутри самого стораджа есть ещё четыре независимых места с `useVirtualizer` — `Ceph/Objects/CopyObjectModal.tsx`, `Ceph/Objects/MoveObjectModal.tsx`, `Swift/Objects/CopyObjectModal.tsx`, `Swift/Objects/MoveRenameObjectModal.tsx` (folder-browser внутри модалок копирования/переноса объекта). Они не тронуты этим PR и это корректно: их скролл-контейнер — `max-h-56` (фиксированные ~224px), не зависящий от вьюпорта и не подверженный багу с баннером — то есть это не тот же баг, оставленный недочиненным, а структурно другой, не связанный паттерн.
+Within storage itself there are four more independent places with `useVirtualizer` — `Ceph/Objects/CopyObjectModal.tsx`, `Ceph/Objects/MoveObjectModal.tsx`, `Swift/Objects/CopyObjectModal.tsx`, `Swift/Objects/MoveRenameObjectModal.tsx` (the folder browser inside the copy/move object modals). They are not touched by this PR, and that is correct: their scroll container is `max-h-56` (a fixed ~224px), independent of the viewport and not subject to the banner bug — i.e. this is not the same bug left half-fixed, but a structurally different, unrelated pattern.
 
-## Ревью
+## Review
 
-Через диф и историю прогнаны параллельно: bug-scan, comment-compliance (сверка комментариев с кодом), historical context (`git log`/`git blame`) и prior-feedback (issues/старые PR/уже оставленные комментарии на самом PR). Один кандидат в находки потребовал ручной перепроверки — по нему ниже отдельное пояснение.
+The diff and history were run in parallel through: bug-scan, comment-compliance (checking comments against the code), historical context (`git log`/`git blame`) and prior-feedback (issues/old PRs/comments already left on the PR itself). One candidate finding required manual re-verification — there is a separate explanation for it below.
 
-**Проблем с уверенностью ≥80 не найдено.**
+**No issues with confidence ≥80 found.**
 
-Кандидаты, не прошедшие порог (для полноты — на будущее, чтобы не искать заново):
+Candidates that did not pass the threshold (for completeness — for the future, so there is no need to search again):
 
-- Гипотеза о смешении систем координат в формуле `measure()` (`useAvailableViewportHeight.ts:62-63`) — на первый взгляд похоже на баг (viewport-relative `rect.top` + `window.scrollY`, вычитаемое из viewport-relative `innerHeight`). При ручной алгебраической проверке (и независимо — агентом comment-compliance) подтверждено, что `rect.top + scrollY` математически инвариантно к скроллу (это фиксирует сам контракт `getBoundingClientRect()`), и итоговая формула действительно не дрейфует при скролле — комментарий в коде («Relative to the document, so the value does not drift while scrolling») верен. Ложное срабатывание, отклонено после перепроверки.
-- `Math.abs(previous - next) < 1` (`useAvailableViewportHeight.ts:68`) технически избыточна и не делает то, что заявляет комментарий (`next`/`previous` всегда целые после `Math.floor`, так что сравнение эквивалентно `===`, что уже даёт бесплатно `setState`-бэйлаут React) — но это неточность комментария без побочных эффектов в рантайме, не баг.
-- Уже открытый комментарий Copilot на самом PR про то, что клэмп `MIN_HEIGHT` может вернуть тот самый скролл, который хук должен убирать — фактически повторяет уже задокументированный (JSDoc, строки 37-41) намеренный трейд-офф, только придирается к формулировке однострочного summary функции, которое не содержит оговорки, вынесенной чуть ниже.
-- Замечание CodeRabbit на этом PR о «дублировании gating-логики по всем четырём вьюхам» — проверено `git grep` по `isMeasured`/`getVirtualItems`/`getTotalSize` в файлах вьюх на head-коммите: совпадений нет, вся эта логика живёт исключительно в `useVirtualizedTableBody`. Комментарий, похоже, устарел (относится к более ранней версии диффа до вынесения в общий хук) и на актуальный код не указывает — стоит иметь в виду, если кто-то захочет "исправить" несуществующее дублирование.
+- The hypothesis of mixed coordinate systems in the `measure()` formula (`useAvailableViewportHeight.ts:62-63`) — at first glance it looks like a bug (viewport-relative `rect.top` + `window.scrollY`, subtracted from viewport-relative `innerHeight`). A manual algebraic check (and, independently, the comment-compliance agent) confirmed that `rect.top + scrollY` is mathematically invariant to scrolling (this is fixed by the very contract of `getBoundingClientRect()`), and the resulting formula indeed does not drift on scroll — the code comment ("Relative to the document, so the value does not drift while scrolling") is correct. A false positive, rejected after re-verification.
+- `Math.abs(previous - next) < 1` (`useAvailableViewportHeight.ts:68`) is technically redundant and does not do what the comment claims (`next`/`previous` are always integers after `Math.floor`, so the comparison is equivalent to `===`, which React's `setState` bailout already gives for free) — but this is an inaccuracy in the comment with no runtime side effects, not a bug.
+- An already open Copilot comment on the PR itself saying that the `MIN_HEIGHT` clamp may bring back the very scrollbar the hook is supposed to remove — in effect it restates the already documented (JSDoc, lines 37-41) deliberate trade-off, merely nitpicking the wording of the function's one-line summary, which does not contain the caveat placed just below it.
+- A CodeRabbit remark on this PR about "duplicated gating logic across all four views" — checked with `git grep` for `isMeasured`/`getVirtualItems`/`getTotalSize` in the view files at the head commit: no matches; all of this logic lives exclusively in `useVirtualizedTableBody`. The comment appears to be stale (it refers to an earlier version of the diff, before extraction into the shared hook) and does not point at the current code — worth keeping in mind in case someone wants to "fix" non-existent duplication.
 
 ---
-Проанализировано: 24.07.2026 · коммит `038012bb1bb`
+Analyzed: 2026-07-24 · commit `038012bb1bb`

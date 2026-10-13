@@ -57,6 +57,7 @@ review/analysis but deliberately not done in the PR where they came up.
 | 27 | `Deny s3:*` is rejected even with a `Condition` | Bucket policies | open |
 | 25 | Search query is not trimmed in client-side filters | Search | open |
 | 35 | DataGrid header does not follow the Juno pattern in other lists | Lists | open |
+| 47 | Search term is not trimmed in other client-side filters and pickers | Search | open |
 | 2 | "Please" in the rest of the client | UI copy | open |
 | 36 | 409 on SG sharing is always shown as "already shared", including when the quota is exhausted | RBAC (SG) | open |
 | 37 | Sharing a security group with several projects at once | RBAC (SG) | open |
@@ -834,6 +835,27 @@ so as not to bloat the diff of epic #1327 and to verify each list separately.
 
 ---
 
+### 47. Search term is not trimmed in the other client-side filters and pickers
+
+**Where:** under `packages/aurora/src/client/routes/_auth/projects/$projectId/`:
+- `storage/-components/Ceph/Buckets/CorsRulesTab.tsx:193-196`, `Ceph/Buckets/LifecycleRulesTab.tsx:193-195`
+- `network/securitygroups/$securityGroupId/-hooks/useSecurityGroupDetails.ts:81-82`, `-components/-details/SecurityGroupRBACPolicies.tsx:100-104`
+- pickers: `storage/-components/Ceph/Objects/hooks/useBucketSearch.ts:45-47`, `Swift/Objects/CopyObjectModal.tsx:138`, `Swift/Objects/MoveRenameObjectModal.tsx:142`, `Swift/Containers/EditContainerMetadataModal.tsx:107`
+
+(line numbers as of `main` @ `6a8dad69`)
+
+**What:** the same defect as item 25, on other screens: these filters match the raw search string, so a trailing space finds nothing and a term of only spaces hides every row. The pickers check `debouncedSearch.trim()` to decide whether to filter, but the predicate itself uses the untrimmed string.
+
+**How to fix:** use `term.toLowerCase().trim()` in each predicate, as `filterBySearchParams` and the Objects pages do, and add whitespace tests per component. Trim in the predicate, not where the term is committed (see the Decisions of the source plan: trimming at commit eats spaces while typing).
+
+**Why not done right away:** item 25's plan is limited to the Ceph Buckets and Swift Containers list pages; these are different screens and components.
+
+**Source:** planning of follow-up 25, 2026-10-12.
+
+**Status:** open.
+
+---
+
 ## H. UI copy
 
 ### 2. "Please" in the rest of the client
@@ -1142,4 +1164,4 @@ delete `docs/semantic_release.md` (or mark it as obsolete) and rewrite the relea
 **Status:** open.
 
 ---
-Updated: 2026-10-12
+Updated: 2026-10-13

@@ -8,23 +8,23 @@ branch: vlad-fix-default-msgs-at-global-error-route
 ---
 # PR #1073: fix(aurora): trpc errors not used at root level errors
 
-**Автор:** vlad-schur-external-sap · **Статус:** смержен 22.07.2026 (`8944e742`; создан 15.07.2026)
-**Ветки:** `vlad-fix-default-msgs-at-global-error-route` → `main` · **Файлов:** 6 (+22/-23)
-**Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1073
+**Author:** vlad-schur-external-sap · **Status:** merged 2026-07-22 (`8944e742`; created 2026-07-15)
+**Branches:** `vlad-fix-default-msgs-at-global-error-route` → `main` · **Files:** 6 (+22/-23)
+**Link:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1073
 
-> PR ещё не готов к мержу: описание — незаполненный шаблон (CodeRabbit явно пометил это как fail в pre-merge проверке), и на самом PR висят 4 неразрешённых комментария Copilot, три из которых указывают на ту же проблему, что независимо нашёл ревью ниже (см. секцию "Ревью"). Этот отчёт документирует PR как есть на момент анализа — не как готовое к мержу решение.
+> The PR is not yet ready to merge: the description is an unfilled template (CodeRabbit explicitly flagged this as a fail in its pre-merge check), and the PR itself has 4 unresolved Copilot comments, three of which point to the same problem that the review below found independently (see the "Review" section). This report documents the PR as it is at the time of analysis — not as a merge-ready solution.
 
-## Что сделано
+## What was done
 
-PR чинит конкретный баг: несколько `errorComponent`-компонентов в клиентском роутере рендерили `<RouteError error={error} />` **без** пропа `safeErrorMessage`, из-за чего `RouteError` (см. `packages/aurora/src/client/components/Error/RouteError.tsx:19-30`) намеренно скрывал реальный текст ошибки и показывал безопасный дефолт ("Unable to Load Content" / "An unexpected error occurred") — даже когда сервер тRPC вернул осмысленное, специально сформированное сообщение (например, "Access denied — your credentials are valid but lack permissions for this operation" из `s3ErrorMapper.ts`).
+The PR fixes a specific bug: several `errorComponent` components in the client router rendered `<RouteError error={error} />` **without** the `safeErrorMessage` prop, which caused `RouteError` (see `packages/aurora/src/client/components/Error/RouteError.tsx:19-30`) to deliberately hide the real error text and show a safe default ("Unable to Load Content" / "An unexpected error occurred") — even when the tRPC server returned a meaningful, specially crafted message (for example, "Access denied — your credentials are valid but lack permissions for this operation" from `s3ErrorMapper.ts`).
 
-Исправление точечное — везде, где создаётся `errorComponent`, теперь явно передаётся `safeErrorMessage={error instanceof TRPCClientError ? error.message : undefined}`, так что тRPC-ошибки показываются пользователю как есть, а не-тRPC ошибки (не `instanceof TRPCClientError`) по-прежнему скрываются за дефолтным текстом.
+The fix is targeted — everywhere an `errorComponent` is created, `safeErrorMessage={error instanceof TRPCClientError ? error.message : undefined}` is now passed explicitly, so tRPC errors are shown to the user as is, while non-tRPC errors (not `instanceof TRPCClientError`) are still hidden behind the default text.
 
-Заодно PR убирает два **недостижимых** `errorComponent` (мёртвый код, оставшийся после более ранних рефакторингов — см. "Что затронуло") и один неиспользуемый экспорт `invalidateCsrfToken`.
+Along the way the PR removes two **unreachable** `errorComponent`s (dead code left over from earlier refactorings — see "What it affects") and one unused export, `invalidateCsrfToken`.
 
-## Как это реализовано
+## How it is implemented
 
-**Корневой error boundary** — `packages/aurora/src/client/routes/__root.tsx:63-68` — это `errorComponent` для *всего* приложения (ловит любую ошибку, не пойманную более специфичным boundary ниже по дереву роутов):
+**The root error boundary** — `packages/aurora/src/client/routes/__root.tsx:63-68` — is the `errorComponent` for the *entire* application (it catches any error not caught by a more specific boundary further down the route tree):
 
 ```tsx
 import { TRPCClientError } from "@trpc/client"
@@ -37,17 +37,17 @@ function RootErrorComponent({ error }: { error: Error }) {
   )
 }
 ```
-До этого PR здесь было просто `<RouteError error={error} />` — с момента появления этого компонента (PR #850, "move aurora-portal to aurora package") тRPC-ошибки на корневом уровне никогда не показывали свой реальный текст.
+Before this PR it was simply `<RouteError error={error} />` here — since this component first appeared (PR #850, "move aurora-portal to aurora package"), tRPC errors at the root level never showed their real text.
 
-**Роут деталей проекта** — `packages/aurora/src/client/routes/_auth/projects/$projectId.tsx:136` — та же правка, тот же паттерн:
+**The project details route** — `packages/aurora/src/client/routes/_auth/projects/$projectId.tsx:136` — the same fix, the same pattern:
 ```tsx
 return <RouteError error={error} safeErrorMessage={error instanceof TRPCClientError ? error.message : undefined} />
 ```
-Этот `ProjectErrorComponent` был добавлен PR #1035 ("improve project not found error handling") и с тех пор имел тот же пробел.
+This `ProjectErrorComponent` was added by PR #1035 ("improve project not found error handling") and has had the same gap ever since.
 
-**Удаление мёртвого кода**: `packages/aurora/src/client/routes/_auth/projects/$projectId/compute/images.tsx` лишился собственного `errorComponent: ({ error }) => <RouteError error={error} />` — у этого роута нет ни `loader`, ни другой точки, где могла бы выброситься ошибка до рендера, так что этот boundary был недостижим с момента его добавления (PR #900). Ошибки теперь корректно всплывают к `$projectId.tsx`'s `ProjectErrorComponent` (проверено: соседние роуты `compute/index.tsx` и `compute/flavors.tsx` уже полагались на тот же паттерн без собственного `errorComponent`).
+**Dead code removal**: `packages/aurora/src/client/routes/_auth/projects/$projectId/compute/images.tsx` lost its own `errorComponent: ({ error }) => <RouteError error={error} />` — this route has neither a `loader` nor any other point where an error could be thrown before render, so this boundary had been unreachable since it was added (PR #900). Errors now correctly bubble up to `$projectId.tsx`'s `ProjectErrorComponent` (verified: the neighboring routes `compute/index.tsx` and `compute/flavors.tsx` already relied on the same pattern without their own `errorComponent`).
 
-**Удаление неиспользуемого экспорта** — `packages/aurora/src/client/trpcClient.ts:58-63`:
+**Removal of an unused export** — `packages/aurora/src/client/trpcClient.ts:58-63`:
 ```ts
 -/**
 - * Invalidate the cached CSRF token.
@@ -55,15 +55,15 @@ return <RouteError error={error} safeErrorMessage={error instanceof TRPCClientEr
 - */
 -export const invalidateCsrfToken = () => csrfCache.invalidate()
 ```
-Экспорт не имел ни одной точки вызова в кодовой базе ни до, ни после удаления — но см. "Ревью", это не совсем однозначная чистка.
+The export had no call sites in the codebase either before or after the removal — but see "Review": this is not an entirely clear-cut cleanup.
 
-## Что затронуло
+## What it affects
 
-**Блэст-радиус самого фикса широкий**: `__root.tsx`'s `errorComponent` — это error boundary верхнего уровня, он ловит любую необработанную ошибку из любого роута приложения. До этого PR тРPC-сообщения глушились везде, где не было более специфичного boundary с собственным `safeErrorMessage` — теперь показываются.
+**The blast radius of the fix itself is wide**: `__root.tsx`'s `errorComponent` is the top-level error boundary; it catches any unhandled error from any route of the application. Before this PR, tRPC messages were suppressed everywhere there was no more specific boundary with its own `safeErrorMessage` — now they are shown.
 
-**Прямая связь с PR #1067** (смержен на день раньше, переписал `projects/index.tsx` на `Suspense`/`useSuspenseQuery`): та переработка оставила `ProjectsOverviewNavBar` **вне** `ErrorBoundary`, который сама же добавила, и превратила route-level `errorComponent` этого файла в недостижимый мёртвый код (данные теперь грузятся в компоненте, а не в `loader`, так что router-level `errorComponent` никогда не срабатывает). PR #1073 исправляет ровно это — переносит `ProjectsOverviewNavBar` внутрь `ErrorBoundary`:
+**Direct connection to PR #1067** (merged a day earlier, rewrote `projects/index.tsx` to use `Suspense`/`useSuspenseQuery`): that rework left `ProjectsOverviewNavBar` **outside** the `ErrorBoundary` it had itself added, and turned this file's route-level `errorComponent` into unreachable dead code (data is now loaded in the component, not in the `loader`, so the router-level `errorComponent` never fires). PR #1073 fixes exactly this — it moves `ProjectsOverviewNavBar` inside the `ErrorBoundary`:
 ```tsx
-// packages/aurora/src/client/routes/_auth/projects/index.tsx:76-93 (после PR)
+// packages/aurora/src/client/routes/_auth/projects/index.tsx:76-93 (after the PR)
 <ErrorBoundary
   fallbackRender={({ error }) => (
     <RouteError error={error} safeErrorMessage={error instanceof TRPCClientError ? error.message : undefined} />
@@ -75,24 +75,24 @@ return <RouteError error={error} safeErrorMessage={error instanceof TRPCClientEr
   </div>
 </ErrorBoundary>
 ```
-и удаляет мёртвый `errorComponent` из конфига роута. Побочный эффект этого переноса (не баг, но заметное поведенческое изменение): строка поиска (`ProjectsOverviewNavBar`) теперь тоже пропадает при ошибке загрузки карточек проектов, а раньше оставалась видимой — консистентность важнее, но это стоит знать.
+and removes the dead `errorComponent` from the route config. A side effect of this move (not a bug, but a noticeable behavioral change): the search bar (`ProjectsOverviewNavBar`) now also disappears when loading the project cards fails, whereas previously it stayed visible — consistency matters more, but it's worth knowing.
 
-**Проверка потребителей**: `git grep` по `safeErrorMessage`/`TRPCClientError` на головном коммите PR показывает, что после этого фикса ВСЕ боевые (не тестовые) `errorComponent`/`RouteError`-точки в клиенте либо передают `safeErrorMessage`, либо были удалены как недостижимые — расхождений не осталось. Тестовый файл `RouteError.test.tsx` по-прежнему вызывает `<RouteError error={error} />` без пропа в нескольких кейсах — это намеренно (тестирует именно дефолтное поведение сокрытия), не пропущенный call site.
+**Consumer check**: a `git grep` for `safeErrorMessage`/`TRPCClientError` at the PR's head commit shows that after this fix ALL production (non-test) `errorComponent`/`RouteError` sites in the client either pass `safeErrorMessage` or have been removed as unreachable — no discrepancies remain. The test file `RouteError.test.tsx` still calls `<RouteError error={error} />` without the prop in several cases — this is intentional (it tests precisely the default hiding behavior), not a missed call site.
 
-## Ревью
+## Review
 
-**Найдено (confidence ≥ 80):**
+**Found (confidence ≥ 80):**
 
-1. **`error instanceof TRPCClientError` — недостаточное условие безопасности; сырые сообщения от сервера могут утечь через корневой error boundary.** (confidence 85)
-   `RouteError.tsx:19-24` документирует инвариант: "Do not expose raw Error.message by default as it may contain sensitive information" — показывать можно только явно проверенные безопасные сообщения. Но серверный роутер (`packages/aurora/src/server/trpc.ts:5`, `initTRPC.context<AuroraPortalContext>().create()`) не задаёт кастомный `errorFormatter`, так что тRPC по умолчанию пробрасывает `error.message` как есть. Конкретно `packages/aurora/src/server/Storage/helpers/s3ErrorMapper.ts:80-81` для немаппленных кодов ошибок S3/Ceph делает `parts.push(s3Error.message)` — сырой текст ошибки AWS/Ceph SDK попадает прямиком в `TRPCError.message` → `TRPCClientError.message` → теперь показывается пользователю через корневой boundary (который ловит ошибки *любого* роута, не только storage). Это ровно тот сценарий, от которого предостерегает комментарий в `RouteError.tsx`.
-   Это не домысел ревью — на самом PR #1073 уже висят **3 неразрешённых комментария Copilot** (на `__root.tsx`, `$projectId.tsx` и `projects/index.tsx`), дословно рекомендующих: "Consider filtering out INTERNAL_SERVER_ERROR (or otherwise ensuring messages are sanitized)". Ни один не адресован на момент анализа.
-   Файлы: `packages/aurora/src/client/routes/__root.tsx:66`, `packages/aurora/src/client/routes/_auth/projects/$projectId.tsx:136`, `packages/aurora/src/client/routes/_auth/projects/index.tsx:75` (последний — паттерн уже существовал до PR #1073, туда просто добавились ещё 2 таких же места).
+1. **`error instanceof TRPCClientError` is an insufficient safety condition; raw messages from the server can leak through the root error boundary.** (confidence 85)
+   `RouteError.tsx:19-24` documents an invariant: "Do not expose raw Error.message by default as it may contain sensitive information" — only explicitly verified safe messages may be shown. But the server router (`packages/aurora/src/server/trpc.ts:5`, `initTRPC.context<AuroraPortalContext>().create()`) doesn't define a custom `errorFormatter`, so tRPC by default passes `error.message` through as is. Specifically, `packages/aurora/src/server/Storage/helpers/s3ErrorMapper.ts:80-81` does `parts.push(s3Error.message)` for unmapped S3/Ceph error codes — the raw AWS/Ceph SDK error text goes straight into `TRPCError.message` → `TRPCClientError.message` → and is now shown to the user via the root boundary (which catches errors from *any* route, not only storage). This is exactly the scenario the comment in `RouteError.tsx` warns against.
+   This is not speculation on the review's part — PR #1073 itself already has **3 unresolved Copilot comments** (on `__root.tsx`, `$projectId.tsx` and `projects/index.tsx`) recommending verbatim: "Consider filtering out INTERNAL_SERVER_ERROR (or otherwise ensuring messages are sanitized)". None had been addressed at the time of analysis.
+   Files: `packages/aurora/src/client/routes/__root.tsx:66`, `packages/aurora/src/client/routes/_auth/projects/$projectId.tsx:136`, `packages/aurora/src/client/routes/_auth/projects/index.tsx:75` (the last one — the pattern already existed before PR #1073; 2 more such places were simply added).
 
-**Также замечено (confidence 50-79, подтверждено, но не набрало полной уверенности):** — по этой находке кандидатов не набралось; единственный второй кандидат (удаление `invalidateCsrfToken` без замены механизма восстановления после ротации CSRF-токена, тоже отмеченное Copilot-комментарием на PR) получило confidence 35 — реальный архитектурный пробел, но экспорт был мёртвым кодом без единой точки вызова и до PR, так что ничего рабочего это не ломает; ниже порога включения.
+**Also noticed (confidence 50-79, confirmed but did not reach full confidence):** — no candidates qualified for this tier; the only other candidate (removing `invalidateCsrfToken` without replacing the recovery mechanism after CSRF token rotation, also flagged by a Copilot comment on the PR) got confidence 35 — a real architectural gap, but the export was dead code with no call sites even before the PR, so it doesn't break anything that worked; below the inclusion threshold.
 
-## Что сделано хорошо
+## What was done well
 
-Удаление недостижимых `errorComponent` (в `images.tsx` и `projects/index.tsx`) — не косметика, а корректная реакция на то, что архитектура роутинга изменилась в PR #1067 (data-fetching переехал из `loader` в компонент), и старые route-level boundary перестали иметь смысл. Автор PR проверил это, а не просто патчил на месте.
+Removing the unreachable `errorComponent`s (in `images.tsx` and `projects/index.tsx`) is not cosmetic but a correct response to the fact that the routing architecture changed in PR #1067 (data fetching moved from the `loader` into the component), and the old route-level boundaries stopped making sense. The PR author verified this rather than just patching in place.
 
 ---
-Проанализировано: 17.07.2026 · коммит `0263a780e`
+Analyzed: 2026-07-17 · commit `0263a780e`

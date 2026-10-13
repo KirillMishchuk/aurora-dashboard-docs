@@ -8,23 +8,23 @@ branch: 1084-move-dependencies
 ---
 # PR #1085: fix(core): move react dependent packages to peerDeps and resolve workspace sources in dev
 
-**Автор:** taymoor89 (Taimoor Aslam) · **Статус:** смержен 24.07.2026 (`8b44234f`; создан 21.07.2026)
-**Ветки:** `1084-move-dependencies` → `main` · **Файлов:** 11 (+180/-61)
-**Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1085
+**Author:** taymoor89 (Taimoor Aslam) · **Status:** merged 2026-07-24 (`8b44234f`; created 2026-07-21)
+**Branches:** `1084-move-dependencies` → `main` · **Files:** 11 (+180/-61)
+**Link:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1085
 
-## Что сделано
+## What was done
 
-PR реализует issue #1084 и решает две связанные проблемы монорепо-конфигурации:
+The PR implements issue #1084 and solves two related monorepo configuration problems:
 
-**Дублирующийся React из-за неверной классификации зависимостей.** `packages/aurora/package.json` держал пакеты, использующие React-контекст/хуки (`@lingui/react`, `@tanstack/react-query`, `@tanstack/react-router`, `@headlessui/react`, `focus-trap-react`, `react-error-boundary`, `react-icons`, `@trpc/react-query`, `@tanstack/react-form`, `@tanstack/react-virtual`) в обычных `dependencies`. pnpm ставил им приватную копию внутри `node_modules` пакета `aurora`, из-за чего у потребителя (`apps/dashboard`) оказывалось два экземпляра React/контекстов одновременно — отсюда "Invalid hook call" и тихо отвалившиеся Provider'ы. PR переносит все такие пакеты в `peerDependencies` и явно объявляет их как прямые `dependencies` в `apps/dashboard/package.json` (то есть теперь хост-приложение обязано их поставлять само).
+**Duplicate React due to incorrect dependency classification.** `packages/aurora/package.json` kept packages that use React context/hooks (`@lingui/react`, `@tanstack/react-query`, `@tanstack/react-router`, `@headlessui/react`, `focus-trap-react`, `react-error-boundary`, `react-icons`, `@trpc/react-query`, `@tanstack/react-form`, `@tanstack/react-virtual`) in regular `dependencies`. pnpm installed a private copy of them inside the `aurora` package's `node_modules`, which left the consumer (`apps/dashboard`) with two instances of React/contexts at once — hence "Invalid hook call" and silently broken Providers. The PR moves all such packages to `peerDependencies` and explicitly declares them as direct `dependencies` in `apps/dashboard/package.json` (i.e. the host application is now required to supply them itself).
 
-**Отсутствие hot-reload для серверных workspace-пакетов в dev-режиме.** `packages/policy-engine` и `packages/signal-openstack` — приватные, никогда не публикуются, — но имели поле `exports`, которое заставляло Node всегда резолвить их из собранного `dist/`, игнорируя tsconfig path mapping. PR убирает `exports` из обоих (оставляя `main`/`module`/`types` на верхнем уровне), добавляет `apps/dashboard/tsconfig.server.json` с path-алиасами на исходники этих пакетов и `packages/aurora/src/server`, и заменяет прежнюю команду `dev` (`tsx watch --env-file=.env src/server/server.ts`) на новый `apps/dashboard/scripts/dev.sh`, который явно ставит эти пути на `--include` для `tsx watch`. Заодно `apps/dashboard/turbo.json`'s `dev`-таск лишился `dependsOn: ["@cobaltcore-dev/aurora#build"]` — сборка перед dev больше не нужна, всё резолвится из исходников.
+**No hot reload for server-side workspace packages in dev mode.** `packages/policy-engine` and `packages/signal-openstack` are private and never published, but had an `exports` field that forced Node to always resolve them from the built `dist/`, ignoring the tsconfig path mapping. The PR removes `exports` from both (keeping `main`/`module`/`types` at the top level), adds `apps/dashboard/tsconfig.server.json` with path aliases to the sources of these packages and to `packages/aurora/src/server`, and replaces the previous `dev` command (`tsx watch --env-file=.env src/server/server.ts`) with a new `apps/dashboard/scripts/dev.sh`, which explicitly puts these paths on `--include` for `tsx watch`. Along the way, `apps/dashboard/turbo.json`'s `dev` task lost `dependsOn: ["@cobaltcore-dev/aurora#build"]` — a build before dev is no longer needed, everything is resolved from sources.
 
-Добавлен `packages/aurora/docs/0014_dependency_classification.md` — документирует правило классификации (peer, если пакет держит React-контекст/hook-состояние или singleton-состояние; dependency — если чистая утилита или server-only) и грепы для проверки нового пакета на использование React. Плюс мелочь: `packages/aurora/eslint.config.mjs` добавил `src/locales/**` в игноры (сгенерированные Lingui-локали).
+`packages/aurora/docs/0014_dependency_classification.md` was added — it documents the classification rule (peer if the package holds React context/hook state or singleton state; dependency if it is a pure utility or server-only) and greps for checking a new package for React usage. Plus a minor thing: `packages/aurora/eslint.config.mjs` added `src/locales/**` to the ignores (generated Lingui locales).
 
-## Как это реализовано
+## How it is implemented
 
-**Смена классификации** — `packages/aurora/package.json:52-68`:
+**Classification change** — `packages/aurora/package.json:52-68`:
 ```json
 "peerDependencies": {
   "@headlessui/react": "^2.0.0",
@@ -38,9 +38,9 @@ PR реализует issue #1084 и решает две связанные пр
   "react-icons": "^5.0.0"
 },
 ```
-Симметрично в `apps/dashboard/package.json:21-33` эти же пакеты появляются как обычные (и в основном без каретки, зафиксированные точной версией) `dependencies`.
+Symmetrically, in `apps/dashboard/package.json:21-33` the same packages appear as regular `dependencies` (mostly without a caret, pinned to an exact version).
 
-**Новый dev-скрипт** — `apps/dashboard/scripts/dev.sh:15-24`:
+**New dev script** — `apps/dashboard/scripts/dev.sh:15-24`:
 ```sh
 exec node_modules/.bin/tsx watch \
   --env-file=.env \
@@ -54,29 +54,29 @@ exec node_modules/.bin/tsx watch \
   --exclude '**/dist/**' \
   src/server/server.ts
 ```
-Причина именно shell-скрипта, а не строки в `package.json` — комментарий в файле объясняет, что Turbo коверкает многофлаговые команды при прогоне через свой таск-раннер. `--include` перечисляет ровно те директории, куда указывают новые path-алиасы `apps/dashboard/tsconfig.server.json:9-12` — оба файла согласованы между собой.
+The reason for a shell script rather than a line in `package.json` — a comment in the file explains that Turbo mangles multi-flag commands when running them through its task runner. `--include` lists exactly the directories that the new path aliases in `apps/dashboard/tsconfig.server.json:9-12` point to — the two files are consistent with each other.
 
-**Убранный `exports`** — `packages/policy-engine/package.json:11-17` и `packages/signal-openstack/package.json:9-15` теряют блок `exports` (маппинг на `dist/{cjs,esm,types}`), оставляя только `main`/`module`/`types` на верхнем уровне пакета — этого достаточно для резолва, поскольку оба пакета `"private": true` и никогда не публикуются.
+**Removed `exports`** — `packages/policy-engine/package.json:11-17` and `packages/signal-openstack/package.json:9-15` lose the `exports` block (mapping to `dist/{cjs,esm,types}`), keeping only `main`/`module`/`types` at the package's top level — this is enough for resolution, since both packages are `"private": true` and never published.
 
-## Что затронуло
+## What it affects
 
-Изменение затрагивает **только dev-workflow и метаданные пакетов** — рантайм-код и публичный API `AuroraApp`/tRPC-роутеров не тронуты. Проверка через `git grep` на головном коммите PR (`132d5fa356af4299ff9594247bf1f5a99cef7565`) на предмет других потребителей `policy-engine`/`signal-openstack`/переносимых React-пакетов вне изменённых файлов ничего постороннего не нашла — единственный потребитель `packages/aurora` и `apps/dashboard`, которые PR и обновляет согласованно.
+The change affects **only the dev workflow and package metadata** — runtime code and the public API of `AuroraApp`/tRPC routers are untouched. A `git grep` check at the PR's head commit (`132d5fa356af4299ff9594247bf1f5a99cef7565`) for other consumers of `policy-engine`/`signal-openstack`/the moved React packages outside the changed files found nothing extraneous — the only consumers are `packages/aurora` and `apps/dashboard`, which the PR updates consistently.
 
-Production-сборка (`vite build`, `tsup`) не меняется этим PR — она уже резолвит `packages/aurora/client` из исходников через алиас в `vite.config.mjs`, а сервер бандлит `policy-engine`/`signal-openstack` через `tsup` с `noExternal`, где резолв идёт по `main` независимо от `exports` (esbuild с `platform: "node"` использует `mainFields: ["main", "module"]`). Так что удаление `exports` не меняет поведение прод-сборки — эффект только в dev-режиме (`tsx watch`), для которого он и задуман.
+The production build (`vite build`, `tsup`) is not changed by this PR — it already resolves `packages/aurora/client` from sources via an alias in `vite.config.mjs`, and the server bundles `policy-engine`/`signal-openstack` via `tsup` with `noExternal`, where resolution goes by `main` regardless of `exports` (esbuild with `platform: "node"` uses `mainFields: ["main", "module"]`). So removing `exports` does not change the behaviour of the prod build — the effect is only in dev mode (`tsx watch`), which is what it is intended for.
 
-Единственная точка, которую сборка потенциально не покрывает — если в будущем появится ещё один server-side workspace-пакет (`packages/config`, новый), про него придётся не забыть добавить и в `--include` `dev.sh`, и в `paths` `tsconfig.server.json`; сейчас это ручная синхронизация двух файлов, ничего не проверяет их рассинхронизацию автоматически, но на 11 файлах и 2 пакетах в PR это не проблема — просто не абсолютная защита от будущего дрейфа.
+The only point the build potentially doesn't cover — if another server-side workspace package (`packages/config`, a new one) appears in the future, one will have to remember to add it both to `--include` in `dev.sh` and to `paths` in `tsconfig.server.json`; right now this is manual synchronization of two files, nothing automatically checks them for drift, but with 11 files and 2 packages in the PR this is not a problem — just not absolute protection against future drift.
 
-## Ревью
+## Review
 
-**Найдено (confidence ≥ 80):** проблем с такой уверенностью не найдено.
+**Found (confidence ≥ 80):** no problems with this level of confidence were found.
 
-**Также замечено (confidence 50-79, подтверждено, но не набрало порога):**
+**Also noted (confidence 50-79, confirmed but below the threshold):**
 
-1. **Комментарий про `--watch-kill-signal=SIGKILL` описывает несуществующее поведение.** (confidence 75)
-   `apps/dashboard/scripts/dev.sh:17-18` объясняет: флаг "kills the old process immediately on restart... avoids 'address already in use' errors". На деле `--watch-kill-signal` — это флаг нативного `node --watch`, а не `tsx watch`; `tsx watch --help` (версия `4.21.0`, закреплённая в `package.json`) распознаёт только `--clear-screen, --exclude, --ignore, --include, --no-cache, --tsconfig`. `tsx` использует собственную логику рестарта: всегда шлёт `SIGTERM` и ждёт фиксированные 5 секунд перед `SIGKILL`, независимо от этого флага — он тихо игнорируется (нет ошибки CLI, поведение не меняется). Заявленная в комментарии цель (избежать "address already in use") этой строкой не достигается. Не влияет на работоспособность скрипта — просто мёртвая строка с вводящим в заблуждение комментарием.
-   Файл: `apps/dashboard/scripts/dev.sh:17-18, 23`.
+1. **The comment about `--watch-kill-signal=SIGKILL` describes non-existent behaviour.** (confidence 75)
+   `apps/dashboard/scripts/dev.sh:17-18` explains: the flag "kills the old process immediately on restart... avoids 'address already in use' errors". In reality `--watch-kill-signal` is a flag of native `node --watch`, not of `tsx watch`; `tsx watch --help` (version `4.21.0`, pinned in `package.json`) recognizes only `--clear-screen, --exclude, --ignore, --include, --no-cache, --tsconfig`. `tsx` uses its own restart logic: it always sends `SIGTERM` and waits a fixed 5 seconds before `SIGKILL`, regardless of this flag — the flag is silently ignored (no CLI error, behaviour unchanged). The goal stated in the comment (avoiding "address already in use") is not achieved by this line. It does not affect whether the script works — it's just a dead line with a misleading comment.
+   File: `apps/dashboard/scripts/dev.sh:17-18, 23`.
 
-Дополнительно, ревью CodeRabbit на самом PR независимо отметило две мелкие неточности в `packages/aurora/docs/0014_dependency_classification.md` (пример с `useState` вместо `useContext`/`createContext` как признак "доступа к контексту"; и эвристика на `grep "Provider"`, которая ловит произвольный текст, а не конкретно React-импорты/хуки) — оба чисто про формулировки в новом doc-файле, не про поведение кода.
+Additionally, the CodeRabbit review on the PR itself independently noted two minor inaccuracies in `packages/aurora/docs/0014_dependency_classification.md` (an example using `useState` instead of `useContext`/`createContext` as a sign of "context access"; and a heuristic based on `grep "Provider"`, which catches arbitrary text rather than specifically React imports/hooks) — both purely about wording in the new doc file, not about code behaviour.
 
 ---
-Проанализировано: 23.07.2026 · коммит `132d5fa356af4299ff9594247bf1f5a99cef7565`
+Analyzed: 2026-07-23 · commit `132d5fa356af4299ff9594247bf1f5a99cef7565`

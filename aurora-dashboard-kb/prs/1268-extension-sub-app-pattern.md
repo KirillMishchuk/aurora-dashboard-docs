@@ -8,21 +8,21 @@ branch: 1253-change-additional-services-integration
 ---
 # PR #1268: feat(aurora): replace route-injection with standalone extension sub-app pattern
 
-**Автор:** taymoor89 · **Статус:** 03.09.2026 → смержен 04.09.2026 (approved andypf 04.09.2026)
-**Ветки:** `1253-change-additional-services-integration` → `main` · **Файлов:** 18 (+305/-87)
-**Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1268
+**Author:** taymoor89 · **Status:** 2026-09-03 → merged 2026-09-04 (approved andypf 2026-09-04)
+**Branches:** `1253-change-additional-services-integration` → `main` · **Files:** 18 (+305/-87)
+**Link:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1268
 
-## Что сделано
+## What was done
 
-Смена модели интеграции сторонних (SCI) сервисов в Aurora. Было: потребитель отдавал в OSS готовые TanStack-роуты, и они **вклеивались в дерево роутов OSS** (`AdditionalProjectService.routes: AnyRoute` + экспортируемый `servicesRoute` как parent + общий `ProjectId`-контекст). Стало: потребитель регистрирует **самодостаточный React-компонент**, который OSS монтирует под `/projects/$projectId/services/$serviceType/**`; компонент поднимает **свой собственный** `RouterProvider` с `basepath` и получает данные хоста через расширяемый объект `context`, а не через общий React-контекст.
+A change in how third-party (SCI) services integrate into Aurora. Before: the consumer handed ready-made TanStack routes to OSS, and they were **spliced into the OSS route tree** (`AdditionalProjectService.routes: AnyRoute` + an exported `servicesRoute` as the parent + a shared `ProjectId` context). Now: the consumer registers a **self-contained React component**, which OSS mounts under `/projects/$projectId/services/$serviceType/**`; the component spins up **its own** `RouterProvider` with a `basepath` and receives host data through an extensible `context` object rather than through a shared React context.
 
-Заодно унифицирован словарь: всё, что называлось «additional project service», стало «service extension» (`AdditionalProjectService` → `ServiceExtension`, проп `additionalProjectServices` → `serviceExtensions`).
+Along the way the vocabulary was unified: everything called an "additional project service" became a "service extension" (`AdditionalProjectService` → `ServiceExtension`, prop `additionalProjectServices` → `serviceExtensions`).
 
-Ключевой момент по истории: заменяемый паттерн прожил **11 дней** — route-injection ввёл тот же автор в `a9c257a1` (#1189, 24.08.2026), и его changeset прямо продавал механику «pass your service definitions via the `additionalProjectServices` prop… to plug in client-side routes». Триггером разворота стал комментарий в issue #1102 («Reopening this task and converting this to an epic in order to change the approach how we handle breadcrumbs and additional services integration»), из которого вырос #1253. Это не внешнее требование, а быстрый внутренний пересмотр только что выпущенного дизайна — при чтении базы знаний полезно помнить, что раздел про route-injection устарел через полторы недели после появления.
+Key point about the history: the pattern being replaced lived for **11 days** — route-injection was introduced by the same author in `a9c257a1` (#1189, 2026-08-24), and its changeset explicitly sold the mechanism as "pass your service definitions via the `additionalProjectServices` prop… to plug in client-side routes". The trigger for the reversal was a comment in issue #1102 ("Reopening this task and converting this to an epic in order to change the approach how we handle breadcrumbs and additional services integration"), from which #1253 grew. This is not an external requirement but a quick internal reconsideration of a design that had just shipped — when reading the knowledge base it is worth remembering that the section on route-injection became outdated a week and a half after it appeared.
 
-## Как это реализовано
+## How it is implemented
 
-**Контракт регистрации** (`packages/aurora/src/client/AuroraApp.tsx:61-100`). Три новых типа вместо одного: `ServiceExtensionContext` (сейчас `{ projectId }`, но расширяемый — смысл именно в том, чтобы будущие поля вроде `domainId`/`scope` не меняли сигнатуру компонента), `ServiceExtensionProps = { basePath, context }` и сам `ServiceExtension`, где вместо `routes` теперь `component`:
+**Registration contract** (`packages/aurora/src/client/AuroraApp.tsx:61-100`). Three new types instead of one: `ServiceExtensionContext` (currently `{ projectId }`, but extensible — the whole point is that future fields like `domainId`/`scope` won't change the component's signature), `ServiceExtensionProps = { basePath, context }`, and `ServiceExtension` itself, where `routes` is now replaced by `component`:
 
 ```ts
 export type ServiceExtension = {
@@ -45,9 +45,9 @@ export type ServiceExtension = {
 ```
 — `AuroraApp.tsx:84-100`
 
-Заявленное «host slots в под-приложение не инжектятся» — не просто декларация в доке: в `ServiceExtensionContext` поля `slots` нет, и монтирующий компонент передаёт наружу только `{ projectId }`, так что структурно пути к слотам у расширения нет.
+The stated "host slots are not injected into the sub-app" is not just a claim in the docs: `ServiceExtensionContext` has no `slots` field, and the mounting component passes out only `{ projectId }`, so structurally the extension has no path to the slots.
 
-**Монтирование.** Вся развязка — в одном компоненте на 23 строки:
+**Mounting.** The entire decoupling lives in a single 23-line component:
 
 ```tsx
 export function ServiceExtensionMount() {
@@ -68,7 +68,7 @@ export function ServiceExtensionMount() {
 ```
 — `.../services/$serviceType/-components/ServiceExtensionMount.tsx:9-23`
 
-**Три новых роута с разделением ролей.** Монтирование живёт на **layout**-роуте, а `index` и splat существуют только для матчинга URL — это осознанное решение, и оно задокументировано в коде:
+**Three new routes with separated roles.** Mounting lives on the **layout** route, while `index` and the splat exist only for URL matching — this is a deliberate decision, and it is documented in the code:
 
 ```tsx
 // Render the extension mount at the layout level so it stays mounted across all
@@ -81,62 +81,62 @@ export const Route = createFileRoute("/_auth/projects/$projectId/services/$servi
   component: ServiceExtensionMount,
 })
 ```
-— `.../services/$serviceType.tsx:4-12` (оба ребёнка — `component: () => null`: `$serviceType/index.tsx:6`, `$serviceType/$.tsx:7`)
+— `.../services/$serviceType.tsx:4-12` (both children are `component: () => null`: `$serviceType/index.tsx:6`, `$serviceType/$.tsx:7`)
 
-Проверено отдельно (против `@tanstack/react-router@1.168.22`): опасение «расширение A остаётся смонтированным, пока URL уже указывает на B» не реализуется — `ServiceExtensionMount` при смене `serviceType` не размонтируется, но подставляет другую функцию-компонент, и React корректно размонтирует старое поддерево по различию типа элемента.
+Verified separately (against `@tanstack/react-router@1.168.22`): the concern "extension A stays mounted while the URL already points to B" does not materialize — `ServiceExtensionMount` is not unmounted when `serviceType` changes, but it substitutes a different component function, and React correctly unmounts the old subtree based on the element type difference.
 
-**Публичная поверхность** (`packages/aurora/src/client/index.ts`). Убрано: `AdditionalProjectService`, `useProjectId`, `servicesRoute`. Добавлено: `ServiceExtension`, `ServiceExtensionProps`, `ServiceExtensionContext` и `PageContentHeader` (переименованный ре-экспорт `ContentHeader`, чтобы расширение могло отрисовать хедер в стиле OSS со своими экшенами). Переименование при экспорте — уже принятая в репо практика (ср. `ObjectBrowserView as CephObjects`).
+**Public surface** (`packages/aurora/src/client/index.ts`). Removed: `AdditionalProjectService`, `useProjectId`, `servicesRoute`. Added: `ServiceExtension`, `ServiceExtensionProps`, `ServiceExtensionContext`, and `PageContentHeader` (a renamed re-export of `ContentHeader`, so that an extension can render an OSS-styled header with its own actions). Renaming on export is already an established practice in the repo (cf. `ObjectBrowserView as CephObjects`).
 
-**Навигация.** `buildNavSections` больше не может навигировать по `module.routes.fullPath` (роутов-то нет) и переходит на статический путь с параметрами; подсветка активного пункта получила фолбэк на URL-параметр, потому что у mount-роута нет статического `service`:
+**Navigation.** `buildNavSections` can no longer navigate via `module.routes.fullPath` (there are no routes anymore) and switches to a static path with params; active-item highlighting gained a fallback to the URL param, because the mount route has no static `service`:
 
 ```ts
 const activeService = activeRouteInfo?.service ?? serviceType ?? null
 ```
 — `.../projects/-components/SideNavBar.tsx:38`
 
-**Хлебные крошки.** На `/services/$serviceType/**` OSS не показывает секционную крошку (как и в compute/network/storage), а всё ниже уровня сервиса расширение публикует само через `usePushBreadcrumbs`. Это прямое применение механики, построенной за два дня до этого в #1254 (`0cadedd9`), а не конфликт с ней: `useBreadcrumbs.ts` уже тогда документировался как пригодный для встроенных под-приложений, а `Breadcrumbs.tsx` — как мерджящий `BreadcrumbExtensionContext`.
+**Breadcrumbs.** On `/services/$serviceType/**` OSS does not show a section breadcrumb (same as in compute/network/storage), and everything below the service level is published by the extension itself via `usePushBreadcrumbs`. This is a direct application of the mechanism built two days earlier in #1254 (`0cadedd9`), not a conflict with it: `useBreadcrumbs.ts` was already documented back then as suitable for embedded sub-apps, and `Breadcrumbs.tsx` as merging `BreadcrumbExtensionContext`.
 
-**Мелкая закалка.** `EMPTY_SERVICE_EXTENSIONS` объявлен на уровне модуля (`App.tsx:39`) и подставляется, когда проп не передан (`App.tsx:108`), чтобы не ломать мемоизацию `buildNavSections` новым `[]` на каждый рендер. Проверено: константа действительно на уровне модуля, а нижестоящая мемоизация зависит от самой ссылки `serviceExtensions`, а не от оборачивающего объекта контекста, так что закалка работает.
+**Minor hardening.** `EMPTY_SERVICE_EXTENSIONS` is declared at module level (`App.tsx:39`) and substituted when the prop is not passed (`App.tsx:108`), so as not to break `buildNavSections` memoization with a new `[]` on every render. Verified: the constant really is at module level, and the downstream memoization depends on the `serviceExtensions` reference itself, not on the wrapping context object, so the hardening works.
 
-## Что затронуло
+## What it affects
 
-**Внутри монорепо ломать нечего — и это проверено.** `additionalProjectServices`, `AdditionalProjectService` и `ProjectIdContext` на `4df9ccea` не встречаются ни в одном файле; `apps/dashboard` этих API не использовал вообще, а зависимость у него `workspace:*` (`apps/dashboard/package.json:20`), то есть тип бампа для него безразличен. `useProjectId` остаётся живым и активно используемым **внутри** пакета (117 файлов) — из публичного индекса он убран, но не удалён, так что внутренние потребители не затронуты.
+**Nothing breaks inside the monorepo — and this was verified.** `additionalProjectServices`, `AdditionalProjectService` and `ProjectIdContext` do not occur in any file at `4df9ccea`; `apps/dashboard` did not use these APIs at all, and its dependency is `workspace:*` (`apps/dashboard/package.json:20`), so the bump type is irrelevant to it. `useProjectId` remains alive and actively used **inside** the package (117 files) — it was removed from the public index but not deleted, so internal consumers are unaffected.
 
-**Реальный риск — только у внешних потребителей.** Пакет публикуемый (`publishConfig.access: "public"`, версия 1.1.0), и это классическая breaking-смена контракта: SCI-дашборд должен переехать в lockstep. Координация этого переезда **нигде не отслеживается** — единственное упоминание в PR это шаг «Rebuild and install OSS into the SCI dashboard» в инструкции по тестированию; ни линкованного issue, ни чеклиста.
+**The real risk is only for external consumers.** The package is published (`publishConfig.access: "public"`, version 1.1.0), and this is a classic breaking contract change: the SCI dashboard has to move in lockstep. Coordination of that move is **not tracked anywhere** — the only mention in the PR is the "Rebuild and install OSS into the SCI dashboard" step in the testing instructions; no linked issue, no checklist.
 
-**Тип бампа — `minor` при шести задокументированных breaking changes — соответствует практике проекта, а не нарушает её.** Это стоит зафиксировать, потому что выглядит как ошибка, но ей не является: в `packages/aurora/CHANGELOG.md:6-9` удаление публичного `getAuthToken` с миграционной заметкой вышло как minor (коммит `8e99f074` в своём сообщении прямо пишет «Upgraded to minor version due to breaking API change»); `.changeset/tempurl-restrictions.md` — minor при breaking-ограничении TempURL; `.changeset/brave-weeks-warn.md` — вообще `patch` при секции «Breaking change for API consumers». Единственный major в истории (1.0.0, `2c7bd0e7`) был осознанным исключением. `docs/semantic_release.md`, где написано про major по `BREAKING CHANGE:`, — мёртвый документ: ни `.releaserc.js`, ни semantic-release workflow в репо нет, релиз идёт через changesets-экшен.
+**The bump type — `minor` with six documented breaking changes — matches the project's practice rather than violating it.** This is worth recording, because it looks like a mistake but isn't one: in `packages/aurora/CHANGELOG.md:6-9` the removal of the public `getAuthToken` with a migration note shipped as minor (commit `8e99f074` explicitly says in its message "Upgraded to minor version due to breaking API change"); `.changeset/tempurl-restrictions.md` — minor for a breaking TempURL restriction; `.changeset/brave-weeks-warn.md` — even `patch` with a "Breaking change for API consumers" section. The only major in the history (1.0.0, `2c7bd0e7`) was a deliberate exception. `docs/semantic_release.md`, which talks about a major on `BREAKING CHANGE:`, is a dead document: there is neither `.releaserc.js` nor a semantic-release workflow in the repo; releases go through the changesets action.
 
-**Тесты не переписаны под новое поведение — они механически переименованы.** `buildNavSections.test.ts` (+4/-5): только `AdditionalProjectService`→`ServiceExtension` и `routes: {} as unknown as AnyRoute`→`component: () => null`, сами ассерты не тронуты. `useBreadcrumbs.test.tsx` (+1/-1): переименование поля в моке `useRouteContext`, который сам хук вообще не вызывает (он работает через `useMatches`/`DynamicBreadcrumbContext`) — мёртвая заглушка, доставшаяся от #1254. То есть нового поведения (монтирование, splat, фолбэк подсветки, поведение при незарегистрированном типе) не покрывает ни один тест.
+**The tests were not rewritten for the new behavior — they were mechanically renamed.** `buildNavSections.test.ts` (+4/-5): only `AdditionalProjectService`→`ServiceExtension` and `routes: {} as unknown as AnyRoute`→`component: () => null`; the assertions themselves are untouched. `useBreadcrumbs.test.tsx` (+1/-1): a field rename in the `useRouteContext` mock, which the hook itself never calls (it works via `useMatches`/`DynamicBreadcrumbContext`) — a dead stub inherited from #1254. That is, the new behavior (mounting, splat, highlighting fallback, behavior for an unregistered type) is not covered by any test.
 
-## Ревью
+## Review
 
-Пять параллельных агентов (конвенции/версионирование, скан багов, история, прошлый фидбек, соответствие докам и комментариям) плюс confidence-scoring. Порог ≥80 прошла одна находка; три набрали 75 и вынесены отдельным блоком, потому что по существу они полезнее, чем их балл.
+Five parallel agents (conventions/versioning, bug scan, history, past feedback, conformance to docs and comments) plus confidence scoring. One finding passed the ≥80 threshold; three scored 75 and are listed in a separate block, because in substance they are more useful than their score suggests.
 
-### [100] Changeset публикует три несуществующих breaking change
+### [100] The changeset publishes three nonexistent breaking changes
 
-`.changeset/extension-sub-app-pattern.md` — это не описание PR, а потребительские release notes: релизный экшен копирует текст changeset'а дословно в `packages/aurora/CHANGELOG.md`. Три из шести заявленных breaking changes не соответствуют действительности:
+`.changeset/extension-sub-app-pattern.md` is not a PR description but consumer-facing release notes: the release action copies the changeset text verbatim into `packages/aurora/CHANGELOG.md`. Three of the six declared breaking changes do not match reality:
 
-| Заявка в changeset | Факт |
+| Claim in the changeset | Fact |
 | --- | --- |
-| «`ProjectIdContext` export removed» (стр. 11) | Ни экспорта, ни типа, ни файла с таким именем в истории репозитория **никогда не было**: `git log --all -S'ProjectIdContext'` не даёт ни одного коммита, кроме ветки самого PR |
-| «`AuroraAppProps.router` prop removed» (стр. 13) | У `AuroraAppProps` поля `router` не было ни в одном коммите, включая базу `273aebbe` (там только `theme`, `bffEndpoint`, `onThemeChange`, `slots`, `appName`, `onTrackEvent`, `enabledServices`, `additionalProjectServices`) |
-| `usePushBreadcrumbs` в разделе «New exports» (стр. 19) | Уже экспортировался до этого PR — `git show 273aebbe:packages/aurora/src/client/index.ts:25`, добавлен в #1254 |
+| "`ProjectIdContext` export removed" (line 11) | No export, type or file with that name has **ever existed** in the repository history: `git log --all -S'ProjectIdContext'` returns no commits except on the PR's own branch |
+| "`AuroraAppProps.router` prop removed" (line 13) | `AuroraAppProps` never had a `router` field in any commit, including the base `273aebbe` (it only has `theme`, `bffEndpoint`, `onThemeChange`, `slots`, `appName`, `onTrackEvent`, `enabledServices`, `additionalProjectServices`) |
+| `usePushBreadcrumbs` in the "New exports" section (line 19) | Was already exported before this PR — `git show 273aebbe:packages/aurora/src/client/index.ts:25`, added in #1254 |
 
-Плюс более мягкая формулировочная неточность: «`ServiceExtensionProps` reshaped from `{ basePath, projectId }` to `{ basePath, context }`» (стр. 10) — типа с таким именем до этого PR не существовало вовсе, он вводится здесь же, так что «reshaped» вводит в заблуждение.
+Plus a milder wording inaccuracy: "`ServiceExtensionProps` reshaped from `{ basePath, projectId }` to `{ basePath, context }`" (line 10) — no type with that name existed before this PR at all; it is introduced right here, so "reshaped" is misleading.
 
-Практический вред: внешний потребитель, читая CHANGELOG, будет искать в своём коде `ProjectIdContext` и проп `router`, которых у него нет и быть не могло, и при этом получит неверное представление о том, что нового появилось. Подтверждено двумя агентами независимо и перепроверено вручную по `git log --all -S` и блобам базы. Правится до мержа — правкой файла changeset'а.
+Practical harm: an external consumer reading the CHANGELOG will search their code for `ProjectIdContext` and a `router` prop that they don't have and never could have had, and will at the same time get a wrong picture of what is actually new. Confirmed independently by two agents and re-checked manually via `git log --all -S` and the base blobs. Fixable before merge — by editing the changeset file.
 
-### Ниже порога [75], но именно это стоит поправить в коде
+### Below threshold [75], but this is exactly what is worth fixing in the code
 
-- **Пустая страница вместо 404 при неизвестном `serviceType`.** `$serviceType` + splat `$` вместе матчат **любой** URL под `/services/**`, а `ServiceExtensionMount.tsx:18` на промахе поиска возвращает `null`. Итог: устаревшая ссылка, опечатка или тип сервиса, который есть в каталоге OpenStack, но не зарегистрирован как расширение, дают полностью пустую контентную область внутри обычной оболочки проекта — без ошибки, без редиректа, без `notFoundComponent: PageNotFound` (`routes/__root.tsx:29`), который до этого PR как раз и срабатывал, потому что незарегистрированного роута в дереве просто не было. Ср. аналогичный динамический сегмент в storage: `storage/$provider/$storageType/index.tsx` валидирует его через `checkServiceAvailability` и всегда бросает `redirect()` на осмысленный фолбэк. **Это же замечание оставил Copilot на самом PR и оно осталось без ответа и без правки** — при этом соседнее его замечание (про дубликаты `serviceType`) автор отклонил осознанно и с объяснением («OSS `aurora` shouldn't second-guess consumers intent»), так что молчание здесь выглядит именно пропуском, а не решением. Approve от andypf («Looks good to me, no regressions so far») этот пункт не снимает.
-- **«No user-visible change» в описании PR противоречит его же changeset'у.** Утверждение «N/A (no user-visible change; projectId resolves identically inside mounted extensions)» верно про `projectId`, но changeset тут же документирует, что на `/services/**` пропадает секционная крошка, а крошки роутов внутри собственного роутера расширения больше не видны `useMatches()`-основанной крошечной панели OSS, пока расширение не вызовет `usePushBreadcrumbs` на каждом уровне. Крошка, которая раньше рисовалась, а теперь нет, — видимое изменение.
-- **Мёртвый `servicesRoute` остался в исходниках.** Публичный ре-экспорт убран, route-injection удалён, но сам файл всё ещё отдаёт алиас: `.../services.tsx:7` → `export { Route as servicesRoute }`. Артефакт ровно того механизма, который PR заменяет.
+- **A blank page instead of a 404 for an unknown `serviceType`.** `$serviceType` + the `$` splat together match **any** URL under `/services/**`, and `ServiceExtensionMount.tsx:18` returns `null` on a lookup miss. Result: a stale link, a typo, or a service type that exists in the OpenStack catalog but is not registered as an extension yields a completely empty content area inside the normal project shell — no error, no redirect, no `notFoundComponent: PageNotFound` (`routes/__root.tsx:29`), which before this PR is exactly what fired, because an unregistered route simply wasn't in the tree. Cf. the analogous dynamic segment in storage: `storage/$provider/$storageType/index.tsx` validates it via `checkServiceAvailability` and always throws a `redirect()` to a meaningful fallback. **Copilot left this same comment on the PR itself, and it went unanswered and unfixed** — while its neighboring comment (about duplicate `serviceType`s) was deliberately rejected by the author with an explanation ("OSS `aurora` shouldn't second-guess consumers intent"), so the silence here looks like an oversight rather than a decision. The approve from andypf ("Looks good to me, no regressions so far") does not resolve this point.
+- **"No user-visible change" in the PR description contradicts its own changeset.** The statement "N/A (no user-visible change; projectId resolves identically inside mounted extensions)" is true about `projectId`, but the changeset itself documents that the section breadcrumb disappears on `/services/**`, and that breadcrumbs of routes inside the extension's own router are no longer visible to OSS's `useMatches()`-based breadcrumb bar until the extension calls `usePushBreadcrumbs` at every level. A breadcrumb that used to render and now doesn't is a visible change.
+- **A dead `servicesRoute` remains in the sources.** The public re-export was removed and route-injection deleted, but the file itself still exports the alias: `.../services.tsx:7` → `export { Route as servicesRoute }`. An artifact of exactly the mechanism the PR replaces.
 
-### Ниже порога [50], как контекст
+### Below threshold [50], as context
 
-- `$serviceType.tsx:10` пишет `staticData: { section: "services" }` без `satisfies RouteInfo`, тогда как сопоставимые роуты в репо это утверждение ставят стабильно (`_auth.tsx:8-10`, `storage/$provider/$storageType.tsx:7-10`). Типизацию не ломает.
-- Новый публичный экспорт `PageContentHeader` в `packages/aurora/README.md` не упомянут ни разу, хотя PR переписывает в этом README раздел «Service extensions», а экспорт добавлен именно для авторов расширений. Остальная часть раздела при этом сверена с кодом на `4df9ccea` и совпадает точно — имена, пропы, формы типов и оба примера с `createRouter({ routeTree, context })`/`useRouteContext`.
-- Выход за рамки issue #1253: issue просит лишь «render consumer supplied project services as isolated components», удаления `useProjectId`/`servicesRoute` из публичного API там нет. Как следствие нового паттерна это защитимо, но формально это расширение объёма, и ревьюеры его не обсуждали.
+- `$serviceType.tsx:10` writes `staticData: { section: "services" }` without `satisfies RouteInfo`, whereas comparable routes in the repo consistently include that assertion (`_auth.tsx:8-10`, `storage/$provider/$storageType.tsx:7-10`). It doesn't break typing.
+- The new public export `PageContentHeader` is not mentioned even once in `packages/aurora/README.md`, even though the PR rewrites the "Service extensions" section of that README, and the export was added specifically for extension authors. The rest of the section was checked against the code at `4df9ccea` and matches exactly — names, props, type shapes, and both examples with `createRouter({ routeTree, context })`/`useRouteContext`.
+- Going beyond the scope of issue #1253: the issue only asks to "render consumer supplied project services as isolated components"; removing `useProjectId`/`servicesRoute` from the public API is not there. As a consequence of the new pattern this is defensible, but formally it is a scope expansion, and the reviewers did not discuss it.
 
 ---
-Проанализировано: 04.09.2026 · коммит `4df9ccea`
+Analyzed: 2026-09-04 · commit `4df9ccea`

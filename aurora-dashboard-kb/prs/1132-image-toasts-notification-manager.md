@@ -8,13 +8,13 @@ branch: mark-images-notifications
 ---
 # PR #1132: refactor(portal): migrate image toasts from legacy Toast to NotificationManager
 
-**Автор:** mark-karnaukh-extern-sap · **Статус:** создан 04.08.2026, смержен 06.08.2026 (коммит `46256e98`)
-**Ветки:** `mark-images-notifications` → `main` · **Файлов:** 12 (+980/-813)
-**Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1132
+**Author:** mark-karnaukh-extern-sap · **Status:** created 2026-08-04, merged 2026-08-06 (commit `46256e98`)
+**Branches:** `mark-images-notifications` → `main` · **Files:** 12 (+980/-813)
+**Link:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1132
 
-## Что сделано
+## What was done
 
-Третий (после Ceph — коммит `32223ac`, и Swift — коммит `df25d7c`) и последний перевод legacy `<Toast>`-паттерна на общеприложенческий `NotificationManager` (Sonner-based `toast.success/error/warning/info()`) — на этот раз для фичи Glance images. До этого PR каждый экран (`ImageListView`, `ImageTableRow`, деталка `$imageId`) держал собственное состояние `toastData`, рендерил `<Toast {...toastData} />` фиксированным блоком и прокидывал `onDismiss`-колбэк через `ToastConfig` в каждый из 24 билдеров в `ImageToastNotifications.tsx`. PR убирает это состояние целиком: билдеры теперь возвращают простой объект `{ message, description }` (без `variant`, без JSX-рендеринга через компонент `NotificationText`), а вызывающий код сам решает северность и диспатчит её императивно:
+The third (after Ceph — commit `32223ac`, and Swift — commit `df25d7c`) and final migration of the legacy `<Toast>` pattern to the app-wide `NotificationManager` (Sonner-based `toast.success/error/warning/info()`) — this time for the Glance images feature. Before this PR, each screen (`ImageListView`, `ImageTableRow`, the `$imageId` details page) kept its own `toastData` state, rendered `<Toast {...toastData} />` as a fixed block and passed an `onDismiss` callback through `ToastConfig` into each of the 24 builders in `ImageToastNotifications.tsx`. The PR removes this state entirely: the builders now return a plain `{ message, description }` object (no `variant`, no JSX rendering via the `NotificationText` component), and the calling code decides the severity itself and dispatches it imperatively:
 
 ```tsx
 // ImageToastNotifications.tsx:5-11
@@ -27,7 +27,7 @@ branch: mark-images-notifications
 // mirroring the Swift/Ceph notification helpers.
 ```
 
-Конкретный пример на месте вызова (один из 22 в `ImageListView.tsx`):
+A concrete example at a call site (one of 22 in `ImageListView.tsx`):
 
 ```tsx
 // ImageListView.tsx:480-485
@@ -39,11 +39,11 @@ if (failedCount === 0) {
   toast.error(message, options)
 ```
 
-Помимо самого рефакторинга, PR попутно исправил типизацию сообщений об ошибках: раньше `const { message } = error as TRPCClientError<...>` неявно трактовал потенциально `undefined` как `string`; теперь на большинстве мест добавлен явный фолбэк `?? ""` перед передачей в билдер. Обновлены английский и немецкий каталоги переводов под новые именованные плейсхолдеры (`errorMessage` вместо `message` в нескольких местах) — оба каталога синхронны, пустых `msgstr ""` не осталось.
+Besides the refactoring itself, the PR also fixed the typing of error messages: previously `const { message } = error as TRPCClientError<...>` implicitly treated a potentially `undefined` value as `string`; now an explicit `?? ""` fallback is added in most places before passing it to the builder. The English and German translation catalogs were updated for the new named placeholders (`errorMessage` instead of `message` in several places) — both catalogs are in sync, and no empty `msgstr ""` remain.
 
-## Как это реализовано
+## How it is implemented
 
-Каждый из 24 билдеров в `ImageToastNotifications.tsx` теперь возвращает данные, а не JSX-разметку компонента (компонент `NotificationText`, который раньше собирал `title`/`description` в вертикальный `<Stack>`, из билдеров убран целиком):
+Each of the 24 builders in `ImageToastNotifications.tsx` now returns data rather than a component's JSX markup (the `NotificationText` component, which previously assembled `title`/`description` into a vertical `<Stack>`, was removed from the builders entirely):
 
 ```tsx
 // ImageToastNotifications.tsx:15-30
@@ -65,7 +65,7 @@ export const getImageUpdateErrorToast = (
 })
 ```
 
-Вызывающая сторона (`ImageListView.tsx`, `ImageTableRow.tsx`, `$imageId.tsx`) везде следует одному и тому же паттерну — деструктурировать `message`/`options` и вызвать нужный метод `toast`, без исключений (проверено построчно по всем 26 местам вызова): `*ErrorToast` → `toast.error`, простые/`*SuccessToast` → `toast.success`, `*PartialToast` → `toast.warning`, `getImageAccessStatusUpdatedToast` → `toast.info`. Пример из `ImageTableRow.tsx`:
+The calling side (`ImageListView.tsx`, `ImageTableRow.tsx`, `$imageId.tsx`) follows the same pattern everywhere — destructure `message`/`options` and call the appropriate `toast` method, without exception (checked line by line across all 26 call sites): `*ErrorToast` → `toast.error`, plain/`*SuccessToast` → `toast.success`, `*PartialToast` → `toast.warning`, `getImageAccessStatusUpdatedToast` → `toast.info`. An example from `ImageTableRow.tsx`:
 
 ```tsx
 // ImageTableRow.tsx:90-96
@@ -79,27 +79,27 @@ onMemberStatusChanged?.()
 }
 ```
 
-Тесты (`ImageToastNotifications.test.tsx`) переписаны под новую форму данных (`{ message, description }` вместо проверки отрендеренного `<Toast>`); добавлены два новых файла — `ImageTableRow.test.tsx` и `$imageId.test.tsx` — с рендерингом через реальные Juno-компоненты и реальный `NotificationManager`, а не моки, плюс проверки permission-gated экшенов и member-status флоу.
+The tests (`ImageToastNotifications.test.tsx`) were rewritten for the new data shape (`{ message, description }` instead of checking a rendered `<Toast>`); two new files were added — `ImageTableRow.test.tsx` and `$imageId.test.tsx` — rendering through real Juno components and the real `NotificationManager` rather than mocks, plus checks of permission-gated actions and the member-status flow.
 
-## Что затронуло
+## What it affects
 
-`ImageToastNotifications.tsx`, `NotificationText.tsx` и связанное состояние — всё локально для фичи Images (`compute/-components/Images/-components/`), потребителей за пределами изменённых файлов не найдено (`git grep` по монорепо на все 24 имени билдеров чист). Изменение не выходит за пределы этой фичи: паблик-контракт `AuroraApp` (слоты, пропсы) не тронут, `packages/aurora/README.md` обновления не требует.
+`ImageToastNotifications.tsx`, `NotificationText.tsx` and the related state are all local to the Images feature (`compute/-components/Images/-components/`); no consumers were found outside the changed files (a `git grep` across the monorepo for all 24 builder names is clean). The change does not go beyond this feature: the public contract of `AuroraApp` (slots, props) is untouched, and `packages/aurora/README.md` needs no update.
 
-Осталось не до конца прибрано: **`NotificationText.tsx` и его тест `NotificationText.test.tsx` остались в дереве, но стали мёртвым кодом.** До PR все 24 билдера рендерили контент через `<NotificationText title=... description=... />`; после рефакторинга билдеры больше не рендерят JSX вообще, `NotificationText` нигде не используется (кроме собственного теста) — `git grep -n NotificationText` по всему репозиторию на head-коммите подтверждает: только сам файл и его тест. Это расходится с тем, как тот же самый рефакторинг был сделан раньше в этом же репозитории: у Ceph Buckets (`32223ac`) и Swift Containers (`df25d7c`) аналогичный локальный компонент удалялся тем же коммитом, что менял форму билдеров — там уборка была полной. Изменение реестра трансляций (locale-файлы) соответствует изменениям в билдерах один в один, без расхождений.
+Something was left not fully cleaned up: **`NotificationText.tsx` and its test `NotificationText.test.tsx` remained in the tree but became dead code.** Before the PR, all 24 builders rendered their content via `<NotificationText title=... description=... />`; after the refactoring the builders no longer render any JSX at all, and `NotificationText` is not used anywhere (except in its own test) — `git grep -n NotificationText` across the whole repository at the head commit confirms it: only the file itself and its test. This diverges from how the very same refactoring was done earlier in this same repository: for Ceph Buckets (`32223ac`) and Swift Containers (`df25d7c`) the analogous local component was deleted in the same commit that changed the shape of the builders — there the cleanup was complete. The changes to the translation registry (locale files) match the changes in the builders one to one, with no discrepancies.
 
-## Ревью
+## Review
 
-Через диф прогнаны параллельно: CLAUDE.md/AGENTS.md-комплаенс (та же оговорка, что и для #1123 — апстрим не содержит `AGENTS.md`/[`CLAUDE.md`](../../CLAUDE.md), сверка велась по `CONTRIBUTING.md`/`docs/aurora_architecture_overview.md`/`packages/aurora/README.md`), bug-scan, historical context (`git log`/`git blame`, сравнение с более ранними миграциями Ceph/Swift на тот же паттерн), prior-feedback (в этом PR на GitHub уже есть автоматические ревью от CodeRabbit и Copilot — их замечания перепроверены по коду, а не приняты на веру) и comment-compliance.
+The following were run in parallel over the diff: CLAUDE.md/AGENTS.md compliance (with the same caveat as for #1123 — upstream does not contain `AGENTS.md`/[`CLAUDE.md`](../../CLAUDE.md), so the check was done against `CONTRIBUTING.md`/`docs/aurora_architecture_overview.md`/`packages/aurora/README.md`), bug-scan, historical context (`git log`/`git blame`, comparison with the earlier Ceph/Swift migrations to the same pattern), prior-feedback (this PR on GitHub already has automated reviews from CodeRabbit and Copilot — their remarks were re-checked against the code rather than taken on trust) and comment-compliance.
 
-**Проблем с уверенностью ≥80 не найдено.** Ближе всего к порогу — оставленный мёртвый код `NotificationText` (75/100), не дотянул на 5 пунктов.
+**No issues found with confidence ≥80.** The closest to the threshold is the leftover dead code `NotificationText` (75/100), which fell 5 points short.
 
-Кандидаты, не прошедшие порог (для полноты — на будущее, чтобы не искать заново):
+Candidates that did not pass the threshold (for completeness — for the future, so they do not have to be searched for again):
 
-- **Оставленный мёртвый код `NotificationText.tsx`/`NotificationText.test.tsx`** (см. «Что затронуло» выше) — 75/100. Реальная и подтверждённая находка (нулевые потребители, несогласованность с тем, как аналогичную уборку сделали более ранние PR по Ceph/Swift), но не дотягивает до порога отчёта — некритично (мёртвый файл, не баг в поведении), удаляется одной правкой при следующей правке этой области.
-- **Северность bulk-операций решается на месте вызова, а не в билдере** (`ImageListView.tsx:470-560`, три хендлера `handleBulkDelete`/`handleBulkActivate`/`handleBulkDeactivate`, каждый напрямую воспроизводит `if (failedCount === 0) ... else if (successCount === 0) ... else ...` и диспатчит один из 9 отдельных билдеров) — 65/100. Описание PR заявляет паттерн «как у Swift и Ceph», но это в точности паттерн Ceph; более новый паттерн Swift (коммит `df25d7c`, билдер сам возвращает `{ message, severity, ...options }`, чтобы сообщение и северность не могли разойтись) сюда не перенесён. Риск реален, но смягчён тем, что ветки `if/else if/else` лежат рядом в одном блоке — разъехаться на практике сложно.
-- **Дублирование jsdom-полифиллов между двумя новыми тестовыми файлами** (`ImageTableRow.test.tsx`, `$imageId.test.tsx` — оба заново стабят `scrollIntoView`/`matchMedia` в собственном `beforeAll`) — 65/100. В репозитории уже есть централизованный `vitest.setup.ts` с `ResizeObserver`/другими полифиллами, куда логично было бы добавить и эти два — но ни один из 22 остальных тестовых файлов с `beforeAll` не следует такому паттерну по-другому, эффект на практике смягчён defensive-guard'ами в самом коде полифиллов.
-- **Повтор инлайн-типа `{ message: ReactNode } & NotificationOptions` в каждом из 24 билдеров** (вместо общего type alias) — 0/100. Формально новое в этом файле (раньше был общий `ToastConfig`), но ровно тот же паттерн уже используется во всех соседних файлах уведомлений (`BucketToastNotifications.tsx`, `ObjectToastNotifications.tsx`, `ContainerToastNotifications.tsx`) — это существующая конвенция репозитория, а не отклонение этого PR.
-- Замечания CodeRabbit, уже оставленные прямо на этом PR, перепроверены по коду и отклонены как относящиеся не к этому PR: debug `console.log` в bulk-хендлерах (`ImageListView.tsx`, строки ~475/507/540) — тот же вызов существовал до PR, изменилось только имя переменной; импорт `@cloudoperators/juno-ui-components/index` вместо корня пакета в `$imageId.tsx` — путь импорта не тронут этим диффом; `errorMessage || <Trans>...</Trans>` в `getImageAccessStatusErrorToast` (`ImageToastNotifications.tsx:231-234`) без обёртки в `<Trans>` на truthy-ветке — идентичный паттерн уже был в JSX-версии билдера до PR (`ImageTableRow.tsx:94-96`, `$imageId.tsx` аналогично, вызывающий код тоже не менялся). Замечание CodeRabbit про `getByRole("button")` в новых тестах — на практике не неоднозначно: единственная другая интерактивная роль в той же строке — `checkbox`, не `button`.
+- **Leftover dead code `NotificationText.tsx`/`NotificationText.test.tsx`** (see "What it affects" above) — 75/100. A real and confirmed finding (zero consumers, inconsistent with how the earlier Ceph/Swift PRs did the analogous cleanup), but it does not reach the reporting threshold — non-critical (a dead file, not a behavioral bug), removable with a single edit the next time this area is touched.
+- **The severity of bulk operations is decided at the call site, not in the builder** (`ImageListView.tsx:470-560`, three handlers `handleBulkDelete`/`handleBulkActivate`/`handleBulkDeactivate`, each directly reproducing `if (failedCount === 0) ... else if (successCount === 0) ... else ...` and dispatching one of 9 separate builders) — 65/100. The PR description claims the pattern is "like Swift and Ceph", but this is exactly the Ceph pattern; the newer Swift pattern (commit `df25d7c`, where the builder itself returns `{ message, severity, ...options }` so that the message and the severity cannot diverge) was not carried over here. The risk is real, but mitigated by the fact that the `if/else if/else` branches sit next to each other in the same block — in practice they are hard to get out of sync.
+- **Duplication of jsdom polyfills between the two new test files** (`ImageTableRow.test.tsx`, `$imageId.test.tsx` — both re-stub `scrollIntoView`/`matchMedia` in their own `beforeAll`) — 65/100. The repository already has a centralized `vitest.setup.ts` with `ResizeObserver`/other polyfills, where it would be logical to add these two as well — but none of the other 22 test files with `beforeAll` follows that pattern differently, and in practice the effect is mitigated by defensive guards in the polyfill code itself.
+- **Repetition of the inline type `{ message: ReactNode } & NotificationOptions` in each of the 24 builders** (instead of a shared type alias) — 0/100. Formally new in this file (previously there was a shared `ToastConfig`), but exactly the same pattern is already used in all neighboring notification files (`BucketToastNotifications.tsx`, `ObjectToastNotifications.tsx`, `ContainerToastNotifications.tsx`) — this is an existing repository convention, not a deviation by this PR.
+- The CodeRabbit remarks already left directly on this PR were re-checked against the code and rejected as not belonging to this PR: debug `console.log` in the bulk handlers (`ImageListView.tsx`, lines ~475/507/540) — the same call existed before the PR, only the variable name changed; the import of `@cloudoperators/juno-ui-components/index` instead of the package root in `$imageId.tsx` — the import path is not touched by this diff; `errorMessage || <Trans>...</Trans>` in `getImageAccessStatusErrorToast` (`ImageToastNotifications.tsx:231-234`) without a `<Trans>` wrapper on the truthy branch — an identical pattern already existed in the JSX version of the builder before the PR (`ImageTableRow.tsx:94-96`, `$imageId.tsx` likewise; the calling code did not change either). CodeRabbit's remark about `getByRole("button")` in the new tests is not ambiguous in practice: the only other interactive role in the same row is `checkbox`, not `button`.
 
 ---
-Проанализировано: 06.08.2026 · коммит `8ca4c450e145e98188b2d02ac18c671ea50f89d9`
+Analyzed: 2026-08-06 · commit `8ca4c450e145e98188b2d02ac18c671ea50f89d9`

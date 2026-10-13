@@ -8,21 +8,21 @@ branch: mark-ceph-object-pre-signed-urls
 ---
 # PR #1120: feat(portal): generate pre-signed URLs for objects
 
-**Автор:** mark-karnaukh-extern-sap · **Статус:** смержен 05.08.2026 (коммит `502a1e92`)
-**Ветки:** `mark-ceph-object-pre-signed-urls` → `main` · **Файлов:** 16 (+1323/-11)
-**Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1120
+**Author:** mark-karnaukh-extern-sap · **Status:** merged 2026-08-05 (commit `502a1e92`)
+**Branches:** `mark-ceph-object-pre-signed-urls` → `main` · **Files:** 16 (+1323/-11)
+**Link:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1120
 
-## Что сделано
+## What was done
 
-У Swift-объектов давно есть временные HMAC-подписанные ссылки (`GenerateTempUrlModal`, PR #705), у Ceph (S3) — не было. PR закрывает этот разрыв: добавляет **pre-signed URL** для объектов Ceph — новую процедуру `storage.ceph.objects.generatePresignedUrl` в BFF и модалку `GeneratePresignedUrlModal` на клиенте, вызываемую через новый пункт «Share URL» в меню действий строки объекта в `ObjectsTableView`.
+Swift objects have long had temporary HMAC-signed links (`GenerateTempUrlModal`, PR #705), but Ceph (S3) did not. The PR closes this gap: it adds **pre-signed URLs** for Ceph objects — a new procedure `storage.ceph.objects.generatePresignedUrl` in the BFF and a `GeneratePresignedUrlModal` modal on the client, invoked via a new "Share URL" item in the row action menu in `ObjectsTableView`.
 
-В отличие от Swift, здесь нет ключа, который нужно предварительно сконфигурировать: подпись выводится из уже существующих EC2-credentials запроса (тех же, что используются остальными Ceph-процедурами через `getCephClient()`), поэтому реализация проще Swift-аналога — не нужен путь «ключ не настроен», нет параметра account.
+Unlike Swift, there is no key that needs to be configured beforehand: the signature is derived from the request's already existing EC2 credentials (the same ones used by the other Ceph procedures via `getCephClient()`), so the implementation is simpler than its Swift counterpart — no "key not configured" path is needed, and there is no account parameter.
 
-Ограничение: **только GET**. Presigned `PUT` (upload-by-link) явно вне скоупа — загрузка по-прежнему идёт через существующий `uploadObject` (стриминг через BFF, см. PR #1086 в этом же ключе документации).
+Limitation: **GET only**. Presigned `PUT` (upload-by-link) is explicitly out of scope — uploads still go through the existing `uploadObject` (streaming via the BFF, see PR #1086 in this same documentation set).
 
-## Как это реализовано
+## How it is implemented
 
-**Схема входа** (`packages/aurora/src/server/Storage/types/ceph.ts:271-281`) вводит константу максимального времени жизни ссылки и Zod-схему, использующую её как верхнюю границу:
+**The input schema** (`packages/aurora/src/server/Storage/types/ceph.ts:271-281`) introduces a constant for the maximum link lifetime and a Zod schema that uses it as the upper bound:
 
 ```ts
 // ceph.ts:271-281
@@ -35,9 +35,9 @@ export const generatePresignedUrlInputSchema = projectScopedInputSchema.extend({
 })
 ```
 
-604800 секунд (7 дней) — это жёсткий максимум самого протокола AWS SigV4 (подписчик `@aws-sdk/s3-request-presigner` сам отклонит бо́льшее значение); вынося проверку в Zod-схему, PR превращает выход-за-границу в понятный `BAD_REQUEST` ещё до похода к сайнеру, вместо непрозрачной ошибки подписи. Константа экспортируется специально, чтобы фронтенд не держал собственное магическое число 604800 и не мог разойтись со схемой (см. использование в модалке ниже).
+604800 seconds (7 days) is the hard maximum of the AWS SigV4 protocol itself (the `@aws-sdk/s3-request-presigner` signer will reject a larger value on its own); by moving the check into the Zod schema, the PR turns an out-of-bounds value into a clear `BAD_REQUEST` before reaching the signer, instead of an opaque signing error. The constant is exported specifically so that the frontend doesn't keep its own magic number 604800 and can't drift from the schema (see its use in the modal below).
 
-**Процедура** (`packages/aurora/src/server/Storage/routers/ceph/objectRouter.ts:305-323`) построена на `cephProtectedProcedure` — том же билдере, что и все остальные Ceph-object-процедуры в этом файле (`list`, `getDetails`, `deleteAll`, `copy`, ...), так что она автоматически наследует существующий контракт аутентификации/рескоупинга, ничего нового здесь не вводится:
+**The procedure** (`packages/aurora/src/server/Storage/routers/ceph/objectRouter.ts:305-323`) is built on `cephProtectedProcedure` — the same builder as all the other Ceph object procedures in this file (`list`, `getDetails`, `deleteAll`, `copy`, ...), so it automatically inherits the existing authentication/rescoping contract; nothing new is introduced here:
 
 ```ts
 // objectRouter.ts:305-323
@@ -63,9 +63,9 @@ generatePresignedUrl: cephProtectedProcedure
   }),
 ```
 
-Ключевая деталь, которую стоит понимать при чтении этого кода: подпись — чисто локальная криптографическая операция (`getSignedUrl` не делает сетевого похода к Ceph), поэтому вызов быстрый и **не проверяет, что объект вообще существует** — сам PR это явно документирует как компромисс (см. ниже, docs). `expiresAt` вычисляется на сервере как абсолютный unix-timestamp (`now + expiresIn`), а не просто возвращает длительность — так фронтенду не нужно доверять собственным часам для отображения времени истечения.
+A key detail worth understanding when reading this code: signing is a purely local cryptographic operation (`getSignedUrl` makes no network round-trip to Ceph), so the call is fast and **does not check that the object exists at all** — the PR itself explicitly documents this as a trade-off (see below, docs). `expiresAt` is computed on the server as an absolute unix timestamp (`now + expiresIn`) rather than just returning a duration — this way the frontend doesn't need to trust its own clock to display the expiration time.
 
-**Фронтенд** — `GeneratePresignedUrlModal.tsx` (новый файл, 352 строки), Ceph-аналог `Swift/Objects/GenerateTempUrlModal.tsx`, но заметно проще: нет полей account/method, нет ветки «ключ не настроен» (у Swift она есть, потому что там нужен предварительно сконфигурированный HMAC-ключ — у Ceph такого шага нет в принципе). Импортирует общий лимит из серверного модуля тем же путём, что и остальной клиентский код в этом файле (`S3Object`/`S3FolderPrefix` из `@/server/Storage/types/ceph` в `ObjectsTableView.tsx` — существующая конвенция, не новая для этого PR):
+**Frontend** — `GeneratePresignedUrlModal.tsx` (new file, 352 lines), the Ceph counterpart of `Swift/Objects/GenerateTempUrlModal.tsx`, but noticeably simpler: no account/method fields, no "key not configured" branch (Swift has one because it requires a preconfigured HMAC key — Ceph has no such step at all). It imports the shared limit from the server module via the same path as the rest of the client code in this file (`S3Object`/`S3FolderPrefix` from `@/server/Storage/types/ceph` in `ObjectsTableView.tsx` — an existing convention, not new to this PR):
 
 ```ts
 // GeneratePresignedUrlModal.tsx:6,19-21
@@ -75,11 +75,11 @@ const MAX_EXPIRY_SECONDS = S3_PRESIGN_MAX_EXPIRY_SECONDS
 const MAX_EXPIRY_MINUTES = MAX_EXPIRY_SECONDS / 60
 ```
 
-Пресеты — 1 час / 24 часа / 7 дней плюс произвольная длительность в минутах; при custom-вводе модалка сама валидирует границу (`> MAX_EXPIRY_MINUTES` → инлайн-ошибка), не давая уйти в round-trip за гарантированным 400 от бэкенда.
+Presets are 1 hour / 24 hours / 7 days plus an arbitrary duration in minutes; for custom input the modal validates the bound itself (`> MAX_EXPIRY_MINUTES` → inline error), avoiding a round-trip for a guaranteed 400 from the backend.
 
-Защита от протухших ответов реализована через инкрементный `requestIdRef` (`GeneratePresignedUrlModal.tsx:76,156,166,170`): каждый вызов `handleGenerate` захватывает текущее значение счётчика, и `onSuccess`/`onError` игнорируют результат, если счётчик успел измениться (второй клик «Generate», смена пресета, либо закрытие модалки — см. `useEffect` на `isOpen`, инкрементирующий счётчик при закрытии). Копирование в буфер (`handleCopy`, `GeneratePresignedUrlModal.tsx:177`) отдельно отслеживает состояние ошибки копирования (`copyError`) от состояния ошибки генерации (`generalError`) — они не затирают друг друга.
+Protection against stale responses is implemented via an incrementing `requestIdRef` (`GeneratePresignedUrlModal.tsx:76,156,166,170`): each `handleGenerate` call captures the current counter value, and `onSuccess`/`onError` ignore the result if the counter has changed in the meantime (a second "Generate" click, a preset change, or closing the modal — see the `useEffect` on `isOpen`, which increments the counter on close). Copying to the clipboard (`handleCopy`, `GeneratePresignedUrlModal.tsx:177`) tracks the copy error state (`copyError`) separately from the generation error state (`generalError`) — they don't overwrite each other.
 
-**Подключение в таблицу** (`ObjectsTableView.tsx:186,531,622-630`) — новый пункт меню строки, задизейбленный для не-объектных строк (папок), и сама модалка, тост об успешном копировании поднимается прямо здесь же, не требуя изменений в `ObjectBrowserView`:
+**Wiring into the table** (`ObjectsTableView.tsx:186,531,622-630`) — a new row menu item, disabled for non-object rows (folders), and the modal itself; the successful-copy toast is raised right here, requiring no changes in `ObjectBrowserView`:
 
 ```tsx
 // ObjectsTableView.tsx:622-630
@@ -95,29 +95,29 @@ const MAX_EXPIRY_MINUTES = MAX_EXPIRY_SECONDS / 60
 />
 ```
 
-Новый тост `getPresignedUrlCopiedToast` (`ObjectToastNotifications.tsx:127-134`) выводит basename ключа объекта тем же способом (`split("/").filter(Boolean).pop()`), что и остальные тосты этого файла — консистентно с существующим паттерном.
+The new toast `getPresignedUrlCopiedToast` (`ObjectToastNotifications.tsx:127-134`) displays the basename of the object key in the same way (`split("/").filter(Boolean).pop()`) as the other toasts in this file — consistent with the existing pattern.
 
-**Документация** (`packages/aurora/docs/009_ceph_s3_bff.md:181,1095-1141`) обновлена по месту: добавлена запись в дерево процедур, отдельный раздел `#### generatePresignedUrl` с input/output/примером, и явно проговорена асимметрия с `downloadObject` (та стримит через BFF, эта выдаёт прямую ссылку) и с Swift (там HMAC + обязательная настройка ключа, здесь — ничего конфигурировать не нужно). В разделе limitations прежняя строка «No presigned URL generation» заменена на «Presigned URLs are GET-only» — документация обновлена консистентно с кодом, а не оставлена стухшей.
+**Documentation** (`packages/aurora/docs/009_ceph_s3_bff.md:181,1095-1141`) is updated in place: an entry is added to the procedure tree, a separate `#### generatePresignedUrl` section with input/output/example, and the asymmetry is spelled out explicitly with `downloadObject` (which streams via the BFF, while this one returns a direct link) and with Swift (HMAC + mandatory key setup there, nothing to configure here). In the limitations section the former line "No presigned URL generation" is replaced with "Presigned URLs are GET-only" — the documentation is updated consistently with the code rather than left stale.
 
-## Что затронуло
+## What it affects
 
-Проверка по всему монорепо (`git grep` на `generatePresignedUrl`, `S3_PRESIGN_MAX_EXPIRY_SECONDS`, `getPresignedUrlCopiedToast`, `GeneratePresignedUrlModal` на head-коммите) не нашла ни одного потребителя за пределами файлов, изменённых самим PR. Это чисто аддитивная фича:
+A check across the whole monorepo (`git grep` for `generatePresignedUrl`, `S3_PRESIGN_MAX_EXPIRY_SECONDS`, `getPresignedUrlCopiedToast`, `GeneratePresignedUrlModal` at the head commit) found no consumers outside the files changed by the PR itself. This is a purely additive feature:
 
-- `generatePresignedUrl` — новая процедура, ничего не переиспользует и не переиспользуется другими роутерами; корректно экспортируется через `objectRouter` → `routers/ceph/index.ts` → общий `AuroraRouter`, так что `trpcClient.storage.ceph.objects.generatePresignedUrl` реально доступен с клиента.
-- `S3_PRESIGN_MAX_EXPIRY_SECONDS` используется только в двух местах: сама схема (`ceph.ts`) и модалка (`GeneratePresignedUrlModal.tsx`) — ровно как и задумано (единый источник границы).
-- `GeneratePresignedUrlModal` подключена только в `ObjectsTableView.tsx` (Ceph), в Swift-версии таблицы (`Swift/Objects/ObjectsTableView.tsx`) не тронута и не должна быть — это разные бэкенды с разными сценариями (HMAC vs SigV4).
+- `generatePresignedUrl` is a new procedure; it reuses nothing and is not reused by other routers; it is correctly exported via `objectRouter` → `routers/ceph/index.ts` → the shared `AuroraRouter`, so `trpcClient.storage.ceph.objects.generatePresignedUrl` is actually reachable from the client.
+- `S3_PRESIGN_MAX_EXPIRY_SECONDS` is used in only two places: the schema itself (`ceph.ts`) and the modal (`GeneratePresignedUrlModal.tsx`) — exactly as intended (a single source for the bound).
+- `GeneratePresignedUrlModal` is wired only into `ObjectsTableView.tsx` (Ceph); the Swift version of the table (`Swift/Objects/ObjectsTableView.tsx`) is not touched and shouldn't be — these are different backends with different scenarios (HMAC vs SigV4).
 
-Контрактных изменений (публичные пропсы `AuroraApp`, существующие процедуры, экспортируемые типы) нет — новая процедура и новый компонент добавлены, ничего существующего не изменено по сигнатуре.
+There are no contract changes (public `AuroraApp` props, existing procedures, exported types) — a new procedure and a new component are added; nothing existing has its signature changed.
 
-## Ревью
+## Review
 
-Через диф, историю и комментарии прогнаны параллельно CLAUDE.md-compliance, bug-scan, historical-context, prior-feedback и comment-compliance.
+CLAUDE.md compliance, bug scan, historical context, prior feedback and comment compliance were run in parallel over the diff, history and comments.
 
-CLAUDE.md-compliance ничего не нашёл: процедура построена на правильном билдере (`cephProtectedProcedure`, не raw `initTRPC`), схема наследует `projectScopedInputSchema`, модалка лежит в `-components/`-директории, коммиты соответствуют conventional commits. Historical и prior-feedback агенты не нашли релевантной истории проблем в затронутых файлах и открытых замечаний из прошлых PR, которые бы всё ещё применялись.
+CLAUDE.md compliance found nothing: the procedure is built on the right builder (`cephProtectedProcedure`, not raw `initTRPC`), the schema extends `projectScopedInputSchema`, the modal lives in a `-components/` directory, the commits follow conventional commits. The historical and prior-feedback agents found no relevant history of problems in the affected files and no open remarks from past PRs that would still apply.
 
-Comment-compliance нашёл один нюанс словесной неточности (не функциональный баг): комментарий у `requestIdRef` (`GeneratePresignedUrlModal.tsx:76-81`) утверждает, что счётчик инкрементируется «on every generate call and on modal close/reopen» — по факту `useEffect` инкрементирует его только в ветке `!isOpen` (то есть при закрытии), отдельного пути на реоткрытие нет. Гарантия защиты от протухших ответов при этом не нарушается (инкремент при закрытии уже покрывает любой запрос, оставшийся от предыдущего открытия), так что это неточность формулировки, а не баг — не набрало уверенности ≥80.
+Comment compliance found one nuance of wording inaccuracy (not a functional bug): the comment on `requestIdRef` (`GeneratePresignedUrlModal.tsx:76-81`) states that the counter is incremented "on every generate call and on modal close/reopen" — in fact the `useEffect` increments it only in the `!isOpen` branch (i.e. on close); there is no separate path on reopen. The stale-response protection guarantee is not violated by this (the increment on close already covers any request left over from a previous opening), so this is an inaccuracy of wording, not a bug — it did not reach confidence ≥80.
 
-**Проблем с уверенностью ≥80 не найдено.**
+**No issues with confidence ≥80 were found.**
 
 ---
-Проанализировано: 03.08.2026 · коммит `66a33b5f`
+Analyzed: 2026-08-03 · commit `66a33b5f`

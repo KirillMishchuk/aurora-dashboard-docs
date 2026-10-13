@@ -8,29 +8,29 @@ branch: til-search-robustness
 ---
 # PR #1330: refactor(portal): improve search architecture consistency and UX
 
-**Автор:** TilmanHaupt · **Статус:** open, снят с draft; approve от vlad-schur-external-sap 24.09.2026 (создан 24.09.2026)
-**Ветки:** `til-search-robustness` → `main` · **Файлов:** 15 (на head `b424b47`)
-**Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1330
-**База:** `6ce6aeac`, то есть merge-коммит [#1320](./1320-search-all-visible-columns.md) (смержен 23.09.2026). Этот PR — продолжение #1320.
+**Author:** TilmanHaupt · **Status:** open, out of draft; approved by vlad-schur-external-sap 2026-09-24 (created 2026-09-24)
+**Branches:** `til-search-robustness` → `main` · **Files:** 15 (at head `b424b47`)
+**Link:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1330
+**Base:** `6ce6aeac`, i.e. the merge commit of [#1320](./1320-search-all-visible-columns.md) (merged 2026-09-23). This PR is a continuation of #1320.
 
-> **CI:** на первом head `2572b6f` job `test` падал в трёх тестах, хотя в PR description написано «All existing tests pass». Коммит `b424b47` (24.09.2026, «fix(aurora): resolve test failures from ARIA live regions») это исправил: все проверки CI зелёные. Подробности — в «Что затронуло».
+> **CI:** on the first head `2572b6f`, the `test` job failed in three tests, even though the PR description says "All existing tests pass". Commit `b424b47` (2026-09-24, "fix(aurora): resolve test failures from ARIA live regions") fixed this: all CI checks are green. Details — in "What it affects".
 
-## Что сделано
+## What was done
 
-Это доработка после #1320. Сам PR называет себя ответом на ревью коммита `6ce6aeac`. Изменения четырёх видов:
+This is follow-up work after #1320. The PR itself describes itself as a response to the review of commit `6ce6aeac`. There are four kinds of changes:
 
-1. **Сервер, Projects.** Удалена процедура `project.searchProjects` (без клиентских потребителей, свой inline-фильтр). `getAuthProjects` при этом **остаётся**: клиентских потребителей у неё нет, и она почти построчно дублирует `listProjectsWithSearch`. Поэтому таблица «After» в description («Projects — 1 endpoint with shared helper») не соответствует коду: процедур загрузки проектов по-прежнему две.
-2. **Сервер, Flavors.** Свой regex-хелпер `includesSearchTerm` заменён общим `filterBySearchParams` с теми же семью полями. Шесть его тестов удалены.
-3. **Клиент, Storage: доступность.** В тулбары Ceph Buckets и Swift Containers добавлен скрытый `aria-live="polite"` регион, который озвучивает «Found N buckets matching "…"» или «N buckets total».
-4. **Клиент, Storage: пустые состояния.** `BucketTableView` и `ContainerTableView` получили проп `hasActiveSearch`. При активном поиске показывается «No … matching search / … match your search criteria», без поиска — «No … found / There are no … available in this project».
+1. **Server, Projects.** The `project.searchProjects` procedure was removed (no client consumers, its own inline filter). `getAuthProjects`, however, **remains**: it has no client consumers, and it duplicates `listProjectsWithSearch` almost line for line. So the "After" table in the description ("Projects — 1 endpoint with shared helper") does not match the code: there are still two project-loading procedures.
+2. **Server, Flavors.** The custom regex helper `includesSearchTerm` was replaced with the shared `filterBySearchParams` with the same seven fields. Its six tests were deleted.
+3. **Client, Storage: accessibility.** A hidden `aria-live="polite"` region was added to the Ceph Buckets and Swift Containers toolbars, announcing "Found N buckets matching "…"" or "N buckets total".
+4. **Client, Storage: empty states.** `BucketTableView` and `ContainerTableView` got a `hasActiveSearch` prop. With an active search, "No … matching search / … match your search criteria" is shown; without a search — "No … found / There are no … available in this project".
 
-Плюс changeset `patch` и каталоги i18n. В `en` добавлены 8 msgid и переименованы 2. В `de` у всех 8 новых строк пустой `msgstr`, то есть немецкий UI покажет английский текст. Переведены только две переименованные строки про пустой проект.
+Plus a `patch` changeset and i18n catalogs. In `en`, 8 msgids were added and 2 renamed. In `de`, all 8 new strings have an empty `msgstr`, meaning the German UI will show English text. Only the two renamed strings about an empty project were translated.
 
-## Как это реализовано
+## How it is implemented
 
-Код приведён по коммиту `2572b6f`.
+Code is quoted as of commit `2572b6f`.
 
-### Flavors на общем хелпере
+### Flavors on the shared helper
 
 `packages/aurora/src/server/Compute/helpers/flavorHelpers.ts:163-193`:
 
@@ -55,14 +55,14 @@ export function filterAndSortFlavors(
   filtered.sort((a, b) => {
 ```
 
-Description называет замену regex на подстроку «functionally equivalent». На деле поведение меняется, и в лучшую сторону:
+The description calls the replacement of regex with substring matching "functionally equivalent". In reality the behavior changes, and for the better:
 
-- раньше `new RegExp(searchTerm, "i")` падал на вводе вроде `(` или `[`, и `.` совпадал с чем угодно;
-- теперь поиск идёт буквальной подстрокой, а пробелы по краям обрезаются (`filterBySearchParams` делает `trim()`).
+- previously `new RegExp(searchTerm, "i")` crashed on input like `(` or `[`, and `.` matched anything;
+- now the search is a literal substring match, and surrounding whitespace is trimmed (`filterBySearchParams` does `trim()`).
 
-`swap` в схеме (`types/flavor.ts:17`) — `string | number`, и хелпер обрабатывает оба типа. `sort` по-прежнему мутирует массив на месте. Без поиска хелпер возвращает тот же массив, так что мутация входных данных осталась как была. Массив приходит свежим из API (`flavorRouter.ts:105`), поэтому это ни на что не влияет.
+`swap` in the schema (`types/flavor.ts:17`) is `string | number`, and the helper handles both types. `sort` still mutates the array in place. Without a search, the helper returns the same array, so the input mutation stays as it was. The array comes fresh from the API (`flavorRouter.ts:105`), so this has no effect.
 
-В `flavorHelpers.test.ts:74` блок `describe("fetchFlavors")` переименован в `describe("filterAndSortFlavors")`. В нём по-прежнему лежат HTTP-тесты `fetchFlavors`, и теперь в файле два describe с одинаковым именем (`:74` и `:212`). Поиск флейворов покрывают только тесты `:219` и `:255`. Числовые поля в них не проверяются.
+In `flavorHelpers.test.ts:74`, the `describe("fetchFlavors")` block was renamed to `describe("filterAndSortFlavors")`. It still contains the `fetchFlavors` HTTP tests, and the file now has two describes with the same name (`:74` and `:212`). Flavor search is covered only by the tests at `:219` and `:255`. Numeric fields are not checked in them.
 
 ### ARIA live region
 
@@ -86,9 +86,9 @@ Description называет замену regex на подстроку «functi
             </div>
 ```
 
-В Swift аналог стоит в `Swift/Containers/index.tsx:406`. Регион находится внутри тулбара, а тулбар рендерится только после раннего return `if (isLoading)` (`Ceph/Buckets/index.tsx:238-240`, `Swift/Containers/index.tsx:260`). Этот return пришёл из #1320, после того как `searchTerm` стал частью query key.
+In Swift, the equivalent is at `Swift/Containers/index.tsx:406`. The region sits inside the toolbar, and the toolbar is rendered only after the early return `if (isLoading)` (`Ceph/Buckets/index.tsx:238-240`, `Swift/Containers/index.tsx:260`). That return came from #1320, after `searchTerm` became part of the query key.
 
-### Пустые состояния
+### Empty states
 
 `Ceph/Buckets/BucketTableView.tsx:149-157`:
 
@@ -104,53 +104,53 @@ Description называет замену regex на подстроку «functi
                   />
 ```
 
-Проп передаётся как `hasActiveSearch={!!searchParam}` (`Ceph/Buckets/index.tsx:423`, `Swift/Containers/index.tsx:444`), без `trim()`. Live region при этом проверяет `searchParam?.trim()`, так что при поиске из одних пробелов эти два признака расходятся. Сервер такой поиск игнорирует.
+The prop is passed as `hasActiveSearch={!!searchParam}` (`Ceph/Buckets/index.tsx:423`, `Swift/Containers/index.tsx:444`), without `trim()`. The live region, meanwhile, checks `searchParam?.trim()`, so for a whitespace-only search these two flags diverge. The server ignores such a search.
 
-## Что затронуло
+## What it affects
 
-- **Три упавших теста на `2572b6f` (CI `test`, проверено по аннотациям check run); исправлены в `b424b47`.** Изначально тесты не были обновлены под новые строки:
-  - `Swift/Containers/index.test.tsx:647` ждёт `/No containers found/i` при активном поиске, а теперь заголовок «No containers matching search»;
-  - `Ceph/Buckets/index.test.tsx:374` и `:388`: `getByText(/3 buckets/i)` находит два элемента — видимый «3 buckets» и скрытый «3 buckets total» из live region.
+- **Three failing tests at `2572b6f` (CI `test`, verified via check run annotations); fixed in `b424b47`.** Initially the tests were not updated for the new strings:
+  - `Swift/Containers/index.test.tsx:647` expects `/No containers found/i` with an active search, but the title is now "No containers matching search";
+  - `Ceph/Buckets/index.test.tsx:374` and `:388`: `getByText(/3 buckets/i)` finds two elements — the visible "3 buckets" and the hidden "3 buckets total" from the live region.
 
-  В `b424b47` Ceph-тесты ищут текст внутри `buckets-info-block` (`within(...)`), а Swift-тест ждёт `/No containers matching search/i`. Код компонентов этим коммитом не менялся.
+  In `b424b47`, the Ceph tests look for the text inside `buckets-info-block` (`within(...)`), and the Swift test expects `/No containers matching search/i`. The component code was not changed by this commit.
 
-  `ContainerTableView.test.tsx:216/221` проходят: там пропа `hasActiveSearch` нет, и по умолчанию показывается вариант без поиска. Для него отдельного теста с `hasActiveSearch` нет, есть только в `BucketTableView.test.tsx`.
-- **`project.searchProjects` удалена.** Это контрактное изменение `AuroraRouter`. Внутри монорепо потребителей нет (grep по head), но внешнее приложение, которое импортирует тип роутера и вызывает эту процедуру, сломается при сборке. Changeset при этом `patch`.
-- **`includesSearchTerm` удалена** из экспортов `flavorHelpers.ts`. Импортировал её только тестовый файл.
-- **`BucketTableView` / `ContainerTableView`**: новый опциональный проп со значением по умолчанию `false`, так что остальные места использования не затронуты.
-- **Замечания из отчёта #1320** (сверено на `b424b47`):
+  `ContainerTableView.test.tsx:216/221` pass: there is no `hasActiveSearch` prop there, and the no-search variant is shown by default. There is no separate test with `hasActiveSearch` for it; there is one only in `BucketTableView.test.tsx`.
+- **`project.searchProjects` removed.** This is a contract change to `AuroraRouter`. Within the monorepo there are no consumers (grep at head), but an external application that imports the router type and calls this procedure will break at build time. The changeset, meanwhile, is `patch`.
+- **`includesSearchTerm` removed** from the `flavorHelpers.ts` exports. Only the test file imported it.
+- **`BucketTableView` / `ContainerTableView`**: a new optional prop defaulting to `false`, so other usage sites are not affected.
+- **Issues from the #1320 report** (checked at `b424b47`):
 
-  | Проблема #1320 | Статус |
+  | #1320 issue | Status |
   | --- | --- |
-  | Спиннер на всю страницу при каждом поиске (Ceph/Swift), повторный опрос S3 | Не решена: `searchTerm` в query key (`Ceph/Buckets/index.tsx:164`, `Swift/Containers/index.tsx:179`), ранний `if (isLoading)` (`:238`, `:260`), `placeholderData` нет. Теперь ещё и мешает новой фиче (см. ревью). |
-  | Выбор пропадает при серверной фильтрации | Частично решена **ещё в #1320** до мержа: выбор очищается при смене поиска (`Ceph/Buckets/index.tsx:79-84`, `Swift/Containers/index.tsx:80-85`). Комментарий «from the full unfiltered list» (`:276`, `:274`) устарел. #1330 здесь ничего не меняет. |
-  | Projects: Suspense и два запроса к Keystone на каждый поиск | Не решена: `useSuspenseQuery` с `searchTerm` (`projects/index.tsx:37`), `navigate` без `startTransition`. |
+  | Full-page spinner on every search (Ceph/Swift), repeated S3 polling | Not resolved: `searchTerm` in the query key (`Ceph/Buckets/index.tsx:164`, `Swift/Containers/index.tsx:179`), early `if (isLoading)` (`:238`, `:260`), no `placeholderData`. Now it also gets in the way of the new feature (see review). |
+  | Selection is lost with server-side filtering | Partially resolved **already in #1320** before merge: the selection is cleared when the search changes (`Ceph/Buckets/index.tsx:79-84`, `Swift/Containers/index.tsx:80-85`). The comment "from the full unfiltered list" (`:276`, `:274`) is outdated. #1330 changes nothing here. |
+  | Projects: Suspense and two Keystone requests per search | Not resolved: `useSuspenseQuery` with `searchTerm` (`projects/index.tsx:37`), `navigate` without `startTransition`. |
 
-## Ревью
+## Review
 
-Ревью выполнено в одном проходе по пяти направлениям скилла с последующей оценкой уверенности. Находки, которые ловит CI (упавшие тесты), в ревью не включены по правилам скилла: они описаны выше.
+The review was done in a single pass along the skill's five directions, followed by confidence scoring. Findings caught by CI (failing tests) are not included in the review per the skill's rules: they are described above.
 
-**1. Live region не озвучивает главный сценарий — новый поисковый запрос (80/100).**
-Регион рендерится внутри тулбара, а весь компонент уходит в ранний return `if (isLoading)` (`Ceph/Buckets/index.tsx:238-240`, `Swift/Containers/index.tsx:260`). Каждый новый поисковый запрос — это новый query key без кэша. `isLoading` становится `true`, и регион размонтируется, а после загрузки монтируется заново уже с готовым текстом. `aria-live` сообщает об *изменениях* содержимого региона, который уже есть в DOM. Регион, вставленный сразу с содержимым, скринридеры (NVDA, JAWS, VoiceOver) обычно не озвучивают. В итоге анонс сработает только при возврате к уже закэшированному запросу, а для нового поиска, ради которого фичу и добавляли, — нет. Чтобы исправить, регион нужно держать смонтированным вне ветки загрузки или убрать ранний return, например через `placeholderData: keepPreviousData`.
+**1. The live region does not announce the main scenario — a new search query (80/100).**
+The region is rendered inside the toolbar, and the whole component goes into the early return `if (isLoading)` (`Ceph/Buckets/index.tsx:238-240`, `Swift/Containers/index.tsx:260`). Every new search query is a new query key with no cache. `isLoading` becomes `true`, and the region unmounts, then after loading it mounts again with the text already in place. `aria-live` announces *changes* to the content of a region that is already in the DOM. A region inserted with its content already present is usually not announced by screen readers (NVDA, JAWS, VoiceOver). As a result, the announcement will fire only when returning to an already cached query, but not for a new search — the very thing the feature was added for. To fix it, the region needs to stay mounted outside the loading branch, or the early return should be removed, e.g. via `placeholderData: keepPreviousData`.
 
-Ниже порога. В ревью не входят, но стоит учитывать:
+Below the threshold. Not part of the review, but worth keeping in mind:
 
-- `getAuthProjects` остаётся мёртвым дубликатом `listProjectsWithSearch`, а description утверждает обратное (65).
-- В `de` у 8 новых строк пустой `msgstr` (50).
-- Два одинаковых `describe("filterAndSortFlavors")` в `flavorHelpers.test.ts` (40).
-- `hasActiveSearch` без `trim()` расходится с условием live region (35).
+- `getAuthProjects` remains a dead duplicate of `listProjectsWithSearch`, while the description claims otherwise (65).
+- In `de`, the 8 new strings have an empty `msgstr` (50).
+- Two identical `describe("filterAndSortFlavors")` in `flavorHelpers.test.ts` (40).
+- `hasActiveSearch` without `trim()` diverges from the live region condition (35).
 
 ---
-**Ревью Copilot** (на первом коммите `a6b093a`; коммит `2572b6f` назван «apply Copilot code review suggestions»):
+**Copilot review** (on the first commit `a6b093a`; commit `2572b6f` is titled "apply Copilot code review suggestions"):
 
-| Замечание Copilot | Статус на `b424b47` |
+| Copilot comment | Status at `b424b47` |
 | --- | --- |
-| Устаревший тест пустого состояния в `BucketTableView.test.tsx` | Исправлено |
-| Live region озвучивает поиск из одних пробелов | Исправлено в live region (`searchParam?.trim()`), но `hasActiveSearch={!!searchParam}` остался без `trim()` |
-| Немецкий перевод пустого состояния без поиска потерян | Исправлено для двух переименованных строк; у 8 новых строк `msgstr` в `de` по-прежнему пустой |
-| `describe("fetchFlavors")` переименован по ошибке | Не исправлено |
+| Outdated empty-state test in `BucketTableView.test.tsx` | Fixed |
+| Live region announces a whitespace-only search | Fixed in the live region (`searchParam?.trim()`), but `hasActiveSearch={!!searchParam}` remained without `trim()` |
+| German translation of the no-search empty state lost | Fixed for the two renamed strings; the 8 new strings still have an empty `msgstr` in `de` |
+| `describe("fetchFlavors")` renamed by mistake | Not fixed |
 
-Описание PR не обновлялось: в нём всё ещё «All existing tests pass» и «Projects — 1 endpoint».
+The PR description has not been updated: it still says "All existing tests pass" and "Projects — 1 endpoint".
 
 ---
-Проанализировано: 24.09.2026 · коммит `2572b6f`, обновлено по `b424b47` (фикс тестов; код компонентов не менялся, находки ревью в силе)
+Analyzed: 2026-09-24 · commit `2572b6f`, updated for `b424b47` (test fix; component code unchanged, review findings still stand)

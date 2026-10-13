@@ -8,21 +8,21 @@ branch: mark-fix-parse-timestamps-as-utc
 ---
 # PR #1270: fix(aurora): time doesn't match current timezone (#1236)
 
-**Автор:** mark-karnaukh-extern-sap · **Статус:** 03.09.2026 → смержен 04.09.2026
-**Ветки:** `mark-fix-parse-timestamps-as-utc` → `main` · **Файлов:** 8 (+159/-26)
-**Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1270
+**Author:** mark-karnaukh-extern-sap · **Status:** 2026-09-03 → merged 2026-09-04
+**Branches:** `mark-fix-parse-timestamps-as-utc` → `main` · **Files:** 8 (+159/-26)
+**Link:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1270
 
-## Что сделано
+## What was done
 
-Swift в JSON-листингах контейнеров и объектов отдаёт `last_modified` как ISO 8601 **без указания зоны** — `"2024-03-01T08:00:00.000000"` (баг Swift #1169287). По ISO 8601 date-time без зоны трактуется как **локальное** время, поэтому `new Date("...T08:00:00").toLocaleString()` не делал UTC→local конверсию и показывал время, сдвинутое на смещение зоны зрителя (issue #1236, репортер guoda-puidokaite).
+In its JSON listings of containers and objects, Swift returns `last_modified` as ISO 8601 **without a zone designator** — `"2024-03-01T08:00:00.000000"` (Swift bug #1169287). Per ISO 8601, a date-time without a zone is interpreted as **local** time, so `new Date("...T08:00:00").toLocaleString()` performed no UTC→local conversion and displayed a time shifted by the viewer's zone offset (issue #1236, reporter guoda-puidokaite).
 
-PR вводит общий хелпер `@/client/utils/formatSwiftDate.ts` с двумя функциями — `parseSwiftDate` (нормализует зоно-безразмерный timestamp к UTC, дописывая `Z`) и `formatSwiftDate` (обёртка над `toLocaleString`, возвращающая `null` на невалидном входе, чтобы вызывающий сам выбирал fallback) — и переводит на него весь Swift-код, который трогает `last_modified`: две таблицы (контейнеры, объекты), два компаратора сортировки и модалку метаданных объекта. Добавлен зоно-независимый unit-тест и changeset (`patch` для `@cobaltcore-dev/aurora`). Ceph не затронут — он отдаёт timestamps с `Z`, и хелпер пропускает такие значения без изменений.
+The PR introduces a shared helper `@/client/utils/formatSwiftDate.ts` with two functions — `parseSwiftDate` (normalizes a zoneless timestamp to UTC by appending `Z`) and `formatSwiftDate` (a wrapper around `toLocaleString` that returns `null` on invalid input so that the caller chooses its own fallback) — and moves all Swift code that touches `last_modified` onto it: two tables (containers, objects), two sort comparators and the object metadata modal. A zone-independent unit test and a changeset (`patch` for `@cobaltcore-dev/aurora`) were added. Ceph is not affected — it returns timestamps with `Z`, and the helper passes such values through unchanged.
 
-**Важно:** описание PR перечисляет в разделе «Changes» только хелпер, две таблицы и тест. Фактический диф шире — в него также входят оба компаратора сортировки (`Containers/index.tsx`, `Objects/index.tsx`) и `EditObjectMetadataModal.tsx`. Эти три места добавлены позже, в ответ на замечание Copilot'а, и именно в модалке живёт регрессия из раздела «Ревью». Читать диф, не описание.
+**Important:** the PR description lists only the helper, the two tables and the test under "Changes". The actual diff is broader — it also includes both sort comparators (`Containers/index.tsx`, `Objects/index.tsx`) and `EditObjectMetadataModal.tsx`. These three places were added later, in response to a Copilot comment, and it is precisely in the modal that the regression from the "Review" section lives. Read the diff, not the description.
 
-## Как это реализовано
+## How it is implemented
 
-Ядро — эвристика «есть ли у строки зона» в `formatSwiftDate.ts`:
+The core is a "does the string have a zone" heuristic in `formatSwiftDate.ts`:
 
 ```ts
 const HAS_ZONE = /(Z|[+-]\d{2}:?\d{2})$/
@@ -44,16 +44,16 @@ export const parseSwiftDate = (value: string | null | undefined): Date | null =>
 ```
 — `packages/aurora/src/client/utils/formatSwiftDate.ts:21-40`
 
-`formatSwiftDate` (там же, `:50-57`) — тонкая обёртка: `parseSwiftDate` плюс `date.toLocaleString(locales, options)`, возвращает `null` вместо строки-заглушки.
+`formatSwiftDate` (same file, `:50-57`) is a thin wrapper: `parseSwiftDate` plus `date.toLocaleString(locales, options)`, returning `null` instead of a placeholder string.
 
-**Таблицы.** Обе таблицы имели свой локальный `formatDate`; оба удалены, вместо них — вызов хелпера с прежним fallback'ом каждого места:
+**Tables.** Both tables had their own local `formatDate`; both were removed and replaced with a call to the helper, keeping each place's previous fallback:
 
 ```tsx
 <DataGridCell>{formatSwiftDate(container.last_modified) ?? t`N/A`}</DataGridCell>
 ```
-— `.../Swift/Containers/ContainerTableView.tsx:232` (аналогично `.../Swift/Objects/ObjectsTableView.tsx:409-410`, где fallback — литеральный `"—"`)
+— `.../Swift/Containers/ContainerTableView.tsx:232` (similarly `.../Swift/Objects/ObjectsTableView.tsx:409-410`, where the fallback is a literal `"—"`)
 
-**Сортировка.** Оба компаратора раньше считали `new Date(a.last_modified).getTime() - new Date(b.last_modified).getTime()`, то есть сравнивали неверно распарсенные инстансы (на переходах DST это давало реально неверный порядок). Новая версия в контейнерах заодно чинит транзитивность на пропущенных значениях:
+**Sorting.** Both comparators previously computed `new Date(a.last_modified).getTime() - new Date(b.last_modified).getTime()`, i.e. they compared incorrectly parsed instances (around DST transitions this produced a genuinely wrong order). The new version in containers also fixes transitivity for missing values:
 
 ```ts
 case "last_modified": {
@@ -73,11 +73,11 @@ case "last_modified": {
   break
 }
 ```
-— `.../Swift/Containers/index.tsx:197-212` (то же в `.../Swift/Objects/index.tsx:354-366`)
+— `.../Swift/Containers/index.tsx:197-212` (the same in `.../Swift/Objects/index.tsx:354-366`)
 
-Замечание в комментарии про «matches the old NaN behaviour» корректно по существу: старый код возвращал из компаратора `NaN`, а спецификация `Array.prototype.sort` приводит `NaN`-результат к `+0` — то есть к тому же «считать пару равной». Проверено прогоном на смешанных массивах: поведение сортировки идентично.
+The remark in the comment about "matches the old NaN behaviour" is substantively correct: the old code returned `NaN` from the comparator, and the `Array.prototype.sort` spec coerces a `NaN` result to `+0` — i.e. the same "treat the pair as equal". Verified by running on mixed arrays: the sort behavior is identical.
 
-**Модалка метаданных.** `EditObjectMetadataModal` — единственное место, которое сознательно показывает время в UTC (у него и подписи полей — `Last modified (UTC)`, `Expires at (UTC)`), поэтому `timeZone: "UTC"` сохранён, а тело функции переписано на хелпер:
+**Metadata modal.** `EditObjectMetadataModal` is the only place that deliberately shows time in UTC (its field labels are `Last modified (UTC)`, `Expires at (UTC)`), so `timeZone: "UTC"` is kept, and the function body is rewritten onto the helper:
 
 ```tsx
 const formatDate = (iso: string): string =>
@@ -95,34 +95,34 @@ const formatDate = (iso: string): string =>
 ```
 — `.../Swift/Objects/EditObjectMetadataModal.tsx:77-88`
 
-История подтверждает, что этот UTC — старое осознанное решение (введён вместе с самой модалкой в `919f89e9`, переподтверждён в `0c4b2010` при унификации формата с редактируемым полем), а «локальность» таблиц никогда осознанно не выбиралась: там с момента создания (`4e369750`, `93413009`) стоял безаргументный `toLocaleString()`. То есть текущий микс «таблицы — локально, модалка — UTC» истории не противоречит.
+The history confirms that this UTC is an old deliberate decision (introduced together with the modal itself in `919f89e9`, reconfirmed in `0c4b2010` when unifying the format with the editable field), whereas "local time" in the tables was never deliberately chosen: since their creation (`4e369750`, `93413009`) they had an argument-less `toLocaleString()`. So the current mix of "tables — local, modal — UTC" does not contradict the history.
 
-**Тест.** `formatSwiftDate.test.ts` (62 строки) построен зоно-независимо: проверяет не отформатированную строку в зоне раннера, а сам инстант (`toISOString()`), а для формата — две явные зоны (`UTC` и `America/New_York`), что и доказывает факт конверсии. Удалённый `try/catch` из `ContainerTableView` был мёртвым кодом с самого первого коммита файла: `new Date()` не бросает, а возвращает `Invalid Date`.
+**Test.** `formatSwiftDate.test.ts` (62 lines) is built to be zone-independent: it checks not the formatted string in the runner's zone but the instant itself (`toISOString()`), and for formatting — two explicit zones (`UTC` and `America/New_York`), which proves that the conversion happens. The `try/catch` removed from `ContainerTableView` had been dead code since the file's very first commit: `new Date()` does not throw, it returns `Invalid Date`.
 
-## Что затронуло
+## What it affects
 
-**Пропущенных мест нет — это проверено, а не предположено.** `git grep` по `last_modified` на `d6d81280` показывает, что в Swift-компонентах не осталось ни одного места, где `last_modified` парсится напрямую: остальные `new Date(...)` в этой директории работают с unix-секундами (`GenerateTempUrlModal.tsx:249`, `formatUnixToTimestamp`) или со строкой формата поля `"YYYY-MM-DD HH:mm:ss"`, к которой `Z` дописывается явно (`EditObjectMetadataModal.tsx:53`, `:244`) — это отдельный контракт, хелпера не требует.
+**There are no missed places — this was verified, not assumed.** `git grep` for `last_modified` at `d6d81280` shows that no place remains in the Swift components where `last_modified` is parsed directly: the other `new Date(...)` calls in this directory work with unix seconds (`GenerateTempUrlModal.tsx:249`, `formatUnixToTimestamp`) or with a field-format string `"YYYY-MM-DD HH:mm:ss"`, to which `Z` is appended explicitly (`EditObjectMetadataModal.tsx:53`, `:244`) — that is a separate contract and does not need the helper.
 
-**Ceph намеренно не тронут и не нуждается в этом.** `Ceph/Buckets/index.tsx:196` и `Ceph/Objects/ObjectBrowserView.tsx:364,401` по-прежнему используют сырой `new Date(...)`, но Ceph возвращает timestamps с `Z`, так что парсинг там корректен. Отдельно проверено, что `ObjectBrowserView` — Ceph-only (экспортируется как `CephObjects`, в общем роуте `storage/$provider/$storageType/$containerName/objects` для Swift рендерится другой компонент), несмотря на то что его `SortKey` для совместимости принимает и Swift-ключ `last_modified`.
+**Ceph is deliberately untouched and does not need this.** `Ceph/Buckets/index.tsx:196` and `Ceph/Objects/ObjectBrowserView.tsx:364,401` still use raw `new Date(...)`, but Ceph returns timestamps with `Z`, so parsing there is correct. It was separately verified that `ObjectBrowserView` is Ceph-only (exported as `CephObjects`; for Swift, the shared route `storage/$provider/$storageType/$containerName/objects` renders a different component), even though its `SortKey` also accepts the Swift key `last_modified` for compatibility.
 
-**Публичный API пакета не расширен.** Хелпер лежит в `client/utils/` и не экспортируется из `packages/aurora/src/client/index.ts` — внешних потребителей нет, все 5 импортов внутри самого PR. Для встраиваемых под-приложений (SCI) поверхность не изменилась, изменение внутреннее.
+**The package's public API is not extended.** The helper lives in `client/utils/` and is not exported from `packages/aurora/src/client/index.ts` — there are no external consumers; all 5 imports are within the PR itself. For embeddable sub-apps (SCI) the surface has not changed; the change is internal.
 
-**Существующие тесты сигнала не дают.** `ContainerTableView.test.tsx:294` и `EditObjectMetadataModal.test.tsx:259` проверяют лишь наличие строки/подписи, а не конкретное значение времени, и используют зоно-безразмерные фикстуры. Ни один тест в затронутых компонентах не утверждает ни конкретную отформатированную дату, ни порядок сортировки по `last_modified` — это предсуществующий пробел, но именно он маскирует регрессию ниже.
+**Existing tests give no signal.** `ContainerTableView.test.tsx:294` and `EditObjectMetadataModal.test.tsx:259` only check that a string/label is present, not a specific time value, and they use zoneless fixtures. No test in the affected components asserts either a specific formatted date or the sort order by `last_modified` — this is a pre-existing gap, but it is exactly what masks the regression below.
 
-## Ревью
+## Review
 
-Пять параллельных агентов (соответствие конвенциям, скан багов, история, прошлый фидбек, соответствие комментариям) плюс confidence-scoring. Порог ≥80 прошла одна находка. В репозитории на `d6d81280` нет отслеживаемого [`CLAUDE.md`](../../CLAUDE.md)/`AGENTS.md` (`.gitignore` исключает `CLAUDE*`), поэтому проверка «против гайдлайна» опиралась на фактические конвенции соседнего кода.
+Five parallel agents (convention compliance, bug scan, history, past feedback, comment compliance) plus confidence scoring. One finding passed the ≥80 threshold. The repository at `d6d81280` has no tracked [`CLAUDE.md`](../../CLAUDE.md)/`AGENTS.md` (`.gitignore` excludes `CLAUDE*`), so the "against the guidelines" check relied on the actual conventions of the neighboring code.
 
-### [100] Регрессия: `Last modified (UTC)` в модалке метаданных объекта теперь всегда показывает `—`
+### [100] Regression: `Last modified (UTC)` in the object metadata modal now always shows `—`
 
-`needsUtc` определяет «это date-time» подстрочным поиском буквы `T` в любом месте строки:
+`needsUtc` determines "this is a date-time" by a substring search for the letter `T` anywhere in the string:
 
 ```ts
 const needsUtc = trimmed.includes("T") && !HAS_ZONE.test(trimmed)
 ```
 — `packages/aurora/src/client/utils/formatSwiftDate.ts:35`
 
-Проверки позиции нет, поэтому условие срабатывает и на букве `T` внутри слова **`GMT`**. А в модалку приходит не листинговый timestamp, а сырой HTTP-заголовок `Last-Modified` в формате RFC 1123 — он кладётся в метаданные без изменений на сервере:
+There is no position check, so the condition also fires on the letter `T` inside the word **`GMT`**. And what reaches the modal is not a listing timestamp but the raw HTTP `Last-Modified` header in RFC 1123 format — it is put into the metadata unchanged on the server:
 
 ```ts
 const lastModified = headers.get("last-modified")
@@ -132,7 +132,7 @@ if (lastModified) {
 ```
 — `packages/aurora/src/server/Storage/helpers/swiftHelpers.ts:250-252`
 
-и попадает в `formatDate` приоритетно, раньше листингового значения:
+and it reaches `formatDate` with priority, ahead of the listing value:
 
 ```tsx
 {metadataRaw?.lastModified
@@ -143,27 +143,27 @@ if (lastModified) {
 ```
 — `.../Swift/Objects/EditObjectMetadataModal.tsx:436-439`
 
-Цепочка на реальном значении (проверено прогоном в node на том же V8):
+The chain on a real value (verified by running in node on the same V8):
 
-| шаг | результат |
+| step | result |
 | --- | --- |
-| вход | `"Wed, 01 Mar 2025 12:00:00 GMT"` |
-| `trimmed.includes("T")` | `true` — из `GMT` |
-| `HAS_ZONE.test` | `false` — `GMT` не матчит `Z` / `±hh:mm` в конце |
+| input | `"Wed, 01 Mar 2025 12:00:00 GMT"` |
+| `trimmed.includes("T")` | `true` — from `GMT` |
+| `HAS_ZONE.test` | `false` — `GMT` does not match `Z` / `±hh:mm` at the end |
 | `normalized` | `"Wed, 01 Mar 2025 12:00:00 GMTZ"` |
-| `new Date(...)` | `Invalid Date` → `parseSwiftDate` вернёт `null` |
-| отрисовано | `"—"` |
-| **старый код** `new Date(iso)` | `2025-03-01T12:00:00.000Z` — парсил корректно |
+| `new Date(...)` | `Invalid Date` → `parseSwiftDate` returns `null` |
+| rendered | `"—"` |
+| **old code** `new Date(iso)` | `2025-03-01T12:00:00.000Z` — parsed correctly |
 
-То есть это **строгая регрессия на основном пути**: HEAD-запрос за метаданными объекта в норме успешен, заголовок `Last-Modified` есть практически у каждого объекта, и поле, которое раньше показывало настоящее время, теперь показывает прочерк при каждом открытии модалки. Тест PR это не ловит, потому что мокает `lastModified` как ISO-строку (`EditObjectMetadataModal.test.tsx:117,259`), а не как реальный HTTP-date.
+So this is a **strict regression on the main path**: the HEAD request for object metadata normally succeeds, practically every object has a `Last-Modified` header, and the field that used to show the real time now shows a dash every time the modal is opened. The PR's test does not catch this because it mocks `lastModified` as an ISO string (`EditObjectMetadataModal.test.tsx:117,259`), not as a real HTTP-date.
 
-Найдено независимо двумя агентами (скан багов и соответствие комментариям), подтверждено прямым прогоном парсинга и трассировкой источника данных до `swiftHelpers.ts`. Лечится привязкой проверки к позиции — например, тестом на ISO-форму (`/^\d{4}-\d{2}-\d{2}T/`) вместо `includes("T")`, либо явной ветвью для HTTP-date.
+Found independently by two agents (bug scan and comment compliance), confirmed by directly running the parsing and tracing the data source back to `swiftHelpers.ts`. The fix is to anchor the check to a position — e.g. testing for the ISO form (`/^\d{4}-\d{2}-\d{2}T/`) instead of `includes("T")`, or an explicit branch for HTTP-date.
 
-### Ниже порога (как контекст, не как задачи)
+### Below the threshold (as context, not as tasks)
 
-- **[25]** Комментарий `formatSwiftDate.ts:34` утверждает, что дописывание `Z` к date-only строке «would make it invalid» — фактически неверно (`new Date("2024-03-01Z")` парсится в тот же инстант). Безвредно: код дописывает `Z` только при наличии `T`, так что date-only в эту ветку не попадает. Неверное обоснование при верном поведении.
-- **[50]** `formatSwiftDate.test.ts` использует `test(...)`, тогда как все пять существующих `client/utils/*.test.ts(x)` — исключительно `it(...)`. Чистая стилистика, ни линтер, ни гайдлайн-файл этого не требуют.
-- **[25]** Замечание Copilot'а к `formatSwiftDate.ts:36` (что компараторы и `formatDate` всё ещё на сыром `new Date`) на `d6d81280` уже неактуально — все три места переведены на хелпер, тред просто не помечен resolved. Остальные его замечания (транзитивность компаратора, `?? 0` как epoch-1970) автор исправил и ответил в треде.
+- **[25]** The comment at `formatSwiftDate.ts:34` claims that appending `Z` to a date-only string "would make it invalid" — factually incorrect (`new Date("2024-03-01Z")` parses to the same instant). Harmless: the code appends `Z` only when a `T` is present, so date-only strings never reach this branch. Incorrect rationale, correct behavior.
+- **[50]** `formatSwiftDate.test.ts` uses `test(...)`, whereas all five existing `client/utils/*.test.ts(x)` files use `it(...)` exclusively. Purely stylistic; neither the linter nor a guidelines file requires this.
+- **[25]** Copilot's comment on `formatSwiftDate.ts:36` (that the comparators and `formatDate` are still on raw `new Date`) is already outdated at `d6d81280` — all three places have been moved to the helper; the thread just isn't marked resolved. The author fixed its other comments (comparator transitivity, `?? 0` as epoch 1970) and replied in the thread.
 
 ---
-Проанализировано: 04.09.2026 · коммит `d6d81280`
+Analyzed: 2026-09-04 · commit `d6d81280`

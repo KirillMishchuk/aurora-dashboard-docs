@@ -8,21 +8,21 @@ branch: kiryl-ceph-bulk-objects-delete
 ---
 # PR #1121: feat(aurora): add bulk delete for Ceph objects with performance and UX improvements
 
-**Автор:** KirylSAP · **Статус:** смержен 07.08.2026
-**Ветки:** `kiryl-ceph-bulk-objects-delete` → `main` · **Файлов:** 24 (+2937/-289)
-**Ссылка:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1121
+**Author:** KirylSAP · **Status:** merged 2026-08-07
+**Branches:** `kiryl-ceph-bulk-objects-delete` → `main` · **Files:** 24 (+2937/-289)
+**Link:** https://github.com/cobaltcore-dev/aurora-dashboard/pull/1121
 
-## Что сделано
+## What was done
 
-До этого PR объекты в Ceph-бакетах можно было удалять только по одному — через `objects.delete` в строке таблицы. PR добавляет полноценный **bulk delete**: чекбоксы в таблице, «select all», панель действий при непустом выборе, и модалку с двухшаговым флоу (подтверждение → результаты с детализацией по каждому объекту). Работает как для текущих объектов (вкладка «All»), так и для конкретных версий в режиме восстановления (вкладка «Deleted») — включая полное перманентное удаление всех версий файла или папки.
+Before this PR, objects in Ceph buckets could only be deleted one at a time — via `objects.delete` in a table row. The PR adds a full **bulk delete**: checkboxes in the table, "select all", an action bar when the selection is non-empty, and a modal with a two-step flow (confirmation → results with a per-object breakdown). It works both for current objects (the "All" tab) and for specific versions in recovery mode (the "Deleted" tab) — including full permanent deletion of all versions of a file or folder.
 
-Помимо основной фичи, PR попутно чинит два независимых бэкенд-бага в существующей пагинации `checkDeletedContent` (риск бесконечного цикла и пропуск данных на поздних страницах — см. ниже), устраняет ~140 строк дублирования между новыми `deleteBulk`/`deleteVersionsBulk` через общий хелпер, и приводит к единому стилю все три модалки удаления/восстановления объектов (текст предупреждения — под заголовком, а не в `helptext` поля; подтверждение — строчными `delete`, а не капсом `DELETE`).
+Besides the main feature, the PR also fixes two independent backend bugs in the existing `checkDeletedContent` pagination (risk of an infinite loop and data being skipped on later pages — see below), removes ~140 lines of duplication between the new `deleteBulk`/`deleteVersionsBulk` through a shared helper, and brings all three object delete/restore modals to a single style (the warning text goes under the title rather than into the field's `helptext`; confirmation uses lowercase `delete` rather than uppercase `DELETE`).
 
-## Как это реализовано
+## How it is implemented
 
-### Бэкенд: `bulkDeleteItems` — общая логика чанкинга и агрегации
+### Backend: `bulkDeleteItems` — shared chunking and aggregation logic
 
-Новая схема входа (`packages/aurora/src/server/Storage/types/ceph.ts:210-227`) явно запрещает передавать ключи папок (оканчивающиеся на `/`) — `DeleteObjects` удалил бы только нулевой маркер, оставив содержимое папки осиротевшим:
+The new input schema (`packages/aurora/src/server/Storage/types/ceph.ts:210-227`) explicitly forbids passing folder keys (ending in `/`) — `DeleteObjects` would delete only the zero-byte marker, leaving the folder's contents orphaned:
 
 ```ts
 // types/ceph.ts:210-219
@@ -38,9 +38,9 @@ export const deleteObjectsBulkInputSchema = projectScopedInputSchema.extend({
 })
 ```
 
-Схема вывода (`deleteObjectsBulkOutputSchema`, `types/ceph.ts:263-268`) отражает ключевую особенность S3 API: `DeleteObjectsCommand` возвращает *смешанный* результат в единственном HTTP 200 — часть ключей в `Deleted[]`, часть в `Errors[]`, без единого флага успеха. Вся серверная логика построена вокруг этого факта.
+The output schema (`deleteObjectsBulkOutputSchema`, `types/ceph.ts:263-268`) reflects a key property of the S3 API: `DeleteObjectsCommand` returns a *mixed* result in a single HTTP 200 — some keys in `Deleted[]`, some in `Errors[]`, with no single success flag. All the server-side logic is built around this fact.
 
-Общий хелпер `bulkDeleteItems` (`objectRouter.ts:143-208`) переиспользуется обеими новыми процедурами — устраняет дублирование, которое PR явно называет в описании (~140 строк):
+The shared helper `bulkDeleteItems` (`objectRouter.ts:143-208`) is reused by both new procedures — it removes the duplication that the PR explicitly mentions in its description (~140 lines):
 
 ```ts
 // objectRouter.ts:187-201
@@ -64,11 +64,11 @@ export const deleteObjectsBulkInputSchema = projectScopedInputSchema.extend({
 }
 ```
 
-Логика различает два принципиально разных сценария отказа: если ничего ещё не удалено и ошибок ещё не было — это, скорее всего, системная проблема (несуществующий бакет, отказ в доступе), и она пробрасывается как обычная tRPC-ошибка. Если же часть чанков уже успешно прошла — предыдущий результат сохраняется, а упавший чанк деградирует в набор per-key ошибок вместо потери уже сделанной работы. `deleteBulk` (`objectRouter.ts:702-714`) и `deleteVersionsBulk` (`objectRouter.ts:736-746`) — тонкие обёртки над этим хелпером, каждая со своей де-дупликацией (по ключу для объектов, по паре ключ+versionId для версий) перед вызовом.
+The logic distinguishes two fundamentally different failure scenarios: if nothing has been deleted yet and there have been no errors yet, this is most likely a systemic problem (non-existent bucket, access denied), and it is rethrown as a regular tRPC error. If some chunks have already gone through successfully, the previous result is kept, and the failed chunk degrades into a set of per-key errors instead of losing the work already done. `deleteBulk` (`objectRouter.ts:702-714`) and `deleteVersionsBulk` (`objectRouter.ts:736-746`) are thin wrappers over this helper, each with its own de-duplication (by key for objects, by the key+versionId pair for versions) before the call.
 
-### Бэкенд: фикс бага пагинации в `checkDeletedContent`
+### Backend: fix for the pagination bug in `checkDeletedContent`
 
-Отдельно от bulk-delete, PR переписывает цикл пагинации в `versioningRouter.checkDeletedContent` (`versioningRouter.ts:397-457`). Раньше цикл был `while (!hasDeleteMarkers)` — то есть останавливался на **первом же** delete-маркере на любой странице, даже если папка была лишь частично просканирована и маркер самой папки (`folderMarkerVersionId`) на этой странице ещё не был найден. Теперь — `do...while(true)` с явными условиями выхода:
+Separately from bulk delete, the PR rewrites the pagination loop in `versioningRouter.checkDeletedContent` (`versioningRouter.ts:397-457`). Previously the loop was `while (!hasDeleteMarkers)` — that is, it stopped at the **very first** delete marker on any page, even if the folder had only been partially scanned and the folder's own marker (`folderMarkerVersionId`) had not yet been found on that page. Now it is `do...while(true)` with explicit exit conditions:
 
 ```ts
 // versioningRouter.ts:445-457
@@ -87,11 +87,11 @@ versionIdMarker = response.NextVersionIdMarker
 } while (true) // eslint-disable-line no-constant-condition
 ```
 
-Выход теперь корректно завершает цикл либо когда собраны все три нужных факта (есть удалённые вложенные объекты, папка-маркер удалена, известен её versionId), либо когда страницы закончились (`!response.IsTruncated`) — с дополнительной защитой от бесконечного цикла на случай, если S3 сообщит `IsTruncated: true`, но не пришлёт `NextKeyMarker`. Результат также расширен двумя новыми полями (`folderDeleteMarkerVersionId`, `folderMarkerVersionId`), которые нужны фронтенду для восстановления и перманентного удаления папок.
+The loop now exits correctly either when all three required facts have been collected (there are deleted nested objects, the folder marker is deleted, its versionId is known), or when the pages run out (`!response.IsTruncated`) — with additional protection against an infinite loop in case S3 reports `IsTruncated: true` but does not send `NextKeyMarker`. The result is also extended with two new fields (`folderDeleteMarkerVersionId`, `folderMarkerVersionId`), which the frontend needs to restore and permanently delete folders.
 
-### Фронтенд: состояние выбора в `ObjectBrowserView`
+### Frontend: selection state in `ObjectBrowserView`
 
-`selectedItems: { key: string; versionId?: string }[]` — источник истины для выбора, живёт в `ObjectBrowserView`, а не в таблице. Очищается при смене вкладки, навигации по префиксу, смене бакета и после самого bulk-delete:
+`selectedItems: { key: string; versionId?: string }[]` is the source of truth for the selection; it lives in `ObjectBrowserView`, not in the table. It is cleared on tab change, prefix navigation, bucket change, and after the bulk delete itself:
 
 ```ts
 // ObjectBrowserView.tsx:522-535
@@ -110,9 +110,9 @@ const handleBulkDeleted = (deletedKeys: string[], errorCount: number) => {
   ...
 ```
 
-Есть содержательная асимметрия между вкладками: во вкладке «All» после частичного отказа успешно удалённые ключи убираются из выбора, а неудалённые остаются выбранными (можно сразу повторить попытку); во вкладке «Deleted» выбор сбрасывается целиком независимо от результата, потому что список версий всё равно перезапрашивается заново.
+There is a meaningful asymmetry between the tabs: in the "All" tab, after a partial failure the successfully deleted keys are removed from the selection while the undeleted ones stay selected (so the attempt can be retried right away); in the "Deleted" tab the selection is reset entirely regardless of the result, because the version list is refetched from scratch anyway.
 
-Проверки O(1) вместо O(n)/O(m), которые PR заявляет как перформанс-фикс, реализованы через `useMemo`-мапы (`ObjectBrowserView.tsx:443,449`):
+The O(1) checks instead of O(n)/O(m), which the PR presents as a performance fix, are implemented via `useMemo` maps (`ObjectBrowserView.tsx:443,449`):
 
 ```ts
 // ObjectBrowserView.tsx:443-451
@@ -126,7 +126,7 @@ const selectedItemsSet = useMemo(() => {
 }, [selectedItems])
 ```
 
-Разрешение на массовые действия пока захардкожено:
+Permission for bulk actions is hardcoded for now:
 
 ```ts
 // ObjectBrowserView.tsx:96-98
@@ -135,11 +135,11 @@ const selectedItemsSet = useMemo(() => {
 const hasAnyBulkAction = true
 ```
 
-Комментарий сам называет это временным решением и явно ссылается на то, что так же (без серверной проверки прав) устроен и Swift-объектный список — то есть не новый пробел, а совпадение с существующей архитектурой домена (см. «Ревью» ниже).
+The comment itself calls this a temporary solution and explicitly notes that the Swift object list is built the same way (without a server-side permission check) — so this is not a new gap but a match with the domain's existing architecture (see "Review" below).
 
-### Фронтенд: `DeleteObjectsModal` — новый компонент, два шага
+### Frontend: `DeleteObjectsModal` — a new component, two steps
 
-Новый файл (`DeleteObjectsModal.tsx`, 266 строк) реализует связку подтверждение → результаты в одном компоненте, переключаясь по `result !== null`:
+A new file (`DeleteObjectsModal.tsx`, 266 lines) implements the confirmation → results pair in a single component, switching on `result !== null`:
 
 ```tsx
 // DeleteObjectsModal.tsx:32-57 (handleConfirm)
@@ -161,11 +161,11 @@ const handleConfirm = () => {
 }
 ```
 
-При `errorCount === 0` модалка закрывается сама; при частичном отказе — переключается на экран результатов с усечённым списком ошибок (до 100 записей, `MAX_ERROR_VISIBLE`) и списком удаляемых объектов (до 20, `MAX_VISIBLE`), оба со счётчиком «и ещё N».
+When `errorCount === 0` the modal closes itself; on a partial failure it switches to a results screen with a truncated error list (up to 100 entries, `MAX_ERROR_VISIBLE`) and a list of objects being deleted (up to 20, `MAX_VISIBLE`), both with an "and N more" counter.
 
-### Фронтенд: перманентное удаление всех версий/папки через `deleteVersionsBulk`
+### Frontend: permanent deletion of all versions/a folder via `deleteVersionsBulk`
 
-`DeleteVersionModal` (одиночное удаление версии из истории) и `RestoreVersionModal` (для папок, «восстановление» реализовано как удаление delete-маркера) были переведены с прежней процедуры `versioning.deleteVersion`/`versioning.restoreVersion`-путей на общий `objects.deleteVersionsBulk` — чтобы не дублировать логику удаления и единообразно обработать составной случай «удалить папку целиком» (delete-маркер + сам маркер-объект папки — два элемента одним вызовом):
+`DeleteVersionModal` (single version deletion from history) and `RestoreVersionModal` (for folders, "restore" is implemented as deleting the delete marker) were moved from the previous `versioning.deleteVersion`/`versioning.restoreVersion` procedure paths to the shared `objects.deleteVersionsBulk` — so as not to duplicate the deletion logic and to handle the compound "delete the whole folder" case uniformly (the delete marker + the folder's marker object itself — two items in one call):
 
 ```ts
 // DeleteVersionModal.tsx:52-59
@@ -180,33 +180,33 @@ const deleteMutation = trpcReact.storage.ceph.objects.deleteVersionsBulk.useMuta
   ...
 ```
 
-### Тосты: единая фабрика вместо дублирования
+### Toasts: a single factory instead of duplication
 
-`ObjectToastNotifications.tsx` получил `createBulkDeleteToasts(entityType)` (`ObjectToastNotifications.tsx:194-233`) — фабрику, параметризованную `"object" | "version"`, которая производит `success`/`partial`/`error` варианты с правильными формами множественного числа через Lingui `<Plural>`, вместо шести отдельных почти идентичных функций.
+`ObjectToastNotifications.tsx` gained `createBulkDeleteToasts(entityType)` (`ObjectToastNotifications.tsx:194-233`) — a factory parameterized by `"object" | "version"` that produces `success`/`partial`/`error` variants with correct plural forms via Lingui `<Plural>`, instead of six separate, nearly identical functions.
 
-## Что затронуло
+## What it affects
 
-Обе новые процедуры (`deleteBulk`, `deleteVersionsBulk`), хелпер `bulkDeleteItems` и все новые Zod-схемы (`deleteObjectsBulkInputSchema`, `deleteVersionsBulkInputSchema`, `deleteObjectsBulkOutputSchema`, `deletedObjectSchema`, `deleteObjectErrorSchema`) используются только внутри файлов, изменённых самим PR — контрактных изменений наружу нет, чисто аддитивная фича на уровне `AuroraRouter`.
+Both new procedures (`deleteBulk`, `deleteVersionsBulk`), the `bulkDeleteItems` helper and all the new Zod schemas (`deleteObjectsBulkInputSchema`, `deleteVersionsBulkInputSchema`, `deleteObjectsBulkOutputSchema`, `deletedObjectSchema`, `deleteObjectErrorSchema`) are used only within files changed by the PR itself — there are no outward-facing contract changes; it is a purely additive feature at the `AuroraRouter` level.
 
-Однако есть заметный побочный эффект: **`versioning.deleteVersion`** (старая одиночная процедура удаления версии, `versioningRouter.ts:281`) осталась в роутере, но потеряла всех фронтенд-потребителей — `DeleteVersionModal` и `RestoreVersionModal` теперь используют `objects.deleteVersionsBulk` вместо неё. Единственные оставшиеся упоминания `.deleteVersion` — в собственном тесте `versioningRouter.test.ts:236,252`. Это не баг (процедура по-прежнему валидна и протестирована), но осиротевший эндпоинт — кандидат на удаление в отдельном PR, если он окончательно не нужен.
+There is, however, a notable side effect: **`versioning.deleteVersion`** (the old single version-deletion procedure, `versioningRouter.ts:281`) remained in the router but lost all of its frontend consumers — `DeleteVersionModal` and `RestoreVersionModal` now use `objects.deleteVersionsBulk` instead. The only remaining references to `.deleteVersion` are in its own test `versioningRouter.test.ts:236,252`. This is not a bug (the procedure is still valid and tested), but the orphaned endpoint is a candidate for removal in a separate PR if it is definitely no longer needed.
 
-Имя `DeleteObjectsModal` уже занято — есть одноимённый, но не связанный компонент `Swift/Objects/DeleteObjectsModal.tsx` (другая директория, другой tRPC-путь, отдельная реализация bulk-delete для Swift). Конфликта нет (разные модули), но стоит иметь в виду при поиске по имени.
+The name `DeleteObjectsModal` is already taken — there is an unrelated component with the same name, `Swift/Objects/DeleteObjectsModal.tsx` (different directory, different tRPC path, a separate bulk-delete implementation for Swift). There is no conflict (different modules), but it is worth keeping in mind when searching by name.
 
-`checkDeletedContent` теперь также запрашивается на вкладке «All» (`enabled: !!projectId && versioningStatus?.status === "Enabled" && allFolders.length > 0`, было — только на вкладке «deleted»), чтобы скрывать удалённые папки из обычного списка — новый постоянный источник нагрузки на этот запрос, а не разовый для вкладки «Deleted».
+`checkDeletedContent` is now also queried on the "All" tab (`enabled: !!projectId && versioningStatus?.status === "Enabled" && allFolders.length > 0`; previously only on the "deleted" tab) in order to hide deleted folders from the regular list — a new constant source of load on this query rather than a one-off for the "Deleted" tab.
 
-## Ревью
+## Review
 
-Через диф, историю, комментарии и предыдущие ревью-фидбеки прогнаны параллельно CLAUDE.md-compliance, bug-scan, historical-context, prior-feedback и comment-compliance; кандидаты прошли отдельный confidence-scoring проход.
+CLAUDE.md-compliance, bug-scan, historical-context, prior-feedback and comment-compliance were run in parallel over the diff, history, comments and earlier review feedback; the candidates went through a separate confidence-scoring pass.
 
-CLAUDE.md-compliance, comment-compliance и historical-context ничего не нашли: захардкоженный `hasAnyBulkAction = true` (см. выше) совпадает с существующим паттерном Swift-списка объектов, а не является новым пробелом; все проверенные комментарии в новом коде (`bulkDeleteItems`, схемы, `checkDeletedContent`, обработчики выбора в `ObjectBrowserView`) точно описывают то, что делает код; переписанный цикл пагинации в `checkDeletedContent` корректно устраняет баг из PR #1013 (см. «Что затронуло» — там же история его происхождения). Prior-feedback заметил один открытый, не относящийся к этому PR момент: `checkDeletedContent` по-прежнему не имеет жёсткого предела числа страниц пагинации — это отмечалось как Major ещё в ревью PR #992 и не устранено; PR #1121 не регрессирует это (сохраняет прежнее поведение), но и не чинит.
+CLAUDE.md-compliance, comment-compliance and historical-context found nothing: the hardcoded `hasAnyBulkAction = true` (see above) matches the existing pattern of the Swift object list rather than being a new gap; all the checked comments in the new code (`bulkDeleteItems`, the schemas, `checkDeletedContent`, the selection handlers in `ObjectBrowserView`) accurately describe what the code does; the rewritten pagination loop in `checkDeletedContent` correctly fixes the bug from PR #1013 (see "What it affects" — the history of its origin is there too). Prior-feedback noted one open point unrelated to this PR: `checkDeletedContent` still has no hard limit on the number of pagination pages — this was flagged as Major back in the review of PR #992 and has not been fixed; PR #1121 does not regress this (it keeps the previous behavior), but does not fix it either.
 
-**Найдена 1 проблема с уверенностью ≥80** (изначально две смежные находки с одинаковой первопричиной прошли confidence-scoring раздельно — `RestoreVersionModal` получил 100, `DeleteVersionModal` с тем же кодовым паттерном — 75, ниже порога отчёта; ниже они объединены как один дефект, поскольку код идентичен и различается только тем, насколько легко он воспроизводится):
+**1 issue found with confidence ≥80** (originally two related findings with the same root cause went through confidence-scoring separately — `RestoreVersionModal` scored 100, `DeleteVersionModal` with the same code pattern scored 75, below the reporting threshold; below they are merged into a single defect, since the code is identical and differs only in how easily it reproduces):
 
-1. **Мутации на базе `deleteVersionsBulk` считают операцию успешной, даже если S3 не удалила ничего.** После перевода `RestoreVersionModal` и `DeleteVersionModal` с одиночных процедур на общий `objects.deleteVersionsBulk`, оба `onSuccess`-хендлера полагаются на сам факт резолва промиса и никогда не проверяют `res.errorCount`/`res.errors`. Хелпер `bulkDeleteItems` (`objectRouter.ts:143-209`) пробрасывает исключение только когда `catch` реально сработал (сетевая/системная ошибка) **и** ничего ещё не удалено; per-key отказ S3 (например, конфликт версионирования именно на этом ключе) возвращается внутри штатного HTTP 200 в `response.Errors` — исключения нет, промис резолвится нормально с `errorCount > 0`.
+1. **Mutations based on `deleteVersionsBulk` treat the operation as successful even if S3 deleted nothing.** After `RestoreVersionModal` and `DeleteVersionModal` were moved from single procedures to the shared `objects.deleteVersionsBulk`, both `onSuccess` handlers rely on the mere fact that the promise resolved and never check `res.errorCount`/`res.errors`. The `bulkDeleteItems` helper (`objectRouter.ts:143-209`) throws an exception only when the `catch` actually fired (a network/systemic error) **and** nothing has been deleted yet; a per-key S3 failure (for example, a versioning conflict on that particular key) is returned inside a normal HTTP 200 in `response.Errors` — there is no exception, and the promise resolves normally with `errorCount > 0`.
 
-   Подтверждённый (уверенность 100) путь — `RestoreVersionModal.tsx:45-52,82-88`: восстановление папки удаляет её delete-маркер через `deleteVersionsBulk` с **ровно одним** элементом (`versions: [{ key: objectKey, versionId }]`). Раньше предполагалось, что для одного элемента `bulkDeleteItems` либо кидает исключение, либо гарантированно возвращает полный успех — это неверно: per-key отказ у единственного элемента тоже не бросает исключение. `handleRestoreSuccess` (`RestoreVersionModal.tsx:45-52`) вызывается безусловно и сообщает «папка восстановлена», хотя delete-маркер физически не удалён — путь гарантированно достижим при любом per-key отказе S3 на этом ключе.
+   The confirmed (confidence 100) path is `RestoreVersionModal.tsx:45-52,82-88`: restoring a folder deletes its delete marker via `deleteVersionsBulk` with **exactly one** item (`versions: [{ key: objectKey, versionId }]`). It was previously assumed that for a single item `bulkDeleteItems` either throws an exception or is guaranteed to return full success — this is wrong: a per-key failure on a single item does not throw an exception either. `handleRestoreSuccess` (`RestoreVersionModal.tsx:45-52`) is called unconditionally and reports "folder restored" even though the delete marker has not physically been removed — the path is guaranteed to be reachable on any per-key S3 failure on that key.
 
-   Тот же код-паттерн (уверенность 75, ниже порога как самостоятельная находка, но root cause идентичен) — `DeleteVersionModal.tsx:52-59`: при перманентном удалении всех версий файла (`allVersionIds`) или удалении папки (delete-маркер + folder-маркер, два элемента) `onSuccess` так же не смотрит на `errorCount`, но здесь для срабатывания нужен по-настоящему смешанный ответ S3 на несколько элементов в одном запросе — менее гарантированный, но реально достижимый сценарий.
+   The same code pattern (confidence 75, below the threshold as a standalone finding, but the root cause is identical) is in `DeleteVersionModal.tsx:52-59`: when permanently deleting all versions of a file (`allVersionIds`) or deleting a folder (delete marker + folder marker, two items), `onSuccess` likewise does not look at `errorCount`, but here triggering it requires a genuinely mixed S3 response for several items in a single request — a less guaranteed but realistically reachable scenario.
 
 ---
-Проанализировано: 03.08.2026 · коммит `3775ab00`
+Analyzed: 2026-08-03 · commit `3775ab00`
