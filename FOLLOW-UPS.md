@@ -68,6 +68,9 @@ review/analysis but deliberately not done in the PR where they came up.
 | 44 | Stale package READMEs (config, policy-engine, signal-openstack, e2e) | Documentation | open |
 | 45 | `packages/aurora/README.md` + `.env.example`: removed `crossDomainCookie`, missing `cookieDomain`/`debug` | Documentation | open |
 | 46 | Root `README.md`, `CONTRIBUTING.md`, release docs: stale prerequisites, port, Semantic Release | Documentation | open |
+| 48 | Extend attached (`in-use`) volumes (Cinder 3.42) | Volumes | open |
+| 49 | "Attached Volumes" section on Instance Details | Volumes | open |
+| 50 | Availability-zone selection when creating a volume | Volumes | open |
 
 ---
 
@@ -1160,6 +1163,67 @@ delete `docs/semantic_release.md` (or mark it as obsolete) and rewrite the relea
 `main` with no PR, where it would end up in an unrelated change.
 
 **Source:** workspace documentation audit, 2026-10-12.
+
+**Status:** open.
+
+---
+
+## M. Block Storage volumes
+
+### 48. Extend attached (`in-use`) volumes (Cinder microversion 3.42)
+
+**Where:** `packages/aurora/src/server/Compute/routers/volumeRouter.ts` (`extend`),
+`.../compute/volumes/-components/-modals/ExtendVolumeModal.tsx`,
+`packages/aurora/src/server/Compute/helpers/volumeStatus.ts` (`isExtendable`),
+`apps/dashboard/src/policies/volume.json`.
+
+**What:** extend is limited to `available` volumes. Cinder supports `in-use` extend from 3.42, subject to
+the `volume:extend_attached_volume` policy and backend/compute driver support
+(https://docs.openstack.org/cinder/latest/contributor/api_microversion_history.html).
+
+**How to fix:** detect Cinder's max version and send `OpenStack-API-Version: volume 3.42` for `in-use`
+volumes. Add key `compute:volumes:extend_attached` → `volume:extend_attached_volume`. Warn that the guest
+may need a rescan.
+
+**Why not done right away:** user decision D5 in the plan; the behaviour depends on the driver and needs
+live verification.
+
+**Source:** plan [2026-10-13-cinder-volumes-compute-page.md](./plans/2026-10-13-cinder-volumes-compute-page.md)
+
+**Status:** open.
+
+### 49. "Attached Volumes" section on Instance Details
+
+**Where:** no Instances UI exists yet. `client/routes/_auth/projects/$projectId/compute/index.tsx` only
+redirects, and `server/Compute/routers/serverRouter.ts` only has the legacy `getServersByProjectId`.
+
+**What:** epic #1024 wants attach/detach reflected in Instance Details.
+
+**How to fix:** once an Instances details page exists, add an "Attached Volumes" table from Nova
+`GET servers/{id}/os-volume_attachments`, and reuse `AttachVolumeModal`/`DetachVolumeModal` with the
+server preselected.
+
+**Why not done right away:** depends on the Instances epic.
+
+**Source:** plan [2026-10-13-cinder-volumes-compute-page.md](./plans/2026-10-13-cinder-volumes-compute-page.md)
+
+**Status:** open.
+
+### 50. Availability-zone selection when creating a volume
+
+**Where:** `.../compute/volumes/-components/-modals/CreateVolumeModal.tsx`,
+`packages/aurora/src/server/Compute/routers/volumeRouter.ts`.
+
+**What:** volumes are created in Cinder's default AZ. With `cross_az_attach=False`, a new volume may not be
+attachable to a server in another AZ.
+
+**How to fix:** add `listAvailabilityZones` (Cinder `GET os-availability-zone`) and an optional
+"Availability Zone" `Select` that sends `availability_zone`.
+
+**Why not done right away:** not in the epic's field list, and the regions' AZ setup needs confirming
+first.
+
+**Source:** plan [2026-10-13-cinder-volumes-compute-page.md](./plans/2026-10-13-cinder-volumes-compute-page.md)
 
 **Status:** open.
 

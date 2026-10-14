@@ -180,7 +180,7 @@ function ProjectsContent({ searchTerm }: ProjectsContentProps) {
 
 The review was done in a single pass across the five directions from the skill (CLAUDE.md, bugs, history, previous PRs, code comments), followed by confidence scoring. Only findings with a score ≥80 are listed below.
 
-**1. Every new search query in Ceph Buckets and Swift Containers replaces the whole page, including the search field, with a loading spinner (85/100).** *As of 2026-09-24 not fixed either in `main` or in [#1330](./1330-search-architecture-consistency-ux.md).*
+**1. Every new search query in Ceph Buckets and Swift Containers replaces the whole page, including the search field, with a loading spinner (85/100).** *As of 2026-09-24 not fixed either in `main` or in [#1330](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1330).*
 `searchTerm` is part of the query key. Each debounced search commit creates a key with no cache, and in TanStack Query v5 (`^5.0.0`) `isLoading` becomes `true`. The component then does an early return: `Ceph/Buckets/index.tsx:231-233` (`if (isLoading) return <Status … Loading Buckets... />`) and `Swift/Containers/index.tsx:253-255`. The toolbar with `SearchInput` unmounts mid-typing: focus is lost and the whole interface flickers. `placeholderData`/`keepPreviousData` are not set. For Ceph, each such switch also repeats `ListObjectsV2` across all buckets (`containerRouter.ts:62-128`). Previously the search was instant and client-side. Copilot noted the cost side of the problem, but not the unmounting of the search field.
 
 **2. After server-side filtering, a selection made before the search stops working. This directly contradicts a comment in the code (85/100).**
