@@ -1,16 +1,14 @@
 ---
 name: review-and-comment-pr
 description: >-
-  Document and review an open aurora-dashboard pull request (by number,
-  URL, or the current branch's PR): writes a report covering what the PR
-  does and how, what it impacts across the monorepo, and a verified review
-  for bugs, conventions, external-API contracts and security; updates the
-  index. Re-running on a PR with a report updates it (new commits, merged
-  or closed). Use when the user asks to document or analyze a specific PR.
-  Not for uncommitted local changes — that's `triple-review`.
+  Review an open aurora-dashboard PR (number, URL, or current branch) and
+  post a merge verdict with required changes and improvements as a PR
+  comment, after the user confirms. Use when asked to review, give a
+  verdict on, or comment on a PR. For a report without a verdict or
+  posting, use `document-pr`.
 ---
 
-# Document a pull request
+# Review and comment on a pull request
 
 Produce one markdown report per PR that a future reader — a teammate or
 Claude in a later session — can open instead of re-reading the PR on GitHub.
@@ -58,7 +56,7 @@ findings are verified so it doesn't read like lint noise.
   user asks in. Code, identifiers and file paths stay as-is.
 - **Don't commit or push, and don't touch git state.** The only external
   write the skill makes is posting its report as a comment on the PR it
-  analysed (Step 9), and only after the user confirms. It never commits or
+  analysed (Step 8), and only after the user confirms. It never commits or
   pushes `DOCS` or the repo — that stays the user's call.
 - **Write commands the allowlist can match.** Put SHAs and paths literally
   into each command — no `VAR=…;` prefixes, no `cd … &&` chains (run from
@@ -116,10 +114,10 @@ No wildcard: zsh treats a pattern with no match as an error. If `ls`
 fails, stop — there is nowhere to write the report (see Requirements).
 Otherwise look in its output for a file named `<number>-*.md`; if there is
 none, do the full run below. If a
-report exists, read its frontmatter `status`, its `**State:**` line (the
-only place that says "Draft") and its old head: the SHA after the last
-`updated for` in the `Analyzed` footer, otherwise the frontmatter `commit`
-value (or the SHA after `commit` in the footer)
+report exists, read its frontmatter `status`, its `**Status:**` line (the
+only place that says "draft") and its old head: the SHA after the last
+`updated for` in the `Analyzed` footer, otherwise the SHA after `commit`
+in the footer
 — ignore SHAs marked "not analyzed" or "previous versions". Compare them
 with what `gh pr view` just returned and take the matching path:
 
@@ -128,18 +126,18 @@ with what `gh pr view` just returned and take the matching path:
   report, so only on an explicit yes. A re-run is a fresh analysis: don't
   read the old report's body — Steps 4–6 start from the code as if no
   report existed. Reading it anchors the new analysis on the old one and
-  carries its mistakes and gaps forward; the frontmatter, `**State:**`
+  carries its mistakes and gaps forward; the frontmatter, `**Status:**`
   line and footer you already read are all this path needs.
-- **Same head, only draft ↔ ready changed** — update the `**State:**`
+- **Same head, only draft ↔ ready changed** — update the `**Status:**`
   line (and frontmatter `status`) and the index row's Date cell (Step 7);
-  nothing else. Then report back (Step 8).
+  nothing else; don't post. Then report back (Step 9).
 - **Now merged or closed** — a status update only: set `status` in the
-  frontmatter, the `**State:**` line
+  frontmatter, the `**Status:**` line
   (e.g. `merged 2026-10-14`) and the index row's Date cell (Step 7), and
   append ` · status updated <today>: <merged | closed>` to the footer. If
   the head moved after the last analysis, add
   ` · last head <short sha> not analyzed`. Nothing else in the body
-  changes, and no other step runs — report back (Step 8) and stop.
+  changes, and no other step runs — report back (Step 9) and stop.
 - **Different head** (new commits since the report) — don't rewrite the
   existing text (reports are historical records). Fetch the new
   head (Step 2) and analyze only `git diff <old head>..<new head>`: Steps
@@ -325,10 +323,9 @@ never a pass.
 ### 5. Review pass
 
 Reuse the review methodology from the `code-review` plugin (`/code-review`)
-(`gh`-based PR review), adapted to feed a report instead of a PR comment —
-don't redo the eligibility/"already reviewed" gating from that command
-(irrelevant here: the report documents the PR rather than gating its
-merge), and don't post anything to GitHub.
+(`gh`-based PR review), adapted to feed this report — don't redo the
+eligibility/"already reviewed" gating from that command, and don't post
+from here: the only GitHub write is Step 8, after the user confirms.
 
 1. Launch the review agents below in parallel, on Sonnet. Give each the
    two SHAs, the changed-file list, the review standards from Step 3 and
@@ -523,8 +520,8 @@ pull/<n>/head`, without a `:<ref>` part), then
      you could not verify (CI unreadable, acceptance not checkable, draft,
      security-reviewer fallback used).
 
-Usual false positives — the scorer gives these 0–25, and they still
-appear in "Below the bar" (adapted from the list `code-review` uses):
+Usual false positives — the scorer gives these 0–25, so they stay out of
+the report (adapted from the list `code-review` uses):
 pre-existing issues; things that look like bugs but aren't; pedantic
 nitpicks a senior engineer wouldn't raise; anything a linter, typechecker
 or CI would catch; general code-quality opinions (test coverage, docs,
@@ -579,7 +576,8 @@ those in the file. The fact-check itself doesn't go into the report.
 **Structure and wording are fixed** — match the template exactly: the
 section order, the headings and their emoji (`### ⚖️ Verdict`,
 `### 🔧 Required Changes`, `### 💡 Improvements`), the `<details>` folds,
-the Verdict blockquote with Recommendation and Confidence on one line, the
+the Verdict line with Recommendation and Confidence together, then the
+summary as plain text (no blockquote), the
 per-table "Explanation & Fix" fold, and the five-level severity markers
 (🔴 Critical · 🟠 Major · 🟡 Moderate · 🟢 Low · ⚪ Trivial). The only
 emoji that carries meaning on the recommendation line is 🔴 for Request
@@ -598,12 +596,11 @@ pr: [<number>]
 issue: [<linked issue number(s), or empty>]
 author: <author>
 branch: <headRefName>
-commit: <headRefOid short sha>
 ---
 
 # PR #<number>: <title>
 
-**Author:** <author> · **State:** <🟡 Draft | 🟢 Open | merged YYYY-MM-DD | closed YYYY-MM-DD> · **Base:** `<baseRefName>` ← `<headRefName>`
+**Author:** <author> · **Status:** <draft | open | merged YYYY-MM-DD | closed YYYY-MM-DD> · **Base:** `<baseRefName>` ← `<headRefName>`
 **Size:** <changedFiles> files, +<additions> / −<deletions> · **Created:** <YYYY-MM-DD> · [View on GitHub](url)
 
 > If `baseRefName` ≠ `main`, call that out explicitly on its own line here.
@@ -701,7 +698,7 @@ monorepo, contract changes, anything left inconsistent>
 
 ---
 
-_Analyzed <today, YYYY-MM-DD> · commit `<headRefOid short sha>` · <provenance: "read-only"; add any of "CI from PR API", "review threads not read", "security-reviewer fallback used" that applied> · skill: document-pr_
+_Analyzed <today, YYYY-MM-DD> · commit `<headRefOid short sha>` · <provenance: "read-only"; add any of "CI from PR API", "review threads not read", "security-reviewer fallback used" that applied> · skill: review-and-comment-pr_
 ```
 
 On an **Update** (Step 1, different head), keep the existing report and
@@ -746,20 +743,20 @@ markers>), <m> Improvement(s)`, or `Verdict: Approve — clean`. Rows
 
 Then run `python3 <DOCS>/tools/update-related.py` to refresh the vault's
 "Related" links (skip it if the script is missing, and say so when you
-report back).
+report back). If it prints a duplicate pr-report warning, pass it on
+when you report back — don't delete or merge reports yourself.
 
 ### 8. Post the report to the PR
 
 Post the report back onto the PR it analysed, as a single PR comment.
 
 **Scope — the review portion only.** Post from the `## PR Review Report`
-heading through the end of the file; do **not** include the YAML
-frontmatter, the `# PR #<number>: <title>` title, or the
-`**Author:** … **Size:** …` metadata line above it (that context is
-already on the PR page) and **do not post** last section `_Analyzed` with extra data.
-That detail in unnecessary.
-The `<details>` folds and tables render natively
-in GitHub comments.
+heading down to the end of the "QA Test Plan" section — not the `---`
+and `_Analyzed …_` footer after it (local provenance, not for the PR).
+Leave out everything above the heading too: the YAML frontmatter, the
+`# PR #<number>: <title>` title and the `**Author:** … **Size:** …` line
+(that context is already on the PR page). The `<details>` folds and
+tables render natively in GitHub comments.
 
 **Safety scan before posting — strict; a hit blocks the post.** The PR is
 a public forum. Read the exact text you are about to post — every line,
@@ -782,10 +779,9 @@ Never silently strip-and-post — the user chooses.
   path leaking the runner's home dir reveals their identity.
 - **Internal-only hosts and URLs** — enterprise GitHub, internal Jira/Confluence/Grafana/wiki, VPN-only hostnames,
   `*.internal` / `*.corp`, private IPs (`10.`, `192.168.`, `172.16–31.`),
-  and links to **private** repos — including the `by [document-pr](…)` link
-  if it points at a private config/DOCS repo. Drop or genericise these; the
-  provenance footer is the usual offender (it may name the stale enterprise
-  host or the posting account) — keep it to a neutral "read-only" note.
+  and links to **private** repos — including the skill link in the
+  `## PR Review Report by [review-and-comment-pr](…)` heading if that repo
+  is private. Drop or genericise these.
 - **Personal data beyond public GitHub handles** — real names, email
   addresses or usernames pulled from `git log` / `git blame` / commit
   authorship or review threads. Keep people as their public `@handle`;
@@ -848,4 +844,4 @@ Tell the user, briefly: what PR was analyzed, the file path you wrote, the
 verdict (recommendation + confidence), the finding counts — how many
 Required Changes (with severities) and Improvements, or that the review was
 clean — and whether the report was posted to the PR (with the comment URL)
-or not (and why).
+or not (and why). On a status-only update (Step 1), say what changed instead.

@@ -7,7 +7,9 @@ description: >-
   for bugs, conventions, external-API contracts and security; updates the
   index. Re-running on a PR with a report updates it (new commits, merged
   or closed). Use when the user asks to document or analyze a specific PR.
-  Not for uncommitted local changes — that's `triple-review`.
+  Nothing is posted to GitHub — for a verdict posted as a PR comment, use
+  `review-and-comment-pr`. Not for uncommitted local changes — that's
+  `triple-review`.
 ---
 
 # Document a pull request
@@ -496,6 +498,7 @@ type: pr-report
 date: <today, YYYY-MM-DD>
 status: <merged | open | closed>
 pr: [<number>]
+issue: [<N from `Closes`/`Fixes`/`Resolves #N` in the PR body; omit the line if none or only a template placeholder like `#<epic-number>`>]
 author: <author>
 branch: <headRefName>
 ---
@@ -600,7 +603,8 @@ Keep the full history — never trim old rows.
 
 Then run `python3 <DOCS>/tools/update-related.py` to refresh the vault's
 "Related" links (skip it if the script is missing, and say so when you
-report back).
+report back). If it prints a duplicate pr-report warning, pass it on
+when you report back — don't delete or merge reports yourself.
 
 ### 8. Report back
 
