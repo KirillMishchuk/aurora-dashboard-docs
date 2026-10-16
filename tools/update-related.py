@@ -8,7 +8,7 @@ comment and end of file) — re-running replaces it. GitHub-bound notes
 is pasted into GitHub; they are still reachable through the other notes'
 blocks. Run from anywhere:  python3 DOCS/tools/update-related.py
 """
-import os, re, collections
+import os, re, sys, collections
 
 DOCS = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SKIP_DIRS = {".git", ".obsidian", "claude-config", "temp-files", "templates", "bases"}
@@ -63,6 +63,10 @@ def main():
         for k in ("pr", "issue"):
             for n in fm.get(k) or []:
                 groups[(k, n)].add(p)
+    for (k, n), ps in sorted(groups.items(), key=lambda g: str(g[0])):
+        reports = sorted(os.path.relpath(p, DOCS) for p in ps if notes[p][1].get("type") == "pr-report")
+        if k == "pr" and len(reports) > 1:
+            print(f"warning: {len(reports)} pr-report notes for PR #{n}: " + ", ".join(reports), file=sys.stderr)
     related = collections.defaultdict(set)
     for ps in groups.values():
         for a in ps:

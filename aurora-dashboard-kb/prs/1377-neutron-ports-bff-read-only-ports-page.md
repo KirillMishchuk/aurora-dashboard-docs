@@ -6,7 +6,6 @@ pr: [1377]
 issue: [1381, 1382]
 author: mark-karnaukh-extern-sap
 branch: mark-manage-ports-interface
-commit: 512f01b1
 ---
 
 # PR #1377: feat(aurora): add Neutron Ports BFF and read-only Ports page (list & details)

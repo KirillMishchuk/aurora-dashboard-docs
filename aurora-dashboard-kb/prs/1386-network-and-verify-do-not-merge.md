@@ -6,7 +6,6 @@ pr: [1386]
 issue: [1019]
 author: TilmanHaupt
 branch: hack-valid
-commit: e6b1e69
 ---
 
 # PR #1386: feat(core): network and verify DO NOT MERGE
@@ -335,7 +334,7 @@ CLAUDE*
 
 ---
 
-_Analyzed 2026-10-16 · commit `e6b1e69` · read-only, CI from PR API · skill: document-pr_
+_Analyzed 2026-10-16 · commit `e6b1e69` · read-only, CI from PR API · skill: review-and-comment-pr_
 
 <!-- related:auto — generated from pr/issue properties by tools/update-related.py; do not edit by hand -->
 ## Related
