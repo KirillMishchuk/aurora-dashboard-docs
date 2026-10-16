@@ -11,7 +11,7 @@ commit: 512f01b1
 
 # PR #1377: feat(aurora): add Neutron Ports BFF and read-only Ports page (list & details)
 
-**Author:** mark-karnaukh-extern-sap · **State:** 🟡 Draft · **Base:** `main` ← `mark-manage-ports-interface`
+**Author:** mark-karnaukh-extern-sap · **Status:** draft · **Base:** `main` ← `mark-manage-ports-interface`
 **Size:** 42 files, +5094 / −247 · **Created:** 2026-10-09 · [View on GitHub](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377)
 
 ---
@@ -361,4 +361,4 @@ The loader only supplies the tab title. The component runs its own `getById.useQ
 
 ---
 
-_Analyzed 2026-10-16 · commit `512f01b1` · read-only · CI from PR API · skill: document-pr_
+_Analyzed 2026-10-16 · commit `512f01b1` · read-only · CI from PR API · skill: review-and-comment-pr_

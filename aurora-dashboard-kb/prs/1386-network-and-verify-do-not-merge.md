@@ -11,7 +11,7 @@ commit: e6b1e69
 
 # PR #1386: feat(core): network and verify DO NOT MERGE
 
-**Author:** @TilmanHaupt · **State:** 🟡 Draft · **Base:** `main` ← `hack-valid`
+**Author:** @TilmanHaupt · **Status:** draft · **Base:** `main` ← `hack-valid`
 **Size:** 47 files, +4361 / −5 · **Created:** 2026-10-16 · [View on GitHub](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1386)
 
 ---
