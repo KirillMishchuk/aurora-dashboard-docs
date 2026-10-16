@@ -610,13 +610,13 @@ commit: <headRefOid short sha>
 
 ---
 
-## PR Review Report
+## PR Review Report by [review-and-comment-pr](https://github.com/KirillMishchuk/aurora-dashboard-docs/blob/main/ToolDocs/claude-config/aurora-dashboard-config/.claude/skills/review-and-comment-pr/SKILL.md)
 
 ### ⚖️ &nbsp; Verdict
 
-> Recommendation: **<🔴 Request Changes | 🟢 Approve | Approve — process to-dos first>** &nbsp;&nbsp;&nbsp;&nbsp; Confidence to Merge: **<High | Medium | Low>**
->
-> <2–4 sentence summary: the overall shape, the one or two things that matter, what clears it. If CI/security fell back or acceptance couldn't be verified, that belongs in this summary.>
+Recommendation: **<🔴 Request Changes | 🟢 Approve | Approve — process to-dos first>** &nbsp;&nbsp;&nbsp;&nbsp; Confidence to Merge: **<High | Medium | Low>**
+
+<2–4 sentence summary: the overall shape, the one or two things that matter, what clears it. If CI/security fell back or acceptance couldn't be verified, that belongs in this summary.>
 
 ### 🔧 &nbsp; Required Changes
 
