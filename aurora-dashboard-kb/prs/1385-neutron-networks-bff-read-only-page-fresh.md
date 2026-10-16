@@ -16,7 +16,7 @@ commit: 9ed4250
 
 ---
 
-## PR Review Report
+## PR Review Report by [review-and-comment-pr](https://github.com/KirillMishchuk/aurora-dashboard-docs/blob/main/ToolDocs/claude-config/aurora-dashboard-config/.claude/skills/review-and-comment-pr/SKILL.md)
 
 ### ⚖️ &nbsp; Verdict
 
