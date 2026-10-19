@@ -90,6 +90,21 @@ PR only matters if it already has a report, whose status then needs
 updating (below). If it has none, tell the user there is nothing to
 document and stop.
 
+**Release PRs.** If the PR author is `cobaltcore-bot` or the body says it
+was opened by `changesets/action`, it only bumps versions and changelogs.
+Do Steps 2–3 as usual, then replace Steps 4–5 with a light review:
+
+- skip the linked-issue check (no Process item) and the review agents;
+- check yourself: each bump matches the consumed changesets, the changelog
+  entries render correctly, the new version isn't on npm yet
+  (`npm view <package> version`), and whether pending changesets in other
+  open PRs would change the bump type;
+- a changelog problem is fixed in the `.changeset/*.md` on `main`, not on
+  this branch — the bot regenerates it.
+
+In the report keep Verdict, Required Changes and Improvements; under
+Solution Overview only "What was done"; under QA Test Plan only Edge Cases.
+
 **Where DOCS is.** Resolve it from the repo root, not from the shell's
 current directory — a bare `../DOCS` typed from a subdirectory folds into
 this repo's own git-tracked `docs/` folder on macOS:

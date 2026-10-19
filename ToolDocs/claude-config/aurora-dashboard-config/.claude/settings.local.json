@@ -89,6 +89,7 @@
       "Bash(gh api --method GET *)",
       "Bash(gh pr comment *)",
       "Bash(gh api user *)",
+      "Bash(npm view *)",
       "Bash(python3 /Users/kirylmishchuk/projects/SAP/DOCS/tools/update-related.py)",
       "Edit(//tmp/pr-*-comment.md)",
       "Edit(//private/tmp/pr-*-comment.md)",
