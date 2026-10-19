@@ -416,4 +416,6 @@ Run `pnpm --filter @cobaltcore-dev/aurora test src/server/Network/types/network.
 ## Related
 
 - plan · 2026-10-12 · [2026-10-12-networks-epic-1019-analysis](2026-10-12-networks-epic-1019-analysis.md)
-- pr-report · 2026-10-16 · [1386-network-and-verify-do-not-merge](../aurora-dashboard-kb/prs/1386-network-and-verify-do-not-merge.md)
+- pr-report · 2026-10-17 · [1383-neutron-networks-bff-read-only-networks-page](../aurora-dashboard-kb/prs/1383-neutron-networks-bff-read-only-networks-page.md)
+- pr-report · 2026-10-17 · [1385-neutron-networks-bff-read-only-networks-page](../aurora-dashboard-kb/prs/1385-neutron-networks-bff-read-only-networks-page.md)
+- pr-report · 2026-10-17 · [1386-network-and-verify-do-not-merge](../aurora-dashboard-kb/prs/1386-network-and-verify-do-not-merge.md)
