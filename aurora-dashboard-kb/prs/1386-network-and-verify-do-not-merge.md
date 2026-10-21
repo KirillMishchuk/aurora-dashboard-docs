@@ -41,12 +41,12 @@ The PR also collides with open PRs #1385, #1383 and #1377, and makes an unrelate
 | --- | ----------- | ------------ | ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
 | CR1 | 🟡 Moderate | Bug          | Tag-filter key map passed as `options`, so `tags-any`/`not-tags*` never reach Neutron | `packages/aurora/src/server/Network/routers/networksRouter.ts:106`                              |
 | CR2 | 🟡 Moderate | UI/UX        | A search with no matches unmounts the search box: the user can't clear it              | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworksList.tsx:99` |
-| CR3 | 🟡 Moderate | UI/UX        | "Create Network" button shown without a permission check; click only logs              | `…/network/networks/-components/NetworksList.tsx:54`                                            |
-| CR4 | 🟡 Moderate | UI/UX        | Search term held in `useState` instead of URL search params                   | `…/network/networks/-components/NetworksList.tsx:30`                                            |
+| CR3 | 🟡 Moderate | UI/UX        | "Create Network" button shown without a permission check; click only logs              | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworksList.tsx:54`                                            |
+| CR4 | 🟡 Moderate | UI/UX        | Search term held in `useState` instead of URL search params                   | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworksList.tsx:30`                                            |
 | CR5 | 🟡 Moderate | Code Quality | Merge conflicts with open PRs #1385, #1383 (same feature) and #1377           | PR files (`networks*`, `networksRouter.ts`, `routeTree.gen.ts`, locales)                        |
-| CR6 | 🟡 Moderate | Code Quality | Unrelated partial edit: `ROUTE_ID` inlined at 2 of 3 uses in the routers detail route | `…/network/routers/$routerId.tsx:58`                                                            |
+| CR6 | 🟡 Moderate | Code Quality | Unrelated partial edit: `ROUTE_ID` inlined at 2 of 3 uses in the routers detail route | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/$routerId.tsx:58`                                                            |
 | CR7 | 🟡 Moderate | Code Quality | `.gitignore` reopened for `.claude/skills` and `.claude/agents`; 29 tooling files shipped in a feature PR | `.gitignore:12`                                                                                 |
-| CR8 | 🟡 Moderate | Performance  | Detail route fetches the network twice (loader + `useQuery`)                  | `…/network/networks/$networkId/index.tsx:20`                                                    |
+| CR8 | 🟡 Moderate | Performance  | Detail route fetches the network twice (loader + `useQuery`)                  | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/$networkId/index.tsx:20`                                                    |
 | CR9 | 🟡 Moderate | Bug          | List never follows `networks_links`, so it can be silently truncated                  | `packages/aurora/src/server/Network/routers/networksRouter.ts:108`                              |
 | P1  | —           | Process      | Draft titled "DO NOT MERGE"; CI `test` job failing                            | PR state                                                                                        |
 | P2  | —           | Process      | PR body ("Test-PR") links no issue                                            | PR body                                                                                         |
@@ -57,15 +57,15 @@ The PR also collides with open PRs #1385, #1383 and #1377, and makes an unrelate
 `appendQueryParamsFromObject(neutronParams, LIST_NETWORKS_QUERY_KEY_MAP)` passes the bare map as the second argument. The helper's signature is `(source, options?: AppendQueryParamsOptions)` and it reads `const { keyMap } = options ?? {}` (`packages/aurora/src/server/helpers/queryParams.ts:26-31`), so `keyMap` is `undefined` and nothing is renamed. `tags_any`, `not_tags` and `not_tags_any` are accepted by the input schema (`types/network.ts:131-133`), but they are sent to Neutron with underscores. The [Neutron API reference](https://docs.openstack.org/api-ref/network/v2/index.html) names these filters `tags-any` ("Resources that match any tag in this list will be returned."), `not-tags` and `not-tags-any`. The call typechecks because `Record<string,string>` is assignable to the all-optional options type. No client sends these filters yet, so the bug is latent but part of the procedure's contract. The sibling call in `routersRouter.ts:178` does it correctly. No test covers the built URL.
 _Fix:_ `appendQueryParamsFromObject(neutronParams, { keyMap: LIST_NETWORKS_QUERY_KEY_MAP })`. Add a router test that asserts the query string.
 
-**CR2 — A search with no matches hides the search box** · UI/UX · `…/networks/-components/NetworksList.tsx:99`
+**CR2 — A search with no matches hides the search box** · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworksList.tsx:99`
 When `networks.length === 0`, the component returns early with only `ContentHeader` and `Status`. With a search active, that status says "No networks match your search. Clear the search to view all networks." The `SearchInput` and its `onClear` exist only in the non-empty branch (`:131-140`), so the user has no control to clear the search and must reload or navigate away. This breaks copilot-instructions B.2: "Reject any structure that … skips Zone 2 when search is available". On #1355 (routers), Copilot flagged the same pattern: "replaces the entire list, including search/sort controls, with a fallback that cannot retry or reset".
 _Fix:_ Always render Zone 1 and Zone 2 (create and search), and put the loading, empty and no-match `Status` in place of the DataGrid only.
 
-**CR3 — "Create Network" button without a permission check** · UI/UX · `…/networks/-components/NetworksList.tsx:54`
+**CR3 — "Create Network" button without a permission check** · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworksList.tsx:54`
 Lines 53-54 contain `// Check permissions (TODO: implement permission checking)` and `const canCreate = true // Placeholder`. The handler at `:56-59` only calls `console.log("Create network clicked")`, and `:121-127` renders the primary button for every user. This violates two Quick Reject items: "'Create' button rendered without permission check" and "UI control shown before permissions are resolved (not fail-closed)". The permission keys `network:networks:create|update|delete` already exist (`Network/routers/permissionRouter.ts:19-23`). The empty state at `:109` also says networks "can be created through the API or CLI", which contradicts the button.
 _Fix:_ Drop the button until the create modal exists (Phase 2). Otherwise, gate it on `canUser` for `network:networks:create`, defaulting to `false` while loading.
 
-**CR4 — Search state not in the URL** · UI/UX · `…/networks/-components/NetworksList.tsx:30`
+**CR4 — Search state not in the URL** · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworksList.tsx:30`
 `searchInput` and `searchTerm` live in `useState`, and the route declares no `validateSearch`. A refresh, a shared link or coming back from a network's detail page loses the search. This violates the Quick Reject item "URL-worthy state held in `useState` instead of search params", and B.9 lists `search`. The sibling `RoutersList` and the Floating IPs list keep search in URL params.
 _Fix:_ Add `validateSearch` with `search` on the list route and derive the query input from `Route.useSearch()`.
 
@@ -78,7 +78,7 @@ I checked each PR with `git merge-tree --write-tree --name-only` against this he
 Only one networks implementation can land.
 _Fix:_ Decide which networks PR is the vehicle, and close or rebase the others. Drop the `$routerId.tsx` edit (CR6) to remove the conflict with #1377.
 
-**CR6 — Unrelated half-edit to the routers detail route** · Code Quality · `…/network/routers/$routerId.tsx:58`
+**CR6 — Unrelated half-edit to the routers detail route** · Code Quality · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/$routerId.tsx:58`
 The PR replaces `ROUTE_ID` with the string literal at `:58` (`useParams`) and `:117` (`createFileRoute`). The constant is still declared at `:11` and used at `:146`. `ROUTE_ID` was introduced in #1355 as the single source of truth. The edit is not needed for networks, and it also conflicts with #1377. It is likely a side effect of the route generator.
 _Fix:_ Revert this file.
 
@@ -86,7 +86,7 @@ _Fix:_ Revert this file.
 On the base, `.gitignore` ignored `.claude` entirely and no `.claude` files were tracked. This PR changes the rule to `.claude/*` + `!.claude/skills/` + `!.claude/agents/`, and adds 29 files (+3043 lines of agent/skill markdown and shell scripts). It also adds the unrelated ignore entries `tmp/aurora-reviews/`, `screenshots/` and `.playwright-mcp/`. Every contributor's local skills and agents become committable. Two files are near-duplicates (`.claude/agents/sap_juno_lookup.md` and `.claude/skills/verifyUI/agents/sap_juno_lookup.md`). No repo standard forbids this, but it reverses a deliberate ignore and is out of scope for a networks feature.
 _Fix:_ Move the `.gitignore` and `.claude/**` changes to their own PR, where maintainers can decide whether the repo should track shared agent tooling.
 
-**CR8 — Detail route double-fetches the network** · Performance · `…/networks/$networkId/index.tsx:20`
+**CR8 — Detail route double-fetches the network** · Performance · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/$networkId/index.tsx:20`
 The loader (`:20-26`) calls `context.trpcClient?.network.networks.getById.query(...)`, but only to derive the page title. The component then calls `trpcReact.network.networks.getById.useQuery(...)` again (`:57-65`). The vanilla client and React Query don't share a cache, so every detail view runs two network GETs and two subnet GETs. Context: the routers and security group detail routes use the same loader-for-title pattern.
 _Fix:_ Return the network from the loader and read it with `Route.useLoaderData()`. Alternatively, prefetch through the React Query utils so both reads hit one cache entry.
 
@@ -124,13 +124,13 @@ _Fix:_ Add `Part of #1019` (or the Phase 1 sub-issue) to the body.
 | --- | ---------- | ------------ | --------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
 | I1  | 🟢 Low     | Docs         | Changeset claims an ErrorBoundary and a removed key map, neither of which is true | `.changeset/networks-management-phase1.md:9`                                 |
 | I2  | 🟢 Low     | Bug          | Subnet lookup failure is shown as "No Subnets"                           | `packages/aurora/src/server/Network/routers/networksRouter.ts:56`            |
-| I3  | 🟢 Low     | UI/UX        | 403 handled inline; raw `error.message` shown untranslated               | `…/network/networks/-components/NetworksList.tsx:79`                         |
-| I4  | 🟢 Low     | UI/UX        | `"- -"` placeholder with an unsupported "Juno house rule" comment; siblings use `—` | `…/network/networks/$networkId/-components/NetworkDetailsView.tsx:28`        |
-| I5  | 🟢 Low     | UI/UX        | Placeholder says "Search by name" but the search also matches description       | `…/network/networks/-components/NetworksList.tsx:139`                        |
-| I6  | 🟢 Low     | UI/UX        | Dead `disabled={isLoading}`; no indicator while a new search loads        | `…/network/networks/-components/NetworksList.tsx:149`                        |
-| I7  | 🟢 Low     | Code Quality | Item count pluralised by concatenation instead of Lingui `plural`         | `…/network/networks/-components/NetworksList.tsx:147`                        |
-| I8  | 🟢 Low     | UI/UX        | Epic #1019 Phase 1 asks for Name/Status/Shared filters; only text search exists | `…/network/networks/-components/NetworksList.tsx:129`                        |
-| I9  | ⚪ Trivial | Code Quality | Import order deviates from B.13                                       | `…/network/networks/$networkId/index.tsx:1`                                  |
+| I3  | 🟢 Low     | UI/UX        | 403 handled inline; raw `error.message` shown untranslated               | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworksList.tsx:79`                         |
+| I4  | 🟢 Low     | UI/UX        | `"- -"` placeholder with an unsupported "Juno house rule" comment; siblings use `—` | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/$networkId/-components/NetworkDetailsView.tsx:28`        |
+| I5  | 🟢 Low     | UI/UX        | Placeholder says "Search by name" but the search also matches description       | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworksList.tsx:139`                        |
+| I6  | 🟢 Low     | UI/UX        | Dead `disabled={isLoading}`; no indicator while a new search loads        | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworksList.tsx:149`                        |
+| I7  | 🟢 Low     | Code Quality | Item count pluralised by concatenation instead of Lingui `plural`         | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworksList.tsx:147`                        |
+| I8  | 🟢 Low     | UI/UX        | Epic #1019 Phase 1 asks for Name/Status/Shared filters; only text search exists | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworksList.tsx:129`                        |
+| I9  | ⚪ Trivial | Code Quality | Import order deviates from B.13                                       | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/$networkId/index.tsx:1`                                  |
 | I10 | ⚪ Trivial | Docs         | JSDoc promises "subnet and port details"; only subnets exist          | `packages/aurora/src/server/Network/types/network.ts:209`                    |
 
 <details><summary><strong>Explanation &amp; Fix</strong></summary>
@@ -149,31 +149,31 @@ _Fix:_ Rewrite the changeset as a plain description of the new feature.
 `fetchSubnetDetails` returns `[]` from `catch {}` on any failure. Its `if (!response.ok) return []` at `:53` never runs, because signal-openstack throws on non-2xx (see the `requestOrThrow` JSDoc in `routerHelpers.ts`). `NetworkDetailsView.tsx:84-89` then shows "No Subnets — This network has no subnets…" even when `network.subnets` is non-empty. The failure is rare, since the same token just read the network, but the message is wrong when it happens.
 _Fix:_ Return a flag (e.g. `subnet_details: null` on failure) and render an error or "IDs only" fallback when `network.subnets.length > 0`.
 
-**I3 — 403 handled inline** · UI/UX · `…/networks/-components/NetworksList.tsx:79`
+**I3 — 403 handled inline** · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworksList.tsx:79`
 A `FORBIDDEN` error is mapped to "You do not have permission to view networks." inside a component `Status`. Other errors show the raw `error?.message` (`:81`, and `$networkId/index.tsx:92`). B.6 says "Reject … a 401/403 handled inline instead of via redirect / page-level info Message". This is a partial match, because B.6 scopes component render errors to the component. Context: flavors and images handle FORBIDDEN inline too.
 _Fix:_ Use the shared error-translation helper and the standard 403 copy.
 
-**I4 — Placeholder value and comment** · UI/UX · `…/$networkId/-components/NetworkDetailsView.tsx:28`
+**I4 — Placeholder value and comment** · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/$networkId/-components/NetworkDetailsView.tsx:28`
 `/** Empty-value placeholder (Juno house rule). */ const PLACEHOLDER = "- -"`. I found no such rule in Juno, and `"- -"` appears nowhere else in `packages/aurora/src`. The Floating IP views and tests use `—`.
 _Fix:_ Use `—`, matching the sibling views, and drop the "house rule" claim.
 
-**I5 — Search placeholder undersells the search** · UI/UX · `…/networks/-components/NetworksList.tsx:139`
+**I5 — Search placeholder undersells the search** · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworksList.tsx:139`
 The placeholder is "Search by name", but `filterNetworksByBffParams` (`networksRouter.ts:70-78`) matches `name` and `description`.
 _Fix:_ "Search by name or description".
 
-**I6 — Loading feedback** · UI/UX · `…/networks/-components/NetworksList.tsx:149`
+**I6 — Loading feedback** · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworksList.tsx:149`
 `disabled={isLoading}` on Refresh is always false, because the loading branch returns at `:68`. `placeholderData: (prev) => prev` (`:46`) also keeps the previous results on screen, with no indicator, while a new search loads.
 _Fix:_ Use `isFetching` for the Refresh button and for a subtle loading hint.
 
-**I7 — Pluralisation** · Code Quality · `…/networks/-components/NetworksList.tsx:147`
-`{networks.length} {networks.length === 1 ? t\`Network\` : t\`Networks\`}` is not safe for languages with more plural forms. The repo already uses Lingui `plural` (e.g. `CorsRulesTab.tsx`).
+**I7 — Pluralisation** · Code Quality · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworksList.tsx:147`
+`` {networks.length} {networks.length === 1 ? t`Network` : t`Networks`} `` is not safe for languages with more plural forms. The repo already uses Lingui `plural` (e.g. `CorsRulesTab.tsx`).
 _Fix:_ `plural(networks.length, { one: "# Network", other: "# Networks" })`.
 
-**I8 — Phase 1 filters missing** · UI/UX · `…/networks/-components/NetworksList.tsx:129`
+**I8 — Phase 1 filters missing** · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworksList.tsx:129`
 Epic #1019 Phase 1: "Create Networks List View with DataGrid, pagination, and filters (Name, Status, Shared)". The BFF accepts `status` and `shared`, but the UI offers only a text search.
 _Fix:_ Add Status and Shared filters, or record them as follow-up scope in the linked issue.
 
-**I9 — Import order** · Code Quality · `…/networks/$networkId/index.tsx:1`
+**I9 — Import order** · Code Quality · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/$networkId/index.tsx:1`
 The Juno import comes first, and `@/client/hooks/useSetBreadcrumb` (`:10`) comes after the local `./-components` import. In `NetworksList.tsx:1-17`, `trpcClient` comes after Juno. B.13 sets the required order.
 _Fix:_ Reorder per B.13.
 
@@ -390,5 +390,5 @@ _Analyzed 2026-10-17 · commit `e6b1e69` · read-only, CI from PR API, earlier a
 
 - plan · 2026-10-12 · [2026-10-12-networks-epic-1019-analysis](../../plans/2026-10-12-networks-epic-1019-analysis.md)
 - plan · 2026-10-12 · [2026-10-12-networks-phase-1-read-operations](../../plans/2026-10-12-networks-phase-1-read-operations.md)
-- pr-report · 2026-10-17 · [1383-neutron-networks-bff-read-only-networks-page](1383-neutron-networks-bff-read-only-networks-page.md)
 - pr-report · 2026-10-17 · [1385-neutron-networks-bff-read-only-networks-page](1385-neutron-networks-bff-read-only-networks-page.md)
+- pr-report · 2026-10-21 · [1383-neutron-networks-bff-read-only-networks-page](1383-neutron-networks-bff-read-only-networks-page.md)

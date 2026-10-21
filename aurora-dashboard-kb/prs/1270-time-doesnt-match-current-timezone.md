@@ -51,7 +51,7 @@ export const parseSwiftDate = (value: string | null | undefined): Date | null =>
 ```tsx
 <DataGridCell>{formatSwiftDate(container.last_modified) ?? t`N/A`}</DataGridCell>
 ```
-— `.../Swift/Containers/ContainerTableView.tsx:232` (similarly `.../Swift/Objects/ObjectsTableView.tsx:409-410`, where the fallback is a literal `"—"`)
+— `packages/aurora/src/client/routes/_auth/projects/$projectId/storage/-components/Swift/Containers/ContainerTableView.tsx:232` (similarly `packages/aurora/src/client/routes/_auth/projects/$projectId/storage/-components/Swift/Objects/ObjectsTableView.tsx:409-410`, where the fallback is a literal `"—"`)
 
 **Sorting.** Both comparators previously computed `new Date(a.last_modified).getTime() - new Date(b.last_modified).getTime()`, i.e. they compared incorrectly parsed instances (around DST transitions this produced a genuinely wrong order). The new version in containers also fixes transitivity for missing values:
 
@@ -73,7 +73,7 @@ case "last_modified": {
   break
 }
 ```
-— `.../Swift/Containers/index.tsx:197-212` (the same in `.../Swift/Objects/index.tsx:354-366`)
+— `packages/aurora/src/client/routes/_auth/projects/$projectId/storage/-components/Swift/Containers/index.tsx:197-212` (the same in `packages/aurora/src/client/routes/_auth/projects/$projectId/storage/-components/Swift/Objects/index.tsx:354-366`)
 
 The remark in the comment about "matches the old NaN behaviour" is substantively correct: the old code returned `NaN` from the comparator, and the `Array.prototype.sort` spec coerces a `NaN` result to `+0` — i.e. the same "treat the pair as equal". Verified by running on mixed arrays: the sort behavior is identical.
 
@@ -93,7 +93,7 @@ const formatDate = (iso: string): string =>
     timeZone: "UTC",
   }) ?? "—"
 ```
-— `.../Swift/Objects/EditObjectMetadataModal.tsx:77-88`
+— `packages/aurora/src/client/routes/_auth/projects/$projectId/storage/-components/Swift/Objects/EditObjectMetadataModal.tsx:77-88`
 
 The history confirms that this UTC is an old deliberate decision (introduced together with the modal itself in `919f89e9`, reconfirmed in `0c4b2010` when unifying the format with the editable field), whereas "local time" in the tables was never deliberately chosen: since their creation (`4e369750`, `93413009`) they had an argument-less `toLocaleString()`. So the current mix of "tables — local, modal — UTC" does not contradict the history.
 
@@ -141,7 +141,7 @@ and it reaches `formatDate` with priority, ahead of the listing value:
     ? formatDate(object.last_modified)
     : "—"}
 ```
-— `.../Swift/Objects/EditObjectMetadataModal.tsx:436-439`
+— `packages/aurora/src/client/routes/_auth/projects/$projectId/storage/-components/Swift/Objects/EditObjectMetadataModal.tsx:436-439`
 
 The chain on a real value (verified by running in node on the same V8):
 

@@ -86,19 +86,19 @@ _Fix:_ Add a line about it to the description (and to the changeset if it should
 
 <details><summary><strong>Explanation &amp; Fix</strong></summary>
 
-**I1 — "Log in" wording** · UI/UX · `…/network/ports/$portId.tsx:71`
+**I1 — "Log in" wording** · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/$portId.tsx:71`
 The Quick Reject Checklist bans strings using `"Sign In"`/`"Log in"` (use `"Sign in"`), and B.19 repeats it. The 401 description reads "The session has expired. Log in again to continue." The same string is in `routers/$routerId.tsx:76`. It goes away if CR2 is fixed with a redirect.
 _Fix:_ Change it to "The session has expired. Sign in again to continue."
 
-**I2 — Bare `PopupMenu`** · Code Quality · `…/ports/-components/PortTableRow.tsx:79`
+**I2 — Bare `PopupMenu`** · Code Quality · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortTableRow.tsx:79`
 Quick Reject: "`PopupMenu` without `PopupMenuToggle` as trigger". B.14 asks for `<PopupMenuToggle as="div"><Button icon="moreVert" … /></PopupMenuToggle>`. `FloatingIpTableRow.tsx` and `RouterTableRow.tsx` also rely on Juno's default trigger, and the maintainer kept it in #1355.
 _Fix:_ Add an explicit `PopupMenuToggle` with a `moreVert` icon button and an `aria-label`.
 
-**I3 — Ad-hoc spacing** · Code Quality · `…/ports/-components/PortDetailsView.tsx:51`
+**I3 — Ad-hoc spacing** · Code Quality · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortDetailsView.tsx:51`
 Quick Reject: "Ad-hoc spacing value not in the approved list (B.3)". The approved gaps are `0.5`, `2`, `4` and `6`. `gap="1"` is used here and at `PortTableRow.tsx:57`. `RouterTableRow.tsx` does the same.
 _Fix:_ Use `gap="0.5"` or `gap="2"`.
 
-**I4 — Status column position** · UI/UX · `…/ports/-components/PortListContainer.tsx:84`
+**I4 — Status column position** · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortListContainer.tsx:84`
 B.15 says "Status/state columns: near the left". Status is the 6th of 7 columns. Issue #1382 lists this exact column order, so it is probably intentional.
 _Fix:_ Move Status after Name / ID, or confirm with the issue owner that the issue's order wins.
 
@@ -110,11 +110,11 @@ _Fix:_ Say that the lookups send one request per 50 IDs.
 `errorHandling.ts:25-54` appends `: ${response.statusText || "Unknown error"}` to every default message. The tables show "Invalid request data for Port" / "Unauthorized access to Port" without the suffix (`:103-104`, `:132`, `:196`, `:245`, `:282`), while `:195` does include `{Neutron message}`, so the doc contradicts itself.
 _Fix:_ Add `: {Neutron message}` to the default-handler rows.
 
-**I7 — Prop-to-state effect** · Code Quality · `…/ports/-components/PortListContainer.tsx:37`
+**I7 — Prop-to-state effect** · Code Quality · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortListContainer.tsx:37`
 Part A says "Minimize useEffect … flag synchronizations". `useEffect(() => { setInputPage(currentPage.toString()) }, [currentPage])` mirrors a prop into state. `RouterListContainer.tsx` has the same code.
 _Fix:_ Key the pagination input on `currentPage`, or derive the value during render.
 
-**I8 — Import order** · Code Quality · `…/network/ports/index.tsx:4`
+**I8 — Import order** · Code Quality · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/index.tsx:4`
 B.13 puts `zod` in the framework group, before i18n. Here `import { z } from "zod"` comes after `@lingui/core/macro` and `@lingui/react/macro`.
 _Fix:_ Move the `zod` import up, next to `@tanstack/react-router`.
 

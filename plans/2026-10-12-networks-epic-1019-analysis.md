@@ -374,6 +374,5 @@ The plan file is a historical record. These go into a revision of it, or are app
 ## Related
 
 - plan · 2026-10-12 · [2026-10-12-networks-phase-1-read-operations](2026-10-12-networks-phase-1-read-operations.md)
-- pr-report · 2026-10-17 · [1383-neutron-networks-bff-read-only-networks-page](../aurora-dashboard-kb/prs/1383-neutron-networks-bff-read-only-networks-page.md)
 - pr-report · 2026-10-17 · [1385-neutron-networks-bff-read-only-networks-page](../aurora-dashboard-kb/prs/1385-neutron-networks-bff-read-only-networks-page.md)
 - pr-report · 2026-10-17 · [1386-network-and-verify-do-not-merge](../aurora-dashboard-kb/prs/1386-network-and-verify-do-not-merge.md)

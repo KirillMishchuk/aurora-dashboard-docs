@@ -124,7 +124,7 @@ const STATE_CONFIG = {
   ...
 ```
 
-In the table (`PcaTableRow.tsx`) the text and the icon are separate fields, and `t\`Creating\`` is untouched. But on the details page the same replacement introduced a regression:
+In the table (`PcaTableRow.tsx`) the text and the icon are separate fields, and `` t`Creating` `` is untouched. But on the details page the same replacement introduced a regression:
 
 ```tsx
 // PcaDetailsView.tsx:45-56
@@ -160,7 +160,7 @@ The review was run by 5 parallel agents (CLAUDE.md compliance, quick bug scan, h
 
 **Passed the threshold ≥80:**
 
-- **[100/100] The `CREATING` state badge on the CA details page lost its translation — the only untranslated string among all status badges.** `PcaDetailsView.tsx:49`: it was `<Badge icon="bolt" variant="info" text={t\`Creating\`} />`, now it is `<Spinner size="18" /> Creating` — a literal English string directly in JSX, without `t`/`<Trans>`. The neighboring states in the same object (`AWAITING_CERTIFICATE`, `READY`, `FAILED`) still use `t`. Confirmed by the `messages.po` diff: the string `"Creating"` does not appear as a new `msgid` — meaning `lingui extract` (`pnpm check-i18n`) did not see it and never will; it will stay English in any locale, including German. The counterpart in `PcaTableRow.tsx:36` (`text: t\`Creating\`,`) is correct — the regression is only in `PcaDetailsView`. Nothing in CI catches it (the Lingui macro is a string compilation step, not a type).
+- **[100/100] The `CREATING` state badge on the CA details page lost its translation — the only untranslated string among all status badges.** `PcaDetailsView.tsx:49`: it was `` <Badge icon="bolt" variant="info" text={t`Creating`} /> ``, now it is `<Spinner size="18" /> Creating` — a literal English string directly in JSX, without `t`/`<Trans>`. The neighboring states in the same object (`AWAITING_CERTIFICATE`, `READY`, `FAILED`) still use `t`. Confirmed by the `messages.po` diff: the string `"Creating"` does not appear as a new `msgid` — meaning `lingui extract` (`pnpm check-i18n`) did not see it and never will; it will stay English in any locale, including German. The counterpart in `PcaTableRow.tsx:36` (`` text: t`Creating`, ``) is correct — the regression is only in `PcaDetailsView`. Nothing in CI catches it (the Lingui macro is a string compilation step, not a type).
 
 **Did not pass the threshold (observations, not findings):**
 

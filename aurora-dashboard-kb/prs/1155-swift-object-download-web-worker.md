@@ -24,7 +24,7 @@ In the course of implementation the PR corrected itself: commit `7ece064` ("keep
 
 ### Web Worker + module-scope store (new for Swift)
 
-`.../Swift/Objects/workers/objectDownload.worker.ts` (129 lines, `?worker&inline`) — an almost exact copy of the Ceph worker; it decodes base64 chunks into `Uint8Array` off the main thread and assembles a `Blob` at the end:
+`packages/aurora/src/client/routes/_auth/projects/$projectId/storage/-components/Swift/Objects/workers/objectDownload.worker.ts` (129 lines, `?worker&inline`) — an almost exact copy of the Ceph worker; it decodes base64 chunks into `Uint8Array` off the main thread and assembles a `Blob` at the end:
 
 ```ts
 // objectDownload.worker.ts:21-25
@@ -35,7 +35,7 @@ In the course of implementation the PR corrected itself: commit `7ece064` ("keep
 // UI doesn't wait on this unwinding.
 ```
 
-`.../Swift/Objects/stores/objectDownloadStore.ts` (246 lines) holds a `Map<transferKey, ActiveTransfer>` outside React via `useSyncExternalStore(subscribeTransfers, getTransfersSnapshot)` — the reason is in the file's comment:
+`packages/aurora/src/client/routes/_auth/projects/$projectId/storage/-components/Swift/Objects/stores/objectDownloadStore.ts` (246 lines) holds a `Map<transferKey, ActiveTransfer>` outside React via `useSyncExternalStore(subscribeTransfers, getTransfersSnapshot)` — the reason is in the file's comment:
 
 ```ts
 // objectDownloadStore.ts:3-9
@@ -128,7 +128,7 @@ if (!aborted) {
 
 ### Side fix: the Ceph worker got the same abort guards
 
-Commit `7ece064` changes `.../Ceph/Objects/workers/objectDownload.worker.ts` — an existing file from another, already merged PR (#1062) — adding exactly what the Swift worker was written with from the start:
+Commit `7ece064` changes `packages/aurora/src/client/routes/_auth/projects/$projectId/storage/-components/Ceph/Objects/workers/objectDownload.worker.ts` — an existing file from another, already merged PR (#1062) — adding exactly what the Swift worker was written with from the start:
 
 ```diff
  for await (const { chunk, contentType: ct, filename: fn } of iterable) {

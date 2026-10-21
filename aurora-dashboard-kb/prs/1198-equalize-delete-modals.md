@@ -61,7 +61,7 @@ const handleConfirm = () => {
 }
 ```
 
-`DeleteContainerModal` (Swift) is switched to the built-in props also for the "container has objects" branch — previously a separate `Close` button via `modalFooter`/`data-testid="delete-has-objects-close-button"`, now simply `confirmButtonLabel={hasObjects ? t\`Close\` : t\`Delete\`}` (`DeleteContainerModal.tsx:129-131`).
+`DeleteContainerModal` (Swift) is switched to the built-in props also for the "container has objects" branch — previously a separate `Close` button via `modalFooter`/`data-testid="delete-has-objects-close-button"`, now simply `` confirmButtonLabel={hasObjects ? t`Close` : t`Delete`} `` (`DeleteContainerModal.tsx:129-131`).
 
 ## What it affects
 

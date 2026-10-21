@@ -75,7 +75,7 @@ The same pattern repeats across six Buckets/Objects files — the button/menu it
   <PopupMenuItem label={t`Delete Object`} .../>   // version/object
 ```
 
-`DeleteVersionModal.tsx:126` already had the branch `isDeletingAllVersions ? t\`Delete All Versions\` : ...` for the modal title (inherited from existing code, not new in this PR) — the commit simply carried the same branch over to `confirmButtonLabel`, which was previously hardcoded as `t\`Delete\`` and did not match the title:
+`DeleteVersionModal.tsx:126` already had the branch `` isDeletingAllVersions ? t`Delete All Versions` : ... `` for the modal title (inherited from existing code, not new in this PR) — the commit simply carried the same branch over to `confirmButtonLabel`, which was previously hardcoded as `` t`Delete` `` and did not match the title:
 
 ```tsx
 // DeleteVersionModal.tsx:126 (new)

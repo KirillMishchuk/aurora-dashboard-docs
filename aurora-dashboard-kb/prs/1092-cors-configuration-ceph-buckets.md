@@ -109,7 +109,7 @@ The limiter is per-process (not distributed) — with multiple BFF instances beh
 
 ### Tab architecture on the bucket page
 
-The objects route (`.../$containerName/objects/index.tsx`) gained a URL parameter `view: "overview" | "cors-rules"` (default `"overview"`) and three CORS-specific parameters `corsSortBy`/`corsSortDirection`/`corsSearch`, independent of the object list parameters:
+The objects route (`packages/aurora/src/client/routes/_auth/projects/$projectId/storage/$provider/$storageType/$containerName/objects/index.tsx`) gained a URL parameter `view: "overview" | "cors-rules"` (default `"overview"`) and three CORS-specific parameters `corsSortBy`/`corsSortDirection`/`corsSearch`, independent of the object list parameters:
 
 ```typescript
 // objects/index.tsx:27-33

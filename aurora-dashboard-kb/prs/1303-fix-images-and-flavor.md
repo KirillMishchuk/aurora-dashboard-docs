@@ -46,7 +46,7 @@ useEffect(() => {
 }, [confirmDeleteIndex])
 ```
 
-All of this (plus the reset of `confirmDeleteIndex` in `handleEdit`/`handleDelete`, and the "Delete"/"confirm-delete" button branching in JSX) was removed; the delete button is now a single `<Button onClick={() => handleDelete(index)} icon="deleteForever" aria-label={t\`Delete\`} data-testid={\`delete-${entry.key}\`} .../>` without a second step. The test `EditImageMetadata.test.tsx:98-115` was simplified in step: the click on `confirm-delete-${key}` was removed, and the wait for the text "Edit Image Metadata" was replaced with "Edit Metadata" (the modal title was renamed too).
+All of this (plus the reset of `confirmDeleteIndex` in `handleEdit`/`handleDelete`, and the "Delete"/"confirm-delete" button branching in JSX) was removed; the delete button is now a single `` <Button onClick={() => handleDelete(index)} icon="deleteForever" aria-label={t`Delete`} data-testid={`delete-${entry.key}`} .../> `` without a second step. The test `EditImageMetadata.test.tsx:98-115` was simplified in step: the click on `confirm-delete-${key}` was removed, and the wait for the text "Edit Image Metadata" was replaced with "Edit Metadata" (the modal title was renamed too).
 
 The same pattern was already absent from `EditSpecModal` (Flavors) — there was never a delete confirmation there; the changes in that file concern only item 2 below.
 

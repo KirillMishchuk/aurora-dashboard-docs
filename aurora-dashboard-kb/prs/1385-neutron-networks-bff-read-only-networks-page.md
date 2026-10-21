@@ -88,11 +88,11 @@ return direction * compareValues(a[sortKey], b[sortKey])
 
 **I2 — Row actions menu without an explicit toggle** · Accessibility · `network/networks/-components/NetworkTableRow.tsx:68`
 This is on the Quick Reject Checklist: "`PopupMenu` without `PopupMenuToggle` as trigger". B.14 says context menus must use `<PopupMenuToggle as="div"><Button icon="moreVert" /></PopupMenuToggle>`. Juno 9.4.0, the pinned version, renders a default focusable `moreVert` button when no toggle is passed, so keyboard users can open the menu. The earlier review comments call this a keyboard blocker, and that part isn't accurate. The default button does have no accessible name. Precedent: Copilot raised the same on #1355 (`RouterTableRow.tsx`) and it wasn't applied, and several existing rows omit the toggle.
-_Fix:_ `<PopupMenuToggle as="div"><Button icon="moreVert" aria-label={t\`Network Actions\`} /></PopupMenuToggle>`.
+_Fix:_ `` <PopupMenuToggle as="div"><Button icon="moreVert" aria-label={t`Network Actions`} /></PopupMenuToggle> ``.
 
 **I3 — All-caps Admin State** · UI/UX · `NetworkTableRow.tsx:50`, `NetworkDetailsView.tsx:78`
-Both render `t\`UP\`` / `t\`DOWN\``. The Quick Reject Checklist bans all-caps strings, and B.19 says "Never all-caps (ever)". Other booleans in the same PR use Enabled/Disabled. Precedent: the merged `RouterTableRow` uses the same casing. Raised in both earlier review comments, with no fix yet.
-_Fix:_ Use `t\`Up\`` / `t\`Down\``, or Enabled/Disabled to match the rest of the details view.
+Both render `` t`UP` `` / `` t`DOWN` ``. The Quick Reject Checklist bans all-caps strings, and B.19 says "Never all-caps (ever)". Other booleans in the same PR use Enabled/Disabled. Precedent: the merged `RouterTableRow` uses the same casing. Raised in both earlier review comments, with no fix yet.
+_Fix:_ Use `` t`Up` `` / `` t`Down` ``, or Enabled/Disabled to match the rest of the details view.
 
 **I4 — Raw `<div>` wrappers** · Code Quality · `NetworkDetailsView.tsx:45`, `NetworksList.tsx:312`
 `<div className="break-all">{value}</div>` and `<div className="relative">` hit the Quick Reject item "Raw HTML element (`<div>`, `<table>`, `<button>`) where a Juno component exists". B.1 names `Stack` as the primary layout primitive.
@@ -343,5 +343,5 @@ _Analyzed 2026-10-17 · commit `9ed42505` · read-only; acceptance graded agains
 
 - plan · 2026-10-12 · [2026-10-12-networks-epic-1019-analysis](../../plans/2026-10-12-networks-epic-1019-analysis.md)
 - plan · 2026-10-12 · [2026-10-12-networks-phase-1-read-operations](../../plans/2026-10-12-networks-phase-1-read-operations.md)
-- pr-report · 2026-10-17 · [1383-neutron-networks-bff-read-only-networks-page](1383-neutron-networks-bff-read-only-networks-page.md)
 - pr-report · 2026-10-17 · [1386-network-and-verify-do-not-merge](1386-network-and-verify-do-not-merge.md)
+- pr-report · 2026-10-21 · [1383-neutron-networks-bff-read-only-networks-page](1383-neutron-networks-bff-read-only-networks-page.md)

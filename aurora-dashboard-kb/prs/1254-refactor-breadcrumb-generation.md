@@ -27,7 +27,7 @@ Both sources are read by a single `useBreadcrumbs()` — a generic hook not tied
 
 The old mini-DSL in `routeInfo.ts` (`CRUMB_LABEL_KEYS`/`labelKey`/`useParamAsLabel`/`sectionCrumb`/`intermediateCrumb`/`isDetail`/`useParentTitleAsLabel`) has been removed entirely; instead of enum labels, Lingui `msg` message descriptors are now used (`text: MessageDescriptor | string`), resolved in `useBreadcrumbs()` via `useLingui()`.
 
-~18 route files under `compute/flavors*`, `compute/images*`, `network/floatingips*`, `network/securitygroups*`, `storage/**` have been migrated to the new scheme — mostly mechanically: `sectionCrumb`/`crumb: { labelKey }` → `crumb: { text: msg\`...\` }` in static routes, `useSetBreadcrumb(Route.id, ...)` in detail page components.
+~18 route files under `compute/flavors*`, `compute/images*`, `network/floatingips*`, `network/securitygroups*`, `storage/**` have been migrated to the new scheme — mostly mechanically: `sectionCrumb`/`crumb: { labelKey }` → `` crumb: { text: msg`...` } `` in static routes, `useSetBreadcrumb(Route.id, ...)` in detail page components.
 
 ## How it is implemented
 
@@ -74,7 +74,7 @@ export { DynamicBreadcrumbContext, DynamicBreadcrumbProvider } from "./context/D
 
 The `Breadcrumbs` component itself (the OSS UI widget) is not exported from the barrel — and that makes sense: the contract for sub-apps is `useBreadcrumbs`/`useSetBreadcrumb`/`DynamicBreadcrumbProvider`/`usePushBreadcrumbs`; OSS always renders the breadcrumbs itself.
 
-**Representative route conversion examples.** Static (`compute/flavors.tsx:18-26`): `sectionCrumb: { labelKey: "Compute" }, crumb: { labelKey: "Flavors" }` → simply `crumb: { text: msg\`Flavors\` }`. Dynamic (`compute/images/$imageId.tsx:43-50` + `:112`): `staticData` no longer contains `crumb` at all (`isDetail`/`sectionCrumb`/the old `crumb` with `useParamAsLabel` were removed), and `RouteComponent` calls `useSetBreadcrumb(Route.id, image?.name as string | undefined)` after the image name arrives from the tRPC query.
+**Representative route conversion examples.** Static (`compute/flavors.tsx:18-26`): `sectionCrumb: { labelKey: "Compute" }, crumb: { labelKey: "Flavors" }` → simply `` crumb: { text: msg`Flavors` } ``. Dynamic (`compute/images/$imageId.tsx:43-50` + `:112`): `staticData` no longer contains `crumb` at all (`isDetail`/`sectionCrumb`/the old `crumb` with `useParamAsLabel` were removed), and `RouteComponent` calls `useSetBreadcrumb(Route.id, image?.name as string | undefined)` after the image name arrives from the tRPC query.
 
 One place required a structural rather than mechanical change: `storage/$provider/$storageType.tsx` is a new file (a layout route, `21` lines), added specifically so that "Object Storage (Swift/Ceph)" gets its own match with its own dynamic breadcrumb (`useSetBreadcrumb` inside `StorageTypeLayout`, `$storageType.tsx:12-20`), and the bucket list moved to `$storageType/index.tsx`. Because of this shift, the `Route` import in `storage/-components/Ceph/Buckets/index.tsx` (and its test) changed from `.../$storageType` to `.../$storageType/index` — both places are updated in sync in the diff; no inconsistencies.
 

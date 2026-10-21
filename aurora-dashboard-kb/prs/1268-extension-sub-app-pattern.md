@@ -92,7 +92,7 @@ Verified separately (against `@tanstack/react-router@1.168.22`): the concern "ex
 ```ts
 const activeService = activeRouteInfo?.service ?? serviceType ?? null
 ```
-— `.../projects/-components/SideNavBar.tsx:38`
+— `packages/aurora/src/client/routes/_auth/projects/-components/SideNavBar.tsx:38`
 
 **Breadcrumbs.** On `/services/$serviceType/**` OSS does not show a section breadcrumb (same as in compute/network/storage), and everything below the service level is published by the extension itself via `usePushBreadcrumbs`. This is a direct application of the mechanism built two days earlier in #1254 (`0cadedd9`), not a conflict with it: `useBreadcrumbs.ts` was already documented back then as suitable for embedded sub-apps, and `Breadcrumbs.tsx` as merging `BreadcrumbExtensionContext`.
 
@@ -130,7 +130,7 @@ Practical harm: an external consumer reading the CHANGELOG will search their cod
 
 - **A blank page instead of a 404 for an unknown `serviceType`.** `$serviceType` + the `$` splat together match **any** URL under `/services/**`, and `ServiceExtensionMount.tsx:18` returns `null` on a lookup miss. Result: a stale link, a typo, or a service type that exists in the OpenStack catalog but is not registered as an extension yields a completely empty content area inside the normal project shell — no error, no redirect, no `notFoundComponent: PageNotFound` (`routes/__root.tsx:29`), which before this PR is exactly what fired, because an unregistered route simply wasn't in the tree. Cf. the analogous dynamic segment in storage: `storage/$provider/$storageType/index.tsx` validates it via `checkServiceAvailability` and always throws a `redirect()` to a meaningful fallback. **Copilot left this same comment on the PR itself, and it went unanswered and unfixed** — while its neighboring comment (about duplicate `serviceType`s) was deliberately rejected by the author with an explanation ("OSS `aurora` shouldn't second-guess consumers intent"), so the silence here looks like an oversight rather than a decision. The approve from andypf ("Looks good to me, no regressions so far") does not resolve this point.
 - **"No user-visible change" in the PR description contradicts its own changeset.** The statement "N/A (no user-visible change; projectId resolves identically inside mounted extensions)" is true about `projectId`, but the changeset itself documents that the section breadcrumb disappears on `/services/**`, and that breadcrumbs of routes inside the extension's own router are no longer visible to OSS's `useMatches()`-based breadcrumb bar until the extension calls `usePushBreadcrumbs` at every level. A breadcrumb that used to render and now doesn't is a visible change.
-- **A dead `servicesRoute` remains in the sources.** The public re-export was removed and route-injection deleted, but the file itself still exports the alias: `.../services.tsx:7` → `export { Route as servicesRoute }`. An artifact of exactly the mechanism the PR replaces.
+- **A dead `servicesRoute` remains in the sources.** The public re-export was removed and route-injection deleted, but the file itself still exports the alias: `packages/aurora/src/client/routes/_auth/projects/$projectId/services.tsx:7` → `export { Route as servicesRoute }`. An artifact of exactly the mechanism the PR replaces.
 
 ### Below threshold [50], as context
 
