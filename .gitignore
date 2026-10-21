@@ -3,3 +3,6 @@
 .netrc
 .obsidian/workspace*.json
 __pycache__/
+
+# Claude skills kept locally, not published
+ToolDocs/claude-config/unused-skills/

@@ -12,6 +12,8 @@ description: >-
   `triple-review`.
 ---
 
+<!-- prettier-ignore-start -->
+
 # Document a pull request
 
 Produce one markdown report per PR that a future reader — a teammate or
@@ -27,8 +29,19 @@ doesn't read like lint noise).
   user to run `gh auth login`.
 - **The `DOCS` folder next to the repo** — Step 1 finds it and stops if
   it's missing.
-- **The `security-reviewer` agent** (`.claude/agents/security-reviewer.md`)
-  — optional; Step 5 has a fallback.
+- **This skill's own files** — `references/scoring.md` (Step 5.2) and
+  `references/report-format.md` (Steps 6–7). If one is missing, stop and
+  tell the user: the skill can't score or write without it.
+- **Agents** — `pr-reviewer`, `external-api-checker` and
+  `security-reviewer` in `.claude/agents/`. Optional: each has a fallback
+  (a general Sonnet agent briefed as Step 5 and the hard rules describe).
+- **Network for the API references** — `curl` to
+  `raw.githubusercontent.com` (OpenStack reference sources) and
+  `docs.ceph.com` / AWS docs, for finder f and the scorers.
+- **Optional:** the Markdown hook `.claude/hooks/check_report_md.py`
+  (checks every report write) and the project settings that make the run
+  cheaper (agents waited for in one turn, unused tools off). Without them
+  the run still works, only slower and costlier.
 
 ## Hard rules
 
@@ -41,21 +54,6 @@ doesn't read like lint noise).
   `git fetch … <src>:<dst>`, no `git update-ref`, no branches — fetch by
   SHA (or into `FETCH_HEAD`) and address commits by SHA. Anything left in
   `refs/` outlives the run.
-- **Verify against real code, not the PR description or commit message.**
-  Descriptions oversell or drift; the diff and the files at the head commit
-  are ground truth.
-- **Code excerpts must be verbatim**, pulled from `git show <sha>:<path>` (or
-  the diff itself), with accurate `file:line` citations — don't hand-compute
-  line numbers from diff hunk headers, they lie once you're looking at
-  the whole file. Get real line numbers from `git grep -n` against the head
-  commit — `git grep -n '' <sha> -- <path>` prints a whole file numbered.
-- **Findings need a verification pass before they're reported as issues**
-  (see Step 5). An unfiltered "here's everything that looks off" list is not
-  a review, it's noise.
-- Report body is English, whatever language the
-  user asks in. Code, identifiers and file paths stay as-is.
-- **Don't commit or push** — neither `DOCS` nor the repo. The skill stops
-  at writing files; committing is the user's call.
 - **Reading code at a commit.** Run every command from the repo root
   (agents start there — never `cd`), with SHAs and paths written out
   literally:
@@ -70,10 +68,26 @@ doesn't read like lint noise).
   Every agent you launch is `pr-reviewer` (`.claude/agents/pr-reviewer.md`),
   except finder f (`external-api-checker`) and finder g
   (`security-reviewer`). `pr-reviewer` and `external-api-checker` already
-  carry this rule and the read-only rule — don't repeat them in briefs. If
-  that agent isn't available (another machine, a fresh checkout), use a
-  general Sonnet agent instead and paste both rules **verbatim** into its
-  brief.
+  carry this rule and the read-only rule — don't repeat them in briefs.
+  `security-reviewer` doesn't: paste both rules **verbatim** into its
+  brief. If `pr-reviewer` or `external-api-checker` isn't available
+  (another machine, a fresh checkout), use a general Sonnet agent instead
+  and paste both rules into its brief the same way.
+- **Verify against real code, not the PR description or commit message.**
+  Descriptions oversell or drift; the diff and the files at the head commit
+  are ground truth.
+- **Code excerpts must be verbatim**, pulled from `git show <sha>:<path>` (or
+  the diff itself), with accurate `file:line` citations — don't hand-compute
+  line numbers from diff hunk headers, they lie once you're looking at
+  the whole file. Get real line numbers with the commands in "Reading code
+  at a commit" above.
+- **Findings need a verification pass before they're reported as issues**
+  (see Step 5). An unfiltered "here's everything that looks off" list is not
+  a review, it's noise.
+- Report body is English, whatever language the
+  user asks in. Code, identifiers and file paths stay as-is.
+- **Don't commit or push** — neither `DOCS` nor the repo. The skill stops
+  at writing files; committing is the user's call.
 
 ## Steps
 
@@ -98,6 +112,24 @@ documenting a PR after it has landed has no use here. A merged or closed
 PR only matters if it already has a report, whose status then needs
 updating (below). If it has none, tell the user there is nothing to
 document and stop.
+
+**Release PRs.** If `headRefName` is `changeset-release/main`, the author
+is `cobaltcore-bot` or `app/cobaltcore-bot` (as `gh` reports it), or the
+body says it was opened by `changesets/action`, it only bumps versions and
+changelogs. Do Steps 2–3 as usual, then replace Steps 4–5 with a light
+review:
+
+- skip the describer, the review agents and the scorers;
+- check yourself: each bump matches the consumed changesets, the changelog
+  entries render correctly, the new version isn't on npm yet
+  (`npm view <package> version`), and whether pending changesets in other
+  open PRs would change the bump type;
+- a changelog problem is fixed in the `.changeset/*.md` on `main`, not on
+  this branch — the bot regenerates it.
+
+In the report keep "What was done", the Review and "Proposed follow-ups";
+leave out "How it is implemented" and "What it affects". A problem you
+confirmed is a finding with confidence 100; "Below the bar" is "None".
 
 **Where DOCS is.** Resolve it from the repo root, not from the shell's
 current directory — a bare `../DOCS` typed from a subdirectory folds into
@@ -396,70 +428,11 @@ merge), and don't post anything to GitHub.
    each issue as the finder reported it: the claim, its `file:line`, and its
    evidence as-is — commands with their output, doc quotes with URLs. Don't
    soften the evidence ("reportedly") and don't add your own view of how
-   much the issue matters; that is the scorer's call. Give the scorer every
-   rule in this step verbatim — the rubric, the Severity scale, the Evidence
-   rule, External-API
-   claims, the Quick Reject and Precedent rules and the "Usual false
-   positives" list — not a summary. The scorer didn't find these issues
-   and must not take the finders' word for them: for each one it opens the
-   cited code with `git show <headRefOid>:<path>`, re-runs any command the
-   evidence rests on, and checks the claim before scoring.
-   Score each issue using this rubric (give it verbatim, including this
-   paragraph). Use exactly one of 0, 25, 50, 75 or 100 — no values in
-   between. When an issue sits between two levels, pick one and say in the
-   reason what kept it from the other.
-   - **0**: not confident at all — false positive or pre-existing issue.
-   - **25**: might be real, might not; the scorer checked the code and
-     still can't tell. If stylistic, not explicitly called out in the
-     review standards.
-   - **50**: verified real, but a nitpick or rare in practice; not very
-     important relative to the rest of the PR.
-   - **75**: highly confident — verified in the code, will likely be hit
-     in practice, existing approach is insufficient, or a verified
-     violation of a rule quoted from the review standards.
-   - **100**: absolutely certain, confirmed by direct evidence, will happen
-     frequently.
-   Evidence rule: when an issue quotes an official API reference or the
-   review standards, and the code at `<headRefOid>` does what the quote
-   says it must not, the issue is verified — score it on its impact (50,
-   75 or 100). "Can't run it" or "can't reach the docs" is never a reason
-   for 25 when the quote and the code are in front of the scorer.
-   External-API claims: when an issue rests on how OpenStack, Ceph or S3
-   behave, the scorer uses the doc quote agent f attached, or opens the
-   reference itself, reading it as `.claude/agents/external-api-checker.md` describes — never its memory. "From memory" is no basis for 25
-   or for a lower impact. A feature that silently leaves out data users
-   expect to see counts as "will likely be hit in practice".
-   Quick Reject rule: `copilot-instructions.md` has a "Quick Reject
-   Checklist" — violations the project says should stop a PR in review.
-   The scorer checks every issue against it, and a verified violation of
-   a checklist item scores at least 75, even when the same pattern already
-   exists elsewhere in the code: the project has ruled it out for new
-   code. Quote the checklist item in the reason. Its "What NOT to Review"
-   scope still wins (e.g. hardcoded strings in `packages/aurora` are
-   lint-enforced, not a finding).
-   Precedent rule: a maintainer declining the same change on another PR,
-   or the same pattern already existing elsewhere in the code, never
-   lowers the score of a verified issue — this PR adds new code, and the
-   standards apply to it. Put the precedent in the reason instead, so the
-   reader knows to expect pushback. (Lines this PR didn't touch are still
-   "pre-existing" and score low — see "Usual false positives".)
-   Severity — for every issue scored 50 or more, the scorer also rates how
-   bad it is if left in, independently of the score (give this verbatim
-   too):
-   - **High**: breaks a feature users rely on, hides or loses data users
-     expect to see, opens a security hole, or corrupts state.
-   - **Medium**: noticeable but limited — degraded UX, extra or duplicate
-     requests, inconsistent behaviour, a merge conflict with another open
-     PR, a broken project rule with a visible effect.
-   - **Low**: cosmetic, wording, a rare edge case, or a rule violation
-     users won't notice.
-   Score and severity answer different questions: a Quick Reject
-   violation scores at least 75 but can be Low. Issues scored 0 or 25 get
-   no severity.
-   For each issue the scorer returns the score, the severity (score ≥50)
-   and a one- or two-sentence reason naming what it checked and what it
-   found (file:line, quote, behaviour) and why that severity — the report
-   shows this reason next to the score.
+   much the issue matters; that is the scorer's call. Give
+   each scorer the path to the scoring rules,
+   `.claude/skills/document-pr/references/scoring.md`, which it reads
+   itself — don't paste or summarise it. Each scorer returns, per issue, a
+   score (0/25/50/75/100), a severity for scores ≥50, and a short reason.
 3. Report every scored issue — nothing that was scored is dropped silently.
    Issues at ≥75 are findings. High and Medium ones each get their own
    write-up, High first; ties by score. Low ones — usually a project rule
@@ -474,17 +447,6 @@ merge), and don't post anything to GitHub.
    If a finding was already raised in the review discussion, say so: who
    raised it, where, and what happened to it (fixed, no reply, dismissed).
 
-Usual false positives — the scorer gives these 0–25, and they still
-appear in "Below the bar" (adapted from the list `code-review` uses):
-pre-existing issues; things that look like bugs but aren't; pedantic
-nitpicks a senior engineer wouldn't raise; anything a linter, typechecker
-or CI would catch; general code-quality opinions (test coverage, docs,
-generic security hardening such as "add rate limiting" with no concrete
-exploit path in this PR) unless the review standards explicitly require
-them; issues explicitly silenced in code (lint-ignore comments);
-intentional changes that are clearly part of the broader PR; real issues
-on lines the PR didn't touch.
-
 Don't run builds yourself. If CI is failing or hasn't run on
 `<headRefOid>`, that goes in the report's CI line (Step 2), not into
 findings re-derived from the build errors.
@@ -492,11 +454,10 @@ findings re-derived from the build errors.
 ### 6. Write the report
 
 File name: `<number>-<kebab-slug-of-title>.md`, e.g.
-`1079-slot-support-login.md`, in `<DOCS>/aurora-dashboard-kb/prs/`. Write
-the full draft straight into that file, using the template below. Paths
-are full and repo-relative (e.g.
-`packages/aurora/src/server/Network/routers/networksRouter.ts:42`) — never
-shortened with `.../`; short paths are ambiguous.
+`1079-slot-support-login.md`, in `<DOCS>/aurora-dashboard-kb/prs/`. Read
+the "Report template" section of
+`.claude/skills/document-pr/references/report-format.md` now — its
+structure is fixed — and write the full draft straight into that file.
 
 **Proposed follow-ups.** Don't file anything in `DOCS/FOLLOW-UPS.md` —
 only propose it in the report; the user decides whether a finding gets
@@ -527,116 +488,11 @@ not the Review:
 It returns only the claims that are wrong, each with its evidence. Fix
 those in the file. The fact-check itself doesn't go into the report.
 
-Template:
-
-```markdown
----
-type: pr-report
-date: <today, YYYY-MM-DD>
-status: <merged | open | closed>
-pr: [<number>]
-issue: [<N from `Closes`/`Fixes`/`Resolves #N` in the PR body; omit the line if none or only a template placeholder like `#<epic-number>`>]
-author: <author>
-branch: <headRefName>
----
-# PR #<number>: <title>
-
-**Author:** <author> · **Status:** <open | draft | merged YYYY-MM-DD | closed YYYY-MM-DD> · **Created:** <YYYY-MM-DD>
-**Branches:** `<headRefName>` → `<baseRefName>` (base `<baseRefOid short sha>`) · **Files:** <changedFiles> (+<additions>/-<deletions>)
-**Link:** <url>
-**CI:** <all green | failing: <job>, … | pending: <job>, … | no checks> (at `<headRefOid short sha>`)
-
-> If `baseRefName` ≠ `main`, call that out explicitly here.
-
-## What was done
-
-<narrative — the story of the change, grouped by area, not a file list>
-
-## How it is implemented
-
-<walkthrough with verbatim excerpts and file:line citations, at <headRefOid>>
-
-## What it affects
-
-<impact/blast-radius findings from Step 4 — consumers found elsewhere in the
-monorepo, contract changes, anything left inconsistent>
-
-## Review
-
-<if the `security-reviewer` agent was unavailable: "Security pass ran via the general-agent fallback.">
-
-### Findings (confidence ≥75)
-
-#### 1. <short title> — confidence <score> · severity <High | Medium>
-
-<what is wrong, where (file:line), and what it leads to; excerpt if it helps>
-
-**Suggested fix:** <one or two sentences>
-**Why this score:** <the scorer's reason, covering both score and severity>
-<if raised in the review discussion: who, where, what happened to it>
-
-<or: "No High or Medium issues with confidence ≥75 found.">
-
-### Rule violations (Low)
-
-| Score | Finding | Rule | Suggested fix |
-| --- | --- | --- | --- |
-| <score> | <one-line description, file:line> | <the rule, quoted or named — e.g. Quick Reject "`PopupMenu` without `PopupMenuToggle`"> | <one line; add "expect pushback: <precedent>" when there is one> |
-
-<confidence ≥75 with severity Low, highest score first; "None" if empty>
-
-### Below the bar
-
-| Score | Severity | Finding | Why this score |
-| --- | --- | --- | --- |
-| <score> | <High \| Medium \| Low; "—" below 50> | <one-line description, file:line> | <the scorer's reason> |
-
-<every other scored issue, highest score first, down to 0; "None" if
-nothing else was scored>
-
-## Proposed follow-ups
-
-- [ ] **<finding title>** — `<file:line>` → Review, finding <n>
-- [ ] **Rule violations (Low): <n> items** → Review, "Rule violations (Low)"
-
-<or: "None — no findings ≥75.">
-
----
-Analyzed: <today's date, YYYY-MM-DD> · commit `<headRefOid short sha>`
-```
-
 ### 7. Update the index
 
-Maintain `<DOCS>/aurora-dashboard-kb/prs/README.md` as a lookup table:
-
-```markdown
----
-type: index
----
-# PR reports
-
-| PR | Date | Title | Affected | File |
-| --- | --- | --- | --- | --- |
-| [#1270](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1270) | 2026-09-03 → merged 2026-09-04 | fix(aurora): time doesn't match current timezone (#1236) | `formatSwiftDate` helper; Swift tables, sort comparators, `EditObjectMetadataModal`. Review: 1 finding (1 High) | [1270-time-doesnt-match-current-timezone.md](./1270-time-doesnt-match-current-timezone.md) |
-```
-
-If the file doesn't exist yet, create it with this header and one row.
-Keep the full history — never trim old rows.
-
-- **Date** — exactly one of: `<created> → merged <date>`,
-  `<created> → closed <date>`, `<created> (open)`, `<created> (draft)`.
-  Report updates go in the report's footer, not here.
-- **Affected** — the touched surface only (procedures, routes, components,
-  public exports), at most ~40 words, then `Review: <n> finding(s)
-  (<count per severity>)`, e.g. `Review: 10 findings (1 Medium, 9 Low)`, or
-  `Review: clean`. Rows written before severity existed keep their
-  scores. Details live in the report.
-- **Order** — newest PR on top by creation date (ties: higher number on
-  top). Insert the row where it belongs, not always at the top: analyses
-  don't happen in PR order.
-- Escape any `|` inside a cell (code spans included) as `\|`.
-- When a report's status changes (Step 1, "Existing report?"), update
-  this row's Date cell too.
+Add or update this PR's row in `<DOCS>/aurora-dashboard-kb/prs/README.md`
+as the "Index row" section of
+`.claude/skills/document-pr/references/report-format.md` describes.
 
 Then run `python3 <DOCS>/tools/update-related.py` to refresh the vault's
 "Related" links (skip it if the script is missing, and say so when you
@@ -648,3 +504,5 @@ when you report back — don't delete or merge reports yourself.
 Tell the user, briefly: what PR was analyzed, the file path you wrote,
 one line on what the review pass found (or that nothing cleared the
 confidence bar), and how many follow-ups were proposed.
+
+<!-- prettier-ignore-end -->

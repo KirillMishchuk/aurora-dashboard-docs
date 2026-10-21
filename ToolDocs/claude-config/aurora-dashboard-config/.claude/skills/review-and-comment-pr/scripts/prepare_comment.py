@@ -47,9 +47,9 @@ def markdown_problems(path):
     sys.path.insert(0, os.path.dirname(os.path.abspath(hook)))
     try:
         import check_report_md
-        return check_report_md.check(path)
-    except Exception as e:
-        return [f"markdown check unavailable: {e}"]
+    except Exception:
+        return None  # hook not installed on this machine: skip, don't block
+    return check_report_md.check(path)
 
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
@@ -89,7 +89,9 @@ def main():
         print("SAFETY HITS — posting is blocked until the user decides:\n" + "\n".join(hits))
     else:
         print("Safety scan: clean — secrets, local paths, internal hosts, private IPs, e-mails, env data")
-    if md:
+    if md is None:
+        print("Markdown: check skipped — .claude/hooks/check_report_md.py not installed (not blocking)")
+    elif md:
         print("MARKDOWN PROBLEMS — fix the report and re-run:\n" + "\n".join("  " + p for p in md))
     else:
         print("Markdown: OK")

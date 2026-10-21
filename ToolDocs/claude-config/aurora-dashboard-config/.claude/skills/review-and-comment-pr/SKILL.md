@@ -12,15 +12,13 @@ description: >-
 
 # Review and comment on a pull request
 
-Produce one markdown report per PR that a future reader — a teammate or
-Claude in a later session — can open instead of re-reading the PR on GitHub.
-It leads with a **merge verdict** (recommendation + confidence) and the two
-finding tables behind it — **Required Changes** (blockers + process to-dos)
-and **Improvements** (non-blocking) — each with a per-finding "Explanation &
-Fix". Below that, collapsible reference: a **Solution Overview** (what
-changed, how, what it touches) and a **QA Test Plan**. The report shows only
-what to act on: a check that passed gets no line, scores stay internal, and
-findings are verified so it doesn't read like lint noise.
+Review an open PR and produce one report a teammate or a later Claude
+session can read instead of the PR itself: a merge verdict with the
+findings behind it, then the context (what changed, how to test it).
+Write it to `DOCS`, and post it to the PR only after the user confirms.
+The report shows only what to act on, and every finding is verified
+first — the exact layout is in
+`.claude/skills/review-and-comment-pr/references/report-format.md`.
 
 ## Requirements
 
@@ -29,8 +27,21 @@ findings are verified so it doesn't read like lint noise.
   user to run `gh auth login`.
 - **The `DOCS` folder next to the repo** — Step 1 finds it and stops if
   it's missing.
-- **The `security-reviewer` agent** (`.claude/agents/security-reviewer.md`)
-  — optional; Step 5 has a fallback.
+- **This skill's own files** — `references/scoring.md` (Step 5.2),
+  `references/report-format.md` (Steps 6–7) and
+  `scripts/prepare_comment.py` (Step 8, needs `python3`). If one is
+  missing, stop and tell the user: the skill can't score, write or post
+  without it.
+- **Agents** — `pr-reviewer`, `external-api-checker` and
+  `security-reviewer` in `.claude/agents/`. Optional: each has a fallback
+  (a general Sonnet agent briefed as Step 5 and the hard rules describe).
+- **Network for the API references** — `curl` to
+  `raw.githubusercontent.com` (OpenStack reference sources) and
+  `docs.ceph.com` / AWS docs, for finder f and the scorers.
+- **Optional:** the Markdown hook `.claude/hooks/check_report_md.py`
+  (checks every report write) and the project settings that make the run
+  cheaper (agents waited for in one turn, unused tools off). Without them
+  the run still works, only slower and costlier.
 
 ## Hard rules
 
@@ -43,23 +54,6 @@ findings are verified so it doesn't read like lint noise.
   `git fetch … <src>:<dst>`, no `git update-ref`, no branches — fetch by
   SHA (or into `FETCH_HEAD`) and address commits by SHA. Anything left in
   `refs/` outlives the run.
-- **Verify against real code, not the PR description or commit message.**
-  Descriptions oversell or drift; the diff and the files at the head commit
-  are ground truth.
-- **Code excerpts must be verbatim**, pulled from `git show <sha>:<path>` (or
-  the diff itself), with accurate `file:line` citations — don't hand-compute
-  line numbers from diff hunk headers, they lie once you're looking at
-  the whole file. Get real line numbers from `git grep -n` against the head
-  commit — `git grep -n '' <sha> -- <path>` prints a whole file numbered.
-- **Findings need a verification pass before they're reported as issues**
-  (see Step 5). An unfiltered "here's everything that looks off" list is not
-  a review, it's noise.
-- Report body is English, whatever language the
-  user asks in. Code, identifiers and file paths stay as-is.
-- **Don't commit or push, and don't touch git state.** The only external
-  write the skill makes is posting its report as a comment on the PR it
-  analysed (Step 8), and only after the user confirms. It never commits or
-  pushes `DOCS` or the repo — that stays the user's call.
 - **Reading code at a commit.** Run every command from the repo root
   (agents start there — never `cd`), with SHAs and paths written out
   literally:
@@ -74,9 +68,28 @@ findings are verified so it doesn't read like lint noise.
   Every agent you launch is `pr-reviewer` (`.claude/agents/pr-reviewer.md`),
   except finder f (`external-api-checker`) and finder g
   (`security-reviewer`). `pr-reviewer` and `external-api-checker` already
-  carry this rule and the read-only rule — don't repeat them in briefs. If that agent isn't available (another machine, a fresh
-  checkout), use a general Sonnet agent instead and paste both rules
-  **verbatim** into its brief.
+  carry this rule and the read-only rule — don't repeat them in briefs.
+  `security-reviewer` doesn't: paste both rules **verbatim** into its
+  brief. If `pr-reviewer` or `external-api-checker` isn't available
+  (another machine, a fresh checkout), use a general Sonnet agent instead
+  and paste both rules into its brief the same way.
+- **Verify against real code, not the PR description or commit message.**
+  Descriptions oversell or drift; the diff and the files at the head commit
+  are ground truth.
+- **Code excerpts must be verbatim**, pulled from `git show <sha>:<path>` (or
+  the diff itself), with accurate `file:line` citations — don't hand-compute
+  line numbers from diff hunk headers, they lie once you're looking at
+  the whole file. Get real line numbers with the commands in "Reading code
+  at a commit" above.
+- **Findings need a verification pass before they're reported as issues**
+  (see Step 5). An unfiltered "here's everything that looks off" list is not
+  a review, it's noise.
+- Report body is English, whatever language the
+  user asks in. Code, identifiers and file paths stay as-is.
+- **Don't commit or push, and don't touch git state.** The only external
+  write the skill makes is posting its report as a comment on the PR it
+  analysed (Step 8), and only after the user confirms. It never commits or
+  pushes `DOCS` or the repo — that stays the user's call.
 
 ## Steps
 
