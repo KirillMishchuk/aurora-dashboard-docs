@@ -17,10 +17,10 @@ Do NOT inline these files here. Read the relevant file on demand before planning
 **Resolving `../DOCS`.** Every `../DOCS/...` path — in this file, in `.claude/agents/`, and in `.claude/skills/` — is relative to the **repo root**, not to the shell's current directory. Derive it explicitly before reading or writing:
 
 ```bash
-DOCS_DIR="$(dirname "$(git rev-parse --show-toplevel)")/DOCS"
+DOCS_DIR="$(dirname "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")/DOCS"
 ```
 
-A bare `../DOCS` typed from a subdirectory (say `packages/aurora`) resolves to `aurora-dashboard/DOCS` — which on macOS's case-insensitive filesystem is this repo's own git-tracked `docs/` folder. Nothing errors; the write just lands inside the repo and ships in the next upstream PR.
+The common git dir (not `--show-toplevel`) keeps this right inside a linked worktree (`.claude/worktrees/<name>`), whose top level is not the main repo. A bare `../DOCS` typed from a subdirectory (say `packages/aurora`) resolves to `aurora-dashboard/DOCS` — which on macOS's case-insensitive filesystem is this repo's own git-tracked `docs/` folder. Nothing errors; the write just lands inside the repo and ships in the next upstream PR.
 
 ## Project overview
 

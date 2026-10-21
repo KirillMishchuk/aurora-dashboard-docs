@@ -8,6 +8,8 @@ description: >-
   posting, use `document-pr`.
 ---
 
+<!-- prettier-ignore-start -->
+
 # Review and comment on a pull request
 
 Produce one markdown report per PR that a future reader — a teammate or
@@ -35,7 +37,7 @@ findings are verified so it doesn't read like lint noise.
 - **Never check out the PR branch or touch the user's working tree/HEAD.**
   Everything here is read-only: `gh pr view`/`gh pr diff` for metadata and
   diff, `git fetch origin <sha>` + `git show <sha>:<path>` / `git grep -n
-<pattern> <sha> -- <pathspec>` for reading the repo at the PR's head commit
+  <pattern> <sha> -- <pathspec>` for reading the repo at the PR's head commit
   without checking it out. If the user is mid-work on another branch, this
   skill must not disturb that. Never create refs either: no
   `git fetch … <src>:<dst>`, no `git update-ref`, no branches — fetch by
@@ -58,13 +60,23 @@ findings are verified so it doesn't read like lint noise.
   write the skill makes is posting its report as a comment on the PR it
   analysed (Step 8), and only after the user confirms. It never commits or
   pushes `DOCS` or the repo — that stays the user's call.
-- **Write commands the allowlist can match.** Put SHAs and paths literally
-  into each command — no `VAR=…;` prefixes, no `cd … &&` chains (run from
-  the repo root). Shell variables don't survive between commands anyway.
-  Repeat this rule and the first one (read-only, no checkout, no refs) in
-  the brief of every agent you launch (review agents, scorer,
-  fact-checker): they start in the repo root already and must not `cd`
-  there.
+- **Reading code at a commit.** Run every command from the repo root
+  (agents start there — never `cd`), with SHAs and paths written out
+  literally:
+  - a whole file, numbered: `git grep -n '' <sha> -- <path>`;
+  - a line range, numbered: `git blame -s -L <from>,<to> <sha> -- <path>`
+    — each line comes as `<commit> <n>) <code>`; quote only the code;
+  - a match with context: `git grep -n -A4 '<pattern>' <sha> -- <path>` —
+    options go before the pattern and the SHA; after them git reads an
+    option as a revision and fails;
+  - `git show <sha>:<path>` takes a repo-root path — `./` and `../` are
+    not resolved and fail.
+  Every agent you launch is `pr-reviewer` (`.claude/agents/pr-reviewer.md`),
+  except finder f (`external-api-checker`) and finder g
+  (`security-reviewer`). `pr-reviewer` and `external-api-checker` already
+  carry this rule and the read-only rule — don't repeat them in briefs. If that agent isn't available (another machine, a fresh
+  checkout), use a general Sonnet agent instead and paste both rules
+  **verbatim** into its brief.
 
 ## Steps
 
@@ -90,8 +102,9 @@ PR only matters if it already has a report, whose status then needs
 updating (below). If it has none, tell the user there is nothing to
 document and stop.
 
-**Release PRs.** If the PR author is `cobaltcore-bot` or the body says it
-was opened by `changesets/action`, it only bumps versions and changelogs.
+**Release PRs.** If `headRefName` is `changeset-release/main`, the author
+is `cobaltcore-bot` or `app/cobaltcore-bot` (as `gh` reports it), or the
+body says it was opened by `changesets/action`, it only bumps versions and changelogs.
 Do Steps 2–3 as usual, then replace Steps 4–5 with a light review:
 
 - skip the linked-issue check (no Process item) and the review agents;
@@ -110,10 +123,12 @@ current directory — a bare `../DOCS` typed from a subdirectory folds into
 this repo's own git-tracked `docs/` folder on macOS:
 
 ```bash
-git rev-parse --show-toplevel
+git rev-parse --path-format=absolute --git-common-dir
 ```
 
-`DOCS` is that path's parent directory + `/DOCS`. Note the absolute path
+`DOCS` is the parent of that path's parent directory + `/DOCS` (the common
+git dir points at the main repo even inside a linked worktree, where
+`--show-toplevel` would not). Note the absolute path
 now and write it out literally in every later command and file path
 (`<DOCS>` below) — shell variables don't survive from one command to the
 next.
@@ -278,6 +293,30 @@ load everything up front.
 
 ### 4. Descriptive analysis — what, how, and what it touches
 
+**Who does this step.** A `pr-reviewer` agent — the *describer* — does all of
+Step 4. Launch it in the same message as the Step 5 review agents (see
+5.1), so it runs alongside them. Don't read the PR's code yourself for
+this step: everything you load stays in your context and is re-read on
+every later turn. Give the describer the two SHAs (on an Update: the
+delta `<old head>..<new head>`), the PR title and body, the changed-file
+list, the linked issue's acceptance criteria if Step 2 found or got one,
+and the rest of this step
+verbatim as its brief. It returns only:
+
+- the "what and how" narrative per group, with the verbatim excerpts and
+  their `file:line` citations already in place;
+- the impact / blast-radius result (consumers, stale callers, internal vs
+  contract change);
+- the QA plan — Core Path and Edge Cases from the code;
+- for each acceptance criterion: met, partly met or unmet, with
+  `file:line` evidence.
+
+You then work from that draft: unmet criteria and stale callers are
+handled exactly as described below; after Step 5 you add to Edge Cases
+the scenario behind every Bug finding (the describer can't know them).
+Re-open code yourself only to settle a specific point the draft leaves
+unclear.
+
 Group the changed files by what they are (server routers, client
 routes/components, shared packages, config/CI, docs) and write the "what and
 how" narrative per group, not file-by-file — a PR that adds one tRPC
@@ -342,7 +381,11 @@ Reuse the review methodology from the `code-review` plugin (`/code-review`)
 eligibility/"already reviewed" gating from that command, and don't post
 from here: the only GitHub write is Step 8, after the user confirms.
 
-1. Launch the review agents below in parallel, on Sonnet. Give each the
+1. Launch the review agents below and the Step 4 describer together in
+   **one** message, as `pr-reviewer` agents (f is `external-api-checker`, g stays `security-reviewer`), in the foreground — not as background
+   tasks (`run_in_background: false`). Their results then come back to
+   you in one turn; background agents wake you once per agent, and each
+   of those turns re-reads your whole context for nothing. Give each the
    two SHAs, the changed-file list, the review standards from Step 3 and
    its own brief — not the diff: it reads
    `git diff <baseRefOid>...<headRefOid> -- <path>` for the files its check
@@ -354,151 +397,86 @@ from here: the only GitHub write is Step 8, after the user confirms.
    report it as a candidate and add the precedent as context. Dropping or
    downgrading candidates is the scorer's job (Step 5.2).
    a. **Conventions compliance** — audit against the review standards from
-   Step 3. `copilot-instructions.md` is an explicit review checklist, and
-   its "What NOT to Review" scope applies here too; `CLAUDE.md` is
-   guidance for writing code, so not every line of it applies to review.
-   Start with its "Quick Reject Checklist", then every "**Reject**" line
-   in Part B — most B sections end with one, and several name rules the
-   checklist doesn't (a 401/403 handled inline in B.6, a dismissible
-   `Message` without `onDismiss`, a form without validation). Take the
-   items one by one, check each against every changed file — UI strings
-   included (casing, punctuation, wording) — and return one line per
-   item, either a violation with `file:line` and the item quoted, or
-   "not violated". A Reject clause that repeats a checklist item can
-   point to it ("see checklist item n"). A general read of the standards
-   misses items; the per-item pass doesn't.
+      Step 3. `copilot-instructions.md` is an explicit review checklist, and
+      its "What NOT to Review" scope applies here too; `CLAUDE.md` is
+      guidance for writing code, so not every line of it applies to review.
+      Start with its "Quick Reject Checklist", then every "**Reject**" line
+      in Part B — most B sections end with one, and several name rules the
+      checklist doesn't (a 401/403 handled inline in B.6, a dismissible
+      `Message` without `onDismiss`, a form without validation). Take the
+      items one by one, check each against every changed file — UI strings
+      included (casing, punctuation, wording) — and return one line per
+      item, either a violation with `file:line` and the item quoted, or
+      "not violated". A Reject clause that repeats a checklist item can
+      point to it ("see checklist item n"). A general read of the standards
+      misses items; the per-item pass doesn't.
    b. **Bug scan** — shallow scan of the diff itself for obvious bugs. Don't
-   wander into unrelated context; focus on large bugs, skip nitpicks.
+      wander into unrelated context; focus on large bugs, skip nitpicks.
    c. **Historical context** — `git log`/`git blame` on the modified files
-   to catch bugs that only make sense in light of history. Also check
-   the PR against other open PRs: list those that touch the same files
-   (`gh pr list --state open --json number,title,headRefOid,files`); when the
-   description claims the PR is compatible with another one ("doesn't
-   conflict", "same commit as on branch X"), test it —
-   `git fetch origin <their headRefOid>` (or `git fetch origin
-pull/<n>/head`, without a `:<ref>` part), then
-   `git merge-tree --write-tree --name-only <headRefOid> <their headRefOid>`
-   — always by SHA, never by a ref name you created.
-   A conflict the description denies is a candidate issue.
+      to catch bugs that only make sense in light of history. Also check
+      the PR against other open PRs: list those that touch the same files
+      (`gh pr list --state open --json number,title,headRefOid,files`); when the
+      description claims the PR is compatible with another one ("doesn't
+      conflict", "same commit as on branch X"), test it —
+      `git fetch origin <their headRefOid>` (or `git fetch origin
+      pull/<n>/head`, without a `:<ref>` part), then
+      `git merge-tree --write-tree --name-only <headRefOid> <their headRefOid>`
+      — always by SHA, never by a ref name you created.
+      A conflict the description denies is a candidate issue.
    d. **Review discussion** — go through the comments collected in Step 2.
-   For each, check at `<headRefOid>` whether it was addressed, still
-   applies, or was wrong in the first place. One that still applies
-   becomes a candidate issue like any other — a bot comment is a lead to
-   verify, not evidence. Best-effort, also check earlier PRs touching the
-   same files (`gh pr list --search`, `git log`) for review comments that
-   still apply; don't spend long if nothing turns up quickly.
+      For each, check at `<headRefOid>` whether it was addressed, still
+      applies, or was wrong in the first place. One that still applies
+      becomes a candidate issue like any other — a bot comment is a lead to
+      verify, not evidence. Best-effort, also check earlier PRs touching the
+      same files (`gh pr list --search`, `git log`) for review comments that
+      still apply; don't spend long if nothing turns up quickly.
    e. **Comment compliance** — read code comments in the modified files,
-   check the change complies with any guidance those comments state.
+      check the change complies with any guidance those comments state.
    f. **External API contract** — only when the PR changes anything (other
-   than `*.test.ts`) under `packages/aurora/src/server/` or
-   `packages/signal-openstack/`; skip it otherwise. Check every changed
-   call to OpenStack (`service("<name>")…`) or to Ceph RGW through the S3
-   client (`Storage/clients`, `Storage/routers/ceph`), and every changed
-   Zod schema describing an API response, against the service's official
-   API reference: method and path, required parameters, pagination
-   (`limit`/`marker`, `next` links), microversion headers, response
-   fields, status codes and error shapes. Also compare it with how
-   existing code already calls the same endpoint. References:
-   `https://docs.openstack.org/api-ref/<compute|image|identity|network|object-store|dns>/`;
-   for Ceph, `https://docs.ceph.com/en/latest/radosgw/s3/` plus the AWS S3
-   API reference for the semantics RGW inherits. Every finding must quote
-   the doc passage with its URL — that quote is what lets the scorer
-   verify it instead of guessing.
+      than `*.test.ts`) under `packages/aurora/src/server/` or
+      `packages/signal-openstack/`; skip it otherwise. Launch the
+      `external-api-checker` agent (`.claude/agents/external-api-checker.md`)
+      — it knows what to check and how to read the OpenStack, Ceph and S3
+      references verbatim. Give it the two SHAs and every changed call to
+      OpenStack (`service("<name>")…`) or to Ceph RGW through the S3 client
+      (`Storage/clients`, `Storage/routers/ceph`), and every changed Zod
+      schema describing an API response. Its doc quotes with URLs are what
+      lets the scorer verify a finding instead of guessing. If that agent
+      isn't available, run `pr-reviewer` with this paragraph and the
+      agent file's "How to read the references" section pasted verbatim.
    g. **Security** — launch the project's `security-reviewer` agent
-   (`.claude/agents/security-reviewer.md`, subagent type
-   `security-reviewer`) on the diff. It already knows this stack's auth
-   model and its known-intentional patterns. Tell it the code under
-   review is at `<headRefOid>`, not in the working tree — read files with
-   `git show <headRefOid>:<path>`, never from disk. Run it on every PR:
-   client-only changes still carry the rules it checks (permissions
-   enforced server-side, fail-closed UI, no raw HTML injection). Its
-   findings go through the same scoring and ≥75 bar as the others.
-   If no `security-reviewer` agent is available (another machine, a
-   fresh checkout), run a general Sonnet agent with the same brief —
-   procedure builders and scoping, server-side `canUser` checks, Zod
-   input validation and IDs interpolated into OpenStack URLs, tokens and
-   secrets in logs or responses, raw HTML injection — and note in the
-   report that the dedicated reviewer was missing.
+      (`.claude/agents/security-reviewer.md`, subagent type
+      `security-reviewer`) on the diff. It already knows this stack's auth
+      model and its known-intentional patterns. Tell it the code under
+      review is at `<headRefOid>`, not in the working tree — read files with
+      `git show <headRefOid>:<path>`, never from disk. Run it on every PR:
+      client-only changes still carry the rules it checks (permissions
+      enforced server-side, fail-closed UI, no raw HTML injection). Its
+      findings go through the same scoring and ≥75 bar as the others.
+      If no `security-reviewer` agent is available (another machine, a
+      fresh checkout), run a `pr-reviewer` agent with the same brief —
+      procedure builders and scoping, server-side `canUser` checks, Zod
+      input validation and IDs interpolated into OpenStack URLs, tokens and
+      secrets in logs or responses, raw HTML injection — and note in the
+      report that the dedicated reviewer was missing.
    Each agent returns a list of issues with the reason each was flagged.
-2. Collect the issues from all agents and merge duplicates (one problem
-   found by several agents is one issue — keep each agent's reasoning).
-   Hand the list to a Sonnet scoring agent — one per up to ~12 issues — together
-   with the PR, the review standards from Step 3 and `<headRefOid>`. Pass
-   each issue as the finder reported it: the claim, its `file:line`, and its
-   evidence as-is — commands with their output, doc quotes with URLs. Don't
-   soften the evidence ("reportedly") and don't add your own view of how
-   much the issue matters; that is the scorer's call. Give the scorer every
-   rule in this step verbatim — the rubric, the Severity scale, the Evidence
-   rule, External-API
-   claims, the Quick Reject and Precedent rules and the "Usual false
-   positives" list — not a summary. The scorer didn't find these issues
-   and must not take the finders' word for them: for each one it opens the
-   cited code with `git show <headRefOid>:<path>`, re-runs any command the
-   evidence rests on, and checks the claim before scoring.
-   Score each issue using this rubric (give it verbatim, including this
-   paragraph). Use exactly one of 0, 25, 50, 75 or 100 — no values in
-   between. When an issue sits between two levels, pick one and say in the
-   reason what kept it from the other.
-   - **0**: not confident at all — false positive or pre-existing issue.
-   - **25**: might be real, might not; the scorer checked the code and
-     still can't tell. If stylistic, not explicitly called out in the
-     review standards.
-   - **50**: verified real, but a nitpick or rare in practice; not very
-     important relative to the rest of the PR.
-   - **75**: highly confident — verified in the code, will likely be hit
-     in practice, existing approach is insufficient, or a verified
-     violation of a rule quoted from the review standards.
-   - **100**: absolutely certain, confirmed by direct evidence, will happen
-     frequently.
-     Evidence rule: when an issue quotes an official API reference or the
-     review standards, and the code at `<headRefOid>` does what the quote
-     says it must not, the issue is verified — score it on its impact (50,
-     75 or 100). "Can't run it" or "can't reach the docs" is never a reason
-     for 25 when the quote and the code are in front of the scorer.
-     External-API claims: when an issue rests on how OpenStack, Ceph or S3
-     behave, the scorer uses the doc quote agent f attached, or opens the
-     reference itself — never its memory. "From memory" is no basis for 25
-     or for a lower impact. A feature that silently leaves out data users
-     expect to see counts as "will likely be hit in practice".
-     Quick Reject rule: `copilot-instructions.md` has a "Quick Reject
-     Checklist" — violations the project says should stop a PR in review.
-     The scorer checks every issue against it, and a verified violation of
-     a checklist item scores at least 75, even when the same pattern already
-     exists elsewhere in the code: the project has ruled it out for new
-     code. Quote the checklist item in the reason. Its "What NOT to Review"
-     scope still wins (e.g. hardcoded strings in `packages/aurora` are
-     lint-enforced, not a finding).
-     Precedent rule: a maintainer declining the same change on another PR,
-     or the same pattern already existing elsewhere in the code, never
-     lowers the score of a verified issue — this PR adds new code, and the
-     standards apply to it. Put the precedent in the reason instead, so the
-     reader knows to expect pushback. (Lines this PR didn't touch are still
-     "pre-existing" and score low — see "Usual false positives".)
-     Severity — for every issue scored 50 or more, the scorer also rates how
-     bad it is if left in, independently of the score, on a five-level scale
-     with its marker (give this verbatim too):
-   - 🔴 **Critical**: breaks a core flow for all users, opens a security
-     hole, or loses/corrupts data.
-   - 🟠 **Major**: breaks a feature or hides data users expect, with no
-     easy workaround.
-   - 🟡 **Moderate**: noticeable but bounded — degraded UX, an
-     accessibility gap, duplicate requests, a merge conflict with another
-     open PR, a broken project rule with a visible effect.
-   - 🟢 **Low**: cosmetic, wording, a rule violation users rarely notice.
-   - ⚪ **Trivial**: a nit with no user-facing effect (import order, a
-     contradicted JSDoc on a rarely-hit path).
-     Score and severity answer different questions: a Quick Reject
-     violation scores at least 75 but can be 🟢 Low. Issues scored 0 or 25
-     get no severity.
-     Category — the scorer also tags each issue scored ≥50 with exactly one
-     kind: `Bug`, `Security`, `Accessibility`, `UI/UX`, `Code Quality`,
-     `Performance`, `Docs`, or `Test coverage`. (Process items — draft,
-     description-vs-code mismatch, missing changeset, unlinked issue — are
-     tagged `Process`; they come from Steps 1–2, not the scorer.)
-     For each issue the scorer returns the score, the severity (score ≥50),
-     the category, and a one- or two-sentence reason naming what it checked
-     and what it found (file:line, quote, behaviour) and why that severity —
-     the report shows this reason in the finding's "Explanation & Fix".
+2. Collect the issues from all agents and merge duplicates — the same
+   problem at the same place, found by several agents, is one issue (keep
+   each agent's reasoning). Different problems stay separate even when
+   related: a duplicate PR and a merge conflict with another PR are two
+   issues, and so are two rule violations in one file.
+   Hand the list to `pr-reviewer` scoring agents — one per up to ~12
+   issues, all launched in one message in the foreground, as in 5.1 —
+   together with the PR, `<headRefOid>`, the review standards from Step 3
+   and the path to the scoring rules,
+   `.claude/skills/review-and-comment-pr/references/scoring.md`, which
+   each scorer reads itself — don't paste or summarise it. Pass each issue
+   as the finder reported it: the claim, its `file:line`, and its evidence
+   as-is — commands with their output, doc quotes with URLs. Don't soften
+   the evidence ("reportedly") and don't add your own view of how much
+   the issue matters; that is the scorer's call. Each scorer returns, per
+   issue, a score (0/25/50/75/100), a severity and category for scores
+   ≥50, and a short reason.
 3. Turn the scored issues into the report's two finding tables. The 0-100
    score stays internal — it is the gate, and it does **not** appear in the
    report. Each table row shows `#`, severity (with marker), category, a
@@ -535,17 +513,6 @@ pull/<n>/head`, without a `:<ref>` part), then
      you could not verify (CI unreadable, acceptance not checkable, draft,
      security-reviewer fallback used).
 
-Usual false positives — the scorer gives these 0–25, so they stay out of
-the report (adapted from the list `code-review` uses):
-pre-existing issues; things that look like bugs but aren't; pedantic
-nitpicks a senior engineer wouldn't raise; anything a linter, typechecker
-or CI would catch; general code-quality opinions (test coverage, docs,
-generic security hardening such as "add rate limiting" with no concrete
-exploit path in this PR) unless the review standards explicitly require
-them; issues explicitly silenced in code (lint-ignore comments);
-intentional changes that are clearly part of the broader PR; real issues
-on lines the PR didn't touch.
-
 Don't run builds yourself. If CI is failing or hasn't run on
 `<headRefOid>`, that goes in the report's CI line (Step 2), not into
 findings re-derived from the build errors.
@@ -553,8 +520,11 @@ findings re-derived from the build errors.
 ### 6. Write the report
 
 File name: `<number>-<kebab-slug-of-title>.md`, e.g.
-`1079-slot-support-login.md`, in `<DOCS>/aurora-dashboard-kb/prs/`. Write
-the full draft straight into that file, using the template below.
+`1079-slot-support-login.md`, in `<DOCS>/aurora-dashboard-kb/prs/`. Read
+the "Report template" section of
+`.claude/skills/review-and-comment-pr/references/report-format.md` now —
+its structure and wording are fixed — and write the full draft straight
+into that file.
 
 The report is **input-driven**: every section is populated from the earlier
 steps — Step 1 (metadata, status, linked issue), Step 2 (CI, changeset,
@@ -571,7 +541,7 @@ line at all (it only surfaces as a finding when it has a problem).
 
 **Fact-check before finishing.** Nothing else re-reads the walkthrough —
 the review agents look at the code, not at what you wrote about it. Hand
-the draft to one Sonnet fact-check agent together with the diff and
+the draft to one `pr-reviewer` fact-check agent (in the foreground) together with the diff and
 `<headRefOid>`. It checks the descriptive sections (the three
 "Solution Overview" folds and the "QA Test Plan" — or "What changed" in an
 Update), not the Review:
@@ -588,173 +558,12 @@ Update), not the Review:
 It returns only the claims that are wrong, each with its evidence. Fix
 those in the file. The fact-check itself doesn't go into the report.
 
-**Structure and wording are fixed** — match the template exactly: the
-section order, the headings and their emoji (`### ⚖️ Verdict`,
-`### 🔧 Required Changes`, `### 💡 Improvements`), the `<details>` folds,
-the Verdict line with Recommendation and Confidence together, then the
-summary as plain text (no blockquote), the
-per-table "Explanation & Fix" fold, and the five-level severity markers
-(🔴 Critical · 🟠 Major · 🟡 Moderate · 🟢 Low · ⚪ Trivial). The only
-emoji that carries meaning on the recommendation line is 🔴 for Request
-Changes (🟢 for Approve). Severity markers in the tables are the only other
-colour. Don't add gates strips, score columns, or decorative emoji on the
-other headings.
-
-Template:
-
-```markdown
----
-type: pr-report
-date: <today, YYYY-MM-DD>
-status: <merged | open | closed>
-pr: [<number>]
-issue: [<linked issue number(s), or empty>]
-author: <author>
-branch: <headRefName>
----
-
-# PR #<number>: <title>
-
-**Author:** <author> · **Status:** <draft | open | merged YYYY-MM-DD | closed YYYY-MM-DD> · **Base:** `<baseRefName>` ← `<headRefName>`
-**Size:** <changedFiles> files, +<additions> / −<deletions> · **Created:** <YYYY-MM-DD> · [View on GitHub](url)
-
-> If `baseRefName` ≠ `main`, call that out explicitly on its own line here.
-
----
-
-## PR Review Report by [review-and-comment-pr](https://github.com/KirillMishchuk/aurora-dashboard-docs/blob/main/ToolDocs/claude-config/aurora-dashboard-config/.claude/skills/review-and-comment-pr/SKILL.md)
-
-### ⚖️ &nbsp; Verdict
-
-Recommendation: **<🔴 Request Changes | 🟢 Approve | Approve — process to-dos first>** &nbsp;&nbsp;&nbsp;&nbsp; Confidence to Merge: **<High | Medium | Low>**
-
-<2–4 sentence summary: the overall shape, the one or two things that matter, what clears it. If CI/security fell back or acceptance couldn't be verified, that belongs in this summary.>
-
-### 🔧 &nbsp; Required Changes
-
-| #   | Severity      | Category   | Issue      | Location              |
-| --- | ------------- | ---------- | ---------- | --------------------- |
-| CR1 | <🟡 Moderate> | <Category> | <one line> | `<file:line>`         |
-| P1  | —             | Process    | <one line> | <PR state \| PR body> |
-
-<details><summary><strong>Explanation &amp; Fix</strong></summary>
-
-**CR1 — <title>** · <Category> · `<file:line>`
-<what's wrong, where, what it leads to; add precedent as context if sibling code does the same; if raised in review discussion, say who/where/what happened>
-_Fix:_ <one or two sentences; code block only when it clarifies>
-
-**P2 — <title>** · Process · <where>
-<why it matters>
-_Fix:_ <one or two sentences>
-
-</details>
-
-<if the section is empty: write "None." and omit the fold>
-
-### 💡 &nbsp; Improvements
-
-| #   | Severity | Category   | Issue      | Location      |
-| --- | -------- | ---------- | ---------- | ------------- |
-| I1  | <🟢 Low> | <Category> | <one line> | `<file:line>` |
-
-<details><summary><strong>Explanation &amp; Fix</strong></summary>
-
-**I1 — <title>** · <Category> · `<file:line>`
-<rule or reason; precedent as context>
-_Fix:_ <one or two sentences>
-
-</details>
-
-<if the section is empty: write "None." and omit the fold>
-
----
-
-## Solution Overview
-
-<details>
-<summary><strong>What was done</strong></summary>
-
-<narrative — the story of the change, grouped by area, not a file list>
-
-</details>
-
-<details>
-<summary><strong>How it is implemented</strong></summary>
-
-<walkthrough with verbatim excerpts and file:line citations, at <headRefOid>>
-
-</details>
-
-<details>
-<summary><strong>What it affects (blast radius)</strong></summary>
-
-<impact/blast-radius findings from Step 4 — consumers found elsewhere in the
-monorepo, contract changes, anything left inconsistent>
-
-</details>
-
----
-
-## QA Test Plan
-
-<details>
-<summary><strong>Core Path</strong></summary>
-
-<numbered happy-path walkthrough from Step 4>
-
-</details>
-
-<details>
-<summary><strong>Edge Cases</strong></summary>
-
-<bulleted edge cases from Step 4, each with file:line where it comes from a specific branch>
-
-</details>
-
----
-
-_Analyzed <today, YYYY-MM-DD> · commit `<headRefOid short sha>` · <provenance: "read-only"; add any of "CI from PR API", "review threads not read", "security-reviewer fallback used" that applied> · skill: review-and-comment-pr_
-```
-
-On an **Update** (Step 1, different head), keep the existing report and
-append the Update block described there, reusing these same Required
-Changes / Improvements tables and severity markers for the delta's
-findings.
-
 ### 7. Update the index
 
-Maintain `<DOCS>/aurora-dashboard-kb/prs/README.md` as a lookup table:
-
-```markdown
----
-type: index
----
-
-# PR reports
-
-| PR                                                                    | Date                           | Title                                                    | Affected                                                                                                                                               | File                                                                                       |
-| --------------------------------------------------------------------- | ------------------------------ | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
-| [#1270](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1270) | 2026-09-03 → merged 2026-09-04 | fix(aurora): time doesn't match current timezone (#1236) | `formatSwiftDate` helper; Swift tables, sort comparators, `EditObjectMetadataModal`. Verdict: Request Changes — 1 Required Change (🟡), 2 Improvements | [1270-time-doesnt-match-current-timezone.md](./1270-time-doesnt-match-current-timezone.md) |
-```
-
-If the file doesn't exist yet, create it with this header and one row.
-Keep the full history — never trim old rows.
-
-- **Date** — exactly one of: `<created> → merged <date>`,
-  `<created> → closed <date>`, `<created> (open)`, `<created> (draft)`.
-  Report updates go in the report's footer, not here.
-- **Affected** — the touched surface only (procedures, routes, components,
-  public exports), at most ~40 words, then the verdict and finding counts:
-  `Verdict: <Request Changes | Approve> — <n> Required Change(s) (<severity
-markers>), <m> Improvement(s)`, or `Verdict: Approve — clean`. Rows
-  written under the old scheme keep their wording. Details live in the
-  report.
-- **Order** — newest PR on top by creation date (ties: higher number on
-  top). Insert the row where it belongs, not always at the top: analyses
-  don't happen in PR order.
-- Escape any `|` inside a cell (code spans included) as `\|`.
-- When a report's status changes (Step 1, "Existing report?"), update
-  this row's Date cell too.
+Add or update this PR's row in `<DOCS>/aurora-dashboard-kb/prs/README.md`
+as the "Index row" section of
+`.claude/skills/review-and-comment-pr/references/report-format.md`
+describes.
 
 Then run `python3 <DOCS>/tools/update-related.py` to refresh the vault's
 "Related" links (skip it if the script is missing, and say so when you
@@ -763,95 +572,38 @@ when you report back — don't delete or merge reports yourself.
 
 ### 8. Post the report to the PR
 
-Post the report back onto the PR it analysed, as a single PR comment.
+Post the review portion of the report as one PR comment — only after the
+user says so.
 
-**Scope — the review portion only.** Post from the `## PR Review Report`
-heading down to the end of the "QA Test Plan" section — not the `---`
-and `_Analyzed …_` footer after it (local provenance, not for the PR).
-Leave out everything above the heading too: the YAML frontmatter, the
-`# PR #<number>: <title>` title and the `**Author:** … **Size:** …` line
-(that context is already on the PR page). The `<details>` folds and
-tables render natively in GitHub comments.
+**Prepare.** From the repo root run
+`python3 .claude/skills/review-and-comment-pr/scripts/prepare_comment.py <report path> <number>`
+(add `--update` on an Update run: only the newest `## Update — …` block is
+posted). It slices the comment — from `## PR Review Report` to the end of
+the QA Test Plan, without frontmatter, title or the `_Analyzed` footer —
+into `/tmp/pr-<number>-comment.md`, scans it for what must not go public
+(secrets, local paths, internal hosts and private IPs, e-mail addresses,
+env data), checks the Markdown, and prints the account, verdict, finding
+counts, sections, links and every hit with its line. Patterns don't catch
+everything: also skim for real names, customer or project identifiers,
+and links to private repos.
 
-**Safety scan before posting — strict; a hit blocks the post.** The PR is
-a public forum. Read the exact text you are about to post — every line,
-inside `<details>` folds and fenced code blocks included — and scan for
-anything that must not go public. If you find **any** of the following, do
-**not** post: warn the user, quote the offending text with where it sits
-(section / finding / line), explain why it's sensitive, and let them decide
-(redact it in the report file and re-run this step, or post manually).
-Never silently strip-and-post — the user chooses.
+**Any hit blocks the post.** Quote it to the user with where it sits and
+let them decide — redact the report and re-run, or post manually. Never
+strip-and-post silently. A Markdown problem: fix the report, re-run.
 
-- **Secrets / credentials** — tokens, API keys, passwords, bearer/`Authorization`
-  headers, OpenStack application credentials, connection strings, anything
-  matching `-----BEGIN … KEY-----`, or long high-entropy hex/base64 blobs.
-  This holds even inside a verbatim code excerpt: if real secret material
-  sits in the diff, that is itself a finding (category Security) — report
-  it, but never paste the secret into the comment.
-- **Local filesystem paths that identify a person or machine** —
-  `/Users/<name>/…`, `/home/<name>/…`, `C:\Users\<name>\…`, temp paths with
-  a username. The report must cite **repo-relative** paths only; an absolute
-  path leaking the runner's home dir reveals their identity.
-- **Internal-only hosts and URLs** — enterprise GitHub, internal Jira/Confluence/Grafana/wiki, VPN-only hostnames,
-  `*.internal` / `*.corp`, private IPs (`10.`, `192.168.`, `172.16–31.`),
-  and links to **private** repos — including the skill link in the
-  `## PR Review Report by [review-and-comment-pr](…)` heading if that repo
-  is private. Drop or genericise these.
-- **Personal data beyond public GitHub handles** — real names, email
-  addresses or usernames pulled from `git log` / `git blame` / commit
-  authorship or review threads. Keep people as their public `@handle`;
-  strip emails and real names.
-- **Environment-specific real data** — tenant/customer identifiers, real
-  project IDs, account IDs, or sample tokens from test fixtures that happen
-  to be real.
-- **Anything from an ignored or secret file** — contents of `.env`,
-  `*.pem`, credentials files, or any path the repo's `.gitignore` covers.
+**Hand-off — mandatory, no bypass.** No standing instruction to act
+autonomously covers this step. Show the user the script's summary
+(verdict, counts, sections, `<owner>/<repo>` PR #`<number>` and the
+account) and ask. Post only on an explicit yes given in reply to this
+hand-off:
 
-When nothing is found, say so in one line (so the user knows the scan ran)
-and continue.
+    gh pr comment <number> --repo <owner>/<repo> --body-file /tmp/pr-<number>-comment.md
 
-**Human oversight is mandatory — always.** Publishing to the PR is never
-automatic and has **no bypass**: there is no "post without asking" setting
-that applies here, and a standing instruction to act autonomously does not
-cover this step. Do everything else first — write the report (Step 6),
-update the index (Step 7), run the safety scan above — and only then stop
-and hand the decision to the user. In that hand-off, state, in this order:
+Always `--body-file`, never `--body`: the shell mangles backticks and `|`.
 
-1. **Exactly what will be posted** — the full sliced text verbatim (or, if
-   long, the Verdict block in full plus the headings and finding counts),
-   so the user sees the real content, not a paraphrase.
-2. **Where and as whom** — `<owner>/<repo>` PR #`<number>`, under the
-   account from `gh api user --jq .login`.
-3. **The safety-check result** — run the scan a **second time** on the
-   exact bytes you are about to post (double-check), and report it: either
-   "clean — scanned for secrets, local paths, internal hosts/URLs, personal
-   data, env data; none found" or the blocking hits (in which case you do
-   not offer to post at all until they're resolved).
-
-Post **only** after the user explicitly says to, in response to that
-hand-off. Silence, an unrelated reply, or a prior general "go ahead" is not
-consent for this publish. If the safety scan found anything, posting is off
-the table until the user redacts the report and you re-run this step clean.
-
-**How.** Slice the review portion into a temp file **outside the repo and
-outside `DOCS`** (e.g. `/tmp/pr-<number>-comment.md`) so no stray file
-lands in a tracked tree, then:
-
-```bash
-gh pr comment <number> --repo <owner>/<repo> --body-file /tmp/pr-<number>-comment.md
-```
-
-Use `--body-file`, never `--body` with the text inline — the report has
-backticks, code fences and `|` that a shell would mangle. On an **Update**
-run (Step 1), post only the new `## Update — <today>, …` block, not the
-whole report again.
-
-**If it fails.** A `gh` auth error or `Resource not accessible by personal
-access token` means the account lacks comment permission on the repo —
-don't retry blindly. Tell the user the report was written to `DOCS` but not
-posted, and why (so they can re-auth with `gh auth login` or post it
-themselves). A failed post never fails the run — the report file is the
-deliverable; the comment is a convenience.
+**If it fails** (auth error, "Resource not accessible…"): don't retry;
+tell the user the report is in `DOCS` but not posted, and why. A failed
+post never fails the run — the report file is the deliverable.
 
 ### 9. Report back
 
@@ -860,3 +612,5 @@ verdict (recommendation + confidence), the finding counts — how many
 Required Changes (with severities) and Improvements, or that the review was
 clean — and whether the report was posted to the PR (with the comment URL)
 or not (and why). On a status-only update (Step 1), say what changed instead.
+
+<!-- prettier-ignore-end -->

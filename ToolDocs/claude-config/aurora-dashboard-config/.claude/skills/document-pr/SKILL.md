@@ -56,13 +56,24 @@ doesn't read like lint noise).
   user asks in. Code, identifiers and file paths stay as-is.
 - **Don't commit or push** — neither `DOCS` nor the repo. The skill stops
   at writing files; committing is the user's call.
-- **Write commands the allowlist can match.** Put SHAs and paths literally
-  into each command — no `VAR=…;` prefixes, no `cd … &&` chains (run from
-  the repo root). Shell variables don't survive between commands anyway.
-  Repeat this rule and the first one (read-only, no checkout, no refs) in
-  the brief of every agent you launch (review agents, scorer,
-  fact-checker): they start in the repo root already and must not `cd`
-  there.
+- **Reading code at a commit.** Run every command from the repo root
+  (agents start there — never `cd`), with SHAs and paths written out
+  literally:
+  - a whole file, numbered: `git grep -n '' <sha> -- <path>`;
+  - a line range, numbered: `git blame -s -L <from>,<to> <sha> -- <path>`
+    — each line comes as `<commit> <n>) <code>`; quote only the code;
+  - a match with context: `git grep -n -A4 '<pattern>' <sha> -- <path>` —
+    options go before the pattern and the SHA; after them git reads an
+    option as a revision and fails;
+  - `git show <sha>:<path>` takes a repo-root path — `./` and `../` are
+    not resolved and fail.
+  Every agent you launch is `pr-reviewer` (`.claude/agents/pr-reviewer.md`),
+  except finder f (`external-api-checker`) and finder g
+  (`security-reviewer`). `pr-reviewer` and `external-api-checker` already
+  carry this rule and the read-only rule — don't repeat them in briefs. If
+  that agent isn't available (another machine, a fresh checkout), use a
+  general Sonnet agent instead and paste both rules **verbatim** into its
+  brief.
 
 ## Steps
 
@@ -93,10 +104,12 @@ current directory — a bare `../DOCS` typed from a subdirectory folds into
 this repo's own git-tracked `docs/` folder on macOS:
 
 ```bash
-git rev-parse --show-toplevel
+git rev-parse --path-format=absolute --git-common-dir
 ```
 
-`DOCS` is that path's parent directory + `/DOCS`. Note the absolute path
+`DOCS` is the parent of that path's parent directory + `/DOCS` (the common
+git dir points at the main repo even inside a linked worktree, where
+`--show-toplevel` would not). Note the absolute path
 now and write it out literally in every later command and file path
 (`<DOCS>` below) — shell variables don't survive from one command to the
 next.
@@ -231,6 +244,23 @@ load everything up front.
 
 ### 4. Descriptive analysis — what, how, and what it touches
 
+**Who does this step.** A `pr-reviewer` agent — the *describer* — does all
+of Step 4. Launch it in the same message as the Step 5 review agents (see
+5.1), so it runs alongside them. Don't read the PR's code yourself for
+this step: everything you load stays in your context and is re-read on
+every later turn. Give the describer the two SHAs (on an Update: the delta
+`<old head>..<new head>`), the PR title and body, the changed-file list
+and the rest of this step verbatim as its brief. It returns only:
+
+- the "what and how" narrative per group, with the verbatim excerpts and
+  their `file:line` citations already in place;
+- the impact / blast-radius result (consumers, stale callers, internal vs
+  contract change).
+
+You then work from that draft; stale callers are handled exactly as
+described below. Re-open code yourself only to settle a specific point
+the draft leaves unclear.
+
 Group the changed files by what they are (server routers, client
 routes/components, shared packages, config/CI, docs) and write the "what and
 how" narrative per group, not file-by-file — a PR that adds one tRPC
@@ -277,7 +307,10 @@ don't redo the eligibility/"already reviewed" gating from that command
 (irrelevant here: the report documents the PR rather than gating its
 merge), and don't post anything to GitHub.
 
-1. Launch the review agents below in parallel, on Sonnet. Give each the
+1. Launch the review agents below and the Step 4 describer together in
+   **one** message, as `pr-reviewer` agents (f is `external-api-checker`,
+   g stays `security-reviewer`), in the foreground — not as background
+   tasks. Their results then come back to you in one turn. Give each the
    two SHAs, the changed-file list, the review standards from Step 3 and
    its own brief — not the diff: it reads
    `git diff <baseRefOid>...<headRefOid> -- <path>` for the files its check
@@ -326,19 +359,16 @@ merge), and don't post anything to GitHub.
       check the change complies with any guidance those comments state.
    f. **External API contract** — only when the PR changes anything (other
       than `*.test.ts`) under `packages/aurora/src/server/` or
-      `packages/signal-openstack/`; skip it otherwise. Check every changed
-      call to OpenStack (`service("<name>")…`) or to Ceph RGW through the S3
-      client (`Storage/clients`, `Storage/routers/ceph`), and every changed
-      Zod schema describing an API response, against the service's official
-      API reference: method and path, required parameters, pagination
-      (`limit`/`marker`, `next` links), microversion headers, response
-      fields, status codes and error shapes. Also compare it with how
-      existing code already calls the same endpoint. References:
-      `https://docs.openstack.org/api-ref/<compute|image|identity|network|object-store|dns>/`;
-      for Ceph, `https://docs.ceph.com/en/latest/radosgw/s3/` plus the AWS S3
-      API reference for the semantics RGW inherits. Every finding must quote
-      the doc passage with its URL — that quote is what lets the scorer
-      verify it instead of guessing.
+      `packages/signal-openstack/`; skip it otherwise. Launch the
+      `external-api-checker` agent (`.claude/agents/external-api-checker.md`)
+      — it knows what to check and how to read the OpenStack, Ceph and S3
+      references verbatim. Give it the two SHAs and every changed call to
+      OpenStack (`service("<name>")…`) or to Ceph RGW through the S3 client
+      (`Storage/clients`, `Storage/routers/ceph`), and every changed Zod
+      schema describing an API response. Its doc quotes with URLs are what
+      lets the scorer verify a finding instead of guessing. If that agent
+      isn't available, run `pr-reviewer` with this paragraph and the agent
+      file's "How to read the references" section pasted verbatim.
    g. **Security** — launch the project's `security-reviewer` agent
       (`.claude/agents/security-reviewer.md`, subagent type
       `security-reviewer`) on the diff. It already knows this stack's auth
@@ -349,15 +379,19 @@ merge), and don't post anything to GitHub.
       enforced server-side, fail-closed UI, no raw HTML injection). Its
       findings go through the same scoring and ≥75 bar as the others.
       If no `security-reviewer` agent is available (another machine, a
-      fresh checkout), run a general Sonnet agent with the same brief —
+      fresh checkout), run a `pr-reviewer` agent with the same brief —
       procedure builders and scoping, server-side `canUser` checks, Zod
       input validation and IDs interpolated into OpenStack URLs, tokens and
       secrets in logs or responses, raw HTML injection — and note in the
       report that the dedicated reviewer was missing.
    Each agent returns a list of issues with the reason each was flagged.
-2. Collect the issues from all agents and merge duplicates (one problem
-   found by several agents is one issue — keep each agent's reasoning).
-   Hand the list to a Sonnet scoring agent — one per up to ~12 issues — together
+2. Collect the issues from all agents and merge duplicates — the same
+   problem at the same place, found by several agents, is one issue (keep
+   each agent's reasoning). Different problems stay separate even when
+   related: a duplicate PR and a merge conflict with another PR are two
+   issues, and so are two rule violations in one file.
+   Hand the list to `pr-reviewer` scoring agents — one per up to ~12
+   issues, all launched in one message in the foreground — together
    with the PR, the review standards from Step 3 and `<headRefOid>`. Pass
    each issue as the finder reported it: the claim, its `file:line`, and its
    evidence as-is — commands with their output, doc quotes with URLs. Don't
@@ -392,7 +426,7 @@ merge), and don't post anything to GitHub.
    for 25 when the quote and the code are in front of the scorer.
    External-API claims: when an issue rests on how OpenStack, Ceph or S3
    behave, the scorer uses the doc quote agent f attached, or opens the
-   reference itself — never its memory. "From memory" is no basis for 25
+   reference itself, reading it as `.claude/agents/external-api-checker.md` describes — never its memory. "From memory" is no basis for 25
    or for a lower impact. A feature that silently leaves out data users
    expect to see counts as "will likely be hit in practice".
    Quick Reject rule: `copilot-instructions.md` has a "Quick Reject
@@ -459,7 +493,10 @@ findings re-derived from the build errors.
 
 File name: `<number>-<kebab-slug-of-title>.md`, e.g.
 `1079-slot-support-login.md`, in `<DOCS>/aurora-dashboard-kb/prs/`. Write
-the full draft straight into that file, using the template below.
+the full draft straight into that file, using the template below. Paths
+are full and repo-relative (e.g.
+`packages/aurora/src/server/Network/routers/networksRouter.ts:42`) — never
+shortened with `.../`; short paths are ambiguous.
 
 **Proposed follow-ups.** Don't file anything in `DOCS/FOLLOW-UPS.md` —
 only propose it in the report; the user decides whether a finding gets
@@ -473,7 +510,7 @@ Update's own list.
 
 **Fact-check before finishing.** Nothing else re-reads the walkthrough —
 the review agents look at the code, not at what you wrote about it. Hand
-the draft to one Sonnet fact-check agent together with the diff and
+the draft to one `pr-reviewer` fact-check agent (in the foreground) together with the diff and
 `<headRefOid>`. It checks the descriptive sections ("What was done", "How
 it is implemented", "What it affects" — or "What changed" in an Update),
 not the Review:

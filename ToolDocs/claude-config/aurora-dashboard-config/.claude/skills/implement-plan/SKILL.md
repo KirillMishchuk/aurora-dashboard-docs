@@ -26,10 +26,10 @@ reviewed, edited, or handed off before anything gets written.
    - If the user refers to a plan by task name/description rather than a
      path (e.g. "implement the ceph lifecycle plan from last week"), resolve
      the plans directory the same unambiguous way `create-plan` does —
-     `PLANS_DIR="$(dirname "$(git rev-parse --show-toplevel)")/DOCS/plans"`
-     — not a bare `../DOCS/plans` typed from wherever the shell happens to
-     be, for the same case-insensitive-filesystem reason documented in
-     `create-plan`. Check `$PLANS_DIR/README.md` for a matching row and read
+     `PLANS_DIR="$(dirname "$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")")/DOCS/plans"`
+     — not `--show-toplevel` (wrong inside a git worktree) and not a bare
+     `../DOCS/plans`; `create-plan`'s Paths section explains both.
+     Check `$PLANS_DIR/README.md` for a matching row and read
      that file — don't make the user go find the path themselves.
    - If no plan exists yet and the user's request implies both planning and
      building ("plan and implement X", "build X, plan it first"), invoke
@@ -60,9 +60,15 @@ reviewed, edited, or handed off before anything gets written.
 8. **Close the loop on the plan file.** If the plan came from a file under
    `$PLANS_DIR`, update its `**Status:**` line (`not implemented` →
    `implemented <date>`, or `partially implemented <date>` if there were
-   deviations/skipped steps) and, in `$PLANS_DIR/README.md`, set that same
-   value in the row's dedicated `Status` column only — leave `Risks` and
-   `File` untouched. If an older row predates the `Status` column and only
+   deviations/skipped steps), set the frontmatter `status:` property at the
+   top of the file to the matching short value (`implemented` /
+   `partially-implemented`; leave other properties alone; if the file has no
+   frontmatter, don't add one here) and, in `$PLANS_DIR/README.md`, write the
+   same readable text as the `**Status:**` line (`implemented <date>`,
+   optionally `· PR #N`) in the row's dedicated `Status` column only — keep it
+   to that one short phrase (details belong in the plan, not the index), and
+   leave `Risks` and `File` untouched. Write the status text in English (the index is
+   English-only) and escape any `|` in it as `\|`. If an older row predates the `Status` column and only
    has `Date | Task | Risks | File`, add the column rather than overloading
    an existing one. Skip this whole step if the plan wasn't sourced from a
    file — nothing to update.
