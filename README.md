@@ -25,7 +25,7 @@ This repository is the working knowledge base and documentation for the SAP proj
 
 ## How it fits together
 
-- **`pr-reviews/`, `plans/`, `aurora-dashboard-kb/prs/`** — three independent folders, each written by its own skill (`triple-review`; `create-plan`/`implement-plan`; `document-pr`). They capture different points in a PR's life — pre-merge review, planned work, post-merge report — and don't feed or reference each other automatically; turning a review into a fix plan is a separate, manual request.
+- **`pr-reviews/`, `plans/`, `aurora-dashboard-kb/prs/`** — three independent folders, each written by its own skill (`triple-review`; `create-plan`/`implement-plan`; `review-and-comment-pr`). They capture different points in a PR's life — pre-merge review, planned work, post-merge report — and don't feed or reference each other automatically; turning a review into a fix plan is a separate, manual request.
 - **`aurora-dashboard-kb/`** — the only place that claims to be the "current truth" about the repository; it has an explicit commit pin and an update procedure. `plans/` and `pr-reviews/` are deliberately not merged into it — they are tied to skills with hard-coded paths (`plans/<date>-...md`, `pr-reviews/pr-<n>-review.md`) and follow their own versioning logic.
 - **[`FOLLOW-UPS.md`](FOLLOW-UPS.md)** — the only list of deferred work. Plans and review analyses produce follow-ups but don't store them: they keep a reference to the registry item, so two copies of the same text never drift apart.
 - **`ToolDocs/`** — not about aurora-dashboard itself but about the tooling around it; read it less often and for different reasons.
