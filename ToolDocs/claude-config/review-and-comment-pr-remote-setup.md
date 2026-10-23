@@ -70,7 +70,7 @@ All commands below run from there; DOCS is `../DOCS`.
          "Bash(python3 .claude/skills/review-and-comment-pr/scripts/render.py *)",
          "Bash(python3 .claude/skills/review-and-comment-pr/scripts/quotes.py *)",
          "Bash(git show *)", "Bash(git grep *)", "Bash(git blame *)",
-         "Bash(git merge-tree *)", "Bash(git fetch *)", "Bash(git rev-parse *)",
+         "Bash(git fetch *)", "Bash(git rev-parse *)",
          "Bash(gh pr view *)", "Bash(gh pr diff *)", "Bash(gh pr checks *)",
          "Bash(gh pr list *)", "Bash(gh issue view *)", "Bash(gh api --method GET *)",
          "Bash(npm view *)", "Edit(//tmp/pr-*-comment.md)",
@@ -113,5 +113,4 @@ All commands below run from there; DOCS is `../DOCS`.
   update, `git pull` DOCS and repeat Install step 2. If a fix is needed,
   describe it to the user instead.
 - Known untested paths (report anything odd): Update mode (PR with an
-  existing report and new commits), release PRs, the merge-tree conflict
-  candidate.
+  existing report and new commits), release PRs.

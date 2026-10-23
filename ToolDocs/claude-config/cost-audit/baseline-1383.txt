@@ -1,0 +1,102 @@
+# Baseline: audit_session.py output for /review-and-comment-pr 1383 on the main machine, 2026-10-23
+# (rerun of a current report, posting answered no; local paths shortened to <SAP>, <home>)
+
+# Session 1383-final-session.jsonl · Claude Code 2.1.309
+Total (cost-state): $2.60 · API time 9.4 min · wall 8.9 min
+  claude-opus-5-5: $0.90 · in 44 · cache write 77,121 · cache read 1,186,208 · out 14,082
+  claude-sonnet-5-5: $1.70 · in 184 · cache write 434,132 · cache read 1,938,901 · out 41,772
+Requested models (main): {'claude-opus-5-5': 43} · effort: {'medium': 43}
+
+## Per agent (cost = estimated share of its model's cost)
+agent                  description                        model                 req  max ctx   est $  tokens
+MAIN                   orchestrator                       claude-opus-5-5        22   77,123    0.90  in 44 · cache write 77,121 · cache read 1,186,208 · out 14,082
+pr-reviewer            PR 1383 finder d                   claude-sonnet-5-5       4   14,267    0.04  in 8 · cache write 14,265 · cache read 38,635 · out 482
+pr-reviewer            PR 1383 describer                  claude-sonnet-5-5      10   59,591    0.26  in 20 · cache write 59,589 · cache read 319,808 · out 7,689
+pr-reviewer            PR 1383 finder c                   claude-sonnet-5-5       6   20,654    0.07  in 12 · cache write 20,652 · cache read 78,271 · out 1,511
+pr-reviewer            PR 1383 finder b                   claude-sonnet-5-5       9   38,427    0.14  in 18 · cache write 38,425 · cache read 189,806 · out 1,759
+pr-reviewer            PR 1383 scorer 4                   claude-sonnet-5-5       5   24,635    0.07  in 10 · cache write 20,734 · cache read 75,138 · out 1,520
+pr-reviewer            PR 1383 finder a                   claude-sonnet-5-5      10   64,059    0.28  in 20 · cache write 64,057 · cache read 323,828 · out 8,494
+external-api-checker   PR 1383 finder f                   claude-sonnet-5-5       9   35,741    0.16  in 18 · cache write 35,739 · cache read 181,341 · out 4,710
+pr-reviewer            PR 1383 scorer 2                   claude-sonnet-5-5       6   26,438    0.09  in 12 · cache write 22,537 · cache read 101,916 · out 2,616
+pr-reviewer            PR 1383 fact-check                 claude-sonnet-5-5      10   49,703    0.19  in 20 · cache write 45,802 · cache read 254,887 · out 4,643
+security-reviewer      PR 1383 finder g                   claude-sonnet-5-5       7   22,247    0.08  in 14 · cache write 22,245 · cache read 105,767 · out 1,451
+pr-reviewer            PR 1383 scorer 3                   claude-sonnet-5-5       4   30,140    0.09  in 8 · cache write 26,239 · cache read 59,877 · out 2,453
+pr-reviewer            PR 1383 finder e                   claude-sonnet-5-5       7   29,358    0.10  in 14 · cache write 29,356 · cache read 109,925 · out 1,922
+pr-reviewer            PR 1383 scorer 1                   claude-sonnet-5-5       5   38,393    0.12  in 10 · cache write 34,492 · cache read 99,702 · out 2,522
+
+## Per agent: tool calls and errors
+  PR 1383 finder d                         {'Read': 1, 'Bash': 2, 'SubagentHandback': 1} · errors 0
+  PR 1383 describer                        {'Read': 1, 'Bash': 10, 'SubagentHandback': 1} · errors 1
+      ! Exit code 1 INVALID — 2 error(s), nothing saved; fix them and run again:   overview.what: abbreviated path (…/ or .../) — write the full repo-relative path   overview.how: 'validateAndEncodeResourceId
+  PR 1383 finder c                         {'Read': 1, 'Bash': 5, 'SubagentHandback': 1} · errors 0
+  PR 1383 finder b                         {'Read': 1, 'Bash': 7, 'SubagentHandback': 1} · errors 0
+  PR 1383 scorer 4                         {'Read': 2, 'Bash': 3, 'SubagentHandback': 1} · errors 0
+  PR 1383 finder a                         {'Read': 2, 'Bash': 8, 'SubagentHandback': 1} · errors 0
+  PR 1383 finder f                         {'Read': 1, 'Bash': 8, 'SubagentHandback': 1} · errors 0
+  PR 1383 scorer 2                         {'Read': 2, 'Bash': 4, 'SubagentHandback': 1} · errors 0
+  PR 1383 fact-check                       {'Read': 1, 'Bash': 11, 'SubagentHandback': 1} · errors 0
+  PR 1383 finder g                         {'Read': 1, 'Bash': 5, 'SubagentHandback': 1} · errors 0
+  PR 1383 scorer 3                         {'Read': 2, 'Bash': 2, 'SubagentHandback': 1} · errors 0
+  PR 1383 finder e                         {'Read': 1, 'Bash': 6, 'SubagentHandback': 1} · errors 0
+  PR 1383 scorer 1                         {'Read': 2, 'Bash': 3, 'SubagentHandback': 1} · errors 0
+
+## Main session: context per request
+    1 06:47:59 claude-opus-5-5: ctx 33,947 (write 33,945) out 141
+    2 06:48:06 claude-opus-5-5: ctx 34,214 (write 267) out 211
+    3 06:48:44 claude-opus-5-5: ctx 34,561 (write 347) out 152
+    4 06:48:54 claude-opus-5-5: ctx 35,374 (write 813) out 173
+    5 06:49:05 claude-opus-5-5: ctx 36,262 (write 888) out 1,614
+    6 06:50:20 claude-opus-5-5: ctx 42,989 (write 6,727) out 187
+    7 06:50:28 claude-opus-5-5: ctx 43,667 (write 678) out 815
+    8 06:50:58 claude-opus-5-5: ctx 47,071 (write 3,404) out 176
+    9 06:51:01 claude-opus-5-5: ctx 47,458 (write 387) out 174
+   10 06:51:03 claude-opus-5-5: ctx 48,373 (write 915) out 133
+   11 06:51:13 claude-opus-5-5: ctx 62,336 (write 13,963) out 575
+   12 06:52:00 claude-opus-5-5: ctx 64,211 (write 1,875) out 5,956
+   13 06:52:05 claude-opus-5-5: ctx 70,283 (write 6,072) out 472
+   14 06:52:10 claude-opus-5-5: ctx 71,059 (write 776) out 214
+   15 06:52:14 claude-opus-5-5: ctx 71,352 (write 293) out 362
+   16 06:52:17 claude-opus-5-5: ctx 72,188 (write 836) out 164
+   17 06:52:19 claude-opus-5-5: ctx 72,497 (write 309) out 206
+   18 06:53:08 claude-opus-5-5: ctx 73,382 (write 885) out 172
+   19 06:53:14 claude-opus-5-5: ctx 73,947 (write 565) out 487
+   20 06:53:19 claude-opus-5-5: ctx 75,242 (write 1,295) out 344
+   21 06:54:37 claude-opus-5-5: ctx 75,837 (write 595) out 267
+   22 06:54:47 claude-opus-5-5: ctx 77,123 (write 1,286) out 1,087
+
+## Main session: tool calls
+{'Bash': 14, 'AskUserQuestion': 2, 'Agent': 13, 'Read': 1, 'Write': 1, 'Edit': 1}
+  Bash: 'python3 .claude/skills/review-and-comment-pr/scripts/collect.py 1383; echo "exit=$?"'
+  AskUserQuestion: {"questions": [{"question": "The report for PR #1383 (1383-neutron-networks-bff-read-only-networks-page.md) is already c
+  Bash: 'python3 .claude/skills/review-and-comment-pr/scripts/collect.py 1383 --rerun; echo "exit=$?"'
+  Bash: 'python3 .claude/skills/review-and-comment-pr/scripts/briefs.py --run <SAP>/aurora-dashboard/.claude/runs/review-and-comment-pr/1383-'
+  Agent: type=pr-reviewer model=None bg=False · PR 1383 describer
+  Agent: type=pr-reviewer model=None bg=False · PR 1383 finder a
+  Agent: type=pr-reviewer model=None bg=False · PR 1383 finder b
+  Agent: type=pr-reviewer model=None bg=False · PR 1383 finder c
+  Agent: type=pr-reviewer model=None bg=False · PR 1383 finder d
+  Agent: type=pr-reviewer model=None bg=False · PR 1383 finder e
+  Agent: type=external-api-checker model=None bg=False · PR 1383 finder f
+  Agent: type=security-reviewer model=None bg=False · PR 1383 finder g
+  Bash: 'python3 .claude/skills/review-and-comment-pr/scripts/briefs.py --run <SAP>/aurora-dashboard/.claude/runs/review-and-comment-pr/1383-'
+  Agent: type=pr-reviewer model=None bg=False · PR 1383 scorer 1
+  Agent: type=pr-reviewer model=None bg=False · PR 1383 scorer 2
+  Agent: type=pr-reviewer model=None bg=False · PR 1383 scorer 3
+  Agent: type=pr-reviewer model=None bg=False · PR 1383 scorer 4
+  Bash: 'python3 .claude/skills/review-and-comment-pr/scripts/assemble.py --run <SAP>/aurora-dashboard/.claude/runs/review-and-comment-pr/138'
+  Bash: "cat <SAP>/aurora-dashboard/.claude/runs/review-and-comment-pr/1383-0a594e9e/compose.md; echo '----'; cat .claude/skills/review-and-c"
+  Read: <home>/.claude/projects/<project>/b3b81905-a608-4424-9175-9e61afaabe94/tool-results/bus96tron.txt
+  Bash: "git grep -n 'shared' 0a594e9eaf3055cb1c9a102f1aceae43420e7870 -- 'packages/aurora/src/server/Network/routers/securityGroupRouter.ts' | head; git grep -n 'router"
+  Write: <SAP>/aurora-dashboard/.claude/runs/review-and-comment-pr/1383-0a594e9e/texts.json
+  Edit: <SAP>/aurora-dashboard/.claude/runs/review-and-comment-pr/1383-0a594e9e/texts.json
+  Bash: 'R=<SAP>/aurora-dashboard/.claude/runs/review-and-comment-pr/1383-0a594e9e; python3 .claude/skills/review-and-comment-pr/scripts/asse'
+  Bash: 'python3 -c "\nimport json,re;d=json.load(open(\'<SAP>/aurora-dashboard/.claude/runs/review-and-comment-pr/1383-0a594e9e/findings.json\''
+  Bash: 'R=<SAP>/aurora-dashboard/.claude/runs/review-and-comment-pr/1383-0a594e9e; python3 - "$R/texts.json" <<\'EOF\'\nimport json,sys\np=sys.a'
+  Bash: 'python3 .claude/skills/review-and-comment-pr/scripts/briefs.py --run <SAP>/aurora-dashboard/.claude/runs/review-and-comment-pr/1383-'
+  Agent: type=pr-reviewer model=None bg=False · PR 1383 fact-check
+  Bash: 'cat <SAP>/aurora-dashboard/.claude/runs/review-and-comment-pr/1383-0a594e9e/out/factcheck.json'
+  Bash: 'R=<SAP>/aurora-dashboard/.claude/runs/review-and-comment-pr/1383-0a594e9e; python3 - "$R" <<\'EOF\'\nimport json,sys\nr=sys.argv[1];p=r+'
+  AskUserQuestion: {"questions": [{"question": "Post the review to cobaltcore-dev/aurora-dashboard PR #1383 as @KirillMishchuk? Verdict \ud
+  Bash: "grep -nE '^\\| *(CR|I|P)[0-9]+' <SAP>/DOCS/aurora-dashboard-kb/prs/1383-neutron-networks-bff-read-only-networks-page.md | cut -c1-140"
+
+## Tool errors in the main session: 0
