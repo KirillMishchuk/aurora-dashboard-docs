@@ -49,23 +49,30 @@ branch: <headRefName>
 
 ## PR Review Report by [review-and-comment-pr](https://github.com/KirillMishchuk/aurora-dashboard-docs/blob/main/ToolDocs/claude-config/aurora-dashboard-config/.claude/skills/review-and-comment-pr/SKILL.md)
 
+_Reviewed at head [`<short sha>`](<PR url>/commits/<headRefOid>) · base `<baseRefName>` at `<baseRefOid short>` · <collect time, YYYY-MM-DD HH:MM UTC>_
+
 ### ⚖️ &nbsp; Verdict
 
-Recommendation: **<🔴 Request Changes | 🟢 Approve | Approve — process to-dos first>** &nbsp;&nbsp;&nbsp;&nbsp; Confidence to Merge: **<High | Medium | Low>**
+Recommendation: **<🔴 Request Changes | 🟢 Approve | Approve — team call first | Approve — process to-dos first>** &nbsp;&nbsp;&nbsp;&nbsp; Confidence to Merge: **<High | Medium | Low>**
+
+- **Must fix before merge** (<scope, if any>): <Required Changes without a precedent tag>
+- **Team call** (existing pattern or deferred by a maintainer): <Required Changes with one>
+- **Process:** <P items>
 
 <2–4 sentence summary: the overall shape, the one or two things that matter, what clears it. If CI/security fell back or acceptance couldn't be verified, that belongs in this summary.>
 
 ### 🔧 &nbsp; Required Changes
 
-| #   | Severity      | Category   | Issue      | Location              |
-| --- | ------------- | ---------- | ---------- | --------------------- |
-| CR1 | <🟡 Moderate> | <Category> | <one line> | `<file:line>`         |
-| P1  | —             | Process    | <one line> | <PR state \| PR body> |
+| #   | Severity      | Category   | Precedent                              | Issue      | Location              |
+| --- | ------------- | ---------- | -------------------------------------- | ---------- | --------------------- |
+| CR1 | <🟡 Moderate> | <Category> | <— \| existing code \| [deferred](url)> | <one line> | `<file:line>`         |
+| P1  | —             | Process    | —                                      | <one line> | <PR state \| PR body> |
 
 <details><summary><strong>Explanation &amp; Fix</strong></summary>
 
 **CR1 — <title>** · <Category> · `<file:line>`
-<what's wrong, where, what it leads to; add precedent as context if sibling code does the same; if raised in review discussion, say who/where/what happened>
+<what's wrong, where, what it leads to; if raised in review discussion, say who/where/what happened>
+<_Precedent:_ line from `precedent`, if any>
 _Fix:_ <one or two sentences; code block only when it clarifies>
 
 **P2 — <title>** · Process · <where>
@@ -78,14 +85,15 @@ _Fix:_ <one or two sentences>
 
 ### 💡 &nbsp; Improvements
 
-| #   | Severity | Category   | Issue      | Location      |
-| --- | -------- | ---------- | ---------- | ------------- |
-| I1  | <🟢 Low> | <Category> | <one line> | `<file:line>` |
+| #   | Severity | Category   | Precedent   | Issue      | Location      |
+| --- | -------- | ---------- | ----------- | ---------- | ------------- |
+| I1  | <🟢 Low> | <Category> | <— \| …>    | <one line> | `<file:line>` |
 
 <details><summary><strong>Explanation &amp; Fix</strong></summary>
 
 **I1 — <title>** · <Category> · `<file:line>`
-<rule or reason; precedent as context>
+<rule or reason>
+<_Precedent:_ line, if any>
 _Fix:_ <one or two sentences>
 
 </details>

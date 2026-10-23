@@ -354,3 +354,38 @@ def main(argv):
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))
+
+
+PRECEDENT_KINDS = ("existing", "deferred")
+PRECEDENT_URL = re.compile(r"^https://github\.com/[^/\s]+/[^/\s]+/(pull|issues)/\d+\S*$")
+
+
+def check_precedent(repo, p, where, errors):
+    """A finding's precedent tag: null, {"kind": "existing", "ref": "<path:line at base>"}
+    or {"kind": "deferred", "ref": "<GitHub PR/issue/comment URL>"}."""
+    if p is None:
+        return
+    if not isinstance(p, dict) or set(p) != {"kind", "ref"}:
+        errors.append(f"{where}: null or {{\"kind\", \"ref\"}}")
+        return
+    kind, ref = p.get("kind"), p.get("ref")
+    if kind not in PRECEDENT_KINDS:
+        errors.append(f"{where}.kind: {kind!r} not one of {list(PRECEDENT_KINDS)}")
+        return
+    if not isinstance(ref, str) or not ref.strip():
+        errors.append(f"{where}.ref: missing or empty")
+        return
+    if kind == "existing":
+        m = re.match(r"^([^\s:]+):(\d+)$", ref.strip())
+        if not m:
+            errors.append(f"{where}.ref: {ref!r} — a full repo-relative path:line in the merged code (baseRefOid)")
+            return
+        lines = repo.lines(m.group(1), repo.base)
+        if lines is None:
+            errors.append(f"{where}.ref: {m.group(1)} does not exist at base {repo.base[:8]} — "
+                          "an existing pattern must be in code already merged")
+        elif not 1 <= int(m.group(2)) <= len(lines):
+            errors.append(f"{where}.ref: {m.group(1)} has {len(lines)} lines at base {repo.base[:8]}")
+    elif not PRECEDENT_URL.match(ref.strip()):
+        errors.append(f"{where}.ref: {ref!r} — the URL of the PR, issue or comment where a maintainer "
+                      "accepted or deferred it (https://github.com/<owner>/<repo>/pull/<n>…)")

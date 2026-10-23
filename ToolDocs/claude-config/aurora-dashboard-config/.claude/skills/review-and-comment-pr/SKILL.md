@@ -123,8 +123,8 @@ python3 .claude/skills/review-and-comment-pr/scripts/collect.py <arg>
 `<arg>` is whatever the user gave — a number, a URL, or nothing (the PR
 for the current branch). It reads the PR, finds `DOCS` and any existing
 report, picks the run mode, fetches the head commit by SHA, and saves the
-diff, review discussion, CI, changeset, linked issue, overlapping open PRs
-and review standards into the run folder. Read its summary (not the
+diff, review discussion, CI, changeset, linked issue and review standards
+into the run folder. Read its summary (not the
 JSON).
 
 - **exit 0** — act on `Mode:` (Step 2).
@@ -195,7 +195,7 @@ by render.py; it is not a blocker.
 ### 3. What the run folder holds
 
 The agents read it themselves: `context.json` (metadata, SHAs, changed
-files, flags, CI, changeset, issues, overlapping PRs, Process items,
+files, flags, CI, changeset, issues, Process items,
 provenance), `pr.diff` (without generated files), `pr-body.md`,
 `issue-<N>.md` (acceptance criteria), `discussion.json`,
 `copilot-instructions.md` (the review standards at `<headRefOid>`; root
@@ -260,9 +260,12 @@ posting from here: the only GitHub write is Step 8.
    pairs that look like one problem, and writes `<run folder>/compose.md`.
    Read it with the Read tool (not `cat`: long output gets cut).
 3. **Verdict** (not on an Update — its block has none). render.py derives the recommendation from Required
-   Changes (any code finding at 🟡 Moderate or worse → Request Changes;
+   Changes (any code finding at 🟡 Moderate or worse without a precedent
+   tag → Request Changes; only tagged ones → Approve — team call first;
    only Process items → Approve — process to-dos first; otherwise Approve,
-   "with nits" if there are Improvements). You choose only **Confidence to
+   "with nits" if there are Improvements) and lists them under it — Must
+   fix before merge (with the describer's `scope`), Team call, Process.
+   You choose only **Confidence to
    Merge** (High / Medium / Low): how sure you are the PR is sound once the
    Required Changes are cleared — lower it for anything you could not
    verify (CI unreadable, acceptance not checkable, draft,
@@ -285,8 +288,8 @@ come from the agents:
   the describer's "What was done");
 - `confidence`, `index_affected`;
 - per finding `issue`, `title`, `explanation`, `fix`. In the
-  explanation: what's wrong, where, what it leads to; the precedent if
-  sibling code does the same; if the review discussion raised it, who,
+  explanation: what's wrong, where, what it leads to (the precedent tag
+  is the scorer's, render.py shows it); if the review discussion raised it, who,
   where and what happened; a missing test for a listed bug goes here,
   not into its own finding;
 - `edge_cases` — the scenario behind every Bug finding;

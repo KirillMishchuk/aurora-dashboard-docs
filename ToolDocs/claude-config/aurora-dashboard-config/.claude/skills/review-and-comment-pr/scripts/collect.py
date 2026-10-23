@@ -27,7 +27,6 @@ from pathlib import Path
 
 SCHEMA_VERSION = 1
 SKILL = "review-and-comment-pr"
-MAX_OVERLAP_CHECKS = 10
 MAX_ISSUE_CANDIDATES = 10
 SLUG_STOPWORDS = {"add", "and", "the", "a", "an", "for", "to", "of", "in", "on", "with"}
 SLUG_MAX_WORDS = 8
@@ -35,10 +34,8 @@ BOT_HINTS = ("[bot]", "copilot", "github-actions", "cobaltcore-bot", "dependabot
 OWN_REPORT_MARK = "PR Review Report by [review-and-comment-pr]"
 # Generated files: listed in context.json, left out of pr.diff (the compiled
 # Lingui catalogs alone can be >80% of a diff). Catalog sources (.po) stay in
-# the diff — UI strings are reviewed there — but a merge conflict limited to
-# generated files or catalogs is mechanical (regenerate), so it's marked.
+# the diff — UI strings are reviewed there.
 GENERATED = (r"(^|/)locales/[^/]+/messages\.(ts|js)$", r"(^|/)routeTree\.gen\.ts$")
-CATALOGS = GENERATED + (r"(^|/)locales/[^/]+/messages\.po$",)
 DIFF_EXCLUDES = (":(exclude,glob)**/locales/*/messages.ts", ":(exclude,glob)**/locales/*/messages.js",
                  ":(exclude,glob)**/routeTree.gen.ts")
 PR_FIELDS = ("number,title,body,author,url,state,isDraft,baseRefName,headRefName,"
@@ -421,39 +418,6 @@ def collect_discussion(number, nwo, cwd):
     return data, summary
 
 
-def collect_overlaps(pr, cwd):
-    mine = {f["path"] for f in pr["files"]}
-    others = gh_json(["pr", "list", "--state", "open", "--limit", "200",
-                      "--json", "number,title,headRefOid,files,isDraft"], cwd) or []
-    hits = []
-    for o in others:
-        if o["number"] == pr["number"]:
-            continue
-        shared = sorted(mine & {f["path"] for f in o.get("files") or []})
-        if shared:
-            hits.append({"number": o["number"], "title": o["title"], "head_oid": o["headRefOid"],
-                         "draft": o.get("isDraft", False), "shared_files": shared, "merge": "not checked"})
-    hits.sort(key=lambda h: (-len(h["shared_files"]), -h["number"]))
-    for h in hits[:MAX_OVERLAP_CHECKS]:
-        try:
-            fetch_commit(h["head_oid"], h["number"], cwd)
-        except CollectError as e:
-            h["merge"], h["merge_error"] = "error", str(e)[:200]
-            continue
-        p = git(["merge-tree", "--write-tree", "--name-only", pr["headRefOid"], h["head_oid"]],
-                cwd, ok=(0, 1, 2, 128, 129))
-        if p.returncode == 0:
-            h["merge"] = "clean"
-        elif p.returncode == 1:
-            lines = p.stdout.splitlines()[1:]
-            files = lines[:lines.index("")] if "" in lines else lines
-            h["merge"], h["conflict_files"] = "conflicts", files
-            h["conflicts_only_generated"] = all(matches_any(f, CATALOGS) for f in files)
-        else:
-            h["merge"], h["merge_error"] = "error", (p.stderr or "merge-tree failed (git ≥ 2.38 needed)").strip()[:200]
-    return hits
-
-
 # ---------------------------------------------------------------- main
 
 def parse_args(argv):
@@ -611,7 +575,6 @@ def main(argv):
         disc, ctx["discussion"] = collect_discussion(number, nwo, cwd)
         ctx["discussion"]["file"] = "discussion.json"
         (run_dir / "discussion.json").write_text(json.dumps(disc, indent=1, ensure_ascii=False), encoding="utf-8")
-        ctx["overlapping_prs"] = collect_overlaps(pr, cwd)
 
         ci_md = git(["show", f"{head}:.github/copilot-instructions.md"], cwd, ok=(0, 128))
         if ci_md.returncode == 0:
@@ -687,10 +650,6 @@ def summary(c):
     L.append(f"Discussion: {d['comments']} comments, {d['reviews']} reviews, {d['threads']} inline threads "
              f"({d['bot_items']} by bots)" + (f" · {d['own_reports_excluded']} own earlier report(s)" if d["own_reports_excluded"] else "")
              + ("" if d["inline_read"] else " · inline threads NOT read"))
-    o = c["overlapping_prs"]
-    L.append("Overlapping open PRs: " + (", ".join(
-        f"#{x['number']} ({len(x['shared_files'])} files, {x['merge']}"
-        + (" — generated/catalog files only" if x.get("conflicts_only_generated") else "") + ")" for x in o) or "none"))
     if p.get("generated_files_not_in_diff"):
         L.append(f"Generated files left out of pr.diff: {len(p['generated_files_not_in_diff'])}")
     L.append("Process: " + (", ".join(x["id"] for x in c["process"]) or "none"))

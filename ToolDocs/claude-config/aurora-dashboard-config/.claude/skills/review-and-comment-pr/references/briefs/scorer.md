@@ -27,13 +27,15 @@ The evidence is as the finders reported it, unchanged.
       "category": "Performance",
       "location": "path:line, verified at headRefOid",
       "reason": "One or two sentences: what you checked and found (file:line, quote, behaviour) and why this score and severity.",
-      "same_as": null
+      "same_as": null,
+      "precedent": null
     }
   ]
 }
 ```
 
 - One entry per candidate, every candidate exactly once.
-- `score`: 0, 25, 50, 75 or 100. For 50 and up, `severity` (Critical, Major, Moderate, Low, Trivial), `category` (Bug, Security, Accessibility, UI/UX, Code Quality, Performance, Docs, Test coverage, Conflict) and a `location` that exists at headRefOid (`path:line`, `path | text on that line`, or `PR body` / `PR state` / `PR files` / `CI`). Below 50, leave them out.
+- `score`: 0, 25, 50, 75 or 100. For 50 and up, `severity` (Critical, Major, Moderate, Low, Trivial), `category` (Bug, Security, Accessibility, UI/UX, Code Quality, Performance, Docs, Test coverage) and a `location` that exists at headRefOid (`path:line`, `path | text on that line`, or `PR body` / `PR state` / `PR files` / `CI`). Below 50, leave them out.
+- `precedent`: required for 50 and up — the reader's tag, it never changes the score. `{"kind": "existing", "ref": "path:line"}` when the same pattern is already in merged code: open it at baseRefOid (`git grep -n '<pattern>' <baseRefOid> -- <pathspec>`), `ref` is that line. `{"kind": "deferred", "ref": "<URL>"}` when a maintainer accepted or postponed the same point, on another PR or in `discussion.json`: open the thread, `ref` is the comment's GitHub URL. Both apply → `deferred`. Neither, or you couldn't confirm the candidate's `precedent` → `null`.
 - `same_as`: required for a candidate in a group above — the id of the candidate in the same group that describes the same problem (score that one; this one is then dropped), or `null` if it is a different problem. Elsewhere leave it out.
 {{output}}

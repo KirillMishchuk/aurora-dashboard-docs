@@ -43,8 +43,9 @@ SEVERITIES = ["Critical", "Major", "Moderate", "Low", "Trivial"]
 MARKER = {"Critical": "🔴", "Major": "🟠", "Moderate": "🟡", "Low": "🟢", "Trivial": "⚪"}
 REQUIRED_SEVERITIES = {"Critical", "Major", "Moderate"}
 CATEGORIES = ["Bug", "Security", "Accessibility", "UI/UX", "Code Quality", "Performance",
-              "Docs", "Test coverage", "Conflict"]
+              "Docs", "Test coverage"]
 SCORES = {50, 75, 100}
+SCOPE_MAX_CHARS = 100
 LABELS = {"PR state", "PR body", "PR files", "CI"}
 CONFIDENCE = {"High", "Medium", "Low"}
 AFFECTED_MAX_WORDS = 45
@@ -213,18 +214,25 @@ def validate(ctx, fd):
     if fd.get("schema_version") != 1:
         c.err("schema_version", "must be 1")
     known = {"schema_version", "summary", "confidence", "findings", "process", "process_overrides",
-             "overview", "qa", "provenance_extra", "index_affected", "fixed_since", "dismissed"}
+             "overview", "qa", "provenance_extra", "index_affected", "fixed_since", "dismissed", "scope"}
     for k in fd:
         if k not in known:
             c.err(k, f"unknown key (allowed: {', '.join(sorted(known))})")
+    if fd.get("scope") is not None:
+        sc = c.text(fd, "scope", "", single_line=True)
+        if sc and len(sc) > SCOPE_MAX_CHARS:
+            c.err("scope", f"{len(sc)} characters — one short line, about {SCOPE_MAX_CHARS} at most")
     if update:
         c.text(fd, "fixed_since", "")
     else:
         c.text(fd, "summary", "")
     if not update and fd.get("confidence") not in CONFIDENCE:
         c.err("confidence", f"{fd.get('confidence')!r} not one of {sorted(CONFIDENCE)}")
+    prec_repo = quotes.Repo(ctx)
     for i, f in enumerate(fd.get("findings") or []):
         c.item(f, f"findings[{i}]", scored=True)
+        if isinstance(f, dict):
+            quotes.check_precedent(prec_repo, f.get("precedent"), f"findings[{i}].precedent", c.errors)
     for i, f in enumerate(fd.get("process") or []):
         c.item(f, f"process[{i}]", scored=False)
     ids = {p["id"] for p in ctx.get("process", [])}
@@ -337,8 +345,10 @@ def layout(ctx, fd, start=None, ctx_process=True):
         for k in ("issue", "title", "explanation", "fix"):
             f[k] = resolve_refs(f[k], nums)
     fd["_nums"] = nums
-    if req:
+    if any(not f.get("precedent") for f in req):
         rec = "Request Changes"
+    elif req:  # every Required Change is an existing pattern or deferred by a maintainer
+        rec = "Approve — team call first"
     elif procs:
         rec = "Approve — process to-dos first"
     else:
@@ -349,6 +359,20 @@ def layout(ctx, fd, start=None, ctx_process=True):
 def recommendation_md(rec):
     return {"Request Changes": "🔴 Request Changes", "Approve with nits": "🟢 Approve with nits",
             "Approve": "🟢 Approve"}.get(rec, rec)
+
+
+def before_merge(req, procs, scope):
+    """The verdict's short list: blockers, team calls (Required Changes with a precedent tag), process to-dos."""
+    must = [f["n"] for f in req if not f.get("precedent")]
+    team = [f["n"] for f in req if f.get("precedent")]
+    L = []
+    if must:
+        L.append(f"- **Must fix before merge**{f' ({scope.strip()})' if scope else ''}: {', '.join(must)}")
+    if team:
+        L.append(f"- **Team call** (existing pattern or deferred by a maintainer): {', '.join(team)}")
+    if procs:
+        L.append(f"- **Process:** {', '.join(f['n'] for f in procs)}")
+    return L + [""] if L else []
 
 
 def verdict_index(rec, req, procs, imp):
@@ -362,8 +386,7 @@ def verdict_index(rec, req, procs, imp):
         parts.append(f"{plural(len(req) + len(procs), 'Required Change')} ({markers})")
     if imp:
         parts.append(plural(len(imp), "Improvement"))
-    head = "Verdict: " + ("Approve" if rec.startswith("Approve") and not procs else
-                          "Approve — process to-dos first" if not req else "Request Changes")
+    head = "Verdict: " + (rec if rec == "Request Changes" or rec.startswith("Approve — ") else "Approve")
     return head + " — " + ", ".join(parts)
 
 
@@ -376,13 +399,29 @@ def findings_section(heading, items, scored_cols=True):
     rows = []
     for f in items:
         sev = f"{MARKER[f['severity']]} {f['severity']}" if f.get("severity") else "—"
-        rows.append([f["n"], sev, f["category"], cell(f["issue"].strip()), cell(fmt_location(f["location"].strip()))])
-    out += [table(["#", "Severity", "Category", "Issue", "Location"], rows), "",
+        rows.append([f["n"], sev, f["category"], precedent_cell(f.get("precedent")), cell(f["issue"].strip()),
+                     cell(fmt_location(f["location"].strip()))])
+    out += [table(["#", "Severity", "Category", "Precedent", "Issue", "Location"], rows), "",
             "<details><summary><strong>Explanation &amp; Fix</strong></summary>", ""]
     for f in items:
         out += [f"**{f['n']} — {f['title'].strip()}** · {f['category']} · {fmt_location(f['location'].strip())}",
-                f["explanation"].strip(), f"_Fix:_ {f['fix'].strip()}", ""]
+                f["explanation"].strip()] + precedent_line(f.get("precedent")) + [f"_Fix:_ {f['fix'].strip()}", ""]
     return out + ["</details>", ""]
+
+
+def precedent_cell(p):
+    """The table tag: existing pattern in merged code, deferred by a maintainer, or none."""
+    if not p:
+        return "—"
+    return "existing code" if p["kind"] == "existing" else f"[deferred]({p['ref']})"
+
+
+def precedent_line(p):
+    if not p:
+        return []
+    if p["kind"] == "existing":
+        return [f"_Precedent:_ the same pattern is already in merged code — `{p['ref']}`."]
+    return [f"_Precedent:_ a maintainer accepted or deferred the same point — [discussion]({p['ref']})."]
 
 
 def short(text, limit):
@@ -410,6 +449,17 @@ def dismissed_section(items):
             table(["Score", "Candidate", "Location", "Why"], rows), "", "</details>", ""]
 
 
+def reviewed_line(ctx):
+    """'Reviewed at head … · base … · time' — which code the findings hold for."""
+    p = ctx["pr"]
+    ts = ctx.get("generated_at") or ""
+    when = f"{ts[:10]} {ts[11:16]} UTC" if len(ts) >= 16 else ctx.get("today", "")
+    head = f"[`{p['head']['short']}`]({p['url']}/commits/{p['head']['oid']})"
+    base_oid = (p.get("base") or {}).get("oid") or ""
+    base = f"`{p['base']['ref']}`" + (f" at `{base_oid[:8]}`" if base_oid else "")
+    return f"_Reviewed at head {head} · base {base} · {when}_"
+
+
 def fold(summary, body):
     return ["<details>", f"<summary><strong>{summary}</strong></summary>", "", body.strip(), "", "</details>", ""]
 
@@ -428,9 +478,11 @@ def render(ctx, fd, today):
     if f["base_not_main"]:
         L += [f"> **Base branch is `{p['base']['ref']}`, not `main`.**", ""]
     L += ["---", "", f"## PR Review Report by [{SKILL}]({SKILL_URL})", "",
+          reviewed_line(ctx), "",
           "### ⚖️ &nbsp; Verdict", "",
-          f"Recommendation: **{recommendation_md(rec)}** {NBSP4} Confidence to Merge: **{fd['confidence']}**", "",
-          resolve_refs(fd["summary"].strip(), fd["_nums"]), ""]
+          f"Recommendation: **{recommendation_md(rec)}** {NBSP4} Confidence to Merge: **{fd['confidence']}**", ""]
+    L += before_merge(req, procs, fd.get("scope"))
+    L += [          resolve_refs(fd["summary"].strip(), fd["_nums"]), ""]
     L += findings_section("### 🔧 &nbsp; Required Changes", req + procs)
     L += findings_section("### 💡 &nbsp; Improvements", imp)
     nums = fd["_nums"]
@@ -566,11 +618,15 @@ def render_update(ctx, fd, today, report_text):
     req, procs, imp, rec = layout(ctx, fd, start=used_numbers(base_text), ctx_process=False)
     nums = fd["_nums"]
     ov = {k: resolve_refs(v, nums) for k, v in (fd.get("overview") or {}).items() if v}
-    L = [f"## Update — {today}, head `{short}`", "", "### What changed", "", ov["what"].strip(), ""]
+    L = [f"## Update — {today}, head `{short}`", "", reviewed_line(ctx), "",
+         "### What changed", "", ov["what"].strip(), ""]
     for k in ("how", "affects"):
         if ov.get(k):
             L += [ov[k].strip(), ""]
     L += ["### Fixed since last analysis", "", resolve_refs(fd["fixed_since"].strip(), nums), ""]
+    bm = before_merge(req, procs, fd.get("scope"))
+    if bm:
+        L += ["### Before merge", ""] + bm
     L += findings_section("### 🔧 &nbsp; Required Changes", req + procs)
     L += findings_section("### 💡 &nbsp; Improvements", imp)
     block = re.sub(r"\n{3,}", "\n\n", "\n".join(L)).rstrip() + "\n"

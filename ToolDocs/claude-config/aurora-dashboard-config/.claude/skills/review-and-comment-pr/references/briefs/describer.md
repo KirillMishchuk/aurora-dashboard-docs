@@ -24,6 +24,8 @@ Search the whole tree, not just `*.ts`/`*.tsx`: `packages/aurora/README.md` is t
 
 **Acceptance criteria.** {{acceptance}}
 
+**Scope.** If `pr-body.md` (or the linked issue) limits this PR to part of an epic or issue — a phase, "read-only part of #N", "list and details only" — put that in `scope` as one short line: the epic/issue number and the part, e.g. `#816 — Phase 1, read-only`. Take it from what the description or issue says, not from what the diff happens to contain. Otherwise `null`.
+
 ## Result shape
 
 ```json
@@ -42,7 +44,8 @@ Search the whole tree, not just `*.ts`/`*.tsx`: `packages/aurora/README.md` is t
   ],
   "stale_callers": [
     { "symbol": "name", "location": "path:line", "note": "what's stale" }
-  ]
+  ],
+  "scope": "#816 — Phase 1, read-only, or null"
 }
 ```
 

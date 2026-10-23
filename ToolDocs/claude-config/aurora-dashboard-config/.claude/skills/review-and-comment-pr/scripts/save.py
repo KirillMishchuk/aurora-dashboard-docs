@@ -27,7 +27,7 @@ LABELS = {"PR body", "PR state", "PR files", "CI"}
 SCORES = {0, 25, 50, 75, 100}
 SEVERITIES = ["Critical", "Major", "Moderate", "Low", "Trivial"]
 CATEGORIES = ["Bug", "Security", "Accessibility", "UI/UX", "Code Quality", "Performance", "Docs",
-              "Test coverage", "Conflict"]
+              "Test coverage"]
 STATUSES = {"met", "partly met", "unmet", "out of scope"}
 CHECK = {"violated", "not violated"}
 
@@ -127,7 +127,7 @@ def check_scores(name, data, repo, run_dir):
     seen = set()
     for i, s in enumerate(data["scores"]):
         w = f"scores[{i}]"
-        if not keys(errors, s, {"id", "score", "severity", "category", "location", "reason", "same_as"}, w):
+        if not keys(errors, s, {"id", "score", "severity", "category", "location", "reason", "same_as", "precedent"}, w):
             continue
         cid = s.get("id")
         if cid not in mine:
@@ -158,6 +158,11 @@ def check_scores(name, data, repo, run_dir):
             loc = text(errors, s, "location", w)
             if loc:
                 location(repo, loc, f"{w}.location", errors)
+            if "precedent" not in s:
+                errors.append(f"{w}.precedent: required for a score of 50 or more — null, or "
+                              "{\"kind\": \"existing\" | \"deferred\", \"ref\": …}")
+            else:
+                quotes.check_precedent(repo, s["precedent"], f"{w}.precedent", errors)
     missing = [c for c in mine if c not in seen]
     if missing:
         errors.append(f"not scored: {', '.join(missing)} — every candidate of the batch exactly once")
@@ -210,7 +215,7 @@ def check_factcheck(data, ctx, run_dir):
 
 def check_describer(data, repo):
     errors = []
-    if not keys(errors, data, {"overview", "qa", "acceptance", "stale_callers"}, "describer"):
+    if not keys(errors, data, {"overview", "qa", "acceptance", "stale_callers", "scope"}, "describer"):
         return errors
     ov = data.get("overview")
     if keys(errors, ov or {}, {"what", "how", "affects"}, "overview"):
@@ -238,6 +243,10 @@ def check_describer(data, repo):
                 text(errors, a, "evidence", w)
                 if a.get("status") not in STATUSES:
                     errors.append(f"{w}.status: {a.get('status')!r} not one of {sorted(STATUSES)}")
+    if data.get("scope") is not None:
+        sc_ = text(errors, data, "scope", "describer")
+        if sc_ and ("\n" in sc_.strip() or len(sc_) > 100):
+            errors.append("describer.scope: one short line (about 100 characters at most), or null")
     sc = data.get("stale_callers", [])
     if not isinstance(sc, list):
         errors.append("stale_callers: must be a list")

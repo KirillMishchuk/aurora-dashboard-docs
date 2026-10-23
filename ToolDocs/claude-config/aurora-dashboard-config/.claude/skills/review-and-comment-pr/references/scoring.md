@@ -60,8 +60,10 @@ not a finding).
 **Precedent rule.** A maintainer declining the same change on another PR,
 or the same pattern already existing elsewhere in the code, never lowers
 the score of a verified issue — this PR adds new code, and the standards
-apply to it. Put the precedent in the reason instead, so the reader knows
-to expect pushback. (Lines this PR didn't touch are still "pre-existing"
+apply to it. Tag it instead — `precedent` in your result (`existing`:
+the pattern is in merged code, `ref` its `path:line` at `<baseRefOid>`;
+`deferred`: a maintainer accepted or postponed it, `ref` the comment's
+URL) — so the reader sees at a glance where to expect pushback. (Lines this PR didn't touch are still "pre-existing"
 and score low — see "Usual false positives".)
 
 **Usual false positives** — give these 0–25, so they stay out of the
@@ -84,8 +86,7 @@ scale with its marker:
 - 🟠 **Major**: breaks a feature or hides data users expect, with no easy
   workaround.
 - 🟡 **Moderate**: noticeable but bounded — degraded UX, an accessibility
-  gap, duplicate requests, a merge conflict with another open PR, a broken
-  project rule with a visible effect.
+  gap, duplicate requests, a broken project rule with a visible effect.
 - 🟢 **Low**: cosmetic, wording, a rule violation users rarely notice.
 - ⚪ **Trivial**: a nit with no user-facing effect (import order, a
   contradicted JSDoc on a rarely-hit path).
@@ -105,7 +106,6 @@ concrete reason, and name it in the reason.
 | No pagination, and the reference gives a finite default page size | 🟡 Moderate |
 | No pagination, and the API returns everything by default | 🟢 Low |
 | The same data fetched twice (e.g. loader + `useQuery`) | 🟡 Moderate |
-| `Conflict` — merge conflict with, or work duplicated in, another open PR | 🟡 Moderate |
 | State the standards want in the URL (tab, filter) kept in `useState` | 🟢 Low |
 | 401/403 handled inline instead of redirect / page-level message | 🟢 Low |
 | Quick Reject UI rules (raw HTML element, all-caps, "Please", import order) | 🟢 Low or ⚪ Trivial |
@@ -115,9 +115,9 @@ concrete reason, and name it in the reason.
 ## Category — for every issue scored 50 or more
 
 Exactly one kind: `Bug`, `Security`, `Accessibility`, `UI/UX`,
-`Code Quality`, `Performance`, `Docs`, `Test coverage`, or `Conflict`
-(a merge conflict with `main` or another open PR — changesets included —
-or the same work duplicated in another open PR). (Process items —
+`Code Quality`, `Performance`, `Docs`, or `Test coverage`. Merge
+conflicts — with `main` or other open PRs — are not findings: GitHub and
+CI show them. (Process items —
 draft, description-vs-code mismatch, missing changeset, unlinked issue —
 are tagged `Process`; they come from Steps 1–2, not the scorer.)
 

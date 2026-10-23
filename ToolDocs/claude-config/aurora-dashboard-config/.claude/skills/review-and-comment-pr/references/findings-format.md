@@ -54,6 +54,7 @@ assemble.py too; leave it out on a release PR.
       "category": "Bug",
       "issue": "`list` sends `project_id` to Neutron, so shared networks are hidden",
       "location": "packages/aurora/src/server/Network/routers/networksRouter.ts:39",
+      "precedent": null,
       "title": "`list` filters by `project_id`, hiding shared and external networks",
       "explanation": "What's wrong, where, what it leads to — Markdown, excerpts allowed.",
       "fix": "One or two sentences; a code block only when it clarifies."
@@ -76,14 +77,19 @@ assemble.py too; leave it out on a release PR.
   🟢 Low / ⚪ Trivial into Improvements (`I1…`).
   - `severity`: `Critical`, `Major`, `Moderate`, `Low` or `Trivial`.
   - `category`: exactly one of `Bug`, `Security`, `Accessibility`, `UI/UX`,
-    `Code Quality`, `Performance`, `Docs`, `Test coverage`, `Conflict`.
+    `Code Quality`, `Performance`, `Docs`, `Test coverage`.
   - `issue`: the table cell — one line, about 120 characters at most.
   - `title`: the bold heading in "Explanation & Fix" — one line.
   - `location`: a full repo-relative `path:line` or `path:from-to` that
     exists at `<headRefOid>` (render.py checks it), or one of `PR state`,
     `PR body`, `PR files`, `CI`. Never shortened with `…/`.
-  - `explanation`: what's wrong, where, what it leads to; precedent as
-    context if sibling code does the same; if the review discussion raised
+  - `precedent`: the scorer's tag, copied by assemble.py — `null`,
+    `{"kind": "existing", "ref": "<path:line at baseRefOid>"}` (same
+    pattern in merged code) or `{"kind": "deferred", "ref": "<GitHub
+    URL>"}` (a maintainer accepted or postponed it). render.py shows it as
+    the Precedent column and a `_Precedent:_` line; optional on a release PR.
+  - `explanation`: what's wrong, where, what it leads to (the precedent
+    is rendered from `precedent` — don't repeat it); if the review discussion raised
     it, who, where and what happened. Fold "no test covers this" in here
     instead of a separate finding.
   - `fix`: one or two sentences.
@@ -115,6 +121,10 @@ assemble.py too; leave it out on a release PR.
   e.g. `security-reviewer fallback used`.
 - **`index_affected`** — at most ~40 words, no verdict (render.py appends
   it).
+- **`scope`** (optional) — one short line naming the epic/issue and the
+  part this PR delivers (`#816 — Phase 1, read-only`), shown after "Must
+  fix before merge". assemble.py takes the describer's; put `scope` in
+  texts.json only to correct it (`null` drops it).
 
 ## Code and line citations
 

@@ -102,7 +102,9 @@ def compose(run_dir):
          "Write `texts.json` in the run folder (shape at the end), then run",
          "`python3 .claude/skills/review-and-comment-pr/scripts/assemble.py --run <run folder> --texts`",
          "and `render.py`. Scores, severity, category and location are the scorers' — don't change them.",
-         "Text rules, code placeholders and `[[ref:<id>]]` are in `references/findings-format.md`.", ""]
+         "Text rules, code placeholders and `[[ref:<id>]]` are in `references/findings-format.md`.",
+         "A finding's precedent (existing pattern / deferred) is the scorer's tag — render.py shows it; "
+         "don't repeat it in the explanation.", ""]
     if pairs:
         L += ["## Look alike — same problem?", "",
               "If a pair below is one problem, put `\"merge\": {\"<drop id>\": \"<keep id>\"}` in texts.json "
@@ -111,7 +113,9 @@ def compose(run_dir):
     L += ["## Findings", ""]
     for cid, k in keep.items():
         c, s = k["c"], k["s"]
-        L += [f"### `{ref(cid)}` — {s['severity']} · {s['category']} · `{s['location']}` · score {s['score']}",
+        p = s.get("precedent")
+        L += [f"### `{ref(cid)}` — {s['severity']} · {s['category']} · `{s['location']}` · score {s['score']}"
+              + (f" · precedent: {p['kind']} ({p['ref']})" if p else ""),
               f"- **Claim** ({c['source']}): {c['claim']}",
               f"- **Scorer:** {s['reason']}"]
         if c.get("precedent"):
@@ -133,7 +137,8 @@ def compose(run_dir):
         L += [f"- {a['status']}: {a['criterion']}" for a in desc["acceptance"]] + [""]
     if update:
         old = Path(ctx["report"]["path"]).read_text(encoding="utf-8")
-        rows = re.findall(r"^\| *((?:CR|P|I)\d+) *\| *([^|]*?) *\| *[^|]*\| *([^|]*?) *\| *([^|]*?) *\|$", old, re.M)
+        rows = re.findall(r"^\| *((?:CR|P|I)\d+) *\| *([^|]*?) *\| *[^|]*\|(?: *[^|]*\|)? *([^|]*?) *\| *([^|]*?) *\|$",
+                          old, re.M)  # 5 columns, or 6 with Precedent
         L += ["## Earlier findings (for `fixed_since`)", "",
               "From the existing report. Check each against the new commits' code only as far as the agents' "
               "results show; list the ones the new commits fixed, by number.", ""]
@@ -209,7 +214,7 @@ def build(run_dir):
     errors = []
     allowed = {"summary", "confidence", "index_affected", "fixed_since", "findings", "edge_cases", "merge",
                "provenance_extra",
-               "overview", "qa", "process", "process_overrides", "fixes"}
+               "overview", "qa", "process", "process_overrides", "fixes", "scope"}
     for k in t:
         if k not in allowed:
             errors.append(f"{k}: unknown key (allowed: {', '.join(sorted(allowed))})")
@@ -246,7 +251,8 @@ def build(run_dir):
             continue
         s = keep[cid]["s"]
         findings.append(dict({"id": rid, "score": s["score"], "severity": s["severity"], "category": s["category"],
-                              "location": s["location"]}, **{k: texts[rid][k] for k in TEXT_KEYS}))
+                              "location": s["location"], "precedent": s.get("precedent")},
+                             **{k: texts[rid][k] for k in TEXT_KEYS}))
     ov = dict((desc or {}).get("overview") or {}, **(t.get("overview") or {}))
     qa = dict((desc or {}).get("qa") or {}, **(t.get("qa") or {}))
     qa = {k: list(v) for k, v in qa.items()}
@@ -265,7 +271,8 @@ def build(run_dir):
     fd = {"schema_version": 1, "summary": t.get("summary", ""), "confidence": t.get("confidence", ""),
           "findings": findings, "process": t.get("process") or [], "process_overrides": t.get("process_overrides") or {},
           "overview": ov, "qa": qa, "provenance_extra": t.get("provenance_extra") or [],
-          "index_affected": t.get("index_affected", "")}
+          "index_affected": t.get("index_affected", ""),
+          "scope": t["scope"] if "scope" in t else (desc or {}).get("scope")}
     if update:
         fd["fixed_since"] = t["fixed_since"]
     else:  # what the scorers checked and dropped — shown in the report, never posted

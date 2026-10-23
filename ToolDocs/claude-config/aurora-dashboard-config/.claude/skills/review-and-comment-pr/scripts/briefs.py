@@ -46,7 +46,7 @@ NEAR_LINES = 3
 LABELS = {"PR body", "PR state", "PR files", "CI"}
 FINDERS = [("finder-a", "pr-reviewer", "Finder a — conventions"),
            ("finder-b", "pr-reviewer", "Finder b — bug scan"),
-           ("finder-c", "pr-reviewer", "Finder c — history and open PRs"),
+           ("finder-c", "pr-reviewer", "Finder c — history"),
            ("finder-d", "pr-reviewer", "Finder d — review discussion"),
            ("finder-e", "pr-reviewer", "Finder e — comment compliance"),
            ("finder-f", "external-api-checker", "Finder f — external API contract"),
@@ -71,22 +71,6 @@ def bullets(items):
     return "\n".join(f"- {x}" for x in items) or "- (none)"
 
 
-def overlaps(ctx):
-    out = []
-    for o in ctx.get("overlapping_prs") or []:
-        s = f"#{o['number']} {o['title']} — head `{o['head_oid']}`, {len(o['shared_files'])} shared file(s), merge: {o['merge']}"
-        if o.get("conflicts_only_generated"):
-            s += " (generated/catalog files only — not a candidate)"
-        elif o.get("conflict_files"):
-            gen = re.compile(r"(^|/)(locales/[^/]+/messages\.(ts|js|po)|routeTree\.gen\.ts)$")
-            real = [x for x in o["conflict_files"] if not gen.search(x)]
-            s += " in " + ", ".join(f"`{x}`" for x in real)
-            if len(real) < len(o["conflict_files"]):
-                s += f" (+{len(o['conflict_files']) - len(real)} generated/catalog)"
-        out.append(s)
-    return bullets(out) if out else "- none"
-
-
 def variables(ctx, run):
     p, f, rep = ctx["pr"], ctx["flags"], ctx["report"]
     issue = ctx.get("issue") or {}
@@ -109,7 +93,6 @@ def variables(ctx, run):
         "number": str(p["number"]), "run": run, "head": p["head"]["oid"], "base": p["base"]["oid"],
         "issue_files": issue_files, "scope": scope, "acceptance": acceptance,
         "claude_md": (ctx.get("standards") or {}).get("claude_md", "CLAUDE.md"),
-        "overlaps": overlaps(ctx),
         "finder_f_files": bullets(f"`{x}`" for x in f["finder_f"]["files"]),
     }
 
@@ -164,18 +147,6 @@ def collect_candidates(run_dir, repo):
         if f.exists():
             for c in json.loads(f.read_text(encoding="utf-8"))["candidates"]:
                 cands.append(dict(c, source=name))
-    gen = re.compile(r"(^|/)(locales/[^/]+/messages\.(ts|js|po)|routeTree\.gen\.ts)$")
-    ctx = json.loads((run_dir / "context.json").read_text(encoding="utf-8"))
-    for o in ctx.get("overlapping_prs") or []:  # a conflict collect.py proved — not left to finder c's recall
-        if o.get("merge") != "conflicts" or o.get("conflicts_only_generated"):
-            continue
-        real = [x for x in o.get("conflict_files") or [] if not gen.search(x)]
-        cands.append({"claim": f"Merge conflict with open PR #{o['number']} ({o['title']}) in "
-                               + ", ".join(f"`{x}`" for x in real) + ".",
-                      "location": "PR files",
-                      "evidence": f"`git merge-tree --write-tree --name-only {ctx['pr']['head']['oid']} {o['head_oid']}` "
-                                  "reports conflicts in: " + ", ".join(f"`{x}`" for x in o.get("conflict_files") or []),
-                      "source": "collect.py (merge-tree)"})
     f = run_dir / "out" / "describer.json"
     if f.exists():
         d = json.loads(f.read_text(encoding="utf-8"))

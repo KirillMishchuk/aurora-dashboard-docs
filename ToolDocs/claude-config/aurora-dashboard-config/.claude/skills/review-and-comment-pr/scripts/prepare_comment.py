@@ -78,12 +78,14 @@ def main():
     except Exception:
         login = "? (gh not available)"
     verdict = re.search(r"^Recommendation:.*$", body, re.M)
+    reviewed = re.search(r"^_Reviewed at .*_$", body, re.M)
     counts = {k: len(re.findall(rf"^\| *{k}\d+ *\|", body, re.M)) for k in ("CR", "P", "I")}
     links = sorted(set(re.findall(r"https?://[^\s)>\]]+", body)))
 
     print(f"Comment file: {out} ({len(body)} chars, {body.count(chr(10))} lines)")
     print(f"Post as: @{login}")
     print(f"Verdict: {verdict.group(0) if verdict else '(no Recommendation line)'}")
+    print(f"Reviewed: {reviewed.group(0).strip('_') if reviewed else '(no Reviewed line — older report)'}")
     print(f"Findings: {counts['CR']} Required Changes, {counts['P']} Process, {counts['I']} Improvements")
     print("Sections: " + " | ".join(re.findall(r"^#{2,3} +(.+)$", body, re.M)))
     print("Links:\n" + ("\n".join("  " + l for l in links) if links else "  none"))
