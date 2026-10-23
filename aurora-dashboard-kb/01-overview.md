@@ -50,7 +50,7 @@ aurora-dashboard/
 │   └── config/                # shared tsconfig + eslint config
 ├── docs/                      # architecture overview, semantic release docs
 ├── docker/                    # Dockerfile (node:24-alpine, runs pnpm preview)
-├── .claude/                   # personal, NOT in origin/main — agents (dev-planner, dev-executor, architecture/security/performance reviewers) + skills (create-plan, implement-plan, create-pr, document-pr, update-kb, triple-review, quick-security-check, rework-commits, speckit-*); see 04-development-workflow.md
+├── .claude/                   # personal, NOT in origin/main — agents (dev-planner, dev-executor, architecture/security/performance reviewers) + skills (create-plan, implement-plan, create-pr, review-and-comment-pr, update-kb, triple-review, quick-security-check, rework-commits, speckit-*); see 04-development-workflow.md
 ├── .github/workflows/         # ci-checks, release (changesets), PR preview, codeql, reuse, stale
 ├── PERMISSION_KEY_PATTERN.md          # scope:resource:action permission key convention
 └── PERMISSION_ROUTER_IMPLEMENTATION.md # permission router factory reference

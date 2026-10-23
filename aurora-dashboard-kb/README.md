@@ -21,7 +21,7 @@ It is intended for two readers: Kiryl (planning, reference, refreshing context) 
 
 Files 01–05 themselves are written in English — the language of the codebase, commits and upstream documentation.
 
-`prs/` is a separate folder with reviews of specific PRs (one file per PR), which 01–05 link to as needed (`prs/<number>-<slug>.md`). It is not a standalone section of the index — read them via the links from the main file, not directly from this page. New reports are written by the `document-pr` skill; the update procedure (below) only refreshes the status of existing ones.
+`prs/` is a separate folder with reviews of specific PRs (one file per PR), which 01–05 link to as needed (`prs/<number>-<slug>.md`). It is not a standalone section of the index — read them via the links from the main file, not directly from this page. New reports are written by the `review-and-comment-pr` skill (older ones by the retired `document-pr`); the update procedure (below) only refreshes the status of existing ones.
 
 ## Using the knowledge base with Claude
 

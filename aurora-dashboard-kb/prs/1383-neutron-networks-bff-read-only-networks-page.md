@@ -1,6 +1,6 @@
 ---
 type: pr-report
-date: 2026-10-21
+date: 2026-10-23
 status: open
 pr: [1383]
 issue: [1019]
@@ -21,164 +21,120 @@ branch: hoda-aurora-network
 
 Recommendation: **🔴 Request Changes** &nbsp;&nbsp;&nbsp;&nbsp; Confidence to Merge: **Medium**
 
-The BFF is project-scoped and validates IDs. CI is green on `0a594e9e`, and the security review found nothing. The client closely follows the Routers pattern. Since the earlier review comments, the nav test fix and the merge of `main` have landed.
-
-Two server-side problems block the merge:
-- **Shared and external networks are missing from the list.** The `list` procedure forwards the scoped `project_id` to Neutron as a filter, so Neutron returns only networks the project owns.
-- **The list is never paginated.** Only the first Neutron page is read.
-
-The PR also overlaps the open #1385 (same feature) and conflicts with Ports #1377. It is still a draft and has no changeset.
-
-Acceptance was graded against the Phase 1 read scope of epic #1019, which the PR links. Most of it is delivered. Still missing: the Status and Shared list filters, and any unit tests.
+A draft that adds a read-only Neutron Networks BFF (`list`, `getById`, subnets) and a Networks list and detail page behind a new `networks` nav key. CI is green, but one bug blocks the merge: `list` forwards `project_id` to Neutron, so shared and external networks the user can see are hidden (CR1). The PR also duplicates the open draft #1385 (CR3), which needs settling before either one merges. Against issue #1019 the PR meets 2 of 8 acceptance criteria, partly meets 4, leaves the permission criterion out of scope and doesn't meet the testing one (no tests for the router, helpers or components). The rest are client-side standards nits.
 
 ### 🔧 &nbsp; Required Changes
 
-| #   | Severity    | Category     | Issue                                                                                     | Location                                                                                                     |
-| --- | ----------- | ------------ | ----------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
-| CR1 | 🟠 Major    | Bug          | `list` sends `project_id` to Neutron as a filter, so shared and external networks are hidden | `packages/aurora/src/server/Network/routers/networksRouter.ts:39`                                            |
-| CR2 | 🟡 Moderate | Bug          | List reads a single Neutron page: no `limit`/`marker`, `networks_links` ignored            | `packages/aurora/src/server/Network/routers/networksRouter.ts:42`                                            |
-| CR3 | 🟡 Moderate | Performance  | Details page fetches the network twice (loader + `useQuery`)                              | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/$networkId.tsx:122`                                                                    |
-| CR4 | 🟡 Moderate | UI/UX        | 401/403 handled inline instead of via redirect / page-level info `Message`                | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworksList.tsx:42`                                                       |
-| CR5 | 🟡 Moderate | UI/UX        | Active detail tab kept in `useState` instead of a `tab` search param                      | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkDetailsView.tsx:109`                                                |
-| CR6 | 🟡 Moderate | Code Quality | Conflicts with open PRs #1385 (same feature) and #1377 (Ports)                            | PR state                                                                                                     |
-| CR7 | 🟡 Moderate | UI/UX        | Epic Phase 1 list filters for Status and Shared are not in the UI                         | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/index.tsx:9`                                                                           |
-| P1  | —           | Process      | PR is still a draft                                                                       | PR state                                                                                                     |
-| P2  | —           | Process      | No changeset, though `packages/aurora/src` changes                                        | `.changeset/`                                                                                                |
+| #   | Severity    | Category    | Issue                                                                                              | Location                                                                                          |
+| --- | ----------- | ----------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| CR1 | 🟠 Major    | Bug         | `networks.list` sends `project_id` to Neutron, so shared and external networks are hidden          | `packages/aurora/src/server/Network/routers/networksRouter.ts:42`                                 |
+| CR2 | 🟡 Moderate | Performance | Detail page fetches the same network twice (loader `getById.query` + component `getById.useQuery`) | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/$networkId.tsx:124` |
+| CR3 | 🟡 Moderate | Conflict    | Duplicates open draft PR #1385 (same Networks BFF + pages); 9 non-generated files conflict         | PR files                                                                                          |
+| P1  | —           | Process     | PR is still a draft                                                                                | PR state                                                                                          |
+| P2  | —           | Process     | Published package code changed without a `.changeset/*.md`                                         | PR files                                                                                          |
 
 <details><summary><strong>Explanation &amp; Fix</strong></summary>
 
-**CR1 — `project_id` forwarded to Neutron hides shared and external networks** · Bug · `packages/aurora/src/server/Network/routers/networksRouter.ts:39`
-`NetworkQueryParametersSchema` extends `projectScopedInputSchema`, and the `projectScopedProcedure` middleware reads `project_id` without removing it from `input`. The handler takes out only `searchTerm` and `status`:
+**CR1 — `list` filters by `project_id`, hiding shared and external networks** · Bug · `packages/aurora/src/server/Network/routers/networksRouter.ts:42`
+`list` takes out only `searchTerm` and `status` from its input, so `project_id` (required by `projectScopedInputSchema`, `packages/aurora/src/server/trpc.ts:144`) stays in `openstackFilters` and goes to Neutron as a query filter at `packages/aurora/src/server/Network/routers/networksRouter.ts:42`. The [Neutron list-networks reference](https://docs.openstack.org/api-ref/network/v2/#list-networks) says the default policy returns the project's own networks *and* networks shared with it. With `project_id=<id>` in the query, only owned networks come back. Shared tenant networks and external/provider networks owned by another project (usually the ones users attach to) never show up in the list.
 
-```ts
-const { searchTerm, status, ...openstackFilters } = input
-const network = getNetworkService(ctx)
+The security-group router already solves the same problem: `packages/aurora/src/server/Network/routers/securityGroupRouter.ts:83` fetches own (`project_id`, `shared: false`) and `packages/aurora/src/server/Network/routers/securityGroupRouter.ts:84` fetches shared (`shared: true`), then merges them. The comment at `packages/aurora/src/server/Network/routers/securityGroupRouter.ts:82` explains why simply dropping `project_id` is wrong too: an admin token would then get every project's resources (#1321). No test covers what `list` sends.
+_Fix:_ Follow `securityGroupRouter`: fetch owned (`project_id`, `shared=false`) and shared (`shared=true`) networks (plus `router:external=true` if external networks should be listed), merge them by `id`, and add a router test that checks the query parameters.
 
-const queryParams = appendQueryParamsFromObject(openstackFilters)
-```
+**CR2 — The network is fetched twice on every detail visit** · Performance · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/$networkId.tsx:124`
+The `$networkId` loader calls `network.networks.getById.query` at `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/$networkId.tsx:124`, but uses the result only for the page title. `RouteComponent` then requests the same input again through `trpcReact.network.networks.getById.useQuery`, so every detail visit makes two identical requests. copilot-instructions A.3 asks for page-critical data to come from the loader.
+_Fix:_ Return the network from the loader and read it with `Route.useLoaderData()`, or seed the query cache from the loader (`ensureQueryData`) so `useQuery` doesn't refetch.
 
-`appendQueryParamsFromObject` (`packages/aurora/src/server/helpers/queryParams.ts:33-41`) appends every string key. The request therefore becomes `GET v2.0/networks?project_id=<id>&sort_key=…`. Neutron filters on any top-level attribute, so networks that are shared with the project or external (owned elsewhere) drop out.
+**CR3 — Same work as open draft PR #1385** · Conflict · PR files
+Open draft #1385 adds the same Neutron Networks BFF and read-only list/detail pages: `networksRouter.ts`, `types/network.ts`, `networkHelpers.ts`, `NetworksList.tsx`, `NetworkDetailsView.tsx`, the routes and the nav entry. Whichever PR merges second runs into real conflicts in 9 non-generated files. #1385 also has a changeset, a design doc (`docs/0017_networks_bff.md`) and tests for the router, helpers, types and components, all of which this PR lacks. Neither the PR body nor the discussion mentions #1385.
+_Fix:_ Agree with the author of #1385 which PR goes forward, and close the other or reduce it to whatever it adds on top.
 
-The UI has a Shared column and an External field, but it can only ever show the project's own networks. The empty state then reads "There are no networks in this project." (`NetworkListContainer.tsx:92`), and the user can't tell anything is missing. Existing code already guards against this: `floatingIpRouter.ts:182` calls `appendQueryParamsFromObject(omit(input, "project_id"))`. No test covers the query string.
+**P1 — PR is still a draft** · Process · PR state
+The PR is marked as a draft, so the author doesn't consider it ready to merge yet.
+_Fix:_ Mark it ready for review once the Required Changes are addressed.
 
-_Fix:_ Drop `project_id` from the filters (`omit(…, "project_id")`, as in `floatingIpRouter.ts:182`) and let Neutron's policy decide visibility under the project-scoped token. Add a router test that asserts the outgoing URL.
-
-**CR2 — List reads only the first Neutron page** · Bug · `packages/aurora/src/server/Network/routers/networksRouter.ts:42`
-`list` makes one `GET v2.0/networks` call and parses it with `NetworkListResponseSchema = z.object({ networks: z.array(NetworkSchema) })` (`types/network.ts:32`). The input schema (`types/network.ts:63`) has no `limit` or `marker`, and `networks_links` is never read.
-
-The [Neutron API reference](https://docs.openstack.org/api-ref/network/v2/index.html) (Pagination) says: "To reduce load on the service, list operations will return a maximum number of items at a time." On a deployment that caps page size, only the first page is returned. The BFF-side `searchTerm`/`status` filters (`networksRouter.ts:51`) and the client-side 50-row slicing (`NetworksList.tsx:82-84`) then work on that partial set, with no sign that anything is missing.
-
-Precedent: `routersRouter` doesn't paginate either. @KirylSAP (CR3) and @KirillMishchuk (CR1) raised this in the earlier review comments on this PR, and it is still unaddressed.
-
-_Fix:_ Follow `networks_links` `next` until it runs out, then filter and slice. Add a test with a two-page Neutron response.
-
-**CR3 — Network fetched twice on the details page** · Performance · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/$networkId.tsx:122`
-The loader awaits `context.trpcClient?.network.networks.getById.query(...)` (`:124`) only to get the page title. The component then calls `trpcReact.network.networks.getById.useQuery(...)` (`:149`) with the same input. The plain client doesn't populate the React Query cache. Every visit therefore makes two identical Neutron requests, and navigation waits for the first one.
-
-Precedent: `$routerId.tsx` does the same, and Copilot raised it on #1355. @KirillMishchuk raised it in the earlier review comment (CR4), and it is still unaddressed.
-
-_Fix:_ In the loader, prefetch through the query client (`queryClient.ensureQueryData` with the tRPC query key) so `useQuery` hits the cache. Alternatively, drop the loader fetch and set the title from the query result.
-
-**CR4 — 401/403 handled inline** · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworksList.tsx:42`
-On the list, a `FORBIDDEN` error is caught and turned into `listError: err.message`. That is rendered as `` <Status status="error" title={t`Failed to Load Networks`} body={listError} /> `` (`:102`): the raw server message, with no retry. On the details page, `UNAUTHORIZED` maps to the inline text "The session has expired. Log in again to continue." (`$networkId.tsx:66`), with no redirect to sign-in.
-
-`copilot-instructions.md` B.6 says: "**Reject** … a 401/403 handled inline instead of via redirect / page-level info `Message`". Precedent: Routers does the same, and the author declined this comment on #1355, so expect pushback. @KirillMishchuk raised it in the earlier review comment (CR3).
-
-_Fix:_ Let 401 go through the session-expiry redirect. Show 403 as a page-level info `Message` with the standard copy instead of the raw `err.message`.
-
-**CR5 — Active tab held in `useState`** · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkDetailsView.tsx:109`
-`const [activeTab, setActiveTab] = useState<NetworkDetailsTab>("overview")` loses the Subnets tab on reload, and the tab can't be linked. The Quick Reject Checklist lists "URL-worthy state held in `useState` instead of search params", and B.9 maps "Active tab → `tab`". Precedent: `RouterDetailsView.tsx:45` does the same.
-
-_Fix:_ Add `tab: z.enum(["overview", "subnets"]).optional()` to the `$networkId` route's `validateSearch`, and drive the tabs from it.
-
-**CR6 — Conflicts with open PRs** · Code Quality · PR state
-- **#1385** (open draft) implements the same Networks feature under the same route paths and router key. `git merge-tree` against its head `9ed42505` reports add/add conflicts in `$networkId.tsx`, `NetworkDetailsView.tsx`, `NetworkListContainer.tsx`, `NetworkTableRow.tsx`, `NetworksList.tsx` and `networks/index.tsx`. Only one of the two can land as is.
-- **Ports #1377** (head `8394081f`) conflicts in `buildNavSections.test.ts`, the four locale files and `Network/routers/index.ts`.
-
-`main` has not moved since this PR's base, so the PR itself merges cleanly into `main`. The #1386 overlap that earlier comments named is gone, because #1386 is now closed.
-
-_Fix:_ Decide between #1383 and #1385 before more review effort goes in. Agree a merge order with #1377, and keep both `ports` and `networks` in `routers/index.ts`.
-
-**CR7 — Status and Shared filters missing** · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/index.tsx:9`
-Epic #1019 Phase 1 asks for a "Networks List View with DataGrid, pagination, and filters (Name, Status, Shared)". The list route's search schema has only `search`, `sortBy`, `sortDirection` and `page` (`index.tsx:9-14`), and the toolbar offers search and sort only. The BFF already accepts `status` and `shared` (`types/network.ts:67`, `:72`), but nothing in the UI sends them. @KirillMishchuk raised it in the earlier review comment (I9).
-
-_Fix:_ Add Status and Shared filters to the toolbar and URL state, or note in the PR that they move to a follow-up.
-
-**P1 — PR is a draft** · Process · PR state
-The PR is still marked draft, and its description still has a screenshots TODO.
-_Fix:_ Mark it ready for review once the items above are addressed.
-
-**P2 — No changeset** · Process · `.changeset/`
-The PR changes published code in `packages/aurora/src` (new procedures, routes and a nav entry) but adds no `.changeset/*.md`, so the release workflow won't bump `@cobaltcore-dev/aurora`. Both earlier review comments raised this, and it is still open.
-_Fix:_ Run `pnpm changeset` and add a `minor` bump for the new Networks feature.
+**P2 — No changeset** · Process · PR files
+The PR changes published code under `packages/aurora/src` but adds no changeset, so the change gets no version bump or changelog entry.
+_Fix:_ Run `pnpm changeset`, pick the bump type and commit the generated `.changeset/*.md`.
 
 </details>
 
 ### 💡 &nbsp; Improvements
 
-| #   | Severity   | Category      | Issue                                                                          | Location                                                           |
-| --- | ---------- | ------------- | ------------------------------------------------------------------------------ | ------------------------------------------------------------------ |
-| I1  | 🟢 Low     | Code Quality  | Raw `<button>` for the Subnets-tab retry instead of Juno `Button`              | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkDetailsView.tsx:69`       |
-| I2  | 🟢 Low     | Code Quality  | `PopupMenu` without `PopupMenuToggle` as trigger                               | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkTableRow.tsx:56`          |
-| I3  | 🟢 Low     | UI/UX         | "Log in again" instead of "Sign in"                                            | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/$networkId.tsx:66`                           |
-| I4  | 🟢 Low     | UI/UX         | All-caps `UP` / `DOWN` strings for admin state                                 | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkTableRow.tsx:46`          |
-| I5  | 🟢 Low     | Bug           | `shared` accepted as a sort key, but Neutron doesn't support sorting by it      | `packages/aurora/src/server/Network/types/network.ts:61`           |
-| I6  | 🟢 Low     | Docs          | New `networks` service key missing from README / `.env.example` key lists      | `packages/aurora/README.md:183`                                    |
-| I7  | 🟢 Low     | UI/UX         | Project overview page has no Networks tile                                     | `packages/aurora/src/client/routes/_auth/projects/$projectId/index.tsx:87` |
-| I8  | 🟢 Low     | Code Quality  | Local `withQuery` duplicates the identical copy in `routersRouter.ts`          | `packages/aurora/src/server/Network/routers/networksRouter.ts:22`  |
-| I9  | 🟢 Low     | Test coverage | No unit tests for the new router, helpers or components                        | PR files                                                           |
-| I10 | ⚪ Trivial | Docs          | Comment says Neutron can't filter by `status`, but it can                      | `packages/aurora/src/server/Network/helpers/networkHelpers.ts:28`  |
-| I11 | ⚪ Trivial | Code Quality  | `zod` imported after the lingui imports                                        | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/index.tsx:4`                                 |
+| #   | Severity | Category      | Issue                                                                                                        | Location                                                                                                               |
+| --- | -------- | ------------- | ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------- |
+| I1  | 🟢 Low   | UI/UX         | 401/403 on the detail page render an inline error instead of a Sign-in redirect or a page-level info Message | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/$networkId.tsx:65`                       |
+| I2  | 🟢 Low   | UI/UX         | 401 copy says "Log in again to continue."; the writing rules require "Sign in"                               | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/$networkId.tsx:66`                       |
+| I3  | 🟢 Low   | Code Quality  | Raw `<button>` for "Try Again" in the subnets error state instead of Juno `Button`                           | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkDetailsView.tsx:69`   |
+| I4  | 🟢 Low   | Code Quality  | Active detail tab is kept in `useState`, not in the URL search params                                        | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkDetailsView.tsx:109`  |
+| I5  | 🟢 Low   | Accessibility | Row action `PopupMenu` has no `PopupMenuToggle` trigger                                                      | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkTableRow.tsx:56`      |
+| I6  | 🟢 Low   | UI/UX         | Network status is shown as plain text instead of a `Badge`                                                   | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkTableRow.tsx:43`      |
+| I7  | 🟢 Low   | UI/UX         | Admin state is shown as all-caps `UP` / `DOWN`                                                               | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkTableRow.tsx:46`      |
+| I8  | 🟢 Low   | UI/UX         | Labels "Created At" / "Updated At" capitalise the preposition                                                | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkDetailsView.tsx:132`  |
+| I9  | 🟢 Low   | Code Quality  | `useEffect` copies the `currentPage` prop into `inputPage` state                                             | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkListContainer.tsx:36` |
+| I10 | 🟢 Low   | Performance   | `list` ignores Neutron pagination (`limit`/`marker`, next links), so a capped deployment silently truncates  | `packages/aurora/src/server/Network/routers/networksRouter.ts:44`                                                      |
+| I11 | 🟢 Low   | Bug           | `NetworkSortKeySchema` allows `shared`, which isn't a documented Neutron network sort key                    | `packages/aurora/src/server/Network/types/network.ts:61`                                                               |
+| I12 | 🟢 Low   | Test coverage | No tests for the new router, helpers or components (issue #1019 asks for complete testing coverage)          | PR files                                                                                                               |
+| I13 | 🟢 Low   | UI/UX         | Project home page has no Networks card, though the sidebar now has a Networks entry                          | `packages/aurora/src/client/routes/_auth/projects/$projectId/index.tsx:87`                                             |
+| I14 | 🟢 Low   | Docs          | The new `networks` service key isn't documented in the README or `.env.example` key lists                    | `packages/aurora/README.md:183`                                                                                        |
 
 <details><summary><strong>Explanation &amp; Fix</strong></summary>
 
-**I1 — Raw `<button>`** · Code Quality · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkDetailsView.tsx:69`
-`` action={<button onClick={() => refetch()}>{t`Try Again`}</button>} `` violates the Quick Reject item "Raw HTML element (`<div>`, `<table>`, `<button>`) where a Juno component exists". The sibling `RouterInterfacesTable` uses Juno `Button` for the same retry. @KirylSAP (CR1) and @KirillMishchuk (I1) raised this earlier, and it is still unaddressed.
-_Fix:_ Use `` <Button onClick={() => refetch()}>{t`Try Again`}</Button> ``.
+**I1 — 401/403 handled inline on the detail page** · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/$networkId.tsx:65`
+`packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/$networkId.tsx:65` maps `FORBIDDEN` and `UNAUTHORIZED` to descriptions that `NetworkLoadError` shows in the page. copilot-instructions B.6 asks for a redirect to Sign-in on 401 and a page-level info Message on 403. The `_auth` layout checks the session too, so in practice this mostly matters for a token that expires mid-session.
+_Fix:_ On `UNAUTHORIZED`, redirect to Sign-in the way other routes do; on `FORBIDDEN`, show the page-level info Message.
 
-**I2 — `PopupMenu` without `PopupMenuToggle`** · Code Quality · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkTableRow.tsx:56`
-The row menu is `<PopupMenu><PopupMenuOptions>…`. That violates the Quick Reject item "`PopupMenu` without `PopupMenuToggle` as trigger". Juno 9.4.0 still renders its default toggle, so the menu works.
+**I2 — "Log in" wording in the 401 message** · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/$networkId.tsx:66`
+`packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/$networkId.tsx:66` reads "The session has expired. Log in again to continue." copilot-instructions B.19 and the Quick Reject list require "Sign in", not "Log in".
+_Fix:_ Change the string to use "Sign in" and re-extract the catalogs (`pnpm check-i18n`).
 
-Precedent: `RouterTableRow.tsx` does the same, and the author declined this comment on #1355, so expect pushback. Both earlier review comments raised it.
-_Fix:_ `<PopupMenuToggle as="div"><Button icon="moreVert" … /></PopupMenuToggle>` per B.14.
+**I3 — Raw `<button>` where Juno `Button` exists** · Code Quality · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkDetailsView.tsx:69`
+The subnets error `Status` at `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkDetailsView.tsx:69` uses a plain `<button onClick={() => refetch()}>`, so it gets no Juno styling or variant. copilot-instructions B.1 and the Quick Reject list reject raw HTML controls where a Juno equivalent exists. `$networkId.tsx` in this PR already uses Juno `Button`.
+_Fix:_ Use Juno `Button` (for example `variant="primary"`) with the same `onClick`.
 
-**I3 — "Log in again"** · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/$networkId.tsx:66`
-"The session has expired. Log in again to continue." violates the Quick Reject wording rule (`"Sign In"`/`"Log in"` → use `"Sign in"`). The sibling `$routerId.tsx` has the same text. This string goes away if CR4 is fixed with a redirect.
-_Fix:_ "Your session has expired. Sign in again to continue."
+**I4 — Detail tab is lost on refresh** · Code Quality · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkDetailsView.tsx:109`
+`packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkDetailsView.tsx:109` keeps the active tab in `useState`, so a refresh or a shared link always opens Overview. copilot-instructions B.9 lists "Active tab" as state that must live in the URL (`tab`).
+_Fix:_ Add a `tab` search param to the `$networkId` route's `validateSearch` and read and write it with `useSearch`/`navigate`.
 
-**I4 — All-caps strings** · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkTableRow.tsx:46`
-`` t`UP` `` / `` t`DOWN` `` appear here and at `NetworkDetailsView.tsx:117`. The Quick Reject Checklist bans all-caps strings, and B.19 says "Never all-caps (ever)". The sibling `RouterDetailsView` does the same.
-_Fix:_ Use `` t`Up` `` / `` t`Down` ``.
+**I5 — `PopupMenu` without the required `PopupMenuToggle`** · Accessibility · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkTableRow.tsx:56`
+`packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkTableRow.tsx:56` renders `<PopupMenu><PopupMenuOptions>` with the default toggle, and `PopupMenuToggle` isn't imported. copilot-instructions B.14 requires `<PopupMenuToggle as="div"><Button icon="moreVert" /></PopupMenuToggle>` as the trigger, for a consistent accessible button.
+_Fix:_ Wrap the trigger in `<PopupMenuToggle as="div"><Button icon="moreVert" /></PopupMenuToggle>`, as the other list rows do.
 
-**I5 — `shared` as sort key** · Bug · `packages/aurora/src/server/Network/types/network.ts:61`
-`NetworkSortKeySchema = z.enum(["name", "status", "admin_state_up", "shared"])` has the comment "Sort keys supported by Neutron". The [Neutron API reference](https://docs.openstack.org/api-ref/network/v2/index.html) (List networks) limits sort keys to `admin_state_up`, `availability_zone_hints`, `id`, `mtu`, `name`, `status`, `tenant_id` and `project_id`. Its Sorting section adds: "If an API request contains an unknown or unsupported sort key, the server will return a `400` response."
+**I6 — Status without a `Badge`** · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkTableRow.tsx:43`
+The list row at `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkTableRow.tsx:43` renders `network.status` as plain text, and the detail Overview at `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkDetailsView.tsx:116` does the same. copilot-instructions B.1 asks for status indicators to use `Badge`.
+_Fix:_ Render the status as a Juno `Badge` with a variant that matches the state (for example success for `ACTIVE`, danger for `ERROR`).
 
-The UI only offers Name and Status, so only direct API callers hit this.
-_Fix:_ Remove `shared` from the enum, or replace it with a documented key.
+**I7 — All-caps admin state strings** · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkTableRow.tsx:46`
+`packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkTableRow.tsx:46` and `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkDetailsView.tsx:117` translate `admin_state_up` as `` t`UP` `` / `` t`DOWN` ``. copilot-instructions B.19 says text is never all-caps.
+_Fix:_ Use "Up" / "Down" (or "Enabled" / "Disabled") in both places.
 
-**I6 — Service key not documented** · Docs · `packages/aurora/README.md:183`
-The service-key lists at `README.md:183` and `:210` and `apps/dashboard/.env.example:11-12` don't include `networks`. A host with an explicit `enabledServices` whitelist won't see the new nav entry (`buildNavSections.ts:60`) unless it knows the key. `routers` is missing from those lists too, so this follows existing precedent. @KirillMishchuk raised it earlier (I8).
-_Fix:_ Add `"networks"` (and `"routers"`) to the README and `.env.example` key lists.
+**I8 — Title case: "Created At" / "Updated At"** · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkDetailsView.tsx:132`
+`packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkDetailsView.tsx:132` and the next line use `` t`Created At` `` and `` t`Updated At` ``. copilot-instructions B.19 keeps short prepositions like "at" lowercase in title case.
+_Fix:_ Use "Created at" / "Updated at".
 
-**I7 — No overview tile** · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/index.tsx:87`
-The project overview page builds tiles for `securitygroups` (`:73`), `floatingips` (`:80`) and `routers` (`:87`). Every other Network nav entry has a tile there, but `networks` doesn't.
-_Fix:_ Add an `isEnabled("networks")` tile next to Routers.
+**I9 — Prop-to-state sync through `useEffect`** · Code Quality · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkListContainer.tsx:36`
+`packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkListContainer.tsx:36` runs `setInputPage(currentPage.toString())` in a `useEffect` whenever `currentPage` changes. That costs an extra render per page change, and copilot-instructions A.1 asks to flag such syncs.
+_Fix:_ Derive the value during render (keep the previous prop in state and reset when it changes), or remount the input with `key={currentPage}`.
 
-**I8 — Duplicate `withQuery`** · Code Quality · `packages/aurora/src/server/Network/routers/networksRouter.ts:22`
-This file and `routersRouter.ts` each define the same local `withQuery(baseUrl, params)`.
-_Fix:_ Move it to `Network/helpers` and import it in both routers.
+**I10 — No pagination on the Neutron networks list** · Performance · `packages/aurora/src/server/Network/routers/networksRouter.ts:44`
+`packages/aurora/src/server/Network/routers/networksRouter.ts:44` makes one `GET /v2.0/networks` call with no `limit`/`marker`, and the response schema has no `networks_links`. The [Neutron pagination reference](https://docs.openstack.org/api-ref/network/v2/#pagination) says a deployment can cap list size, and then returns next links. With such a cap, only the first page arrives, with no sign it was cut, and the client-side search, status filter and page count work only on that page. By default (pagination off) Neutron returns everything, so this only hits deployments that enable it.
+_Fix:_ Follow `networks_links` `next` until it runs out (or page with `limit`/`marker`) and add `networks_links` to the response schema.
 
-**I9 — No unit tests** · Test coverage · PR files
-Only `buildNavSections.test.ts` changed. There are no tests for `networksRouter`, `networkHelpers`, the schemas or the four components, although the sibling Routers files have co-located tests. The PR's own "added tests" box is unchecked, and the epic #1019 criterion "Complete testing coverage" is unmet. CR1 and CR2 each need a test of their own.
-_Fix:_ Add router tests (query string, pagination, error mapping) and component tests mirroring the Routers suite.
+**I11 — `shared` is not a Neutron sort key** · Bug · `packages/aurora/src/server/Network/types/network.ts:61`
+`packages/aurora/src/server/Network/types/network.ts:61` allows `name`, `status`, `admin_state_up` and `shared`, under a comment saying they're supported by Neutron. The [list-networks reference](https://docs.openstack.org/api-ref/network/v2/#list-networks) limits sort keys to `admin_state_up`, `availability_zone_hints`, `id`, `mtu`, `name`, `status`, `tenant_id`, `project_id`. `sort_key=shared` is forwarded as-is, so Neutron may reject the request or ignore the sort. The UI doesn't offer this sort today, so nothing breaks yet.
+_Fix:_ Remove `shared` from the enum (or sort by it in the BFF) and correct the comment.
 
-**I10 — Wrong comment on the `status` filter** · Docs · `packages/aurora/src/server/Network/helpers/networkHelpers.ts:28`
-The comment `/** Filters Neutron doesn't support directly; applied BFF-side. */` sits above a `status` filter. The Neutron reference lists `status` as a List networks query parameter: "The Networking API v2.0 supports filtering based on all top level attributes of a resource." @KirillMishchuk raised it earlier (I6).
-_Fix:_ Correct the comment (for example, the filter runs BFF-side to be case-insensitive), or pass `status` to Neutron.
+**I12 — New BFF and pages ship without tests** · Test coverage · PR files
+Issue #1019 lists complete testing coverage (unit, integration, E2E) among its acceptance criteria. The PR adds no tests for `networksRouter.ts`, `networkHelpers.ts`, the types or any new component; only `buildNavSections.test.ts` changed. The "I have added tests" box in the PR body is unticked. The `project_id` bug in CR1 is the kind of thing a router test checking the query parameters would catch.
+_Fix:_ Add vitest tests for the router (query parameters, error mapping), the helpers and the list/detail components, following the existing `securityGroupRouter.test.ts` and route tests.
 
-**I11 — Import order** · Code Quality · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/index.tsx:4`
-`zod` is imported after `@lingui/core/macro` and `@lingui/react/macro` (`:2-3`). B.13 puts `zod` in group 1, before i18n.
-_Fix:_ Move the `zod` import up to line 2.
+**I13 — Networks missing from the project home cards** · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/index.tsx:87`
+`packages/aurora/src/client/routes/_auth/projects/$projectId/index.tsx:87` and the cards around it build Network cards for security groups, floating IPs and routers, gated by `isEnabled`, but there's none for `networks`. `buildNavSections` now adds Networks to the sidebar, so the home page and the sidebar disagree.
+_Fix:_ Add a Networks card gated by `isEnabled("networks")` next to the other Network cards.
+
+**I14 — `networks` service key not documented** · Docs · `packages/aurora/README.md:183`
+The PR gates the new nav entry with `isEnabled("networks")`, which makes `networks` part of the public `enabledServices` contract. The service-key lists in `packages/aurora/README.md:183` and `packages/aurora/README.md:210` (the source of truth for `AuroraApp` props) and the comment at `apps/dashboard/.env.example:11` don't include it. An operator who sets `VITE_ENABLED_SERVICES` from the documented list hides the new Networks page without knowing. `routers` was already missing from these lists.
+_Fix:_ Add `networks` (and the missing `routers`) to both README lists and the `.env.example` comment.
 
 </details>
 
@@ -189,61 +145,52 @@ _Fix:_ Move the `zod` import up to line 2.
 <details>
 <summary><strong>What was done</strong></summary>
 
-The PR adds a read-only **Networks** resource under the Network section, covering the Phase 1 read view of epic #1019.
+Draft PR adding a read-only Neutron Networks view under the Network section: a BFF router (`network.networks.list`, `getById`, `listSubnets`), a list page, a detail page with Overview and Subnets tabs, and a sidebar entry. Phase 1 (`P1`) of epic #1019. Create/update/delete, tags and Ports are not included.
 
-- **Server.** A new `network.networks` tRPC router has three project-scoped queries:
-  - `list`: Neutron-side sort, plus BFF-side search and status filter;
-  - `getById`;
-  - `listSubnets`, for the details page's Subnets tab.
+**Server** (`packages/aurora/src/server/Network/`): Zod schemas in `types/network.ts`, helpers in `helpers/networkHelpers.ts` (error handlers, a mapper that derives `external` and `subnet_count`, a BFF-side status filter), and `routers/networksRouter.ts` with three `projectScopedProcedure` queries, wired into `routers/index.ts`.
 
-  It comes with Zod schemas for Neutron networks and subnets, and a helper that maps the raw network into a UI shape: `router:external` → `external`, and `subnets[]` → `subnet_count`.
-- **Client.** A layout route, a list page and a details page:
-  - the list page has URL-backed sort, search and page, with client-side pagination at 50 rows;
-  - the details page has Overview and Subnets tabs.
+**Client** (`packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/`): a layout route `networks.tsx`, a list route `index.tsx` with URL-driven search, sort and page state, a detail route `$networkId.tsx` with its own error mapping and retry, and `-components/` (`NetworksList`, `NetworkListContainer`, `NetworkTableRow`, `NetworkDetailsView`).
 
-  They are built from four `-components` that mirror the Routers feature.
-- **Navigation.** A "Networks" entry is first in the Network sidebar section, gated by `isEnabled("networks")`. The nav test was updated in `f16ad0d2`.
-- **Generated files.** `routeTree.gen.ts` and the de/en catalogs are regenerated. Commit `0a594e9e` merged `main` and resolved locale conflicts.
+**Navigation/i18n/generated**: a "Networks" item at the top of the Network nav section in `buildNavSections.ts` (test expectations updated), plus new en/de message catalog entries and regenerated `routeTree.gen.ts`.
 
-The pages are read-only, with no create, update or delete. The permission keys `network:networks:read`/`list` already existed in the Network permission router, and the PR doesn't call `canUser`, since there are no actions to gate. CI is fully green on `0a594e9e`.
+**CI**: 18 jobs pass, 4 are skipped, none fail or are pending on the head commit. The PR is a draft. The body leaves the test checkboxes unticked, and the diff has no tests for the new router, helpers or components. Only the `buildNavSections` test was updated.
 
 </details>
 
 <details>
 <summary><strong>How it is implemented</strong></summary>
 
-**Schemas.** `packages/aurora/src/server/Network/types/network.ts:9` parses Neutron networks leniently. Optional flags get defaults, and the raw `router:external` key is kept for the helper to rename:
+**BFF list.** `list` forwards `project_id`, `name`, `admin_state_up`, `shared`, `sort_key` and `sort_dir` to Neutron (everything except `searchTerm` and `status`). `searchTerm` (over id, name and description) and `status` are applied in the BFF after the full list is fetched. Results are mapped through `toNetworkListItem`, so the UI never sees `router:external`.
 
 ```ts
-export const NetworkSchema = z.object({
-  id: z.string(),
-  name: z.string().default(""),
-  description: z.string().optional().default(""),
-  status: z.string(),
-  admin_state_up: z.boolean(),
-  shared: z.boolean().optional().default(false),
-  // Neutron exposes the external flag as "router:external"
-  "router:external": z.boolean().optional().default(false),
-  mtu: z.number().nullish(),
+list: projectScopedProcedure
+  .input(NetworkQueryParametersSchema)
+  .query(async ({ input, ctx }): Promise<NetworkListItem[]> => {
+    return withErrorHandling(async () => {
+      const { searchTerm, status, ...openstackFilters } = input
+      const network = getNetworkService(ctx)
+
+      const queryParams = appendQueryParamsFromObject(openstackFilters)
+      const response = await requestOrThrow(
+        () => network.get(withQuery(NETWORKS_BASE_URL, queryParams)),
+        NetworkErrorHandlers.list
+      )
+
+      const data = await response.json()
+      const { networks } = parseOrThrow(NetworkListResponseSchema, data, "networksRouter.list")
+
+      const filtered = filterBySearchParams(filterNetworksByBffParams(networks, { status }), searchTerm, [
+        "id",
+        "name",
+        "description",
+      ])
+
+      return filtered.map(toNetworkListItem)
+    }, "list networks")
+  }),
 ```
 
-The list input (`types/network.ts:63`) splits fields between those passed to Neutron and those applied in the BFF. The `projectScopedInputSchema` base also contributes `project_id`, which is the source of CR1.
-
-```ts
-export const NetworkQueryParametersSchema = projectScopedInputSchema.extend({
-  // Passed through to Neutron
-  name: z.string().optional(),
-  admin_state_up: z.boolean().optional(),
-  shared: z.boolean().optional(),
-  sort_key: NetworkSortKeySchema.optional(),
-  sort_dir: SortDirSchema.optional(),
-  // Applied BFF-side
-  searchTerm: z.string().trim().optional(),
-  status: z.string().optional(),
-})
-```
-
-**Mapping.** `packages/aurora/src/server/Network/helpers/networkHelpers.ts:18` derives the UI fields. It still returns the `subnets` ID array alongside `subnet_count`:
+The mapper renames `router:external` to `external` and replaces the subnets array with a count, but keeps `subnets` too.
 
 ```ts
 export const toNetworkListItem = (network: Network): NetworkListItem => {
@@ -257,55 +204,60 @@ export const toNetworkListItem = (network: Network): NetworkListItem => {
 }
 ```
 
-**Router.** `list` (`packages/aurora/src/server/Network/routers/networksRouter.ts:39`) makes one Neutron call. It then filters by status and searches over `id`, `name` and `description` on the result:
+**Subnets tab.** `listSubnets` calls `/v2.0/subnets` filtered by `network_id`, with `fields` limited to what the table shows. The ID is validated with `validateAndEncodeResourceId`, but the encoded value is discarded because the ID goes in the query string (``packages/aurora/src/server/Network/routers/networksRouter.ts:89``).
 
 ```ts
-const { searchTerm, status, ...openstackFilters } = input
-const network = getNetworkService(ctx)
+listSubnets: projectScopedProcedure
+  .input(NetworkIdInputSchema)
+  .query(async ({ input, ctx }): Promise<NetworkSubnet[]> => {
+    return withErrorHandling(async () => {
+      const { network_id } = input
+      const service = getNetworkService(ctx)
 
-const queryParams = appendQueryParamsFromObject(openstackFilters)
-const response = await requestOrThrow(
-  () => network.get(withQuery(NETWORKS_BASE_URL, queryParams)),
-  NetworkErrorHandlers.list
-)
+      // Validates the ID; it is sent as a query param (encoded by URLSearchParams), not as a path segment
+      validateAndEncodeResourceId(network_id, "Network")
+
+      const params = appendQueryParamsFromObject({
+        network_id,
+        fields: ["id", "name", "cidr", "ip_version", "gateway_ip", "enable_dhcp"],
+      })
+      const response = await requestOrThrow(
+        () => service.get(withQuery(SUBNETS_BASE_URL, params)),
+        NetworkErrorHandlers.listSubnets,
+        network_id
+      )
+
+      const data = await response.json()
+      return parseOrThrow(NetworkSubnetListResponseSchema, data, "networksRouter.listSubnets").subnets
+    }, "list network subnets")
+  }),
 ```
 
-`getById` (`networksRouter.ts:68`) encodes the ID before putting it in the path. `listSubnets` validates the ID and sends it only as a query parameter, with a fixed `fields` allow-list (`networksRouter.ts:88`):
+**List page.** `NetworksList.tsx` uses the React 19 `use()` + Suspense pattern. The URL is the source of truth for search, sort and page. `useDeferredValue` keeps the previous list on screen while a new query loads. A FORBIDDEN response is turned into an inline `listError` instead of throwing. Pagination is client-side, 50 rows per page, with the page clamped to the total.
 
-```ts
-// Validates the ID; it is sent as a query param (encoded by URLSearchParams), not as a path segment
-validateAndEncodeResourceId(network_id, "Network")
-
-const params = appendQueryParamsFromObject({
-  network_id,
-  fields: ["id", "name", "cidr", "ip_version", "gateway_ip", "enable_dhcp"],
-})
-```
-
-All three procedures use `projectScopedProcedure` and the shared `ErrorHandler("Network")` (`networkHelpers.ts:8-12`). The router is mounted as `networks` in `Network/routers/index.ts`.
-
-**List page.** `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/index.tsx:9` keeps the list state in the URL:
-
-```ts
-const networksSearchFields = {
-  search: z.string().optional(),
-  sortBy: z.enum(["name", "status"]).optional(),
-  sortDirection: z.enum(["asc", "desc"]).optional(),
-  page: z.number().int().positive().optional(),
+```tsx
+const createNetworksPromise = (
+  client: TrpcClient,
+  project: string,
+  sortBy: NetworkSortKey,
+  sortDirection: "asc" | "desc",
+  searchTerm: string
+): Promise<NetworksResult> => {
+  return client.network.networks.list
+    .query({ project_id: project, sort_key: sortBy, sort_dir: sortDirection, searchTerm: searchTerm || undefined })
+    .then((networks) => ({ networks, listError: undefined }))
+    .catch((err: unknown) => {
+      if (err instanceof TRPCClientError && err.data?.code === "FORBIDDEN") {
+        return { networks: [], listError: err.message }
+      }
+      throw err
+    })
 }
 ```
 
-`NetworksList.tsx` fetches the whole list through a memoized promise read with `use()` and Suspense, and uses `useDeferredValue` to keep the old list visible while the next one loads. Only `FORBIDDEN` is caught into an inline error (`NetworksList.tsx:41`); every other error goes to an ErrorBoundary with "Try Again". Pagination slices the fetched array (`NetworksList.tsx:82`):
+**Detail page.** The loader only resolves the page title and swallows errors. The component runs its own `getById` query, so it can map the tRPC error code to a title and description and offer Try Again for transient codes only. A route `errorComponent` handles render-time errors.
 
-```ts
-const totalPages = Math.max(1, Math.ceil(networks.length / PAGE_SIZE))
-const safePage = Math.min(currentPage, totalPages)
-const paginatedNetworks = networks.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
-```
-
-**Details page.** The loader fetches the network only to set the page title (`$networkId.tsx:122`). The component then fetches it again with `useQuery` (`:149`), which is CR3:
-
-```ts
+```tsx
 loader: async ({ context, params }) => {
   try {
     const network = await context.trpcClient?.network.networks.getById.query({
@@ -316,53 +268,26 @@ loader: async ({ context, params }) => {
   } catch {
     return { networkName: null }
   }
-},
 ```
 
-`NetworkLoadError` maps tRPC codes to HTTP statuses and offers retry only for transient codes. `NetworkDetailsView.tsx:111` lists the Overview fields, with `ClipboardText` for the IDs:
+**Overview tab.** `NetworkDetailsView` shows name, ID and project ID (both with copy), status, admin state, shared, external, MTU, port security and subnet count. Tags and created/updated timestamps are shown only when present. The Subnets tab fetches lazily.
 
-```ts
-const overviewItems: DetailItem[] = [
-  { label: t`Name`, value: network.name || "—" },
-  { label: t`ID`, value: <ClipboardText text={network.id} /> },
-  { label: t`Project ID`, value: <ClipboardText text={network.project_id} /> },
-  { label: t`Description`, value: network.description || "—" },
-  { label: t`Status`, value: network.status },
-  { label: t`Admin State`, value: network.admin_state_up ? t`UP` : t`DOWN` },
-```
-
-The Subnets tab (`NetworkDetailsView.tsx:47`) runs its own `listSubnets` query and has loading, error, empty and DataGrid states.
-
-**Nav.** `buildNavSections.ts:60` adds the entry ahead of Security Groups:
-
-```ts
-...(isEnabled("networks")
-  ? [
-      {
-        service: "networks",
-        label: t`Networks`,
-        navigate: (nav: NavigateFn) =>
-          nav({ to: "/projects/$projectId/network/networks", params: { projectId } }),
-        params: { projectId },
-      },
-    ]
-  : []),
-```
+[[code:packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkDetailsView.tsx | const overviewItems: DetailItem[] = [ | 22]]
 
 </details>
 
 <details>
 <summary><strong>What it affects (blast radius)</strong></summary>
 
-- **The change is additive.** `network.networks.{list,getById,listSubnets}` extends the `AppRouter` type exported through `./types`. No existing procedure, export or prop changes.
-- **No consumers outside the PR.** `git grep` at `0a594e9e` for `networksRouter`, `NetworkListItem`, `NetworkErrorHandlers`, `toNetworkListItem` and `network.networks` finds only the PR's own files. No caller is left stale.
-- **New service key `networks`.**
-  - It appears for every host that doesn't whitelist services.
-  - Hosts with an explicit `enabledServices` list must add the key. The README and `.env.example` key lists don't mention it (I6).
-  - The project overview page has no matching tile (I7).
-- **Permissions.** `network:networks:read`/`list` already map to `get_network` in `Network/routers/permissionRouter.ts`, and `get_network` is `rule:default_viewer` in `apps/dashboard/src/policies/networking.json`. The PR doesn't add or use `canUser`. Access relies on Neutron's own policy, and its 403 is surfaced in the UI.
-- **Consumer documentation.** `packages/aurora/README.md` doesn't describe networks. `packages/aurora/docs` has no networks BFF design doc, though #1385 adds one.
-- **Overlap.** The six new client files collide add/add with #1385. `buildNavSections.test.ts`, the locales and `Network/routers/index.ts` collide with Ports #1377 (CR6).
+**Contract.** This adds a new tRPC surface, `network.networks.{list,getById,listSubnets}`, to the `network` router tree. `packages/aurora/src/server/Network/routers/index.ts` is its only server-side hook. Nothing outside the PR consumes these procedures yet. Nothing existing is renamed or removed, so this is additive. `network.networks` is carried by the `AuroraRouter` type, which is public. Because the `list` and `getById` return type is `NetworkListItem`, the shape is now part of that type.
+
+**New service key.** `"networks"` is a new key for `enabledServices` / deny lists. It is checked with `isEnabled("networks")` in `buildNavSections.ts`.
+
+**Permissions.** `network:networks:read` and `network:networks:list` already exist in `packages/aurora/src/server/Network/routers/permissionRouter.ts:19-20`. Neither the new procedures nor the UI call `canUser`, so the existing mappings are not enforced on this page. The procedures rely only on Neutron's own authorization.
+
+**Other callers left unchanged.** (1) The project home page builds its Network service cards from `isEnabled(...)` checks for `securitygroups`, `floatingips` and `routers` in `packages/aurora/src/client/routes/_auth/projects/$projectId/index.tsx`. It has no Networks card, so the sidebar and home page now disagree. (2) `packages/aurora/README.md` lists the service keys at lines 183 and 210 without `networks`. It also omits `routers`, so it was already behind. (3) There is no BFF design doc for Networks, unlike `packages/aurora/docs/0010_routers_bff.md` for Routers.
+
+**Shared code reused, not changed.** `ErrorHandler`, `requestOrThrow`, `filterBySearchParams` and `appendQueryParamsFromObject` are used unmodified.
 
 </details>
 
@@ -373,42 +298,63 @@ The Subnets tab (`NetworkDetailsView.tsx:47`) runs its own `listSubnets` query a
 <details>
 <summary><strong>Core Path</strong></summary>
 
-1. Open a project whose catalog has Neutron. Under **Network** in the side nav, "Networks" is listed first. Click it; the URL becomes `/projects/<id>/network/networks`.
-2. The list shows "Loading Networks...", then a grid with Name/ID, Status, Shared, MTU, Admin State, Subnets and Port Security, plus a row menu.
-3. Sort by Status, descending. The URL gets `sortBy=status&sortDirection=desc`, and the order matches Neutron's.
-4. Type a search term. After about 500 ms the URL gets `search=…`, and rows match by name, ID or description.
-5. With more than 50 networks, pagination appears. Page 2 sets `page=2`.
-6. Click a row, or use **Show Details** in the row menu. The details page opens on the Overview tab with Name, ID, Project ID (both copyable), Description, Status, Admin State, Shared, External, MTU, Port Security and Subnets.
-7. Open the **Subnets** tab. Rows show Name/ID, CIDR, IP Version, Gateway IP and DHCP.
-8. Go back with the browser Back button: the list comes back with its `search`, `sortBy`, `sortDirection` and `page` URL state. The "Networks" breadcrumb navigates without search params, so it opens the default list (name ascending, no search, page 1).
+1. Open a project whose catalog has the Neutron `network` service. Check that Network in the sidebar now lists Networks first, ahead of Security Groups, Floating IPs and Routers.
+2. Click Networks. The list loads with the default sort Name ascending, and the columns are Name/ID, Status, Shared, MTU, Admin State, Subnets and Port Security.
+3. Change sort to Status and flip the direction. The list reorders and the URL gets `sortBy` and `sortDirection` params, with no history entry added.
+4. Type in the search box. After about 500 ms the list filters by id, name or description. The `search` param appears in the URL and the previous list stays visible while loading.
+5. With more than 50 networks, use pagination. The `page` param updates and a browser Back returns to the previous page.
+6. Click a row, or use the Show Details row action. The detail page opens with the network name as breadcrumb and page title.
+7. On the Overview tab, check the status, MTU, admin state, shared, external, port security and subnet count values against `openstack network show`. Copy the ID and the project ID.
+8. Switch to the Subnets tab. Check the name, CIDR, IP version, gateway IP and DHCP columns against `openstack subnet list --network <id>`.
+9. Use the breadcrumb or Back to Networks to return to the list.
 
 </details>
 
 <details>
 <summary><strong>Edge Cases</strong></summary>
 
-- **Shared or external network owned by another project** (CR1). It should appear in the list and doesn't, because `project_id` is sent as a Neutron filter (`networksRouter.ts:39-42`). Compare with `openstack network list`.
-- **Deployment with a Neutron page-size cap** (CR2). With more networks than the cap, the extra ones are missing, and search and pagination work on the truncated set (`networksRouter.ts:42-49`, `NetworksList.tsx:82-84`).
-- **Details page network tab** (CR3). Open a network with DevTools open: two identical `getById` calls go out (`$networkId.tsx:124`, `:149`).
-- **List with a 403** (CR4). An inline "Failed to Load Networks" shows the raw server message, with no retry (`NetworksList.tsx:42-43`, `:102`).
-- **Details page with an expired session** (CR4). It shows "The session has expired. Log in again to continue." with no redirect (`$networkId.tsx:66`).
-- **Details page 404.** It shows "This network does not exist or has been deleted." with no retry (`$networkId.tsx:62`).
-- **Subnets tab, then reload** (CR5). The page comes back on Overview (`NetworkDetailsView.tsx:109`).
-- **Subnets query fails.** "Failed to Load Subnets" appears with an unstyled raw `<button>` retry (`NetworkDetailsView.tsx:65-70`).
-- **Network without subnets.** It shows "This network has no subnets." (`NetworkDetailsView.tsx:75`).
-- **Empty project or no matches.** Each shows its own empty-state text (`NetworkListContainer.tsx:92`).
-- **Network with an empty name.** The list, title and breadcrumb fall back to the ID (`NetworkTableRow.tsx:41`, `$networkId.tsx:154`, `:166`).
-- **Null `mtu` or `port_security_enabled`.** It shows "–" in the list (`NetworkTableRow.tsx:45`, `:49-50`) and "—" in details (`NetworkDetailsView.tsx:120`, `:124-125`).
-- **Invalid URL params** such as `sortBy=foo`, `page=-1` or `page=abc`. Each field falls back on its own (`index.tsx:28-39`). A page beyond the last one resets to 1 (`NetworksList.tsx:97-99`).
-- **Project switch.** The list remounts, and the previous project's rows shouldn't flash (`index.tsx:54`).
-- **Service gating.** With `enabledServices` set but without `networks`, or with `networks` in `deniedServices`, the nav entry is hidden (`buildNavSections.ts:60`).
-- **Direct API call** with `sort_key: "shared"`. Neutron returns 400 (I5).
+- Network with an empty name: the list and detail header fall back to the ID (`$networkId.tsx` `network.name || network.id`), and Overview shows "—" for Name.
+- Network with a null MTU or null port security: Overview shows "—" (`NetworkDetailsView.tsx` `network.mtu ?? "—"` and the port security branch).
+- Network with no subnets: the Subnets tab shows the "No Subnets" empty state, and Overview shows a subnet count of 0.
+- Subnet with a null gateway, a missing CIDR or an unset DHCP flag: the cells show "–" (`NetworkDetailsView.tsx` `subnet.cidr || "–"`).
+- Subnets request fails: the tab shows an inline error with Try Again, while the Overview tab still works.
+- User not allowed to list: a FORBIDDEN response renders "Failed to Load Networks" inline, not the error boundary (`NetworksList.tsx` `err.data?.code === "FORBIDDEN"`). Any other error shows the boundary with Try Again.
+- Detail page for an unknown or foreign network ID: 404 shows "Network Not Found" without Try Again. 403 and 401 show their own messages. 5xx, timeout and network failures show Try Again (`$networkId.tsx` `RETRYABLE_TRPC_CODES`).
+- Hand-edit the URL with an invalid `sortBy` or `page`, such as `sortBy=foo` or `page=0`. Each invalid param is dropped and the rest are kept (`index.tsx` `validateSearch`).
+- Page beyond the last page after filtering, or Back/Forward between filtered and unfiltered lists: the page resets to 1 once the current query has resolved (`NetworksList.tsx` `onPageChange(1)`).
+- Switch projects while on the list: the list remounts, so the previous project's rows do not show (`index.tsx` `key={projectId}`).
+- Status filter and search run on the full fetched list. Check behaviour against a project with a very large number of networks, since there is no server-side pagination.
+- Hide `networks` through `enabledServices` or the deny list: the nav item disappears, but the route is still reachable by URL and the project home page is unaffected.
+- Search is case-insensitive over id, name and description, and a whitespace-only term should behave like no search (`hasSearch` trims it, the schema `.trim()`s `searchTerm`).
+- Project that uses a shared or external network owned by another project (e.g. the provider `public` network): it doesn't appear in the Networks list, because `list` sends `project_id` to Neutron (CR1).
+- Admin token on the Networks list: check that only the project's own and shared networks are listed, not every project's (CR1).
+- A `list` call with `sort_key=shared`: Neutron rejects it or ignores the sort (I11).
 
 </details>
 
 ---
 
-_Analyzed 2026-10-21 · commit `0a594e9e` · read-only · skill: review-and-comment-pr_
+## Checked and dismissed
+
+<details>
+<summary><strong>Candidates scored below 50 (8)</strong></summary>
+
+| Score | Candidate                                                                                                                                         | Location                                                                                                        | Why                                                                                                                                                                                                 |
+| ----- | ------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 25    | Raw &lt;div&gt; elements are used as layout wrappers (break-all wrapper in DetailsList, relative wrapper around ErrorBoundary in Networks) where… | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworksList.tsx:223` | The &lt;div className="relative"&gt; (NetworksList.tsx:223) and &lt;div className="break-all"&gt; (NetworkDetailsView.tsx:38) are plain styling or positioning wrappers.                            |
+| 25    | A useEffect corrects an out-of-range page by calling onPageChange(1).                                                                             | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworksList.tsx:97`  | The effect at NetworksList.tsx:97-99 triggers a URL navigation (onPageChange(1)) as a side effect, which cannot be done during render.                                                              |
+| 25    | status filter is applied BFF-side although Neutron documents a server-side `status` filter for list networks; combined with no pagination,…       | `packages/aurora/src/server/Network/routers/networksRouter.ts:39`                                               | Neutron does document a server-side status filter, but filtering BFF-side gives the same result on the returned set; the only effect is an inaccurate comment, and the pagination interaction is…   |
+| 25    | listSubnets sends fields and network_id correctly but lists subnets with no pagination and under the same owner-only default policy, so…          | `packages/aurora/src/server/Network/routers/networksRouter.ts:92`                                               | listSubnets filters only by network_id (lines 91-94), with no project_id filter, so visibility is left to Neutron's policy and RBAC; I can't confirm that subnets of shared networks are hidden in… |
+| 0     | Acceptance criterion partly met: tRPC BFF is implemented with complete Zod schema validation for Networks.                                        | `packages/aurora/src/server/Network/types/network.ts:9`                                                         | Create/update/delete schemas are outside the PR's stated read-only scope (pr-body.md); the in-scope validation is present.                                                                          |
+| 0     | Acceptance criterion partly met: Users can list, view, create, update, and delete networks (P1 & P2).                                             | `packages/aurora/src/server/Network/routers/networksRouter.ts:35`                                               | List and view are implemented; create/update/delete are explicitly out of the stated read-only scope.                                                                                               |
+| 0     | Acceptance criterion partly met: Advanced properties like MTU, Admin State, and Shared status are visible and manageable where appropriate…       | PR files                                                                                                        | MTU, admin state and shared are visible, and the PR body limits this PR to the read-only part, so the 'manageable' half is out of scope.                                                            |
+| 0     | Acceptance criterion partly met: Comprehensive error handling provides user-friendly feedback for Neutron errors (e.g., preventing deletion…      | `packages/aurora/src/server/Network/helpers/networkHelpers.ts:8`                                                | Read-path errors are handled (ErrorHandler in the BFF, error mapping on the detail page).                                                                                                           |
+
+</details>
+
+---
+
+_Analyzed 2026-10-23 · commit `0a594e9e` · read-only · skill: review-and-comment-pr_
 
 <!-- related:auto — generated from pr/issue properties by tools/update-related.py; do not edit by hand -->
 ## Related
