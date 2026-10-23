@@ -34,11 +34,35 @@ run you audit.
 python3 ../DOCS/ToolDocs/claude-config/cost-audit/audit_session.py "$L" "$S" > ~/review-cost-audit.txt
 ```
 
-It prints: the totals from the log's `cost-state` (cost per model), one
-row per agent (model, requests, largest context, estimated share of the
-cost, tokens), the orchestrator's context per request, its tool calls and
-tool errors. Read the whole output. Ask the user for the `/cost` output of
-that session too, and in which currency/provider they were billed.
+It prints:
+
+- cost per model from the log's `cost-state` (Claude Code's own estimate)
+  next to a recount at Anthropic list prices — normal and "every request
+  at long-context rates". `cost-state` can be far off for a model name
+  Claude Code doesn't know (e.g. a provider's `anthropic--…[1m]` alias);
+  the bill is what counts, the recount shows which rate it matches;
+- a sanity check that the log holds one review run (no audit work, no
+  second `collect.py`) — if it doesn't, say so and treat the
+  orchestrator's numbers as inflated;
+- one row per agent: model, effort, requests, largest context, thinking
+  tokens, estimated cost;
+- per agent: tool calls by kind, calls per request, repeated calls, errors;
+- the orchestrator's context per request and its tool calls.
+
+Then look at the agents that differ most from the baseline step by step:
+
+```bash
+python3 ../DOCS/ToolDocs/claude-config/cost-audit/audit_session.py "$L" "$S" --agent "finder d"
+```
+
+(`--agent` matches the agent's description, e.g. `describer`, `finder a`,
+`scorer 2`, `fact-check`, `main`.) It lists every tool call in order with
+the request it belongs to, the context after it, the size of its output
+and any error, plus the agent's own text between calls. Baseline details
+for comparison: `baseline-1383-finder-d.txt`, `baseline-1383-describer.txt`.
+
+Read the whole output. Ask the user for the `/cost` output of that session
+too, and in which currency/provider they were billed.
 
 ## 3. Compare with the baseline
 
@@ -69,7 +93,10 @@ instead of Read and ad-hoc `python3 -c` checks; they are cheap there.)
 
 ## 4. What to check
 
-For each, say what you found and how much of the cost it explains.
+For each, say what you found and how much of the cost it explains — with
+numbers from the script, not estimates. A cause gets a share of the cost
+only if the data shows it (e.g. "retries" needs the repeated calls or
+errors that make up the extra requests).
 
 1. **Models and provider.** Which model ran the orchestrator and which ran
    each agent (`model` column). Agents on Opus, or the orchestrator on an
@@ -99,7 +126,11 @@ For each, say what you found and how much of the cost it explains.
 6. **Number of agents.** More scorers than usual (candidates count from
    `briefs.py score` output), duplicate fact-checks, a second run in the
    same session.
-7. **Effort / thinking.** `effort` in the log (baseline `medium`) and
+7. **How agents work.** Calls per request (baseline about 1.0–1.3, with
+   several commands batched into one Bash call): one small command per
+   request multiplies requests. Compare the `--agent` listings with the
+   baseline ones — what does the agent do in its extra requests?
+8. **Effort / thinking.** `effort` in the log (baseline `medium`) and
    thinking tokens; a higher effort level raises output and cost.
 
 ## 5. Report

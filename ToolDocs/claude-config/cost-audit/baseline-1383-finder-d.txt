@@ -1,0 +1,14 @@
+# Baseline detail: --agent "finder d" for the run in baseline-1383.txt (paths shortened)
+
+# PR 1383 finder d — 4 requests, 4 tool calls
+Prompt: Read your brief: <SAP>/aurora-dashboard/.claude/runs/review-and-comment-pr/1383-0a594e9e/briefs/finder-d.md
+Tokens: in 8 · cache write 14,265 · cache read 38,635 · out 482 (thinking 0) · effort {'medium': 4}
+
+  # time     req ctx after out chars  call
+  1 06:49:08   1    13,025     3,176  Read: <SAP>/aurora-dashboard/.claude/runs/review-and-comment-pr/1383-0a594e9e/briefs/finder-d.md
+  2 06:49:10   2    14,045     1,718  Bash: cd <SAP>/aurora-dashboard/.claude/runs/review-and-comment-pr/1383-0a594e9e; wc -c discussion.json; head -c 6000 discussion.json
+  3 06:49:12   3    14,267        39  Bash: python3 .claude/skills/review-and-comment-pr/scripts/save.py --run <SAP>/aurora-dashboard/.claude/runs/review-and-comment-pr/1383-0a594e9e --as finder-d <<'JSON' {"candidat
+  4 06:49:15   4         0        61  SubagentHandback: {"message": "saved out/finder-d.json: 0 candidate(s)"}
+
+Agent's own text between calls (first 10):
+  - Nothing to check; skip the best-effort part.
