@@ -4,8 +4,8 @@ description: >-
   Review an open aurora-dashboard PR (number, URL, or current branch) and
   post a merge verdict with required changes and improvements as a PR
   comment, after the user confirms. Use when asked to review, give a
-  verdict on, or comment on a PR. For a report without a verdict or
-  posting, use `document-pr`.
+  verdict on, or comment on a PR, or to document a PR in `DOCS` — answer
+  no at the posting step and nothing reaches GitHub.
 ---
 
 <!-- prettier-ignore-start -->
@@ -16,32 +16,47 @@ Review an open PR and produce one report a teammate or a later Claude
 session can read instead of the PR itself: a merge verdict with the
 findings behind it, then the context (what changed, how to test it).
 Write it to `DOCS`, and post it to the PR only after the user confirms.
-The report shows only what to act on, and every finding is verified
-first — the exact layout is in
-`.claude/skills/review-and-comment-pr/references/report-format.md`.
+
+The run is a fixed pipeline. Scripts do everything that needs no
+judgment — collecting the PR, writing the agents' briefs, checking and
+saving their results, grouping and batching candidates, assembling and
+rendering the report. You run the steps below in order, launch exactly
+the agents the scripts list, judge where a step asks you to, and write
+the report's wording. Every script prints what to do next. When
+`save.py`, `assemble.py`, `render.py` or `quotes.py` exits 1, it lists
+every problem by field: fix those and run it again. `collect.py`,
+`briefs.py` and `prepare_comment.py` have their own exit-1 rules in their
+steps — they mean stop or ask the user, not fix and retry.
+
+Run every command from the repo root. The paths the scripts print are
+absolute — `<run folder>` below is the one `collect.py` prints; write
+them out literally in every later command.
 
 ## Requirements
 
 - **`gh`, signed in to GitHub.** Everything about the PR comes through it.
-  If `gh pr view` in Step 1 fails with an auth error, stop and tell the
+  If `collect.py` in Step 1 reports an auth error, stop and tell the
   user to run `gh auth login`.
-- **The `DOCS` folder next to the repo** — Step 1 finds it and stops if
-  it's missing.
-- **This skill's own files** — `references/scoring.md` (Step 5.2),
-  `references/report-format.md` (Steps 6–7) and
-  `scripts/prepare_comment.py` (Step 8, needs `python3`). If one is
-  missing, stop and tell the user: the skill can't score, write or post
-  without it.
+- **The `DOCS` folder next to the repo** — `collect.py` finds it and
+  stops if it's missing.
+- **This skill's own files** — `scripts/collect.py`, `briefs.py`,
+  `save.py`, `assemble.py`, `quotes.py`, `render.py`,
+  `prepare_comment.py`; `references/briefs/`, `scoring.md`,
+  `findings-format.md`, `report-format.md` (reference only — render.py
+  implements it).
+  The scripts need `python3` 3.9+. If one is missing, stop and tell the
+  user: the skill can't collect, score, write or post without it.
 - **Agents** — `pr-reviewer`, `external-api-checker` and
   `security-reviewer` in `.claude/agents/`. Optional: each has a fallback
-  (a general Sonnet agent briefed as Step 5 and the hard rules describe).
+  (a general Sonnet agent with the same brief from `briefs.py`).
 - **Network for the API references** — `curl` to
   `raw.githubusercontent.com` (OpenStack reference sources) and
   `docs.ceph.com` / AWS docs, for finder f and the scorers.
 - **Optional:** the Markdown hook `.claude/hooks/check_report_md.py`
-  (checks every report write) and the project settings that make the run
-  cheaper (agents waited for in one turn, unused tools off). Without them
-  the run still works, only slower and costlier.
+  (also used by render.py and prepare_comment.py) and the project
+  settings that make the run cheaper (agents waited for in one turn,
+  unused tools off). Without them the run still works, only slower and
+  costlier.
 
 ## Hard rules
 
@@ -65,27 +80,31 @@ first — the exact layout is in
     option as a revision and fails;
   - `git show <sha>:<path>` takes a repo-root path — `./` and `../` are
     not resolved and fail.
-  Every agent you launch is `pr-reviewer` (`.claude/agents/pr-reviewer.md`),
-  except finder f (`external-api-checker`) and finder g
-  (`security-reviewer`). `pr-reviewer` and `external-api-checker` already
-  carry this rule and the read-only rule — don't repeat them in briefs.
-  `security-reviewer` doesn't: paste both rules **verbatim** into its
-  brief. If `pr-reviewer` or `external-api-checker` isn't available
-  (another machine, a fresh checkout), use a general Sonnet agent instead
-  and paste both rules into its brief the same way.
+  Agent types and briefs come from `briefs.py` (Step 4): it pastes these
+  two rules into the `security-reviewer` brief, which doesn't carry them;
+  `pr-reviewer` and `external-api-checker` do.
 - **Verify against real code, not the PR description or commit message.**
   Descriptions oversell or drift; the diff and the files at the head commit
   are ground truth.
-- **Code excerpts must be verbatim**, pulled from `git show <sha>:<path>` (or
-  the diff itself), with accurate `file:line` citations — don't hand-compute
-  line numbers from diff hunk headers, they lie once you're looking at
-  the whole file. Get real line numbers with the commands in "Reading code
-  at a commit" above.
+- **Code in the report comes from the repo, not from typing.** Agents
+  read code with the commands above — never compute line numbers from
+  diff hunk headers. In the report's text (the describer's result,
+  `texts.json`), quote repo code only as `[[code:…]]` and cite lines as
+  `[[at:…]]` or a full `path:line`: render.py inserts the code verbatim
+  from `<headRefOid>` and checks every citation, and rejects a hand-typed
+  block that isn't verbatim at head or base (`references/findings-format.md`).
 - **Findings need a verification pass before they're reported as issues**
-  (see Step 5). An unfiltered "here's everything that looks off" list is not
-  a review, it's noise.
-- Report body is English, whatever language the
-  user asks in. Code, identifiers and file paths stay as-is.
+  (the scorers, Step 5). An unfiltered "here's everything that looks off"
+  list is not a review, it's noise.
+- **Don't do the scripts' or the agents' work yourself.** No `gh pr view`,
+  `gh pr checks`, `git fetch` or listing of the reports folder (Step 1
+  did it), and don't read the PR's code or the run folder's files
+  (`context.json`, `pr-body.md`, `discussion.json`, `issue-*.md`,
+  `candidates.json`, `out/*.json`) unless a step tells you to (a release
+  PR, the fact-check result) — everything you load stays in
+  your context and is re-read on every later turn.
+- Report body is English, whatever language the user asks in. Code,
+  identifiers and file paths stay as-is.
 - **Don't commit or push, and don't touch git state.** The only external
   write the skill makes is posting its report as a comment on the PR it
   analysed (Step 8), and only after the user confirms. It never commits or
@@ -93,495 +112,226 @@ first — the exact layout is in
 
 ## Steps
 
-### 1. Resolve the PR
+### 1. Collect the PR context
 
-Accept whatever the user gave you — a bare number (`1079`), a full URL, or
-nothing (meaning "the PR for the current branch"). `gh pr view <arg>` accepts
-all three forms directly, so you rarely need to parse it yourself.
+From the repo root:
 
 ```bash
-gh pr view <arg> --json number,title,body,author,url,state,isDraft,\
-baseRefName,headRefName,baseRefOid,headRefOid,mergedAt,mergeCommit,\
-mergedBy,additions,deletions,changedFiles,files,createdAt
+python3 .claude/skills/review-and-comment-pr/scripts/collect.py <arg>
 ```
 
-If `baseRefName` isn't `main`, don't refuse — note it prominently near the
-top of the report (the skill's normal case is PRs into `main`, but a
-different base is just a fact to surface, not a blocker).
+`<arg>` is whatever the user gave — a number, a URL, or nothing (the PR
+for the current branch). It reads the PR, finds `DOCS` and any existing
+report, picks the run mode, fetches the head commit by SHA, and saves the
+diff, review discussion, CI, changeset, linked issue, overlapping open PRs
+and review standards into the run folder. Read its summary (not the
+JSON).
 
-**Scope: open PRs.** The full analysis is for open (including draft) PRs —
-documenting a PR after it has landed has no use here. A merged or closed
-PR only matters if it already has a report, whose status then needs
-updating (below). If it has none, tell the user there is nothing to
-document and stop.
+- **exit 0** — act on `Mode:` (Step 2).
+- **exit 3** — it needs an answer. Ask the user the printed question
+  once, as printed, and re-run with the flag it names:
+  - no linked issue → `--issue <N>` or `--no-issue`; unattended, with no
+    way to ask, `--no-issue`;
+  - the report is already current → `--rerun` only on an explicit yes
+    (a re-run overwrites the report); anything else means stop — report
+    back (Step 9).
+- **exit 1** — it couldn't collect (`gh` not signed in, `DOCS` missing,
+  fetch failed, several reports for one PR). Pass its message on and
+  stop; on an auth error tell the user to run `gh auth login`.
+- **exit 2** — wrong arguments; fix the call.
 
-**Release PRs.** If `headRefName` is `changeset-release/main`, the author
-is `cobaltcore-bot` or `app/cobaltcore-bot` (as `gh` reports it), or the
-body says it was opened by `changesets/action`, it only bumps versions and changelogs.
-Do Steps 2–3 as usual, then replace Steps 4–5 with a light review:
+### 2. Act on the mode
 
-- skip the linked-issue check (no Process item) and the review agents;
-- check yourself: each bump matches the consumed changesets, the changelog
-  entries render correctly, the new version isn't on npm yet
+- **`full`** — open PR, no report yet: Steps 4–9. The report goes to the
+  `Report:` path from the summary.
+- **`rerun`** — the user confirmed re-running a current report: as
+  `full`, overwriting the file. Don't read the old report's body — it
+  anchors the new analysis on the old one and carries its mistakes
+  forward.
+- **`status`** — draft ↔ ready changed, or the PR was merged or closed
+  since the report. Run
+  `python3 .claude/skills/review-and-comment-pr/scripts/render.py --run <run folder>`:
+  it writes the new status into the report and its index row and
+  refreshes the Related links. Don't post; report back (Step 9).
+- **`update`** — new commits since the report. Don't rewrite the
+  existing text (reports are historical records). Steps 4–6 run as for
+  `full`, but the agents analyze only the delta (`delta.diff`;
+  `Delta: whole-pr` means a force-push made the old head unreachable —
+  tell the user). In `texts.json` write `fixed_since` — the earlier
+  findings the new commits fixed, by CR/I number, or "None", from the
+  "Earlier findings" list in `compose.md` — instead of `summary`,
+  `confidence`, `index_affected` and `edge_cases`. render.py inserts an
+  `## Update — <today>, head <sha>` block before the report's footer
+  (What changed, Fixed since last analysis, the delta's findings numbered
+  after the report's earlier ones; a re-render replaces it), and updates
+  the footer, the status and the index row's Date cell.
+- **`none`** — merged or closed without a report, or already up to
+  date, or the user chose to stop: nothing to document. Say so and stop.
+
+**Release PR** (`Release PR: yes`) — it only bumps versions and
+changelogs, and the scripts launch no agents for it. Replace Steps 4–5
+with a light review of your own:
+
+- no linked-issue Process item and no review agents;
+- check: each bump matches the consumed changesets, the changelog entries
+  render correctly, the new version isn't on npm yet
   (`npm view <package> version`), and whether pending changesets in other
   open PRs would change the bump type;
 - a changelog problem is fixed in the `.changeset/*.md` on `main`, not on
   this branch — the bot regenerates it.
 
-In the report keep Verdict, Required Changes and Improvements; under
-Solution Overview only "What was done"; under QA Test Plan only Edge Cases.
+Then write `<run folder>/findings.json` yourself — every required key
+in the "findings.json" section of `references/findings-format.md`; of
+the descriptive parts only `overview.what` and `qa.edge_cases` — and run
+`python3 .claude/skills/review-and-comment-pr/scripts/render.py --run <run folder>`
+alone (no texts.json, no assemble.py). The report keeps Verdict,
+Required Changes, Improvements, "What was done" and Edge Cases. Its
+errors, the fact-check's fixes (Step 6) and Markdown problems (Step 8)
+are fixed in `findings.json`, then render.py runs again.
 
-**Where DOCS is.** Resolve it from the repo root, not from the shell's
-current directory — a bare `../DOCS` typed from a subdirectory folds into
-this repo's own git-tracked `docs/` folder on macOS:
+A base branch other than `main` is called out at the top of the report
+by render.py; it is not a blocker.
 
-```bash
-git rev-parse --path-format=absolute --git-common-dir
-```
+### 3. What the run folder holds
 
-`DOCS` is the parent of that path's parent directory + `/DOCS` (the common
-git dir points at the main repo even inside a linked worktree, where
-`--show-toplevel` would not). Note the absolute path
-now and write it out literally in every later command and file path
-(`<DOCS>` below) — shell variables don't survive from one command to the
-next.
+The agents read it themselves: `context.json` (metadata, SHAs, changed
+files, flags, CI, changeset, issues, overlapping PRs, Process items,
+provenance), `pr.diff` (without generated files), `pr-body.md`,
+`issue-<N>.md` (acceptance criteria), `discussion.json`,
+`copilot-instructions.md` (the review standards at `<headRefOid>`; root
+`CLAUDE.md` exists only on disk, may be newer than the PR, and a mismatch
+with it is context, not a violation). Brief agents with the folder's
+path only — the scripts do — never paste its content.
 
-**Existing report?** Before any analysis, check whether this PR already
-has one:
-
-```bash
-ls <DOCS>/aurora-dashboard-kb/prs
-```
-
-No wildcard: zsh treats a pattern with no match as an error. If `ls`
-fails, stop — there is nowhere to write the report (see Requirements).
-Otherwise look in its output for a file named `<number>-*.md`; if there is
-none, do the full run below. If a
-report exists, read its frontmatter `status`, its `**Status:**` line (the
-only place that says "draft") and its old head: the SHA after the last
-`updated for` in the `Analyzed` footer, otherwise the SHA after `commit`
-in the footer
-— ignore SHAs marked "not analyzed" or "previous versions". Compare them
-with what `gh pr view` just returned and take the matching path:
-
-- **Same head, same status** — the report is current. Tell the user and
-  ask whether to stop or re-run from scratch; a re-run overwrites the
-  report, so only on an explicit yes. A re-run is a fresh analysis: don't
-  read the old report's body — Steps 4–6 start from the code as if no
-  report existed. Reading it anchors the new analysis on the old one and
-  carries its mistakes and gaps forward; the frontmatter, `**Status:**`
-  line and footer you already read are all this path needs.
-- **Same head, only draft ↔ ready changed** — update the `**Status:**`
-  line (and frontmatter `status`) and the index row's Date cell (Step 7);
-  nothing else; don't post. Then report back (Step 9).
-- **Now merged or closed** — a status update only: set `status` in the
-  frontmatter, the `**Status:**` line
-  (e.g. `merged 2026-10-14`) and the index row's Date cell (Step 7), and
-  append ` · status updated <today>: <merged | closed>` to the footer. If
-  the head moved after the last analysis, add
-  ` · last head <short sha> not analyzed`. Nothing else in the body
-  changes, and no other step runs — report back (Step 9) and stop.
-- **Different head** (new commits since the report) — don't rewrite the
-  existing text (reports are historical records). Fetch the new
-  head (Step 2) and analyze only `git diff <old head>..<new head>`: Steps
-  4–5 on that delta, the Step 6 fact-check on the new section. Append it
-  before the footer in this shape:
-
-  ```markdown
-  ## Update — <today>, head `<short sha>`
-
-  ### What changed
-
-  <what the new commits do and how, with excerpts — same rules as Step 4>
-
-  ### Fixed since last analysis
-
-  <earlier findings the new commits fixed, by CR/I number; or "None">
-
-  ### 🔧 Required Changes / 💡 Improvements
-
-  <the delta's findings, same tables and severity markers as the main Review>
-  ```
-
-  For "Fixed since last analysis", read only the old report's Required
-  Changes / Improvements, not its descriptive sections: the Update
-  describes the new commits from the code.
-
-  Update the status if it changed, the footer
-  (`… · updated for <short sha> on <today>`) and the index row. If the
-  old head is no longer reachable (a force-push rewrote history), tell
-  the user and analyze the whole PR diff into the Update section instead.
-
-### 2. Get the diff and the head commit locally
+### 4. Launch the describer and the finders
 
 ```bash
-gh pr diff <number>
-git fetch origin <headRefOid>
-# if that fails: git fetch origin pull/<number>/head
+python3 .claude/skills/review-and-comment-pr/scripts/briefs.py --run <run folder> find
 ```
 
-The fetch makes `<headRefOid>` available locally as a plain object without
-creating or checking out a branch — safe to do from whatever branch the user
-currently has checked out. Use this SHA for every "what does the code
-actually look like" lookup in the steps below (`git show <sha>:<path>`,
-`git grep -n ... <sha> -- <pathspec>`).
-If fetching by SHA fails (e.g. a PR from a fork), `git fetch origin
-pull/<number>/head` gets the same commit through the ref GitHub keeps for
-every PR — confirm `git rev-parse FETCH_HEAD` equals `<headRefOid>` before
-using it.
+It writes one brief per agent into `<run folder>/briefs/` — the describer
+and finders a–g (f only when the PR changes server code; none on a
+release PR) — and prints each agent with its subagent type. Launch
+exactly those agents in **one** message, in the foreground
+(`run_in_background: false`), each with the prompt
+`Read your brief: <path>` and its subagent type. Their results then come
+back in one turn; background agents wake you once per agent, and each of
+those turns re-reads your whole context for nothing. Don't add to or
+rewrite the briefs: they are the same on every run on purpose, and each
+is narrow on purpose — never merge two into one agent.
 
-**Review discussion.** Also pull everything reviewers already said on this
-PR — Copilot, other bots, people:
-
-```bash
-gh pr view <number> --json comments,reviews
-gh api --method GET --paginate "repos/{owner}/{repo}/pulls/<number>/comments" \
-  --jq '.[] | {id, in_reply_to_id, user: .user.login, path, line, original_line, commit_id, body}'
-```
-
-The first gives top-level comments and review summaries, the second the
-inline threads (a reply points to its parent via `in_reply_to_id`). `line` is
-null when the comment sits on code the PR later changed — then
-`original_line` at `commit_id` is where it pointed. Hand this to Step 5.
-
-**CI status.**
-
-```bash
-gh pr checks <number>
-```
-
-A non-zero exit is not an error here: `gh` exits 1 when a check failed
-and 8 when checks are still pending — read the output either way. Note
-which jobs failed or are pending on `<headRefOid>`. If CI is failing, say so briefly
-in "What was done" — and point it out if the PR description claims the
-opposite ("all tests pass").
-
-**Changeset.** Check whether the PR adds a Changeset:
-
-```bash
-git ls-tree --name-only <headRefOid> .changeset/
-```
-
-Ignore `README.md` and `config.json`. If the PR adds a `.changeset/<name>.md`,
-read it (`git show <headRefOid>:.changeset/<name>.md`) and note the bump type
-(`major`/`minor`/`patch`). A changeset that is present and correct is **not**
-reported (clean checks don't get a line). A **missing** changeset on a PR that
-changes published package code (anything under `packages/*/src`) becomes a
-Process item in Step 5.
-
-**Linked issue / acceptance criteria.** Read the PR body (from Step 1) for an
-issue link: `Closes #N`, `Fixes #N`, `Resolves #N`, `Part of #N`, or a bare
-`#N` that is **not** a template placeholder (`#<epic-number>`,
-`#<bff-issue-number>`, etc. are placeholders, not links).
-
-- **A real link is found** — `gh issue view <N> --json title,body,state` and
-  pull its acceptance criteria; Step 4 grades the PR against them.
-- **No link** — the PR links no issue. Prompt the user **once**: "This PR
-  links no issue. Give an issue/epic number to grade acceptance criteria
-  against, or say none." If the user gives one, fetch and grade it **and**
-  still record a Process item that the PR body itself links nothing (supplying
-  it here ≠ linking it in the PR). If the user says none — or the skill runs
-  unattended with no way to ask — record the Process item and set acceptance
-  to "not verified: no issue to grade against", naming any related-but-not-
-  direct epics the user mentioned (they are context, not the AC source).
-
-### 3. Gather the review standards
-
-Two files define what this project's code is held to. Note where they are
-now; read them when Step 4 or 5 needs to check a specific claim — no need to
-load everything up front.
-
-- **`.github/copilot-instructions.md`** — the guidelines GitHub Copilot
-  reviews PRs against: a "What NOT to Review" scope, a quick-reject
-  checklist, Part A (architecture & code quality) and Part B (UI patterns &
-  component standards). It is tracked and still gets revised, so read the
-  version the PR was written against:
-  `git show <headRefOid>:.github/copilot-instructions.md`.
-- **Root `CLAUDE.md`** — git-ignored (`CLAUDE*` in `.gitignore`), so it
-  exists only in the working tree and never at `<headRefOid>`: read it from
-  disk, not via `git show`. It describes today's code and may be newer than
-  the PR, so treat a mismatch between it and the PR as context, not as a
-  violation. (The repo has no nested `CLAUDE.md` files today; if one appears
-  under a changed directory, treat it the same way.)
-
-### 4. Descriptive analysis — what, how, and what it touches
-
-**Who does this step.** A `pr-reviewer` agent — the *describer* — does all of
-Step 4. Launch it in the same message as the Step 5 review agents (see
-5.1), so it runs alongside them. Don't read the PR's code yourself for
-this step: everything you load stays in your context and is re-read on
-every later turn. Give the describer the two SHAs (on an Update: the
-delta `<old head>..<new head>`), the PR title and body, the changed-file
-list, the linked issue's acceptance criteria if Step 2 found or got one,
-and the rest of this step
-verbatim as its brief. It returns only:
-
-- the "what and how" narrative per group, with the verbatim excerpts and
-  their `file:line` citations already in place;
-- the impact / blast-radius result (consumers, stale callers, internal vs
-  contract change);
-- the QA plan — Core Path and Edge Cases from the code;
-- for each acceptance criterion: met, partly met or unmet, with
-  `file:line` evidence.
-
-You then work from that draft: unmet criteria and stale callers are
-handled exactly as described below; after Step 5 you add to Edge Cases
-the scenario behind every Bug finding (the describer can't know them).
-Re-open code yourself only to settle a specific point the draft leaves
-unclear.
-
-Group the changed files by what they are (server routers, client
-routes/components, shared packages, config/CI, docs) and write the "what and
-how" narrative per group, not file-by-file — a PR that adds one tRPC
-procedure and wires it into two components reads better as one story than
-three disconnected file summaries.
-
-For each meaningful piece of the change, pull a short verbatim excerpt
-(3-15 lines, fenced code block) from the actual file at `<headRefOid>` with
-its real `file:line` citation, and explain what it does in context — not
-just "this function was added" but why it matters (e.g. "this closes a race
-where two components could refresh the same session token — see the
-`sessionRescopes` cache added at `context.ts:280`").
-
-**Impact / blast radius** — this is the part a plain diff can't tell you.
-For every changed export, tRPC procedure key, exported React
-component/hook, or public type in the diff, search for consumers _outside_
-the PR's own changed files, across the whole monorepo at `<headRefOid>`:
-
-```bash
-git grep -n '<symbolName>' <headRefOid> -- . \
-  ':!pnpm-lock.yaml' ':!**/CHANGELOG.md' ':!**/locales/**'
-```
-
-Search the whole tree, not just `*.ts`/`*.tsx`: `packages/aurora/README.md`
-is the consumer-facing contract for public exports and `AuroraApp` props,
-and the policy files (`apps/dashboard/src/policies/*.json`) hold the
-permission keys. Report code consumers and documentation that describes
-the changed surface separately.
-
-Report what you find: which other packages/apps/routes depend on the
-changed surface, whether the PR updated all of them consistently or left a
-caller stale (that's worth flagging even outside the formal review pass —
-it's exactly the kind of thing a descriptive walkthrough should catch), and
-whether the change is internal-only (no outside consumers found) versus a
-contract change that ripples outward (e.g. changes to `AuroraRouter`,
-anything under `packages/aurora/src/server/*/routers/`, or exported client
-hooks/components other apps import).
-
-**QA test plan.** From the code you read, derive a manual test plan a
-reviewer can run — things unit tests can't easily cover (real OpenStack
-data, URL state, cross-view consistency, fallback rendering). Produce two
-lists for the report's "QA Test Plan" section:
-
-- **Core Path** — a numbered happy-path walkthrough, end to end, through
-  the feature's main screens/actions.
-- **Edge Cases** — a bulleted list of states the code reveals: empty or
-  missing fields, fallbacks, error routes, and the exact scenario behind
-  every Bug finding. Cite `file:line` where a case comes from a specific
-  branch in the code.
-
-**Acceptance criteria.** If Step 2 found a real linked issue (or the user
-supplied one), grade the PR against that issue's acceptance criteria: note
-each unmet criterion as a finding — a Required Change if a required
-capability is missing, an Improvement if it's a shippable gap. If no issue
-is linked, acceptance is "not verified" (a `P*` Process item from Step 2),
-never a pass.
+Each agent checks and saves its result with `save.py` into
+`<run folder>/out/<name>.json` and replies with one `saved …` line. If an
+agent replies otherwise or its file is missing, re-launch that one agent
+once with the same prompt; if it fails again, note it in the summary and
+in `provenance_extra`. If the list marks an agent type as missing, use a
+general Sonnet agent with the same brief and add the fallback to
+`provenance_extra`.
 
 ### 5. Review pass
 
-Reuse the review methodology from the `code-review` plugin (`/code-review`)
-(`gh`-based PR review), adapted to feed this report — don't redo the
-eligibility/"already reviewed" gating from that command, and don't post
-from here: the only GitHub write is Step 8, after the user confirms.
+The methodology is the `code-review` plugin's (`/code-review`), adapted
+to feed this report — no eligibility/"already reviewed" gating, and no
+posting from here: the only GitHub write is Step 8.
 
-1. Launch the review agents below and the Step 4 describer together in
-   **one** message, as `pr-reviewer` agents (f is `external-api-checker`, g stays `security-reviewer`), in the foreground — not as background
-   tasks (`run_in_background: false`). Their results then come back to
-   you in one turn; background agents wake you once per agent, and each
-   of those turns re-reads your whole context for nothing. Give each the
-   two SHAs, the changed-file list, the review standards from Step 3 and
-   its own brief — not the diff: it reads
-   `git diff <baseRefOid>...<headRefOid> -- <path>` for the files its check
-   needs. One agent per letter — a through g, f only when its condition
-   holds — and never two letters in one agent: each brief is narrow on
-   purpose, and a merged agent does one of its checks shallowly.
-   Finders report, they don't judge: a violation stays a violation when
-   sibling code does the same or a maintainer accepted it on another PR —
-   report it as a candidate and add the precedent as context. Dropping or
-   downgrading candidates is the scorer's job (Step 5.2).
-   a. **Conventions compliance** — audit against the review standards from
-      Step 3. `copilot-instructions.md` is an explicit review checklist, and
-      its "What NOT to Review" scope applies here too; `CLAUDE.md` is
-      guidance for writing code, so not every line of it applies to review.
-      Start with its "Quick Reject Checklist", then every "**Reject**" line
-      in Part B — most B sections end with one, and several name rules the
-      checklist doesn't (a 401/403 handled inline in B.6, a dismissible
-      `Message` without `onDismiss`, a form without validation). Take the
-      items one by one, check each against every changed file — UI strings
-      included (casing, punctuation, wording) — and return one line per
-      item, either a violation with `file:line` and the item quoted, or
-      "not violated". A Reject clause that repeats a checklist item can
-      point to it ("see checklist item n"). A general read of the standards
-      misses items; the per-item pass doesn't.
-   b. **Bug scan** — shallow scan of the diff itself for obvious bugs. Don't
-      wander into unrelated context; focus on large bugs, skip nitpicks.
-   c. **Historical context** — `git log`/`git blame` on the modified files
-      to catch bugs that only make sense in light of history. Also check
-      the PR against other open PRs: list those that touch the same files
-      (`gh pr list --state open --json number,title,headRefOid,files`); when the
-      description claims the PR is compatible with another one ("doesn't
-      conflict", "same commit as on branch X"), test it —
-      `git fetch origin <their headRefOid>` (or `git fetch origin
-      pull/<n>/head`, without a `:<ref>` part), then
-      `git merge-tree --write-tree --name-only <headRefOid> <their headRefOid>`
-      — always by SHA, never by a ref name you created.
-      A conflict the description denies is a candidate issue.
-   d. **Review discussion** — go through the comments collected in Step 2.
-      For each, check at `<headRefOid>` whether it was addressed, still
-      applies, or was wrong in the first place. One that still applies
-      becomes a candidate issue like any other — a bot comment is a lead to
-      verify, not evidence. Best-effort, also check earlier PRs touching the
-      same files (`gh pr list --search`, `git log`) for review comments that
-      still apply; don't spend long if nothing turns up quickly.
-   e. **Comment compliance** — read code comments in the modified files,
-      check the change complies with any guidance those comments state.
-   f. **External API contract** — only when the PR changes anything (other
-      than `*.test.ts`) under `packages/aurora/src/server/` or
-      `packages/signal-openstack/`; skip it otherwise. Launch the
-      `external-api-checker` agent (`.claude/agents/external-api-checker.md`)
-      — it knows what to check and how to read the OpenStack, Ceph and S3
-      references verbatim. Give it the two SHAs and every changed call to
-      OpenStack (`service("<name>")…`) or to Ceph RGW through the S3 client
-      (`Storage/clients`, `Storage/routers/ceph`), and every changed Zod
-      schema describing an API response. Its doc quotes with URLs are what
-      lets the scorer verify a finding instead of guessing. If that agent
-      isn't available, run `pr-reviewer` with this paragraph and the
-      agent file's "How to read the references" section pasted verbatim.
-   g. **Security** — launch the project's `security-reviewer` agent
-      (`.claude/agents/security-reviewer.md`, subagent type
-      `security-reviewer`) on the diff. It already knows this stack's auth
-      model and its known-intentional patterns. Tell it the code under
-      review is at `<headRefOid>`, not in the working tree — read files with
-      `git show <headRefOid>:<path>`, never from disk. Run it on every PR:
-      client-only changes still carry the rules it checks (permissions
-      enforced server-side, fail-closed UI, no raw HTML injection). Its
-      findings go through the same scoring and ≥75 bar as the others.
-      If no `security-reviewer` agent is available (another machine, a
-      fresh checkout), run a `pr-reviewer` agent with the same brief —
-      procedure builders and scoping, server-side `canUser` checks, Zod
-      input validation and IDs interpolated into OpenStack URLs, tokens and
-      secrets in logs or responses, raw HTML injection — and note in the
-      report that the dedicated reviewer was missing.
-   Each agent returns a list of issues with the reason each was flagged.
-2. Collect the issues from all agents and merge duplicates — the same
-   problem at the same place, found by several agents, is one issue (keep
-   each agent's reasoning). Different problems stay separate even when
-   related: a duplicate PR and a merge conflict with another PR are two
-   issues, and so are two rule violations in one file.
-   Hand the list to `pr-reviewer` scoring agents — one per up to ~12
-   issues, all launched in one message in the foreground, as in 5.1 —
-   together with the PR, `<headRefOid>`, the review standards from Step 3
-   and the path to the scoring rules,
-   `.claude/skills/review-and-comment-pr/references/scoring.md`, which
-   each scorer reads itself — don't paste or summarise it. Pass each issue
-   as the finder reported it: the claim, its `file:line`, and its evidence
-   as-is — commands with their output, doc quotes with URLs. Don't soften
-   the evidence ("reportedly") and don't add your own view of how much
-   the issue matters; that is the scorer's call. Each scorer returns, per
-   issue, a score (0/25/50/75/100), a severity and category for scores
-   ≥50, and a short reason.
-3. Turn the scored issues into the report's two finding tables. The 0-100
-   score stays internal — it is the gate, and it does **not** appear in the
-   report. Each table row shows `#`, severity (with marker), category, a
-   one-line issue, and `file:line`.
-   - **Drop anything scored below 50.** False positives, pre-existing
-     issues and unconfirmable nitpicks do not appear in the report at all.
-     (This is a deliberate change from a "below the bar" list: the report
-     shows only what to act on. The dropped set still exists in the
-     scorer's output if the user asks.)
-   - **Required Changes** (`### 🔧 Required Changes`) — issues scored ≥50
-     whose severity is 🟡 Moderate or worse (Moderate / Major / Critical),
-     numbered `CR1`, `CR2`, … plus every **Process** item from Steps 1–2
-     (still a draft; description claims a change not in the diff; missing
-     changeset where published code changed; no linked issue / acceptance
-     not verifiable), numbered `P1`, `P2`, …. Process rows have no severity
-     marker (`—`).
-   - **Improvements** (`### 💡 Improvements`) — issues scored ≥50 with
-     severity 🟢 Low or ⚪ Trivial, numbered `I1`, `I2`, …
-   - A missing test is **not** its own finding when it is a test for a bug
-     already listed — fold "no test covers this" into that finding's
-     Explanation. A pure coverage gap on otherwise-correct code is its own
-     Improvement (category `Test coverage`).
-   - If a finding was already raised in the review discussion, say so in
-     its Explanation: who raised it, where, and what happened (fixed, no
-     reply, dismissed).
-4. **Verdict.** Derive the recommendation from Required Changes:
-   - any code `CR*` at 🟡 Moderate or worse → **Request Changes**;
-   - no code `CR*`, only `P*` process items → **Approve — process to-dos
-     first**;
-   - nothing in Required Changes, only Improvements (or clean) →
-     **Approve** (add "with nits" if there are Improvements).
-     **Confidence to Merge** (High / Medium / Low) is how sure you are the PR
-     is sound once the Required Changes are cleared — lower it for anything
-     you could not verify (CI unreadable, acceptance not checkable, draft,
-     security-reviewer fallback used).
+1. **Score.**
 
-Don't run builds yourself. If CI is failing or hasn't run on
-`<headRefOid>`, that goes in the report's CI line (Step 2), not into
-findings re-derived from the build errors.
+   ```bash
+   python3 .claude/skills/review-and-comment-pr/scripts/briefs.py --run <run folder> score
+   ```
 
-### 6. Write the report
+   It collects the candidates (finders a–g, plus the describer's unmet
+   acceptance criteria and stale callers), groups those at the same
+   place, packs them into batches and writes one scorer brief per batch,
+   with the evidence exactly as the finders reported it. Launch the
+   scorers it lists exactly as in Step 4. Each reads
+   `references/scoring.md` itself, scores every candidate of its batch
+   and decides with `same_as` whether candidates at one place are one
+   problem; `save.py` refuses a result that skips either. If the script
+   reports no candidates, go on with 2.
+2. **Compose.**
 
-File name: `<number>-<kebab-slug-of-title>.md`, e.g.
-`1079-slot-support-login.md`, in `<DOCS>/aurora-dashboard-kb/prs/`. Read
-the "Report template" section of
-`.claude/skills/review-and-comment-pr/references/report-format.md` now —
-its structure and wording are fixed — and write the full draft straight
-into that file.
+   ```bash
+   python3 .claude/skills/review-and-comment-pr/scripts/assemble.py --run <run folder>
+   ```
 
-The report is **input-driven**: every section is populated from the earlier
-steps — Step 1 (metadata, status, linked issue), Step 2 (CI, changeset,
-review discussion), Step 4 (What/How/Affects, QA plan, acceptance), Step 5
-(scored findings → Verdict, Required Changes, Improvements). Don't
-re-derive anything here; assemble it. If a value an earlier step was
-supposed to produce is missing, go get it (don't leave a blank) — e.g. the
-changeset check (Step 2) or the QA plan (Step 4).
+   It keeps every candidate scored 50 or more that isn't a `same_as`
+   duplicate (the duplicate's evidence goes along), sorts them, flags
+   pairs that look like one problem, and writes `<run folder>/compose.md`.
+   Read it with the Read tool (not `cat`: long output gets cut).
+3. **Verdict** (not on an Update — its block has none). render.py derives the recommendation from Required
+   Changes (any code finding at 🟡 Moderate or worse → Request Changes;
+   only Process items → Approve — process to-dos first; otherwise Approve,
+   "with nits" if there are Improvements). You choose only **Confidence to
+   Merge** (High / Medium / Low): how sure you are the PR is sound once the
+   Required Changes are cleared — lower it for anything you could not
+   verify (CI unreadable, acceptance not checkable, draft,
+   security-reviewer fallback used).
 
-The report shows **only what to act on and the context behind it**. There
-is no score column, no "below the bar" list, and no row for a check that
-passed — a clean CI / security / changeset / API-contract gate gets no
-line at all (it only surfaces as a finding when it has a problem).
+Don't run builds yourself. A failing or missing CI run on `<headRefOid>`
+is reported as such, not as findings re-derived from the build errors.
 
-**Fact-check before finishing.** Nothing else re-reads the walkthrough —
-the review agents look at the code, not at what you wrote about it. Hand
-the draft to one `pr-reviewer` fact-check agent (in the foreground) together with the diff and
-`<headRefOid>`. It checks the descriptive sections (the three
-"Solution Overview" folds and the "QA Test Plan" — or "What changed" in an
-Update), not the Review:
+### 6. Write texts.json and render the report
 
-- every code excerpt is verbatim at `<headRefOid>`, and its `file:line`
-  points at the excerpt's first line;
-- every claim about behaviour ("X now calls Y", "the cache is keyed by …")
-  matches the code;
-- every consumer claim ("no consumers outside the PR", "all callers were
-  updated") holds on its own `git grep` at `<headRefOid>`;
-- every place the report contrasts the PR description with the code is
-  right.
+Read `.claude/skills/review-and-comment-pr/references/findings-format.md`
+now. From `compose.md` write `<run folder>/texts.json` — the wording
+only; scores, severity, category, location, the overview and the QA plan
+come from the agents:
 
-It returns only the claims that are wrong, each with its evidence. Fix
-those in the file. The fact-check itself doesn't go into the report.
+- `summary` — 2–4 sentences: the overall shape, the one or two things
+  that matter, what clears it; the acceptance grading (with no issue to
+  grade against: "not verified", never a pass); CI that couldn't be read,
+  any agent fallback or check that couldn't run (failing CI is already in
+  the describer's "What was done");
+- `confidence`, `index_affected`;
+- per finding `issue`, `title`, `explanation`, `fix`. In the
+  explanation: what's wrong, where, what it leads to; the precedent if
+  sibling code does the same; if the review discussion raised it, who,
+  where and what happened; a missing test for a listed bug goes here,
+  not into its own finding;
+- `edge_cases` — the scenario behind every Bug finding;
+- `merge` — a look-alike pair from `compose.md` that is one problem;
+- `process` — only a Process item you add yourself (the description
+  claims a change that isn't in the diff); draft, unlinked issue and
+  missing changeset come from `collect.py`.
 
-### 7. Update the index
+The report shows only what to act on: a check that passed (CI, security,
+changeset, API contract) gets no finding. Don't open the old report or
+`report-format.md` — layout, header, footer and index are code. Then:
 
-Add or update this PR's row in `<DOCS>/aurora-dashboard-kb/prs/README.md`
-as the "Index row" section of
-`.claude/skills/review-and-comment-pr/references/report-format.md`
-describes.
+```bash
+python3 .claude/skills/review-and-comment-pr/scripts/assemble.py --run <run folder> --texts && \
+python3 .claude/skills/review-and-comment-pr/scripts/render.py --run <run folder>
+```
 
-Then run `python3 <DOCS>/tools/update-related.py` to refresh the vault's
-"Related" links (skip it if the script is missing, and say so when you
-report back). If it prints a duplicate pr-report warning, pass it on
-when you report back — don't delete or merge reports yourself.
+Either one's exit 1 lists every problem by field — fix it in
+`texts.json` (a finding's text directly; the describer's text or a
+location with a `fixes` entry, as in `findings-format.md`) and run both
+again; nothing reaches `DOCS` until they pass. On success
+render.py writes the report to `DOCS`, adds or replaces the PR's index
+row and refreshes the Related links.
+
+**Fact-check.** Nothing else re-reads the walkthrough.
+
+```bash
+python3 .claude/skills/review-and-comment-pr/scripts/briefs.py --run <run folder> factcheck
+```
+
+Launch the agent it lists, in the foreground, with
+`Read your brief: <path>` and the subagent type it shows. It checks the descriptive sections (Solution
+Overview, QA Test Plan — on an Update, "What changed") against the code
+and saves `out/factcheck.json`: each wrong claim with the field it comes
+from, an exact `old` → `new` replacement and the evidence. Read that
+file; for each entry you accept, copy `field`, `old`, `new` into
+`fixes` in `texts.json` and run both scripts again (on a release PR,
+apply it in `findings.json` and run render.py). The fact-check itself doesn't go into the report.
+
+### 7. Index and related links
+
+Done by render.py in Step 6. If its `Index:` line says the row was not
+updated, or `Related:` shows a warning (e.g. a duplicate pr-report), pass
+it on when you report back — don't edit the index by hand, and don't
+delete or merge reports.
 
 ### 8. Post the report to the PR
 
@@ -602,7 +352,9 @@ and links to private repos.
 
 **Any hit blocks the post.** Quote it to the user with where it sits and
 let them decide — redact the report and re-run, or post manually. Never
-strip-and-post silently. A Markdown problem: fix the report, re-run.
+strip-and-post silently. A Markdown problem: fix it where Step 6 says
+(`texts.json`; on a release PR `findings.json`),
+re-render, re-run.
 
 **Hand-off — mandatory, no bypass.** No standing instruction to act
 autonomously covers this step. Show the user the script's summary
@@ -624,6 +376,12 @@ Tell the user, briefly: what PR was analyzed, the file path you wrote, the
 verdict (recommendation + confidence), the finding counts — how many
 Required Changes (with severities) and Improvements, or that the review was
 clean — and whether the report was posted to the PR (with the comment URL)
-or not (and why). On a status-only update (Step 1), say what changed instead.
+or not (and why). On a status-only update (Step 2), say what changed
+instead; on an Update, the new block's counts and what it lists as fixed. Pass on any agent that failed twice, any fallback used, and any
+`Index:` / `Related:` warning from Step 6.
+
+Then ask once whether any Required Change or Improvement should be filed
+in `DOCS/FOLLOW-UPS.md` — name them by number and title. Never write to
+that file unless the user says which ones; filing them is the user's call.
 
 <!-- prettier-ignore-end -->

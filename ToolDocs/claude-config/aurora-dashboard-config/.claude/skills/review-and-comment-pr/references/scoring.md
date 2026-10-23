@@ -35,6 +35,12 @@ it must not, the issue is verified — score it on its impact (50, 75 or
 100). "Can't run it" or "can't reach the docs" is never a reason for 25
 when the quote and the code are in front of the scorer.
 
+**Precedent-table rule.** When an issue matches a row of "Severity
+precedents" below and the code at `<headRefOid>` does what the row
+describes, the issue is verified: score it at least 50 and give it the
+row's severity. How often it is hit in practice is already priced into
+that severity — not a reason for 25.
+
 **External-API claims.** When an issue rests on how OpenStack, Ceph or S3
 behave, the scorer uses the doc quote agent f attached, or opens the
 reference itself, reading it as `.claude/agents/external-api-checker.md`
@@ -104,7 +110,7 @@ concrete reason, and name it in the reason.
 | 401/403 handled inline instead of redirect / page-level message | 🟢 Low |
 | Quick Reject UI rules (raw HTML element, all-caps, "Please", import order) | 🟢 Low or ⚪ Trivial |
 | No tests for new code, when the epic or the standards require them (otherwise a usual false positive, 0–25) | 🟢 Low |
-| An epic item not delivered, when the PR claims only part of the epic | 🟢 Low |
+| An issue criterion inside the PR's stated scope only partly delivered (criteria outside it are marked `out of scope` and never reach you) | 🟢 Low |
 
 ## Category — for every issue scored 50 or more
 

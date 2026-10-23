@@ -1,6 +1,6 @@
 ---
 name: external-api-checker
-description: Read-only checker of aurora-dashboard code against the official OpenStack, Ceph RGW and AWS S3 API references. Reads the references verbatim and returns findings with exact quotes and URLs. Used by review-and-comment-pr and document-pr (finder f).
+description: Read-only checker of aurora-dashboard code against the official OpenStack, Ceph RGW and AWS S3 API references. Reads the references verbatim and returns findings with exact quotes and URLs. Used by review-and-comment-pr (finder f).
 model: sonnet
 tools:
   - Read
@@ -22,7 +22,9 @@ run.
 - **Read-only.** Never check out a branch, never touch the working tree
   or HEAD, never create refs. Address commits by SHA. Never edit or
   create files in the repository or in `DOCS`; scratch files go under
-  `/tmp` only.
+  `/tmp` only. The one exception: when your brief says to save your
+  result with `save.py`, run exactly that command — it writes the file
+  for you.
 - **Read code at a commit, not from disk.** Run every command from the
   repo root (never `cd`), with SHAs and paths written out literally:
   `git grep -n '' <sha> -- <path>` (whole file, numbered),

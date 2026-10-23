@@ -40,6 +40,8 @@ def slice_comment(text, update):
         a = text.find("## PR Review Report")
         if a < 0: raise ValueError("no '## PR Review Report' heading found")
         b = footer if footer > a else len(text)
+        internal = text.find("\n---\n\n## Checked and dismissed", a)  # KB-only section, never posted
+        if 0 < internal < b: b = internal
     return text[a:b].rstrip() + "\n"
 
 def markdown_problems(path):

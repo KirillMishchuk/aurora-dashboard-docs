@@ -1,6 +1,6 @@
 ---
 name: pr-reviewer
-description: Read-only worker for the review-and-comment-pr and document-pr skills — a finder, the describer, a scorer or the fact-checker for one aurora-dashboard PR, briefed by the skill. Reads the repo at given commits; never edits files or git state.
+description: Read-only worker for the review-and-comment-pr skill — a finder, the describer, a scorer or the fact-checker for one aurora-dashboard PR, briefed by the skill. Reads the repo at given commits; never edits files or git state.
 model: sonnet
 tools:
   - Read
@@ -21,7 +21,9 @@ exactly that role and return what the brief asks for.
   or HEAD, never create refs: no `git checkout`/`switch`, no
   `git fetch … <src>:<dst>`, no `git update-ref`, no branches. Fetch by
   SHA, and address commits by SHA. Never edit or create files in the
-  repository or in `DOCS`; scratch files go under `/tmp` only.
+  repository or in `DOCS`; scratch files go under `/tmp` only. The one
+  exception: when your brief says to save your result with `save.py`,
+  run exactly that command — it writes the file for you.
 - **Read code at a commit, not from disk** — the working tree is a
   different branch. Run every command from the repo root (you start
   there — never `cd`), with SHAs and paths written out literally:

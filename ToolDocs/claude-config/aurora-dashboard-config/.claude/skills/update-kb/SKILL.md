@@ -51,7 +51,7 @@ It holds `README.md` (index, pin, update log) and
    ones (write the new value in English either way), and set the report's
    frontmatter `status:` property to `merged` (if the file has frontmatter;
    leave other properties alone). Don't touch reports for PR numbers outside this
-   commit range, and don't re-run the full `document-pr` review — this is a
+   commit range, and don't re-run the full `review-and-comment-pr` review — this is a
    status-only fix.
 3. **Filter noise.** Skip `chore(version): update versions with Changesets`
    commits and lockfile-only changes — extract only new package versions

@@ -16,7 +16,7 @@ Runs `security-reviewer`, `performance-reviewer`, and `architecture-reviewer`
 against the same set of changed files, in parallel, then merges their
 findings into one report and saves it to `DOCS/pr-reviews/` — the pre-merge
 review log. (Post-merge PR reports are a
-different thing: `document-pr` writes those to `DOCS/aurora-dashboard-kb/prs/`;
+different thing: `review-and-comment-pr` writes those to `DOCS/aurora-dashboard-kb/prs/`;
 don't touch that folder here.)
 
 ## Steps

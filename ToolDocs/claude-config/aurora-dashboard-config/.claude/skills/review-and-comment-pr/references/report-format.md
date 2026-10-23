@@ -1,6 +1,10 @@
 # Report format — review-and-comment-pr
 
-Read this at Step 6 (report) and Step 7 (index).
+> Reference only: the full report, the Update block and the index row are
+> implemented in `scripts/render.py`. Keep the two in sync when the
+> format changes.
+
+The sections below describe the template and the index row.
 
 ## Report template
 
@@ -137,7 +141,7 @@ monorepo, contract changes, anything left inconsistent>
 _Analyzed <today, YYYY-MM-DD> · commit `<headRefOid short sha>` · <provenance: "read-only"; add any of "CI from PR API", "review threads not read", "security-reviewer fallback used", "acceptance graded against #N supplied by the reviewer" that applied> · skill: review-and-comment-pr_
 ```
 
-On an **Update** (Step 1, different head), keep the existing report and
+On an **Update** (Step 2, mode `update`), keep the existing report and
 append the Update block described there, reusing these same Required
 Changes / Improvements tables and severity markers for the delta's
 findings.
@@ -174,5 +178,5 @@ markers>), <m> Improvement(s)`, or `Verdict: Approve — clean`. Rows
   top). Insert the row where it belongs, not always at the top: analyses
   don't happen in PR order.
 - Escape any `|` inside a cell (code spans included) as `\|`.
-- When a report's status changes (Step 1, "Existing report?"), update
+- When a report's status changes (Step 2, mode `status`), update
   this row's Date cell too.
