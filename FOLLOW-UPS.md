@@ -71,6 +71,22 @@ review/analysis but deliberately not done in the PR where they came up.
 | 48 | Extend attached (`in-use`) volumes (Cinder 3.42) | Volumes | open |
 | 49 | "Attached Volumes" section on Instance Details | Volumes | open |
 | 50 | Availability-zone selection when creating a volume | Volumes | open |
+| 51 | `PortSortKeySchema` missing `ip_allocation` sort key | Network (Ports) | open |
+| 52 | Duplicated error-code handling in port/router detail pages | Network (Ports) | open |
+| 53 | Relative traversal import `../../trpc` in Network types | Network (Ports) | open |
+| 54 | Reveal Payload button not gated by permission check | Key Manager | open |
+| 55 | Lingui interpolation syntax error in order delete modal | Key Manager | open |
+| 56 | Key Manager nav missing `isEnabled()` check | Key Manager | open |
+| 57 | Modals missing `disableCloseButton` during async | Key Manager | open |
+| 58 | `usePermissions` hook doesn't expose `isError` | Key Manager | open |
+| 59 | PopupMenu without PopupMenuToggle wrapper | Key Manager | open |
+| 60 | Sort controls use Select+SortButton instead of SortInput | Key Manager | open |
+| 61 | Single-entity menus missing divider before Delete | Key Manager | open |
+| 62 | Delete modal titles include entity name | Key Manager | open |
+| 63 | `listOrders` sends unsupported sort params to Barbican | Key Manager | open |
+| 64 | `listContainers` missing `type` filter | Key Manager | open |
+| 65 | Container secret management UI not wired | Key Manager | open |
+| 66 | E2E test coverage missing for Key Manager | Key Manager | open |
 
 ---
 
@@ -1228,4 +1244,229 @@ first.
 **Status:** open.
 
 ---
-Updated: 2026-10-13
+
+## N. Network: Ports BFF
+
+### 51. `PortSortKeySchema` is missing the `ip_allocation` sort key
+
+**Where:** `packages/aurora/src/server/Network/types/port.ts:92`
+
+**What:** The Neutron API reference documents `ip_allocation` as a valid sort key for listing ports
+(allowing clients to sort by whether IPs are statically or dynamically allocated), but the schema
+defines only 10 keys and omits it.
+
+**Evidence:** Neutron's `parameters.yaml` (lines 1204–1219) lists:
+`admin_state_up`, `device_id`, `device_owner`, `id`, `ip_allocation`, `mac_address`, `name`,
+`network_id`, `project_id`, `status`, `tenant_id`.
+
+**How to fix:** Add `"ip_allocation"` to the `PortSortKeySchema` enum.
+
+**Why not done right away:** Discovered during the update review of PR #1377; the PR is a draft and
+is being iterated on.
+
+**Source:** PR #1377 update review, 2026-10-23, finding CR5.
+
+**Status:** open.
+
+### 52. Duplicated error-code handling in port and router detail pages
+
+**Where:** `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/$portId.tsx:13-47`,
+`packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/$routerId.tsx:18-52`.
+
+**What:** `HTTP_STATUS_BY_TRPC_CODE`, `RETRYABLE_TRPC_CODES`, and `getTrpcErrorCode` are identically
+defined in both files. This pattern will repeat with each new network resource detail page.
+
+A comment at `$portId.tsx:29-31` acknowledges that `useErrorTranslation` doesn't handle raw tRPC
+codes, explaining why the duplication exists.
+
+**How to fix:** Extract the shared error-code mappings into a shared utility module under
+`client/utils/` or `network/-utils/`.
+
+**Why not done right away:** Pre-existing pattern (established in `$routerId.tsx` merged in PR #1355);
+flagged as `I8` in the original PR #1377 review but not addressed in the fix commits.
+
+**Source:** PR #1377 update review, 2026-10-23, finding I9 (precedent: existing).
+
+**Status:** open.
+
+### 53. Relative traversal import `../../trpc` in Network types
+
+**Where:** `packages/aurora/src/server/Network/types/port.ts:2`,
+`packages/aurora/src/server/Network/types/floatingIp.ts:3`,
+`packages/aurora/src/server/Network/types/securityGroup.ts:3`.
+
+**What:** These files import from `"../../trpc"` instead of using the `@/` alias. The Copilot Quick
+Reject checklist flags imports using `../../` traversal beyond one level.
+
+**How to fix:** Change to `import { projectScopedInputSchema } from "@/server/trpc"` in all three
+files.
+
+**Why not done right away:** Pre-existing pattern in `floatingIp.ts` and `securityGroup.ts`; flagged
+as `I12` in the original PR #1377 review but not addressed in the fix commits.
+
+**Source:** PR #1377 update review, 2026-10-23, finding I14 (precedent: existing).
+
+**Status:** open.
+
+---
+
+## O. Key Manager (Barbican)
+
+### 54. Reveal Payload button not gated by permission check
+
+**Where:** `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretDetailsView.tsx:89`
+
+**What:** The Reveal Payload button is rendered unconditionally for any user who can view the secret detail page. Issue #1133 acceptance criteria explicitly require gating this action via `canUser('key-manager:secrets:get')`, and the policy file defines the `key-manager:secrets:payload` rule. The server enforces the permission through Barbican, but the UI doesn't follow the fail-closed pattern.
+
+**How to fix:** Import `usePermissions` and conditionally render the button only when `permissions['key-manager:secrets:payload']` or `permissions['key-manager:secrets:get']` is true, matching the pattern in SecretsList, ContainersList and OrdersList.
+
+**Source:** PR #1393 review, CR1 (Major/Security).
+
+**Status:** open.
+
+### 55. Lingui interpolation syntax error in order delete modal
+
+**Where:** `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderModals.tsx:137`
+
+**What:** The delete confirmation message uses JavaScript template literal syntax `${orderTypeLabel}` inside a Lingui tagged template. Lingui expects `{orderTypeLabel}` without the dollar sign. At runtime, the message shows the literal text `${orderTypeLabel}` instead of the order type (key, asymmetric, certificate).
+
+**How to fix:** Change `${orderTypeLabel}` to `{orderTypeLabel}` in the Lingui template string.
+
+**Source:** PR #1393 review, CR2 (Major/Bug).
+
+**Status:** open.
+
+### 56. Key Manager nav missing `isEnabled()` check
+
+**Where:** `packages/aurora/src/client/routes/_auth/projects/-components/buildNavSections.ts:154`
+
+**What:** The Key Manager nav entry checks only the service catalog (`serviceIndex["key-manager"]?.["barbican"]`) but omits the `isEnabled("key-manager")` call. All other services (images, flavors, containers, securitygroups, floatingips, routers) use both checks. Without it, consumers cannot hide Key Manager via `appConfig.enabledServices` or `deniedServices`, breaking the established service visibility contract.
+
+**How to fix:** Change the condition to `serviceIndex["key-manager"]?.["barbican"] && isEnabled("key-manager")`.
+
+**Source:** PR #1393 review, CR3 (Moderate/Bug).
+
+**Status:** open.
+
+### 57. Modals missing `disableCloseButton` during async operations
+
+**Where:** `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainerModals.tsx:49-50` and all other Key Manager modals.
+
+**What:** CreateContainerModal sets `disableConfirmButton` and `disableCancelButton` during the pending mutation but omits `disableCloseButton`. B.5 requires all three to be synchronized. Users can click the X to close the modal while a create/delete is in flight. The same issue appears in DeleteContainerModal and all modals in OrderModals.tsx and SecretModals.tsx.
+
+**How to fix:** Add `disableCloseButton={createMutation.isPending}` (or the relevant mutation's `isPending`) alongside the existing props in each modal.
+
+**Source:** PR #1393 review, CR4 (Moderate/UI/UX).
+
+**Status:** open.
+
+### 58. `usePermissions` hook doesn't expose `isError`
+
+**Where:** `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/-components/usePermissions.ts:24`
+
+**What:** The `usePermissions` hook returns only `permissions` and `isLoading`. When the tRPC query fails, `data` defaults to `[]` and all permissions map to `false`, so the three list components show "You do not have permission…" instead of an error state. The `useCephPermissions` hook exposes `isError` for this reason, and PR #1207's review flagged the same pattern.
+
+**How to fix:** Expose `isError` from the query and handle it in ContainersList, OrdersList and SecretsList to show an error message instead of the permissions warning.
+
+**Source:** PR #1393 review, CR5 (Moderate/UI/UX).
+
+**Status:** open.
+
+### 59. PopupMenu without PopupMenuToggle wrapper
+
+**Where:** `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainerTableRow.tsx:34` and OrderTableRow, SecretTableRow.
+
+**What:** ContainerTableRow, OrderTableRow and SecretTableRow use `<PopupMenu>` directly without a `<PopupMenuToggle as="div">` wrapper. B.14 requires the toggle for keyboard accessibility.
+
+**How to fix:** Wrap the trigger button with `<PopupMenuToggle as="div">` in each table row component.
+
+**Source:** PR #1393 review, I1 (Low/Accessibility).
+
+**Status:** open.
+
+### 60. Sort controls use Select+SortButton instead of SortInput
+
+**Where:** `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx:83` and OrdersList.
+
+**What:** SecretsList and OrdersList use a custom Select + SortButton combination for sorting instead of the `SortInput` component required by B.1. All other list pages (flavors, images, routers, security groups, storage) use SortInput.
+
+**How to fix:** Replace the Select + SortButton combination with the `SortInput` component from `@/client/components/ListToolbar/SortInput`.
+
+**Source:** PR #1393 review, I2 (Low/UI/UX).
+
+**Status:** open.
+
+### 61. Single-entity menus missing divider before Delete
+
+**Where:** `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainerTableRow.tsx:35-37` and OrderTableRow, SecretTableRow.
+
+**What:** The popup menus in ContainerTableRow, OrderTableRow and SecretTableRow have Show Details and Delete without a divider between them. B.18 requires single-entity menus to separate the destructive action with a divider.
+
+**How to fix:** Add a divider component before the Delete menu item in each table row's popup menu.
+
+**Source:** PR #1393 review, I3 (Low/UI/UX).
+
+**Status:** open.
+
+### 62. Delete modal titles include entity name
+
+**Where:** `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainerModals.tsx:109` and DeleteOrderModal, DeleteSecretModal.
+
+**What:** DeleteContainerModal, DeleteOrderModal and DeleteSecretModal use titles like `` t`Delete Container "${containerName}"` ``. B.5 says to put the object name in the body, not the title.
+
+**How to fix:** Use a generic title (e.g. `Delete Container`) and reference the entity by name in the confirmation body.
+
+**Source:** PR #1393 review, I4 (Low/UI/UX).
+
+**Status:** open.
+
+### 63. `listOrders` sends unsupported sort params to Barbican
+
+**Where:** `packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:269-273`
+
+**What:** The `listOrders` procedure sends `sort_key` and `sort_dir` query params, but the Barbican orders API only accepts `offset`, `limit` and `meta`. It always sorts by `created_at`. The parameters are silently ignored, so the UI's sort controls don't actually change the order.
+
+**How to fix:** Remove sort handling from `listOrders` input and implementation, and hide or disable the sort control in OrdersList since the API doesn't support it.
+
+**Source:** PR #1393 review, I5 (Low/Bug).
+
+**Status:** open.
+
+### 64. `listContainers` missing `type` filter
+
+**Where:** `packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:29-31`
+
+**What:** The `containersSearchInput` schema omits the `type` field, and `listContainers` doesn't send it. Barbican accepts `type` (generic, rsa, certificate) for filtering. This limits the feature but doesn't break existing functionality.
+
+**How to fix:** Add `type: z.enum(['generic', 'rsa', 'certificate']).optional()` to `containersSearchInput` and pass it as a query parameter when present.
+
+**Source:** PR #1393 review, I6 (Low/Bug).
+
+**Status:** open.
+
+### 65. Container secret management UI not wired
+
+**Where:** `packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts` (procedures exist), `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainerModals.tsx` (only Create/Delete modals).
+
+**What:** The server exposes `updateSecret`, `addContainerSecret` and `deleteContainerSecret` procedures, but the client has only Create and Delete modals. Phase 2 acceptance asks for container secret association management, which the backend supports but the UI doesn't surface.
+
+**How to fix:** Consider adding a ManageContainerSecretsModal or noting this as follow-up work for Phase 2 completion.
+
+**Source:** PR #1393 review, I7 (Low/UI/UX).
+
+**Status:** open.
+
+### 66. E2E test coverage missing for Key Manager
+
+**Where:** `apps/dashboard/e2e/` (no Key Manager tests)
+
+**What:** Unit tests cover all 16 server procedures, schema validation and client components (~1400 lines total), but no Playwright tests were added. The acceptance criterion asks for "complete testing coverage (unit, integration, E2E)".
+
+**How to fix:** Add E2E tests covering the happy path for listing, creating and deleting secrets, containers and orders.
+
+**Source:** PR #1393 review, I8 (Low/Test coverage).
+
+**Status:** open.
+
+---
+Updated: 2026-10-23
