@@ -6,5 +6,3 @@
 {{scope}}
 Read code at `headRefOid`, never from disk (the working tree is another branch). The full diff of one file: `git diff {{base}}...{{head}} -- <path>`.
 
-Work in few, large steps: every tool call is a round trip that re-reads your whole context. Put independent commands into one Bash call, separating their output with `echo '--- <label>'`. Read a file you need once, whole and numbered — `git grep -n '' {{head}} -- <path> <path2> …` takes several paths in one call — instead of line range by line range or one `git blame` per line.
-

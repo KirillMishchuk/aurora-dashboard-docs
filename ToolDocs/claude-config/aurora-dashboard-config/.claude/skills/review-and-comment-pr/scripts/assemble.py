@@ -23,6 +23,10 @@ import re
 import sys
 from pathlib import Path
 
+sys.dont_write_bytecode = True
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import quotes  # noqa: E402  (same folder)
+
 ORDER = ["Critical", "Major", "Moderate", "Low", "Trivial"]
 TEXT_KEYS = ("issue", "title", "explanation", "fix")
 SIMILAR = 0.3
@@ -136,15 +140,27 @@ def compose(run_dir):
         L += ["## Acceptance grading (for the summary)", ""]
         L += [f"- {a['status']}: {a['criterion']}" for a in desc["acceptance"]] + [""]
     if update:
-        old = Path(ctx["report"]["path"]).read_text(encoding="utf-8")
-        rows = re.findall(r"^\| *((?:CR|P|I)\d+) *\| *([^|]*?) *\| *[^|]*\|(?: *[^|]*\|)? *([^|]*?) *\| *([^|]*?) *\|$",
-                          old, re.M)  # 5 columns, or 6 with Precedent
-        L += ["## Earlier findings (for `fixed_since`)", "",
-              "From the existing report. Check each against the new commits' code only as far as the agents' "
-              "results show; list the ones the new commits fixed, by number.", ""]
-        L += [f"- {n} {sev} — {issue} — {loc}" for n, sev, issue, loc in rows] or ["- none"]
+        rows = quotes.earlier_rows(ctx["report"]["path"], ctx["pr"]["head"]["short"])
+        agf = run_dir / "out" / "earlier.json"
+        ag = json.loads(agf.read_text(encoding="utf-8"))["earlier"] if agf.exists() else {}
+        L += ["## Earlier findings (for `earlier`)", "",
+              ("The `earlier` agent checked each of them at the new head; its status, note and evidence are below "
+               "and already in the template. Keep the statuses — change one only if another agent's result shows "
+               "it wrong, and say why in the note — and reword a note only for the reader. Don't open the code "
+               "yourself." if ag else
+               "**The `earlier` agent's result is missing (`out/earlier.json`)** — re-launch it as in Step 4 "
+               "before writing texts.json.")
+              + " In a note, name earlier findings by number (`CR2`), this Update's own by `[[ref:<id>]]`. "
+              "render.py refuses a list with one left out.", ""]
+        for n, sev, issue, loc in rows:
+            L.append(f"- {n} {sev} — {issue} — {loc}")
+            if n in ag:
+                L.append(f"  - **{ag[n]['status']}** — {ag[n]['note']} _(evidence: {ag[n]['evidence']})_")
+        if not rows:
+            L.append("- none")
         L += [""]
-        tmpl = {"fixed_since": "earlier findings the new commits fixed, by CR/I number with one line each; or \"None\"",
+        tmpl = {"earlier": {n: ({"status": ag[n]["status"], "note": ag[n]["note"]} if n in ag
+                                else {"status": "fixed | partly | open", "note": ""}) for n, *_ in rows},
                 "findings": {ref(cid): {k: "" for k in TEXT_KEYS} for cid in keep},
                 "merge": {}, "provenance_extra": []}
     else:
@@ -163,7 +179,9 @@ def compose(run_dir):
     bugs = sum(1 for k in keep.values() if k["s"]["category"] == "Bug")
     print(f"{len(keep)} findings to write ({bugs} Bug), {len(scores) - len(keep)} candidates dropped "
           f"(below 50 or same_as), {len(pairs)} look-alike pair(s).\n"
-          f"Read {run_dir / 'compose.md'}, write {run_dir / 'texts.json'}, then run with --texts.")
+          f"Read {run_dir / 'compose.md'}, write {run_dir / 'texts.json'}, then run with --texts."
+          + ("\nWARNING: out/earlier.json is missing — re-launch the `earlier` agent (Step 4) first."
+             if update and not (run_dir / "out" / "earlier.json").exists() else ""))
     return 0
 
 
@@ -212,7 +230,7 @@ def build(run_dir):
         print(f"INVALID texts.json — not valid JSON: {e}")
         return 1
     errors = []
-    allowed = {"summary", "confidence", "index_affected", "fixed_since", "findings", "edge_cases", "merge",
+    allowed = {"summary", "confidence", "index_affected", "earlier", "findings", "edge_cases", "merge",
                "provenance_extra",
                "overview", "qa", "process", "process_overrides", "fixes", "scope"}
     for k in t:
@@ -237,9 +255,15 @@ def build(run_dir):
     for rid in texts:
         if rid not in ids:
             errors.append(f"findings.{rid}: not a finding in compose.md")
-    for k in (("fixed_since",) if update else ("summary", "confidence", "index_affected")):
-        if not isinstance(t.get(k), str) or not t[k].strip():
-            errors.append(f"{k}: missing or empty")
+    if update:  # a status per earlier finding; render.py checks it in full
+        if not isinstance(t.get("earlier"), dict) or not t["earlier"]:
+            errors.append("earlier: missing — the object from compose.md, one entry per earlier finding")
+    else:
+        for k in ("summary", "confidence", "index_affected"):
+            if not isinstance(t.get(k), str) or not t[k].strip():
+                errors.append(f"{k}: missing or empty")
+        if "earlier" in t:
+            errors.append("earlier: exists only on an Update")
     if not desc and not t.get("overview"):
         errors.append("overview: no describer result — write overview and qa yourself")
     if errors:
@@ -274,7 +298,7 @@ def build(run_dir):
           "index_affected": t.get("index_affected", ""),
           "scope": t["scope"] if "scope" in t else (desc or {}).get("scope")}
     if update:
-        fd["fixed_since"] = t["fixed_since"]
+        fd["earlier"] = t["earlier"]
     else:  # what the scorers checked and dropped — shown in the report, never posted
         fd["dismissed"] = [{"score": s["score"], "claim": cands[cid]["claim"], "location": cands[cid]["location"],
                             "reason": s["reason"]}

@@ -79,7 +79,9 @@ def variables(ctx, run):
     scope = ""
     if ctx["mode"] == "update":
         scope = ("- **Scope: this is an Update.** Analyze only the new commits — "
-                 + ("`delta.diff`, the range `" + rep["delta"] + "`." if rep.get("delta") not in (None, "whole-pr")
+                 + ("`delta.diff`: the range `" + rep["delta"] + "` limited to the PR's own files, so code that "
+                    "came in with a merge of the base branch is left out — don't diff the range yourself."
+                    if rep.get("delta") not in (None, "whole-pr")
                     else "the old head is unreachable (force-push), so the whole PR diff.") + "\n")
     acceptance = (f"Grade the PR against the acceptance criteria in "
                   + ", ".join(f"`{i['file']}`" for i in issues)
@@ -117,6 +119,9 @@ def find(ctx, run_dir):
     part = {n: (TEMPLATES / f"_{n}.md").read_text(encoding="utf-8") for n in ("header", "output", "candidates")}
     agents = [("describer", "pr-reviewer", "Describer")] + [
         a for a in FINDERS if a[0] != "finder-f" or ctx["flags"]["finder_f"]["needed"]]
+    if ctx["mode"] == "update":  # one narrow agent checks every earlier finding at the new head
+        agents.append(("earlier", "pr-reviewer", "Earlier findings"))
+        vals = dict(vals, earlier_list="\n".join(earlier_findings(ctx)) or "- none")
     (run_dir / "briefs").mkdir(exist_ok=True)
     (run_dir / "out").mkdir(exist_ok=True)
     lines = []
@@ -246,10 +251,19 @@ def score(ctx, run_dir):
                                                         indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
     vals = variables(ctx, str(run_dir))
     part = {n: (TEMPLATES / f"_{n}.md").read_text(encoding="utf-8") for n in ("header", "output")}
+    earlier = ""
+    if ctx["mode"] == "update":  # so a candidate that objects to an earlier finding being carried out isn't scored up
+        rows = earlier_findings(ctx)
+        earlier = ("## Earlier findings of this report\n\nThis is an Update: the report it extends already raised "
+                   "the findings below. A candidate that objects to the PR doing what one of them asked (it moved a "
+                   "column, renamed a string, restructured code as an earlier finding requested) is not a new "
+                   "problem: score it 0 and name the earlier finding in the reason. If the change was made badly — it "
+                   "breaks something or does only half of it — score that as usual.\n\n"
+                   + ("\n".join(rows) if rows else "- none") + "\n") if rows else ""
     lines = []
     for n, b in enumerate(batches, 1):
         name = f"score-{n}"
-        v = dict(vals, name=name, role=f"Scorer {n}", batch=str(n), batches=str(len(batches)))
+        v = dict(vals, name=name, role=f"Scorer {n}", batch=str(n), batches=str(len(batches)), earlier=earlier)
         v["header"] = fill(part["header"], v)
         v["output"] = fill(part["output"], v)
         gs = []
@@ -271,6 +285,12 @@ def score(ctx, run_dir):
     print(f"{len(cands)} candidates in {len(groups)} places. Launch these {len(lines)} scorers in ONE message, in the "
           "foreground, each with the prompt \"Read your brief: <path>\" and the subagent type shown:\n" + "\n".join(lines))
     return 0
+
+
+def earlier_findings(ctx):
+    """The report's findings before this Update, as list lines (quotes.earlier_rows)."""
+    return [f"- {n} {sev} — {issue} — {loc}"
+            for n, sev, issue, loc in quotes.earlier_rows(ctx["report"]["path"], ctx["pr"]["head"]["short"])]
 
 
 def factcheck(ctx, run_dir):

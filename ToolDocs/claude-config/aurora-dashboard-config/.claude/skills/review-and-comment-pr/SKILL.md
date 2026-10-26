@@ -157,14 +157,17 @@ JSON).
   existing text (reports are historical records). Steps 4–6 run as for
   `full`, but the agents analyze only the delta (`delta.diff`;
   `Delta: whole-pr` means a force-push made the old head unreachable —
-  tell the user). In `texts.json` write `fixed_since` — the earlier
-  findings the new commits fixed, by CR/I number, or "None", from the
-  "Earlier findings" list in `compose.md` — instead of `summary`,
-  `confidence`, `index_affected` and `edge_cases`. render.py inserts an
+  tell the user), and one more agent, `earlier`, checks every finding of
+  the existing report at the new head. In `texts.json` write `earlier` —
+  the template in `compose.md` comes filled with that agent's status
+  (`fixed`, `partly`, `open`) and one-line note per earlier finding —
+  instead of `summary`, `confidence`,
+  `index_affected` and `edge_cases`. render.py inserts an
   `## Update — <today>, head <sha>` block before the report's footer
-  (What changed, Fixed since last analysis, the delta's findings numbered
-  after the report's earlier ones; a re-render replaces it), and updates
-  the footer, the status and the index row's Date cell.
+  (What changed; Fixed since last analysis, Partly fixed, Still open; Before
+  merge with the earlier blockers still open; the delta's findings
+  numbered after the report's earlier ones; a re-render replaces it), and
+  updates the footer, the status and the index row.
 - **`none`** — merged or closed without a report, or already up to
   date, or the user chose to stop: nothing to document. Say so and stop.
 
@@ -211,7 +214,8 @@ python3 .claude/skills/review-and-comment-pr/scripts/briefs.py --run <run folder
 
 It writes one brief per agent into `<run folder>/briefs/` — the describer
 and finders a–g (f only when the PR changes server code; none on a
-release PR) — and prints each agent with its subagent type. Launch
+release PR; on an Update also `earlier`) — and prints each agent with its
+subagent type. Launch
 exactly those agents in **one** message, in the foreground
 (`run_in_background: false`), each with the prompt
 `Read your brief: <path>` and its subagent type. Their results then come
@@ -279,7 +283,10 @@ is reported as such, not as findings re-derived from the build errors.
 Read `.claude/skills/review-and-comment-pr/references/findings-format.md`
 now. From `compose.md` write `<run folder>/texts.json` — the wording
 only; scores, severity, category, location, the overview and the QA plan
-come from the agents:
+come from the agents. On an Update, `earlier` comes from the `earlier`
+agent through `compose.md` — keep its statuses; don't open code or run
+diffs yourself (a range diff also carries what a merge of `main` brought
+in):
 
 - `summary` — 2–4 sentences: the overall shape, the one or two things
   that matter, what clears it; the acceptance grading (with no issue to
@@ -362,8 +369,9 @@ re-render, re-run.
 **Hand-off — mandatory, no bypass.** No standing instruction to act
 autonomously covers this step. Show the user the script's summary
 (verdict, counts, sections, `<owner>/<repo>` PR #`<number>` and the
-account) and ask. Post only on an explicit yes given in reply to this
-hand-off:
+account) and ask — this question only; the follow-ups question of Step 9
+comes after its answer. Post only on an explicit yes given in reply to
+this hand-off:
 
     gh pr comment <number> --repo <owner>/<repo> --body-file /tmp/pr-<number>-comment.md
 
@@ -383,8 +391,13 @@ or not (and why). On a status-only update (Step 2), say what changed
 instead; on an Update, the new block's counts and what it lists as fixed. Pass on any agent that failed twice, any fallback used, and any
 `Index:` / `Related:` warning from Step 6.
 
-Then ask once whether any Required Change or Improvement should be filed
-in `DOCS/FOLLOW-UPS.md` — name them by number and title. Never write to
-that file unless the user says which ones; filing them is the user's call.
+Then, once the posting question has its own answer, ask whether any
+finding should be filed in `DOCS/FOLLOW-UPS.md` — a separate
+`AskUserQuestion`, never folded into the posting question or the end of
+the report, and a "no" to posting is no answer to it. Options: `None`,
+`All Required Changes` (their numbers in the description), `All
+findings`; the user can name others in "Other". On an Update, offer this
+block's findings and the earlier ones still open. Never write to that file
+unless the user says which ones; filing them is the user's call.
 
 <!-- prettier-ignore-end -->

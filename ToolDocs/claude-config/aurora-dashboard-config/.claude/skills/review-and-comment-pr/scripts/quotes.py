@@ -389,3 +389,24 @@ def check_precedent(repo, p, where, errors):
     elif not PRECEDENT_URL.match(ref.strip()):
         errors.append(f"{where}.ref: {ref!r} — the URL of the PR, issue or comment where a maintainer "
                       "accepted or deferred it (https://github.com/<owner>/<repo>/pull/<n>…)")
+
+
+EARLIER_ROW = re.compile(r"^\| *(?:CR|P|I)\d+ *\|.*\|\s*$", re.M)
+
+
+def earlier_rows(report_path, head_short):
+    """[(number, severity, issue, location)] of the existing report's finding rows (5 columns, or 6 with
+    Precedent), without an Update block for this head — the one list every script uses for "earlier"."""
+    text = Path(report_path).read_text(encoding="utf-8")
+    m = re.search(r"^## Update — [^\n]*head `" + re.escape(head_short) + "`", text, re.M)
+    if m:
+        rest = text[m.end():]
+        nxt = re.search(r"^## Update — ", rest, re.M)
+        foot = rest.find("\n---\n\n_Analyzed")
+        text = text[:m.start()] + text[m.end() + (nxt.start() if nxt else (foot if foot >= 0 else len(rest))):]
+    rows = []
+    for line in EARLIER_ROW.findall(text):
+        cells = [c.strip() for c in re.split(r"(?<!\\)\|", line.strip())[1:-1]]  # an escaped \| stays in its cell
+        if len(cells) >= 5:
+            rows.append((cells[0], cells[1], cells[-2], cells[-1]))
+    return rows

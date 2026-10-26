@@ -84,7 +84,13 @@ def main():
 
     print(f"Comment file: {out} ({len(body)} chars, {body.count(chr(10))} lines)")
     print(f"Post as: @{login}")
-    print(f"Verdict: {verdict.group(0) if verdict else '(no Recommendation line)'}")
+    if "--update" in sys.argv:  # an Update block has no verdict; its "Before merge" list says what blocks
+        print("Verdict: — (an Update block has none)")
+        m = re.search(r"^### Before merge\n(.*?)(?=^#{2,3} |\Z)", body, re.M | re.S)
+        before = [l for l in (m.group(1).splitlines() if m else []) if l.startswith("- ")]
+        print("Before merge:" + ("\n" + "\n".join("  " + l for l in before) if before else " none"))
+    else:
+        print(f"Verdict: {verdict.group(0) if verdict else '(no Recommendation line)'}")
     print(f"Reviewed: {reviewed.group(0).strip('_') if reviewed else '(no Reviewed line — older report)'}")
     print(f"Findings: {counts['CR']} Required Changes, {counts['P']} Process, {counts['I']} Improvements")
     print("Sections: " + " | ".join(re.findall(r"^#{2,3} +(.+)$", body, re.M)))

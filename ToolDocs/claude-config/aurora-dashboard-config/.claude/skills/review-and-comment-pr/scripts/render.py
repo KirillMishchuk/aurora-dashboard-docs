@@ -63,7 +63,9 @@ def strip_code(text):
 def text_fields(fd):
     """(where, text) for every free-text field the report shows."""
     yield "summary", fd.get("summary") or ""
-    yield "fixed_since", fd.get("fixed_since") or ""
+    for k, v in (fd.get("earlier") or {}).items() if isinstance(fd.get("earlier"), dict) else []:
+        if isinstance(v, dict):
+            yield f"earlier.{k}.note", v.get("note") or ""
     for sec in ("findings", "process"):
         for i, f in enumerate(fd.get(sec) or []):
             for k in ("issue", "title", "explanation", "fix"):
@@ -203,6 +205,38 @@ class Checker:
         self.text(f, "fix", where)
 
 
+EARLIER_STATUS = ("fixed", "partly", "open")
+
+
+def number_key(n):
+    """CR1 < CR2 < … < P1 < … < I1 < … — the report's own order."""
+    m = re.match(r"^(CR|P|I)(\d+)$", n)
+    return (("CR", "P", "I").index(m.group(1)), int(m.group(2))) if m else (9, 0)
+
+
+def check_earlier(c, earlier, numbers):
+    """Every earlier finding gets a status and a one-line note — nothing left out, nothing invented."""
+    if not isinstance(earlier, dict):
+        c.err("earlier", "must be an object: {\"CR1\": {\"status\": …, \"note\": …}, …}")
+        return
+    missing = sorted(numbers - set(earlier), key=number_key)
+    if missing:
+        c.err("earlier", f"missing {', '.join(missing)} — give every earlier finding a status (template in compose.md)")
+    for k in sorted(earlier, key=number_key):
+        v, w = earlier[k], f"earlier.{k}"
+        if k not in numbers:
+            c.err(w, "not a finding of the earlier report")
+            continue
+        if not isinstance(v, dict) or set(v) != {"status", "note"}:
+            c.err(w, "must be {\"status\": \"fixed\" | \"partly\" | \"open\", \"note\": \"one line\"}")
+            continue
+        if v["status"] not in EARLIER_STATUS:
+            c.err(f"{w}.status", f"{v['status']!r} not one of {list(EARLIER_STATUS)}")
+        note = c.text(v, "note", w, single_line=True)
+        if note and re.search(r"\[\[(code|at):", note):
+            c.err(f"{w}.note", "one line of text — no [[code:…]] / [[at:…]] placeholders here")
+
+
 def validate(ctx, fd):
     c = Checker(ctx)
     q_errors, q_warnings = quotes.resolve_findings(ctx, fd)   # placeholders -> code/line numbers; hand-typed code checked
@@ -214,7 +248,7 @@ def validate(ctx, fd):
     if fd.get("schema_version") != 1:
         c.err("schema_version", "must be 1")
     known = {"schema_version", "summary", "confidence", "findings", "process", "process_overrides",
-             "overview", "qa", "provenance_extra", "index_affected", "fixed_since", "dismissed", "scope"}
+             "overview", "qa", "provenance_extra", "index_affected", "dismissed", "scope", "earlier"}
     for k in fd:
         if k not in known:
             c.err(k, f"unknown key (allowed: {', '.join(sorted(known))})")
@@ -223,9 +257,14 @@ def validate(ctx, fd):
         if sc and len(sc) > SCOPE_MAX_CHARS:
             c.err("scope", f"{len(sc)} characters — one short line, about {SCOPE_MAX_CHARS} at most")
     if update:
-        c.text(fd, "fixed_since", "")
+        if fd.get("earlier") is None:
+            c.err("earlier", "missing — a status for every earlier finding (the template in compose.md)")
+        else:
+            check_earlier(c, fd["earlier"], earlier_numbers(ctx))
     else:
         c.text(fd, "summary", "")
+        if fd.get("earlier") is not None:
+            c.err("earlier", "exists only on an Update")
     if not update and fd.get("confidence") not in CONFIDENCE:
         c.err("confidence", f"{fd.get('confidence')!r} not one of {sorted(CONFIDENCE)}")
     prec_repo = quotes.Repo(ctx)
@@ -263,7 +302,9 @@ def validate(ctx, fd):
         c.err("index_affected", f"{len(aff.split())} words — keep it to about 40")
     if aff and "Verdict" in aff:
         c.err("index_affected", "leave the verdict out — render.py appends it")
-    ids = [p["id"] for p in ctx.get("process", [])]
+    # an Update block shows no Process items from context.json, so [[ref:]] can't point at them there
+    ids = [] if update else [p["id"] for p in ctx.get("process", [])]
+    earlier = earlier_numbers(ctx) if update else set()  # an Update may name the report's earlier findings
     for sec in ("findings", "process"):
         for i, f in enumerate(fd.get(sec) or []):
             if "id" in f:
@@ -275,9 +316,11 @@ def validate(ctx, fd):
     for where, t in text_fields(fd):
         for m in REF.finditer(t):
             if m.group(1) not in ids:
-                c.err(where, f"[[ref:{m.group(1)}]] — no finding or Process item has that id")
+                c.err(where, f"[[ref:{m.group(1)}]] — no finding or Process item has that id"
+                      + (" in this Update block; name an earlier finding by its number (e.g. CR2)" if update else ""))
         # the describer's overview never numbers findings — an epic's "P1" there is not one
         hard = [] if where.startswith("overview.") else HARD_NUMBER.findall(strip_code(t))
+        hard = [h for h in hard if h not in earlier]
         if hard:
             c.err(where, f"hard-coded finding number {hard[0]} — numbers are assigned by render.py; "
                          "give the finding an `id` and write [[ref:<id>]]. If it isn't a finding number "
@@ -361,8 +404,9 @@ def recommendation_md(rec):
             "Approve": "🟢 Approve"}.get(rec, rec)
 
 
-def before_merge(req, procs, scope):
-    """The verdict's short list: blockers, team calls (Required Changes with a precedent tag), process to-dos."""
+def before_merge(req, procs, scope, earlier=None):
+    """The verdict's short list: blockers, team calls (Required Changes with a precedent tag), process to-dos;
+    on an Update also the earlier Required Changes and Process items that are still open."""
     must = [f["n"] for f in req if not f.get("precedent")]
     team = [f["n"] for f in req if f.get("precedent")]
     L = []
@@ -370,6 +414,13 @@ def before_merge(req, procs, scope):
         L.append(f"- **Must fix before merge**{f' ({scope.strip()})' if scope else ''}: {', '.join(must)}")
     if team:
         L.append(f"- **Team call** (existing pattern or deferred by a maintainer): {', '.join(team)}")
+    still = [(n, v["status"]) for n, v in sorted((earlier or {}).items(), key=lambda kv: number_key(kv[0]))
+             if v["status"] != "fixed" and not n.startswith("I")]
+    if still:
+        tag = lambda n, s: n + (" (partly)" if s == "partly" else "")  # noqa: E731
+        cr = ", ".join(tag(n, s) for n, s in still if n.startswith("CR"))
+        pp = ", ".join(tag(n, s) for n, s in still if n.startswith("P"))
+        L.append("- **Still open from the earlier review:** " + " · ".join(x for x in (cr, pp) if x))
     if procs:
         L.append(f"- **Process:** {', '.join(f['n'] for f in procs)}")
     return L + [""] if L else []
@@ -554,6 +605,39 @@ def set_index_date(readme, number, date_cell):
     return "no index row for this PR — add it by hand"
 
 
+UPDATE_TAIL = re.compile(r" · Update \d{4}-\d{2}-\d{2} \(`[0-9a-f]+`\):[^|]*$")
+
+
+def update_tail(today, short, req, procs, imp, fixed=None):
+    """' · Update <date> (`sha`): …' — what the latest Update block added, for the index row."""
+    parts = []
+    if req or procs:
+        markers = "".join(MARKER[f["severity"]] for f in req)
+        if procs:
+            markers += (" + " if markers else "") + f"{len(procs)} process"
+        parts.append(f"{plural(len(req) + len(procs), 'Required Change')} ({markers})")
+    if imp:
+        parts.append(plural(len(imp), "Improvement"))
+    return (f" · Update {today} (`{short}`): " + (", ".join(parts) if parts else "no new findings")
+            + (f"; {fixed} earlier fixed" if fixed is not None else ""))
+
+
+def set_index_update(readme, number, tail):
+    """Replace the row's Update tail (or add one) at the end of its affected/verdict cell."""
+    lines = readme.read_text(encoding="utf-8").split("\n")
+    for i, l in enumerate(lines):
+        m = ROW_RE.match(l)
+        if m and m.group(1) == str(number):
+            cells = l.split(" | ")
+            if len(cells) < 5:
+                return "Update tail NOT added — unexpected row format"
+            cells[3] = UPDATE_TAIL.sub("", cells[3]) + tail
+            lines[i] = " | ".join(cells)
+            readme.write_text("\n".join(lines), encoding="utf-8")
+            return "Update tail set"
+    return "no index row for this PR — add it by hand"
+
+
 LINE_PREFIX = re.compile(r"^line \d+: ")
 
 
@@ -604,6 +688,14 @@ UPDATE_HEAD = re.compile(r"^## Update — ", re.M)
 FOOTER = "\n---\n\n_Analyzed"
 
 
+def earlier_numbers(ctx):
+    """CR/P/I numbers already in the report (without an Update block for this head) — an Update may cite them."""
+    try:
+        return {r[0] for r in quotes.earlier_rows(ctx["report"]["path"], ctx["pr"]["head"]["short"])}
+    except (OSError, KeyError, TypeError):
+        return set()
+
+
 def used_numbers(report_text):
     used = {"CR": 0, "P": 0, "I": 0}
     for kind, n in re.findall(r"^\| *(CR|P|I)(\d+) *\|", report_text, re.M):
@@ -620,11 +712,19 @@ def render_update(ctx, fd, today, report_text):
     ov = {k: resolve_refs(v, nums) for k, v in (fd.get("overview") or {}).items() if v}
     L = [f"## Update — {today}, head `{short}`", "", reviewed_line(ctx), "",
          "### What changed", "", ov["what"].strip(), ""]
-    for k in ("how", "affects"):
-        if ov.get(k):
-            L += [ov[k].strip(), ""]
-    L += ["### Fixed since last analysis", "", resolve_refs(fd["fixed_since"].strip(), nums), ""]
-    bm = before_merge(req, procs, fd.get("scope"))
+    for k, title in (("how", "How it is implemented"), ("affects", "What it affects (blast radius)")):
+        if ov.get(k):  # folded, as in the main report: the walkthrough is there for whoever wants it
+            L += fold(title, ov[k])
+    earlier = fd["earlier"]
+    by = {s: [(n, resolve_refs(v["note"].strip(), nums)) for n, v in sorted(earlier.items(), key=lambda kv: number_key(kv[0]))
+              if v["status"] == s] for s in EARLIER_STATUS}
+    L += ["### Fixed since last analysis", ""]
+    L += [f"- {n} — {note}" for n, note in by["fixed"]] or ["None of the earlier findings is fixed yet."]
+    L += [""]
+    for s, title in (("partly", "Partly fixed"), ("open", "Still open")):
+        if by[s]:
+            L += [f"**{title}**", ""] + [f"- {n} — {note}" for n, note in by[s]] + [""]
+    bm = before_merge(req, procs, fd.get("scope"), earlier)
     if bm:
         L += ["### Before merge", ""] + bm
     L += findings_section("### 🔧 &nbsp; Required Changes", req + procs)
@@ -645,7 +745,7 @@ def strip_update(text, short):
         text[:m.start()].rstrip("\n") + text[end:]
 
 
-def insert_update(ctx, block, today):
+def insert_update(ctx, block, today, tail=None):
     path = Path(ctx["report"]["path"])
     t = strip_update(path.read_text(encoding="utf-8"), ctx["pr"]["head"]["short"])
     i = t.rfind(FOOTER)
@@ -661,8 +761,10 @@ def insert_update(ctx, block, today):
         t = re.sub(r"(\*\*Status:\*\*\s*)[^·\n]+?(\s*·|\s*$)", lambda m: m.group(1) + su["status_line"] + m.group(2),
                    t, count=1, flags=re.M)
     path.write_text(t, encoding="utf-8")
-    idx = set_index_date(Path(ctx["docs"]) / "aurora-dashboard-kb" / "prs" / "README.md",
-                         ctx["pr"]["number"], su["index_date"]) if su else "unchanged (status didn't change)"
+    readme = Path(ctx["docs"]) / "aurora-dashboard-kb" / "prs" / "README.md"
+    idx = set_index_date(readme, ctx["pr"]["number"], su["index_date"]) if su else "Date unchanged (status didn't change)"
+    if tail:
+        idx += "; " + set_index_update(readme, ctx["pr"]["number"], tail)
     return path, idx
 
 
@@ -767,11 +869,13 @@ def main(argv):
              "Markdown: " + ("OK" if md == [] else "check skipped (hook not installed)")]
         if chk.warnings:
             L.append("Warnings:\n  " + "\n  ".join(chk.warnings))
+        fixed = sum(v["status"] == "fixed" for v in fd["earlier"].values()) if fd.get("earlier") else None
+        tail = update_tail(today, ctx["pr"]["head"]["short"], req, procs, imp, fixed)
         if args["dry"]:
-            print("\n".join([f"Draft: {draft} (dry run — DOCS untouched)"] + L))
+            print("\n".join([f"Draft: {draft} (dry run — DOCS untouched)"] + L + [f"Index row tail would be:{tail}"]))
             return 0
         try:
-            path, idx = insert_update(ctx, text, today)
+            path, idx = insert_update(ctx, text, today, tail)
         except Invalid as e:
             print(f"ERROR: {e}")
             return 1

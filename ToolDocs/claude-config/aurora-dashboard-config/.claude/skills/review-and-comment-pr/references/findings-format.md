@@ -11,9 +11,13 @@ The template is at the end of `compose.md`:
 - `edge_cases`: extra QA edge cases, e.g. the scenario behind each Bug;
 - `merge`: `{"<drop id>": "<keep id>"}` for a look-alike pair that is one
   problem;
-- on an Update only: `fixed_since` (earlier findings the new commits
-  fixed, by CR/I number, or "None") instead of `summary`, `confidence`,
-  `index_affected` and `edge_cases`;
+- on an Update only: `earlier` instead of `summary`, `confidence`,
+  `index_affected` and `edge_cases` — one entry per finding of the
+  existing report, `{"CR2": {"status": "fixed" | "partly" | "open",
+  "note": "one line: what changed or what's left"}}`. The template in
+  `compose.md` comes filled from the `earlier` agent, which checked each at
+  the new head; render.py refuses a list with one left out or one that
+  isn't in the report.
 - `fixes`: exact replacements after the fact-check, copied from
   `out/factcheck.json`, `{"field": "overview.how", "old": "…", "new": "…"}`
   (`overview.what|how|affects`, `qa.core_path[i]`, `qa.edge_cases[i]` —
@@ -158,7 +162,10 @@ assemble.py too; leave it out on a release PR.
   sorting, so write `[[ref:<id>]]` — render.py replaces it with `CR2`,
   `I5`, `P1`…; Process items from `context.json` are referenced by their id
   (`[[ref:draft]]`). A hard-coded `CR1` / `I3` / `P2` outside code is
-  rejected.
+  rejected. On an Update, the report's earlier findings are named by
+  their number as plain text (`CR2 is fixed`), e.g. in an `earlier` note;
+  the Update's own findings still go by `[[ref:<id>]]`, and
+  Process items from `context.json` can't be referenced there.
 - English, Markdown. Inline code that itself contains a backtick goes in a
   longer fence with spaces (`` t`Try Again` ``) — never `\``. HTML-like
   text goes inside backticks. Paths always in full.

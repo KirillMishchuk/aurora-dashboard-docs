@@ -273,6 +273,15 @@ def changed_files(base, head, cwd):
     return files
 
 
+def delta_diff(old, head, files, cwd):
+    """The PR's own change between two heads: `old..head` limited to the PR's files (base...head), so a
+    merge of the base branch in between doesn't bring the base's other files in. Generated files left out."""
+    paths = [":(literal)" + f["path"] for f in files if not f["generated"]]
+    if not paths:
+        return ""
+    return git(["diff", f"{old}..{head}", "--"] + paths, cwd).stdout
+
+
 def supplied_issue_from_footer(footer):
     m = re.search(r"against (?:epic |issue )?#(\d+) supplied", footer or "")
     return int(m.group(1)) if m else None
@@ -556,8 +565,7 @@ def main(argv):
             ctx["report"]["old_head_reachable"] = reachable
             if reachable:
                 ctx["report"]["delta"] = f"{full_old}..{head}"
-                (run_dir / "delta.diff").write_text(git(["diff", f"{full_old}..{head}", "--", "."] + list(DIFF_EXCLUDES),
-                                                         cwd).stdout, encoding="utf-8")
+                (run_dir / "delta.diff").write_text(delta_diff(full_old, head, pr["files"], cwd), encoding="utf-8")
             else:
                 ctx["report"]["delta"] = "whole-pr"
             ctx["report"]["footer_new"] = footer_with(rep["footer"], f" · updated for `{head_short}` on {today}")

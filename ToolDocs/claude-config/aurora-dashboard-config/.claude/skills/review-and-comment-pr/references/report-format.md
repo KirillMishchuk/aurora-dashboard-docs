@@ -182,6 +182,10 @@ Keep the full history — never trim old rows.
 markers>), <m> Improvement(s)`, or `Verdict: Approve — clean`. Rows
   written under the old scheme keep their wording. Details live in the
   report.
+  After an Update, render.py appends what the latest Update block added:
+  `· Update <date> (`<short sha>`): <n> Required Change(s) (<markers>),
+  <m> Improvement(s)` (or `no new findings`); the next Update replaces
+  that tail, a full re-run rewrites the whole row.
 - **Order** — newest PR on top by creation date (ties: higher number on
   top). Insert the row where it belongs, not always at the top: analyses
   don't happen in PR order.

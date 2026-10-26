@@ -308,6 +308,242 @@ The overview card is added the same way inside the `serviceIndex["network"]` blo
 
 </details>
 
+## Update — 2026-10-26, head `38bdc3fd`
+
+_Reviewed at head [`38bdc3fd`](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377/commits/38bdc3fdb2293af5771ecfaa581b97c143fbd88e) · base `main` at `a21ba3ec` · 2026-10-26 06:27 UTC_
+
+### What changed
+
+**Update scope** (commits `512f01b1..38bdc3fd`, own files only). The PR is a draft and reports `mergeable: CONFLICTING`. CI on headRefOid: 17 pass, 0 fail, 0 pending, 4 skipped, 1 cancelled, so nothing contradicts the PR's checklist, but the cancelled job is worth a look.
+
+The update does four things.
+
+**Server (Network BFF).** Both `ports.list` and `routers.list` now follow Neutron's pagination. A new helper `nextPageUrl` turns the `next` link from `ports_links` / `routers_links` into a relative URL, and the router loops until there is no `next` link. The list response schemas gain an optional `*_links` field. Before this, only the first page was read, so the search, the client-side pagination and the Routers filters could miss data on deployments with `pagination_max_limit`. This changes Routers behaviour, but the PR body already says so. Tests and docs (`0010_routers_bff.md`, `0017_ports_bff.md`) are updated. The docs' error tables now show `{Neutron message}` suffixes. That wording was already implemented in the shared `errorHandling.ts`, which this delta doesn't touch.
+
+**Ports list UI.** The list no longer sends sort, search or pagination to the server. It fetches the full list once per project/network. Sorting, searching (same fields as the BFF) and paging (page size 50) are now done in memory. This removes `useDeferredValue` / `isStale`. The Status column moves to second position. A visible kebab toggle button is added to the row menu. The page-number input is split into a small keyed `PageInput` component so no effect copies the prop into state.
+
+**Ports details UI.** The route loader that fetched the port only for the page title is removed, so the title is now the static string `Port Details`. The error component handles 401 (session-expired screen with a Sign in button) and 403 (page-level info `Message` with Back and Home buttons) separately. Spacing tweaks to the fixed-IP stack.
+
+**Routers UI (outside Ports).** The same UI conventions are applied to Routers: Status column moved to second position, a kebab toggle on the row, and 403 shown as an info `Message` instead of the red error `Status`. The changeset gets a line for the `?tab=` router details change.
+
+<details>
+<summary><strong>How it is implemented</strong></summary>
+
+**Pagination loop.** `portsRouter.list` collects pages until `ports_links` has no `next`. A `visited` set stops a non-advancing `next` link from looping forever. Names are resolved only after the full list is assembled, so the search still sees network and subnet names. `routersRouter.list` has the same loop.
+
+```ts
+const ports: Port[] = []
+const visited = new Set<string>()
+let nextUrl: string | undefined = withQuery(PORTS_BASE_URL, queryParams)
+while (nextUrl && !visited.has(nextUrl)) {
+  visited.add(nextUrl)
+  const url = nextUrl
+  const response = await requestOrThrow(() => network.get(url), PortErrorHandlers.list)
+  const { ports: pagePorts, ports_links } = parseOrThrow(
+    PortListResponseSchema,
+    await response.json(),
+    "portsRouter.list"
+  )
+  ports.push(...pagePorts)
+  nextUrl = nextPageUrl(PORTS_BASE_URL, ports_links)
+}
+```
+
+`nextPageUrl` reuses only the query string of Neutron's absolute `next` href and appends it to the known base path. The request therefore always goes through the BFF's own network service route, not to whatever host Neutron put in the link.
+
+```ts
+export const nextPageUrl = (baseUrl: string, links?: Array<{ rel: string; href: string }>): string | undefined => {
+  const href = links?.find((link) => link.rel === "next")?.href
+  if (!href) return undefined
+  const queryIndex = href.indexOf("?")
+  return queryIndex === -1 ? baseUrl : `${baseUrl}${href.slice(queryIndex)}`
+}
+```
+
+**Client-side list pipeline.** The fetch factory takes only project and network. The URL search params drive an in-memory filter and sort via `useMemo` (``packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.tsx:144``). Because of that, the ErrorBoundary is now reset only by `portsPromise` and the `isStale` handling is gone.
+
+```tsx
+const filterPorts = (ports: PortListItem[], searchTerm: string): PortListItem[] => {
+  const term = searchTerm.trim().toLowerCase()
+  if (!term) return ports
+  return ports.filter((port) => searchableValues(port).some((value) => value?.toLowerCase().includes(term)))
+}
+
+const sortValue = (port: PortListItem, key: PortSortKey): string => {
+  switch (key) {
+    case "status":
+      return port.status
+    case "device_owner":
+      return port.device_owner
+    case "name":
+      return port.name
+  }
+}
+
+/** Stable client-side sort on the selected key and direction (natural order for embedded numbers). */
+const sortPorts = (ports: PortListItem[], sortBy: PortSortKey, sortDirection: "asc" | "desc"): PortListItem[] => {
+  const factor = sortDirection === "desc" ? -1 : 1
+  return [...ports].sort(
+    (a, b) =>
+      factor *
+      sortValue(a, sortBy).localeCompare(sortValue(b, sortBy), undefined, { numeric: true, sensitivity: "base" })
+  )
+}
+```
+
+The sort comparator uses `localeCompare` with `numeric: true`. It sorts only the three offered keys, all string fields (`name`, `status`, `device_owner`).
+
+**403 / 401 handling.** In the list, a FORBIDDEN error is turned into `forbidden: true` and shown as an info `Message` (`PortsList.tsx:158`). The details route handles `UNAUTHORIZED` at `$portId.tsx:68` and `FORBIDDEN` at `$portId.tsx:84` before the generic error screen.
+
+```tsx
+if (errorCode === "FORBIDDEN") {
+  return (
+    <Stack direction="vertical" gap="4" className="mt-6">
+      <Message variant="info" title={t`Insufficient Permissions`}>
+        <Trans>You do not have the required permissions to access this port.</Trans>
+      </Message>
+      <ButtonRow>
+        <Button variant="primary" onClick={backToPorts}>
+          <Trans>Back to Ports</Trans>
+        </Button>
+        <Button onClick={goHome}>
+          <Trans>Home</Trans>
+        </Button>
+      </ButtonRow>
+    </Stack>
+```
+
+**Page input.** `PageInput` is keyed on `currentPage` (`PortListContainer.tsx:91`), so back/forward navigation remounts it with the new value.
+
+</details>
+
+<details>
+<summary><strong>What it affects (blast radius)</strong></summary>
+
+**Code consumers.**
+- `nextPageUrl`, `ports_links` and `routers_links` are used only in `portsRouter.ts`, `routersRouter.ts` and the two type files. Nothing outside the PR's files consumes them.
+- `routers.list` now makes several upstream requests on paginated deployments. This is a behaviour change for every Routers caller (the Routers list page). It is internal to the BFF and the tRPC output shape is unchanged.
+- `PortListContainer` is used only by `PortsList.tsx`. Its props are unchanged, so nothing is stale.
+- The Ports list no longer sends `sort_key`, `sort_dir` or `searchTerm` to `ports.list`. The BFF still accepts them and applies the search on the server (see `stale_callers`). The Routers list page still uses server-side sort and search and a `useDeferredValue` flow, so the two lists are now implemented differently.
+- The Routers list 403 now shows `Insufficient Permissions`. The Routers non-403 error path still uses `Failed to Load Routers` (`RoutersList.tsx:238`).
+
+**Docs.** `0010_routers_bff.md` and `0017_ports_bff.md` were updated for pagination. `packages/aurora/README.md` does not mention any of the changed surface. The `.changeset` file was extended with the router `?tab=` line.
+
+**Contract.** The tRPC input/output types of `ports.list` and `routers.list` are unchanged. The `*_links` fields are optional, so older Neutron responses still parse.
+
+</details>
+
+### Fixed since last analysis
+
+- CR1 — The list now follows Neutron's next link until no pages are left; names and search run over the full list.
+- CR3 — The loader fetch is removed; the component's useQuery is the single source for the port. Side effect: the tab title is now static (I13).
+- P2 — The description now explains the `?tab=` search param on the router details page.
+- I1 — The wording is now 'Sign in again to continue.' with a 'Sign in' button.
+- I2 — PopupMenu now has a PopupMenuToggle trigger.
+- I3 — gap="1" is gone; PortDetailsView uses 0.5, 2, 4 and 6, which are in the B.3 list.
+- I4 — Status is now the 2nd column, right after Name / ID.
+- I5 — The Routers doc now says lookups are chunked into requests of at most 50 IDs.
+- I6 — The Ports doc error tables now include the `: {Neutron message}` suffix.
+- I7 — The effect is gone; PageInput is keyed on currentPage and takes its initial value from useState.
+- I8 — zod now sits in group 1 right after the router import, before the Lingui imports.
+
+**Partly fixed**
+
+- CR2 — The details page now shows 401 as a sign-in screen and 403 as an info Message. On the list, only 403 is handled: a 401 still reaches the ErrorBoundary as a generic 'Failed to Load Ports' error (I11), and the details-page 401 is still inline rather than a redirect (I9).
+
+**Still open**
+
+- CR4 — The PR still conflicts with main.
+- P1 — The PR is still a draft.
+
+### Before merge
+
+- **Still open from the earlier review:** CR2 (partly), CR4 · P1
+
+### 🔧 &nbsp; Required Changes
+
+None.
+
+### 💡 &nbsp; Improvements
+
+| #   | Severity   | Category     | Precedent     | Issue                                                                                                         | Location                                                                                                    |
+| --- | ---------- | ------------ | ------------- | ------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| I9  | 🟢 Low     | UI/UX        | existing code | 401 on port details is an inline error with a 'Sign in' button to `/`, not a redirect that remembers the port | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/$portId.tsx:68`                  |
+| I10 | 🟢 Low     | UI/UX        | existing code | Port Status column renders the raw status string, not a `Badge`                                               | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortTableRow.tsx:51` |
+| I11 | 🟢 Low     | UI/UX        | —             | Ports list shows a 401 as a generic 'Failed to Load Ports' error with the raw message and 'Try Again'         | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.tsx:286`   |
+| I12 | 🟢 Low     | UI/UX        | —             | Out-of-range page reset pushes a history entry; Back returns to the stale `?page=N` and bounces again         | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.tsx:271`   |
+| I13 | 🟢 Low     | UI/UX        | —             | Browser tab title is now the static 'Port Details' for every port                                             | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/$portId.tsx:155`                 |
+| I14 | ⚪ Trivial | Code Quality | —             | `useEffect` resets the page to 1 when the URL page is past the last page — derived state                      | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.tsx:155`   |
+| I15 | ⚪ Trivial | UI/UX        | —             | Single-sentence 403 info Messages carry a default 'Insufficient Permissions' title                            | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.tsx:160`   |
+
+<details><summary><strong>Explanation &amp; Fix</strong></summary>
+
+**I9 — Details page handles 401 inline instead of redirecting to Sign-in with the target remembered** · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/$portId.tsx:68`
+The delta's CR2 fix gives the details page an `UNAUTHORIZED` branch, but it renders an error view whose 'Sign in' button navigates to `/`:
+
+```tsx
+if (errorCode === "UNAUTHORIZED") {
+  return (
+    <RouteIdLevelDefaultError
+      code={401}
+      errorTitle={t`Session Expired`}
+      errorDescription={t`Your session has expired. Sign in again to continue.`}
+      action={
+        <Button variant="primary" onClick={() => navigate({ to: "/" })}>
+          <Trans>Sign in</Trans>
+        </Button>
+      }
+    />
+  )
+}
+```
+
+copilot-instructions B.6 says a 401 should redirect to Sign-in, remember the target and return after auth, and lists "a 401/403 handled inline" as a Quick Reject. After signing in, the user lands on `/` instead of back on the port. The code comment cites B.6 while doing the opposite.
+_Precedent:_ the same pattern is already in merged code — `packages/aurora/src/client/routes/_auth/projects/$projectId.tsx:114`.
+_Fix:_ Redirect to the sign-in route with the current location as the redirect target (as `_auth.tsx`'s `beforeLoad` does for a missing session), instead of rendering an inline error view.
+
+**I10 — Status column is plain text instead of a `Badge`** · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortTableRow.tsx:51`
+`packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortTableRow.tsx:51` renders `port.status` as plain text. B.1 maps status indicators to `Badge`, and B.4 asks for status text paired with a color or icon. The delta moved the column to second place but kept the rendering.
+_Precedent:_ the same pattern is already in merged code — `packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/-components/RouterTableRow.tsx:80`.
+_Fix:_ Render the status as a `Badge` with a variant per status (e.g. `ACTIVE` success, `DOWN` warning/error).
+
+**I11 — Ports list has no 401 handling — expired session shows a raw error** · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.tsx:286`
+`createPortsPromise` only special-cases `FORBIDDEN`:
+
+```tsx
+if (err instanceof TRPCClientError && err.data?.code === "FORBIDDEN") {
+  return { ports: [], forbidden: true }
+}
+throw err
+```
+
+Everything else, including `UNAUTHORIZED`, is rethrown to the ErrorBoundary, whose fallback at `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.tsx:286` renders `error.message` with a 'Try Again' button, which can't help with an expired session. B.6 rejects a 401 handled inline. The 'Fixes Applied' comment by mark-karnaukh-extern-sap (2026-10-20) lists "CR2: 401 -> Sign in action to /; 403 -> info Message (details + list)", but only the 403 half reached the list.
+_Fix:_ Handle `UNAUTHORIZED` in `createPortsPromise` (or the fallback) the same way as the details page — ideally both as a redirect to Sign-in with the target remembered (see I9).
+
+**I12 — Page reset navigates without `replace: true`** · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.tsx:271`
+The effect at `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.tsx:155` calls `onPageChange(1)` when the URL page is past the last page. `handlePageChange` navigates without `replace: true`, while the sort and search handlers pass it. With search now filtered client-side on every keystroke, typing that shrinks the result list triggers the reset and adds a history entry; Back then returns to the stale page, which resets again. Raised as I1 in the earlier report and not in the 'Fixes Applied' list; the delta's client-side search makes it easier to hit.
+_Fix:_ Pass `replace: true` for the reset (e.g. a `replace` flag on `onPageChange`), or move the reset into the search/sort handlers (I14).
+
+**I13 — Removing the details loader dropped the port name from the tab title** · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/$portId.tsx:155`
+The CR3 fix removed the loader that returned the port name, and `head` is now static:
+
+```tsx
+head: () => ({
+```
+
+Before, the title was the port name; the Router details page still shows the router name via its loader. The breadcrumb and ContentHeader show the name, but neither sets `document.title`, so several open port tabs are indistinguishable. This is also why the #1382 criterion "UI follows the design system and existing list/detail patterns" is only partly met.
+_Fix:_ Prefetch the port into the query cache in the loader (`queryClient.ensureQueryData`) and return its name for `head`, so the component's query reuses the cached result without a second fetch.
+
+**I14 — Page reset is a `useEffect` over derived state** · Code Quality · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.tsx:155`
+`packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.tsx:155` keeps the URL in sync with what `safePage` already renders. A.1 asks to minimize `useEffect` and handle such syncs in render or event handlers. No user-facing effect beyond I12.
+_Fix:_ Drop the effect and clamp the page in the search/sort handlers (which already navigate) — `safePage` covers the render.
+
+**I15 — 403 Messages add a title that restates the body** · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.tsx:160`
+The new 403 Messages on the list (`packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.tsx:160`) and the details page set `title` to 'Insufficient Permissions' over a single-sentence body. B.16: only add a `Message` title when the message is prominent or multi-sentence.
+_Fix:_ Drop the `title` prop from both 403 Messages.
+
+</details>
+
 ---
 
-_Analyzed 2026-10-17 · commit `512f01b1` · read-only · CI from PR API · skill: review-and-comment-pr_
+_Analyzed 2026-10-17 · commit `512f01b1` · read-only · CI from PR API · updated for `38bdc3fd` on 2026-10-26 · skill: review-and-comment-pr_

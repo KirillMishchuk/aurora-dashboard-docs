@@ -137,6 +137,11 @@ def check_scores(name, data, repo, run_dir):
             errors.append(f"{w}.id: {cid} scored twice")
         seen.add(cid)
         w = f"{cid}"
+        if s.get("same_as"):  # a duplicate is dropped: its score and reason don't matter, fill them in
+            if s.get("score") is None:
+                s["score"] = 0
+            if not (isinstance(s.get("reason"), str) and s["reason"].strip()):
+                s["reason"] = f"Same problem as {s['same_as']}."
         text(errors, s, "reason", w)
         if s.get("score") not in SCORES:
             errors.append(f"{w}.score: {s.get('score')!r} — use 0, 25, 50, 75 or 100")
@@ -186,31 +191,56 @@ def check_factcheck(data, ctx, run_dir):
         f, old = w_.get("field"), w_.get("old")
         if not isinstance(f, str) or not isinstance(old, str) or not old:
             continue
-        if True:
-            m = re.match(r"^overview\.(what|how|affects)$|^qa\.(core_path|edge_cases)\[(\d+)\]$"
-                         r"|^findings\.([a-z0-9-]+)\.(issue|title|explanation|fix)$", f)
-            if not m:
-                errors.append(f"{w}.field: {f!r} — overview.what|how|affects, qa.core_path[i], qa.edge_cases[i] "
-                              "or findings.<id>.issue|title|explanation|fix")
+        m = re.match(r"^overview\.(what|how|affects)$|^qa\.(core_path|edge_cases)\[(\d+)\]$"
+                     r"|^findings\.([a-z0-9-]+)\.(issue|title|explanation|fix)$", f)
+        if not m:
+            errors.append(f"{w}.field: {f!r} — overview.what|how|affects, qa.core_path[i], qa.edge_cases[i], "
+                          "or findings.<id>.issue|title|explanation|fix")
+            continue
+        if m.group(1):
+            cur = (fd.get("overview") or {}).get(m.group(1), "")
+        elif m.group(2):
+            lst = (fd.get("qa") or {}).get(m.group(2), [])
+            cur = lst[int(m.group(3))] if int(m.group(3)) < len(lst) else None
+            if cur is None:
+                errors.append(f"{w}.field: qa.{m.group(2)} has {len(lst)} entries (0-based)")
                 continue
-            if m.group(1):
-                cur = (fd.get("overview") or {}).get(m.group(1), "")
-            elif m.group(2):
-                lst = (fd.get("qa") or {}).get(m.group(2), [])
-                cur = lst[int(m.group(3))] if int(m.group(3)) < len(lst) else None
-                if cur is None:
-                    errors.append(f"{w}.field: qa.{m.group(2)} has {len(lst)} entries (0-based)")
-                    continue
-            else:
-                hit = [x for x in fd.get("findings", []) if x.get("id") == m.group(4)]
-                if not hit:
-                    errors.append(f"{w}.field: no finding {m.group(4)!r} in findings.json")
-                    continue
-                cur = hit[0].get(m.group(5), "")
+        else:
+            hit = [x for x in fd.get("findings", []) if x.get("id") == m.group(4)]
+            if not hit:
+                errors.append(f"{w}.field: no finding {m.group(4)!r} in findings.json")
+                continue
+            cur = hit[0].get(m.group(5), "")
         if cur.count(old) != 1:
             errors.append(f"{w}.old: found {cur.count(old)} times in {f} — copy an exact piece of the source text "
                           "that occurs once")
     return errors, len(data["wrong"])
+
+
+def check_earlier(data, ctx):
+    """The `earlier` agent: a status, a note and evidence for every finding of the existing report — no gaps."""
+    errors = []
+    if not keys(errors, data, {"earlier"}, "earlier") or not isinstance(data.get("earlier"), dict):
+        return errors or ["earlier: must be an object keyed by the earlier findings' numbers"], 0
+    numbers = [r[0] for r in quotes.earlier_rows(ctx["report"]["path"], ctx["pr"]["head"]["short"])]
+    e = data["earlier"]
+    missing = [n for n in numbers if n not in e]
+    if missing:
+        errors.append(f"earlier: missing {', '.join(missing)} — every finding in your brief's list exactly once")
+    for k, v in e.items():
+        w = f"earlier.{k}"
+        if k not in numbers:
+            errors.append(f"{w}: not in your brief's list ({', '.join(numbers) or 'none'})")
+            continue
+        if not keys(errors, v, {"status", "note", "evidence"}, w):
+            continue
+        if v.get("status") not in ("fixed", "partly", "open"):
+            errors.append(f"{w}.status: {v.get('status')!r} — fixed, partly or open")
+        note = text(errors, v, "note", w)
+        if note and "\n" in note.strip():
+            errors.append(f"{w}.note: one line")
+        text(errors, v, "evidence", w)
+    return errors, len(e)
 
 
 def check_describer(data, repo):
@@ -267,8 +297,8 @@ def main(argv):
         print(__doc__)
         return 2
     run_dir, name = Path(argv[1]), argv[3]
-    if name not in ("describer", "factcheck") and not re.match(r"^(finder-[a-g]|score-\d+)$", name):
-        print(f"ERROR: unknown result name {name!r} (describer, finder-a … finder-g, score-<n>, factcheck)")
+    if name not in ("describer", "factcheck", "earlier") and not re.match(r"^(finder-[a-g]|score-\d+)$", name):
+        print(f"ERROR: unknown result name {name!r} (describer, finder-a … finder-g, earlier, score-<n>, factcheck)")
         return 2
     try:
         ctx = json.loads((run_dir / "context.json").read_text(encoding="utf-8"))
@@ -287,6 +317,12 @@ def main(argv):
     elif name == "factcheck":
         errors, n = check_factcheck(data, ctx, run_dir)
         what = f"{n} wrong claim(s)"
+    elif name == "earlier":
+        if ctx["mode"] != "update":
+            print("ERROR: `earlier` runs only on an Update")
+            return 2
+        errors, n = check_earlier(data, ctx)
+        what = f"{n} earlier finding status(es)"
     elif name.startswith("score-"):
         errors, n = check_scores(name, data, repo, run_dir)
         what = f"{n} score(s)"

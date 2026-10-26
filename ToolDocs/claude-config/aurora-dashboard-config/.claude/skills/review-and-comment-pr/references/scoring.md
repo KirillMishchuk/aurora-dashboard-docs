@@ -58,10 +58,10 @@ still wins (e.g. hardcoded strings in `packages/aurora` are lint-enforced,
 not a finding).
 
 **Precedent rule.** A maintainer declining the same change on another PR,
-or the same pattern already existing elsewhere in the code, never lowers
+or the same problem already existing elsewhere in the code, never lowers
 the score of a verified issue — this PR adds new code, and the standards
 apply to it. Tag it instead — `precedent` in your result (`existing`:
-the pattern is in merged code, `ref` its `path:line` at `<baseRefOid>`;
+merged code already has the same problem, not code that does it right, `ref` its `path:line` at `<baseRefOid>`;
 `deferred`: a maintainer accepted or postponed it, `ref` the comment's
 URL) — so the reader sees at a glance where to expect pushback. (Lines this PR didn't touch are still "pre-existing"
 and score low — see "Usual false positives".)
