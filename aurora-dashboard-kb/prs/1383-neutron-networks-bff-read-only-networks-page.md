@@ -1,7 +1,7 @@
 ---
 type: pr-report
 date: 2026-10-23
-status: closed
+status: open
 pr: [1383]
 issue: [1019]
 author: hodanoori
@@ -10,7 +10,7 @@ branch: hoda-aurora-network
 
 # PR #1383: feat(aurora): add Neutron Networks BFF and read-only Networks page (list & details)
 
-**Author:** hodanoori · **Status:** closed 2026-10-23 · **Base:** `main` ← `hoda-aurora-network`
+**Author:** hodanoori · **Status:** draft · **Base:** `main` ← `hoda-aurora-network`
 **Size:** 18 files, +1346 / −4 · **Created:** 2026-10-12 · [View on GitHub](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1383)
 
 ---
@@ -354,7 +354,7 @@ loader: async ({ context, params }) => {
 
 ---
 
-_Analyzed 2026-10-23 · commit `0a594e9e` · read-only · status updated 2026-10-23: closed · skill: review-and-comment-pr_
+_Analyzed 2026-10-23 · commit `0a594e9e` · read-only · skill: review-and-comment-pr_
 
 <!-- related:auto — generated from pr/issue properties by tools/update-related.py; do not edit by hand -->
 ## Related
