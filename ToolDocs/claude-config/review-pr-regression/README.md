@@ -18,7 +18,7 @@ python3 -B run.py --skill ~/projects/SAP/aurora-dashboard/.claude/skills/review-
 
 | Fixture | Mode | What it covers |
 | --- | --- | --- |
-| `1393-fd248f08` | full | 7 finders, 9 scorer batches, 32 findings, Copilot threads, "Review comments not taken up" |
+| `1393-fd248f08` | full | 7 finders, 9 scorer batches, 31 findings and Process P1, Copilot threads, "Review comments not taken up" |
 | `1383-0a594e9e` | full | an older run: finder outputs without `example:`, render stops on the removed `Conflict` category |
 | `1377-86a355a8` | update | 14 earlier findings incl. `dropped` (CR4), describer-update brief, verdict with Confidence |
 | `1393-64c47a99` | update | author fixed findings (partly / fixed), a new finding replacing an earlier one, thread URLs in `discussion` |
