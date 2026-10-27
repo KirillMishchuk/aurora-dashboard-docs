@@ -5,9 +5,10 @@ This is an Update: the report it extends already raised the findings below, at a
 
 - `fixed` — the code no longer does what the finding says;
 - `partly` — part of it is fixed and part still holds; the note says which part is left;
-- `open` — it still holds as written.
+- `open` — it still holds as written;
+- `dropped` — only for a finding about merge conflicts (with `main` or with other open PRs): this review no longer covers them, GitHub shows them. Don't check it; the note is "Merge conflicts are no longer part of this review; GitHub shows them."
 
-Line numbers in the list are from the older head and may have moved: find the code by what the finding describes, not by the number. Process items: draft and changeset against `context.json` (`pr.is_draft`, `changeset`), claims about the PR description against `pr-body.md`. A merge conflict: `context.json` → `pr.mergeable`.
+Line numbers in the list are from the older head and may have moved: find the code by what the finding describes, not by the number. Process items: draft and changeset against `context.json` (`pr.is_draft`, `changeset`), claims about the PR description against `pr-body.md`.
 
 {{earlier_list}}
 

@@ -1,0 +1,17 @@
+{
+ "candidates": [
+  {
+   "claim": "On the ports list page only 403 is turned into a friendly state. A 401 (expired session) and every other error reach the ErrorBoundary, which prints the raw error.message (the BFF text) as the body. Details page got a 'Sign in' action for 401 but the list did not, so the CR2 fix is only half applied there.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.tsx | body={error instanceof Error ? error.message : t`An unexpected error occurred.`}",
+   "evidence": "At 86a355a8, createPortsPromise rethrows everything except FORBIDDEN (lines 50-55); fallbackRender at line 283-290 shows error.message. UNAUTHORIZED is handled only in $portId.tsx:68. The fixes comment claims 'CR2: 401 -> Sign in action to /; 403 -> page-level info Message (details + list), no raw BFF text'; for the list, 401 is not handled.",
+   "precedent": "routers/$routerId.tsx:75 handles UNAUTHORIZED the same detail-page-only way.",
+   "discussion": "CR2 of the earlier review (list shows raw BFF message, 401/403 handled in-page); mark-karnaukh-extern-sap confirmed it in https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#issuecomment-6293554974 and listed it as fixed in https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#issuecomment-6295356006, but the list-page 401 / raw message path still applies."
+  },
+  {
+   "claim": "Client-side search duplicates the BFF filterPortsBySearchTerm field list by hand (comment says 'mirroring'), and the BFF still accepts and runs search/sort/limit params that the UI no longer uses. The two implementations can drift and the BFF params are dead code for the only consumer.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.tsx | const searchableValues",
+   "evidence": "PortsList.tsx:59-70 'Fields the search matches, mirroring the BFF's filterPortsBySearchTerm'; portsRouter.ts:94 still calls filterPortsBySearchTerm(..., searchTerm), while the client queries only { project_id, network_id } (PortsList.tsx:47).",
+   "discussion": "Raised by the author as the 'Perf' change and open decision 1 in https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#issuecomment-6295356006 ('BFF still accepts the params for API/tests'); no reviewer response."
+  }
+ ]
+}

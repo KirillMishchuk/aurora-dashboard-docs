@@ -160,7 +160,8 @@ def compose(run_dir):
             L.append("- none")
         L += [""]
         tmpl = {"earlier": {n: ({"status": ag[n]["status"], "note": ag[n]["note"]} if n in ag
-                                else {"status": "fixed | partly | open", "note": ""}) for n, *_ in rows},
+                                else {"status": "fixed | partly | open | dropped", "note": ""}) for n, *_ in rows},
+                "confidence": "High | Medium | Low",
                 "findings": {ref(cid): {k: "" for k in TEXT_KEYS} for cid in keep},
                 "merge": {}, "provenance_extra": []}
     else:
@@ -258,12 +259,16 @@ def build(run_dir):
     if update:  # a status per earlier finding; render.py checks it in full
         if not isinstance(t.get("earlier"), dict) or not t["earlier"]:
             errors.append("earlier: missing — the object from compose.md, one entry per earlier finding")
+        if not isinstance(t.get("confidence"), str) or not t["confidence"].strip():
+            errors.append("confidence: missing or empty — High, Medium or Low for the PR at this head")
     else:
         for k in ("summary", "confidence", "index_affected"):
             if not isinstance(t.get(k), str) or not t[k].strip():
                 errors.append(f"{k}: missing or empty")
         if "earlier" in t:
             errors.append("earlier: exists only on an Update")
+    if t.get("confidence") == "High" and (ctx.get("pr") or {}).get("is_draft"):
+        errors.append("confidence: the PR is a draft — Medium or Low (it isn't ready to merge as it stands)")
     if not desc and not t.get("overview"):
         errors.append("overview: no describer result — write overview and qa yourself")
     if errors:
@@ -299,11 +304,12 @@ def build(run_dir):
           "scope": t["scope"] if "scope" in t else (desc or {}).get("scope")}
     if update:
         fd["earlier"] = t["earlier"]
-    else:  # what the scorers checked and dropped — shown in the report, never posted
-        fd["dismissed"] = [{"score": s["score"], "claim": cands[cid]["claim"], "location": cands[cid]["location"],
-                            "reason": s["reason"]}
-                           for cid, s in sorted(scores.items(), key=lambda kv: (-kv[1]["score"], int(kv[0][1:])))
-                           if s["score"] < 50 and not s.get("same_as")]
+    # what the scorers checked and dropped: the full table only in the KB report (never posted); the ones a
+    # reviewer raised (`discussion`) are also answered in the comment — render.py, "Review comments not taken up"
+    fd["dismissed"] = [{"score": s["score"], "claim": cands[cid]["claim"], "location": cands[cid]["location"],
+                        "reason": s["reason"], "discussion": cands[cid].get("discussion") or ""}
+                       for cid, s in sorted(scores.items(), key=lambda kv: (-kv[1]["score"], int(kv[0][1:])))
+                       if s["score"] < 50 and not s.get("same_as")]
     (run_dir / "findings.json").write_text(json.dumps(fd, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"findings.json written: {len(findings)} findings ({len(merge)} merged). Now run render.py.")
     return 0

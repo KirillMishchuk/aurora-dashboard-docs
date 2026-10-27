@@ -1,0 +1,10 @@
+{
+ "candidates": [
+  {
+   "claim": "The PR adds a new `networks` service key to buildNavSections (gated by isEnabled(\"networks\")), but the comment listing the available enabledServices keys was not updated, so operators reading it do not learn that `networks` can be whitelisted. A deployment that sets VITE_ENABLED_SERVICES per the documented list will silently hide the new Networks nav entry.",
+   "location": "apps/dashboard/.env.example:11",
+   "evidence": "At the head commit, apps/dashboard/.env.example:11 reads '# Available keys: images, flavors, securitygroups, floatingips, containers, ceph-containers, pca'. packages/aurora/README.md:183 and :210 list the same set of service keys. The PR's changed files (context.json) touch neither. buildNavSections.ts:60 now uses isEnabled(\"networks\").",
+   "precedent": "Existing keys (securitygroups, floatingips) are all listed there; routers is also missing, so the list was already incomplete."
+  }
+ ]
+}

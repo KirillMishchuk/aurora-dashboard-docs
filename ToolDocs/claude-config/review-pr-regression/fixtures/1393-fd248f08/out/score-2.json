@@ -1,0 +1,60 @@
+{
+ "scores": [
+  {
+   "id": "C6",
+   "score": 75,
+   "severity": "Moderate",
+   "category": "UI/UX",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderModals.tsx:52",
+   "reason": "Verified: line 52 `bit_length: parseInt(bitLength, 10)` (NaN on empty), line 57 `disableConfirmButton={createMutation.isPending}` only, no validator, no inline errors, no required marks. Violates Quick Reject 'any form that mutates without validation' and B.5 'keep the primary/confirm button disabled while any required field is empty or any field fails validation'. Moderate: bad input goes to the server and shows only as a top Message.",
+   "same_as": null,
+   "precedent": null
+  },
+  {
+   "id": "C40",
+   "score": 0,
+   "reason": "Same problem as C6: the Bit Length NaN and missing validation on the Create Order modal at OrderModals.tsx:52; scored under C6.",
+   "same_as": "C6"
+  },
+  {
+   "id": "C7",
+   "score": 75,
+   "severity": "Low",
+   "category": "Code Quality",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainerModals.tsx:30",
+   "reason": "Verified: ContainerModals.tsx:30 uses `useState(\"\")` for name; grep of key-manager finds no react-form and no autoFocus. B.11 wants react-form + Zod, autoFocus and disabled={isMutating} on inputs. Low: cosmetic or form-structure rule with little user-visible effect; validation itself is covered by C6.",
+   "same_as": null,
+   "precedent": null
+  },
+  {
+   "id": "C8",
+   "score": 75,
+   "severity": "Moderate",
+   "category": "UI/UX",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretModals.tsx:35",
+   "reason": "Verified: grep for 'toast' across the key-manager folder at headRefOid finds nothing. B.16 table says CRUD action confirmed -> toast, and B.10 requires a *ToastNotifications helper; on success the modals only invalidate and close, so users get no confirmation of create or delete.",
+   "same_as": null,
+   "precedent": null
+  },
+  {
+   "id": "C9",
+   "score": 75,
+   "severity": "Low",
+   "category": "Code Quality",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx:93",
+   "reason": "Verified: SecretsList.tsx:93 and OrdersList.tsx:76 use raw Select + SortButton, with `distribution=\"end\"` at SecretsList.tsx:81; B.1 requires SortInput from @/client/components/ListToolbar/SortInput (used by FloatingIpsList and RoutersList at base). Containers list has no sort control (ContainersList imports none). Low: visual and consistency only.",
+   "same_as": null,
+   "precedent": null
+  },
+  {
+   "id": "C10",
+   "score": 75,
+   "severity": "Low",
+   "category": "UI/UX",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx:72",
+   "reason": "Verified: SecretsList.tsx:72, ContainersList.tsx:50 and OrdersList.tsx:55 render the 403 inline as `<Message variant=\"warning\">` instead of a page-level info Message. This matches the Quick Reject item 'a 401/403 handled inline instead of via redirect / page-level info Message', and the severity precedent for it is Low.",
+   "same_as": null,
+   "precedent": null
+  }
+ ]
+}

@@ -1,0 +1,72 @@
+{
+ "scores": [
+  {
+   "id": "C25",
+   "score": 50,
+   "severity": "Low",
+   "category": "Bug",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:103",
+   "reason": "Verified: `const text = await res.text(); return { payload: text, contentType }` and SecretDetailsView renders it in a pre element, so binary payloads (octet-stream) are UTF-8-mangled; there is no base64/binary path. Binary content is unreadable in a text view anyway and the caching point is generic, so rare and bounded rather than higher.",
+   "same_as": null,
+   "precedent": null
+  },
+  {
+   "id": "C26",
+   "score": 0,
+   "reason": "Same problem as C44 (orders sort_key/sort_dir not documented); scored there.",
+   "same_as": "C44"
+  },
+  {
+   "id": "C28",
+   "score": 50,
+   "severity": "Low",
+   "category": "Bug",
+   "location": "packages/aurora/src/client/routes/_auth/projects/-components/buildNavSections.ts:154",
+   "reason": "Verified: the Key Manager nav entry is gated only by the catalog (serviceIndex key-manager barbican), while every other service in this file uses isEnabled(...) (enabledServices/deniedServices), and key-manager.tsx beforeLoad:46 also checks only the catalog. So an AppConfig deny/allow list cannot hide Key Manager and the route stays reachable by URL; the missing landing-page card (index.tsx has none) is a minor part. Low because it only matters for hosts using visibility config.",
+   "same_as": null,
+   "precedent": null
+  },
+  {
+   "id": "C30",
+   "score": 0,
+   "reason": "Checked: no Compute or Storage router enforces the policy engine in handlers either (only the canUser permission routers reference it), and the Key Manager calls run with the user's rescoped token, so Barbican enforces its own policy server-side; the Aurora policy is a UI hint, so a direct tRPC call bypasses nothing real. Not a verified hole and consistent with existing design.",
+   "same_as": null
+  },
+  {
+   "id": "C31",
+   "score": 0,
+   "reason": "Same problem as C45 (default Accept: application/json on the payload request); scored there.",
+   "same_as": "C45"
+  },
+  {
+   "id": "C32",
+   "score": 50,
+   "severity": "Low",
+   "category": "Security",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:98",
+   "reason": "Verified: context.ts:114 sets debug on outside production, and signal-openstack client.ts:175-178 logs a bodyPreview for any text response, so a text/plain secret payload fetched here is written to server logs (up to maxBodyPreviewLength). Different problem from the Accept header; Low because it is on by default only in non-production and truncated.",
+   "same_as": null,
+   "precedent": null
+  },
+  {
+   "id": "C44",
+   "score": 75,
+   "severity": "Moderate",
+   "category": "Bug",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:271",
+   "reason": "Verified: listOrders sends sort_key/sort_dir (lines 269-273); the Barbican orders reference documents only offset and limit, so the Sort by and direction controls in OrdersList.tsx (lines 67-76) have no documented effect and likely change nothing. Per the evidence rule the code does what the reference does not support; Moderate because the control is visible but misleading, not data-losing. C26 is the same problem.",
+   "same_as": null,
+   "precedent": null
+  },
+  {
+   "id": "C45",
+   "score": 75,
+   "severity": "Major",
+   "category": "Bug",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:98",
+   "reason": "Verified: getSecretPayload calls km.get on the secret payload path with no headers, and the session default headers (context.ts:116) send Accept: application/json, whereas the reference requires Accept to be one of the secret's content_types; for text/plain or binary secrets Barbican answers 406, which mapKmError (lines 43-49, no 406 entry) turns into INTERNAL_SERVER_ERROR, so Reveal Payload fails for typical secrets. Major since the core reveal feature breaks with no in-app workaround. C31 is the same problem.",
+   "same_as": null,
+   "precedent": null
+  }
+ ]
+}

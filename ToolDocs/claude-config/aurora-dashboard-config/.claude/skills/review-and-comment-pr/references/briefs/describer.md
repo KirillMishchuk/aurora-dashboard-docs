@@ -7,7 +7,7 @@ Group the changed files by what they are (server routers, client routes/componen
 
 For each meaningful piece of the change, quote a short excerpt (3–15 lines) and explain what it does in context — not just "this function was added" but why it matters (e.g. "this closes a race where two components could refresh the same session token — see the `sessionRescopes` cache added at `context.ts:280`"). Don't copy the code: put a placeholder on its own line — `[[code:<path>:<from>-<to>]]`, or `[[code:<path> | <text from its first line> | <number of lines>]]` when you know the text but not the line — and cite a line inline as `[[at:<path> | <text on that line>]]` or `` `<path>:<line>` ``. The code is inserted verbatim later and every citation is checked. Pick a distinctive piece of the line (a whole expression or string), not a bare identifier that also appears in imports.
 
-**CI.** If `context.json` → `ci` shows failing or pending jobs on headRefOid, say so briefly in `what`, and point it out if `pr-body.md` claims the opposite ("all tests pass").
+**CI.** If `context.json` → `ci` shows failing or pending jobs on the head commit, say so briefly in `what`, and point it out if the PR description claims the opposite ("all tests pass"). Write every text field for the PR's readers: say "the head commit", "the PR description", "the linked issue" — never run-folder file names (`context.json`, `pr-body.md`, …) or field names (`headRefOid`); `save.py` rejects them.
 
 **Impact / blast radius** — the part a plain diff can't tell you. For every changed export, tRPC procedure key, exported React component/hook, or public type in the diff, search for consumers _outside_ the PR's own changed files, across the whole monorepo at headRefOid:
 

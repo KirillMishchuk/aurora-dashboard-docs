@@ -1,0 +1,397 @@
+{
+ "candidates": [
+  {
+   "claim": "Permission props are named `canDelete` instead of `can<Verb><Noun>` (canDeleteSecret / canDeleteContainer / canDeleteOrder), in the row and list-container props of all three resources.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretTableRow.tsx:15",
+   "evidence": "Quick Reject: \"Permission prop not named `can<Verb><Noun>`\"; B.8: \"Boolean permission props must be named can<Verb><Noun> (e.g., canDeleteFlavor  etc)\". Code: `canDelete: boolean`. Same in ContainerTableRow.tsx:15, OrderTableRow.tsx:15 and the three *ListContainer.tsx:12.",
+   "precedent": "Network plugin uses `canDeleteRule` (SecurityGroupRulesTable).",
+   "discussion": "Copilot raised it on all six files (threads r4360388743, r4360388949, r4360389203, r4360389452, r4360389872, r4360389932)."
+  },
+  {
+   "claim": "Row action menus use `<PopupMenu>` without a `PopupMenuToggle` trigger, so the default toggle is used with no `<Button icon=\"moreVert\" aria-label>`; the icon-only trigger has no accessible label.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretTableRow.tsx:35",
+   "evidence": "Quick Reject: \"`PopupMenu` without `PopupMenuToggle` as trigger\"; B.14: \"Context menus must use <PopupMenuToggle as=\\\"div\\\"><Button icon=\\\"moreVert\\\" /></PopupMenuToggle>\". Code: `<PopupMenu><PopupMenuOptions> etc`. Same in ContainerTableRow.tsx:34 and OrderTableRow.tsx:33.",
+   "precedent": "Network floating IP / security group views import PopupMenuToggle.",
+   "discussion": "Copilot thread r4360388832 (OrderTableRow)."
+  },
+  {
+   "claim": "Delete menu item is neither labelled with the entity nor separated by a divider from the other item (single-entity menu): labels are `Delete` / `Show Details` rather than `Delete Secret` / `Show Secret Details`, and there is no `PopupMenuSectionSeparator` before Delete.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretTableRow.tsx:38",
+   "evidence": "B.18: \"Single-entity menus  etc: separate the Delete action from the rest with a divider.\" and \"Include the referenced entity in labels\". Code: `{canDelete && <PopupMenuItem label={t`Delete`}  etc/>}` directly after `Show Details`. Same in Container/Order rows (line 37/36).",
+   "discussion": "Copilot r4360388832 mentions the separator."
+  },
+  {
+   "claim": "Delete modals put the object name/ID in the title (`Delete Secret \"${secretName}\"`, `Delete Order \"${orderId}\"`) and the confirm label is a bare `Delete` / `Deleting...`; the standard says the object goes in the body and the confirm label should be verb + object type. The body doesn't name the entity at all (container/secret), and the order modal title shows a raw UUID.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretModals.tsx:129",
+   "evidence": "B.5: \"Put the object name in the body, not the title.  etc Reference the affected entity by name/identifier in the body\"; \"Confirm labels: prefer verb + object type: Delete Image\". Code: title={t`Delete Secret \"${secretName}\"`}, body `This action cannot be undone. The secret will be permanently deleted.` Same at ContainerModals.tsx:109, OrderModals.tsx:125.",
+   "precedent": ""
+  },
+  {
+   "claim": "None of the six modals pass `disableCloseButton` while the mutation is pending, so the close-X stays active and the user can dismiss the modal mid-request, while Cancel is disabled (they must be disabled together).",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretModals.tsx:136",
+   "evidence": "Quick Reject: \"Modal without `disableCancelButton` / `disableCloseButton` during async operations\"; B.5: \"disable close-X and Cancel together\". Code has `disableCancelButton={deleteMutation.isPending}` only. Same in SecretModals.tsx:60, ContainerModals.tsx:50/116, OrderModals.tsx:58/132.",
+   "precedent": ""
+  },
+  {
+   "claim": "The create modals mutate with no form validation and no inline errors: the confirm button is only disabled while pending. Bit Length is parsed with parseInt (NaN on empty), Algorithm may be empty, and fields are not marked required. Validation errors on the server show only as a Message at form top.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderModals.tsx:52",
+   "evidence": "B.11 Reject: \"any form that mutates without validation\"; B.5: \"keep the primary/confirm button disabled while any required field is empty or any field fails validation\". Code: `meta: { algorithm, bit_length: parseInt(bitLength, 10) }`, `disableConfirmButton={createMutation.isPending}`; no @tanstack/react-form / zod used. Secret and container create modals use useState with no validator at all.",
+   "precedent": "",
+   "discussion": "Copilot thread on OrderModals.tsx:52 (bit length validation)."
+  },
+  {
+   "claim": "The create modals do not follow the form standard (state in `useState` instead of @tanstack/react-form + Zod, no `autoFocus` on the primary input, inputs are not `disabled` while the mutation is in flight, no `required` markers).",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainerModals.tsx:30",
+   "evidence": "B.11: \"Preferred: @tanstack/react-form with Zod schema validators\", \"`autoFocus` on the primary input. `disabled={isMutating}` on all inputs during in-flight mutations.\" Code: `const [name, setName] = useState(\"\")`  etc TextInput has no autoFocus/disabled.",
+   "precedent": ""
+  },
+  {
+   "claim": "Create/delete success is silent: no toast is shown for create or delete of secrets, containers or orders; the modal just closes. The standard requires a confirming toast delegated to a `*ToastNotifications` helper for CRUD actions.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretModals.tsx:35",
+   "evidence": "B.16 table: \"CRUD action confirmed (create, delete, update) | toast (transient)\"; B.10: \"All toast messages must be extracted to a dedicated <Resource>ToastNotifications.tsx\"; B.11: \"(modal) close and show a confirming toast\". grep of the PR diff finds no `toast` and no *ToastNotifications file. onSuccess only calls invalidate()/onClose().",
+   "precedent": "Network plugins ship *ToastNotifications files."
+  },
+  {
+   "claim": "Row/list sort control is built from raw `Select` + `SortButton` instead of the required `SortInput` from `@/client/components/ListToolbar/SortInput`; Zone 1 is also `distribution=\"end\"` rather than `\"between\"`.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx:83",
+   "evidence": "B.1 table: \"Sort control | SortInput from @/client/components/ListToolbar/SortInput\"; B.2: \"Sort controls (SortInput) + primary action Button  etc distribution=\\\"between\\\"\". Code uses `<Select label=\"Sort by\"  etc>` + `<SortButton  etc/>` in `<Stack distribution=\"end\"  etc className=\"jn:pb-2\">`. Same in OrdersList.tsx:66. Containers list has no sort control at all although the PR body advertises sort for the lists.",
+   "precedent": "floatingips/-components/FloatingIpsList.tsx and routers/-components/RoutersList.tsx import SortInput."
+  },
+  {
+   "claim": "The permission-denied state for the list pages is rendered inline as a non-page-level warning `Message` with hardcoded English and no `mb-4`, instead of a 403 page-level error with an info `Message`; the copy also differs from the recommended 403 text.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx:72",
+   "evidence": "B.6 Reject: \"a 401/403 handled inline instead of via redirect / page-level info Message\"; 403 row: \"plus an info Message explaining lack of access\". Code: `<Message variant=\"warning\">You do not have permission to view secrets.</Message>`. Same ContainersList.tsx:50, OrdersList.tsx:55. B.3 requires `mb-4` on Message banners.",
+   "precedent": "Network lists use a Message for the same case (\"You do not have permission to view security groups\" in messages.po), so this may be accepted locally."
+  },
+  {
+   "claim": "Reveal Payload button, secret detail and the other detail routes do not check any permission (`key-manager:secrets:payload` / `get`); the control is rendered functional before permissions are known (not fail-closed).",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretDetailsView.tsx:89",
+   "evidence": "Quick Reject: \"UI control shown before permissions are resolved (not fail-closed)\"; B.7/B.8: \"Never optimistically show actions before permissions resolve.\" Code: `<Button variant=\"subdued\" onClick={handleRevealPayload} disabled={payloadFetching}>`; usePermissions is never imported in the *DetailsView files. The `payload` permission is defined in usePermissions.ts:6 and the policy but unused.",
+   "precedent": "",
+   "discussion": "Copilot thread r4360388886 (CRITICAL)."
+  },
+  {
+   "claim": "Detail data is fetched in the component twice (route component and *DetailsView both call the same getX.useQuery) rather than in the route `loader`; the route has no loader, and the breadcrumb is set from a separately fetched copy.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/$containerId.tsx:19",
+   "evidence": "A.3: \"Data critical for rendering a page must be fetched via the route's loader function rather than loading it inside the component body.\" and (task) data the loader already fetched is not fetched again. Code: `$containerId.tsx:19 trpcReact.keyManager.getContainer.useQuery( etc)` and `ContainerDetailsView.tsx:31 trpcReact.keyManager.getContainer.useQuery( etc)`. Same for $secretId.tsx:19 / SecretDetailsView.tsx:24 and $orderId.tsx:19 / OrderDetailsView.tsx:22. B.7 allows tRPC useQuery, so severity is a judgement call.",
+   "precedent": "",
+   "discussion": ""
+  },
+  {
+   "claim": "Search input navigates on every keystroke (`onInput` -> navigate) with no local mirror state / debounce, producing a router navigation and a server request per character.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx:104",
+   "evidence": "B.9: \"Use a local mirror state for debounced search inputs; sync back on external navigation via useEffect.\" Code: `onInput={(e) => onSearchChange((e.target as HTMLInputElement).value)}` where onSearchChange calls `navigate({ etc search: { search: value || undefined  etc}})`. Same ContainersList.tsx:74.",
+   "precedent": ""
+  },
+  {
+   "claim": "Ad-hoc spacing and styling classes outside the approved lists: `my-6` on the detail Stack, `mt-4` wrapper, `p-3`/`rounded`/`max-h-48` and `text-xs opacity-60` on payload/ID text, `items-end pr-0`, `jn:min-w-40`; `opacity-60` is used instead of a `text-theme-light` token.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretDetailsView.tsx:79",
+   "evidence": "B.3: \"Reject any use of ad-hoc mt-3, mb-5, px-6, etc. not listed above\" (detail top offset is `mt-6`); B.4: \"Muted / secondary text | text-theme-light\". Code: `className=\"my-6\"` (also ContainerDetailsView.tsx:62, OrderDetailsView.tsx:67), `<p className=\"text-sm opacity-60\">` :97, `<pre className=\"bg-theme-background-lvl-2 max-h-48 overflow-auto rounded p-3 text-xs\">` :98, key-manager.tsx:104 `className=\"mt-4\"`, rows `text-xs opacity-60`.",
+   "precedent": ""
+  },
+  {
+   "claim": "Raw HTML elements are used where Juno components exist: `<div>` wrappers (layout, row cells, pagination wrapper), `<p>` bodies in modals and `<pre>` for the payload.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager.tsx:91",
+   "evidence": "Quick Reject: \"Raw HTML element (<div>, <table>, <button>) where a Juno component exists\"; B.1 \"Primary layout primitive | Stack\". Code: `<div><ContentHeader  etc/>  etc <div className=\"mt-4\">`; SecretTableRow.tsx:26-27 `<div>{secret.name  etc}</div><div className=\"text-xs opacity-60\">`; SecretsList.tsx:127 `<div className=\"flex justify-center py-4\">`; SecretDetailsView.tsx:88 `<div>` around the button.",
+   "precedent": ""
+  },
+  {
+   "claim": "Files do not follow the B.12 naming table: the modal files bundle two modals each (`SecretModals.tsx`, `ContainerModals.tsx`, `OrderModals.tsx` instead of `CreateSecretModal.tsx` / `DeleteSecretModal.tsx`), the hook file is a generic `usePermissions.ts` instead of `useKeyManagerPermissions.ts`, and `utils.ts` / `constants.ts` are generic names.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/-components/usePermissions.ts:21",
+   "evidence": "B.12: \"Modal | <Verb><Resource>Modal.tsx\"; \"Hook | use<PascalCase>.ts (useCephPermissions.ts)\"; Reject: \"generic names (Modal.tsx, Table.tsx)\"; B.8: \"a use<Feature>Permissions(projectId) hook\". Hook is exported as `usePermissions(projectId, permissions)` and takes a permission list rather than projectId only.",
+   "precedent": "Network plugin has per-modal files.",
+   "discussion": "Copilot thread r4360389782 asked for useKeyManagerPermissions."
+  },
+  {
+   "claim": "Import order and path rules are broken: Juno imports come before `@lingui` imports (and `useState` after Juno in SecretModals), and `../../-components/...` relative traversal two levels up is used instead of `@/` aliases.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretModals.tsx:13",
+   "evidence": "B.13: order is react, i18n, tRPC, Juno; \"All imports must use @/ path aliases. No relative ../../ traversal beyond one level.\" Code: SecretModals.tsx imports Juno (l.1-12) then `useState` from react (l.13); key-manager.tsx:2-4 Juno, server, then lingui. `import { uuidFromRef } from \"../../-components/utils\"` in all *Modals/*TableRow/*DetailsView files and `import { usePermissions } from \"../../-components/usePermissions\"` in all *List files; secrets/index.tsx:5 `../-components/utils`.",
+   "precedent": ""
+  },
+  {
+   "claim": "User-facing strings are not translated: JSX button/placeholder/label literals (`Create Secret`, `Search by name...`, `Sort by`, `Created At`), the permission-denied Messages, and the DataGrid column header arrays in constants.ts (`Name / ID`, `Status`, `Type`, ...) are plain English, so the de locale will show English.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/constants.ts:1",
+   "evidence": "B.14: \"All user-facing strings must be wrapped in <Trans> or t` etc`\" (the review scope says lingui lint covers aurora, but these aren't caught). `export const SECRETS_COLUMNS = [\"Name / ID\", \"Status\",  etc]`; SecretsList.tsx:97 `Create Secret`, :105 `placeholder=\"Search by name etc\"`, :84 `label=\"Sort by\"`; `msgid \"Name / ID\"` and `msgid \"Search by name\"` are absent from en/messages.po at head (git show | grep).",
+   "precedent": "Low priority: out of the stated review scope if lint is assumed to catch it."
+  },
+  {
+   "claim": "Empty-state wording does not distinguish `no data` from `no filter results`: with an active search the secrets/containers list shows `There are no secrets in this project. Create one to get started.`",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretListContainer.tsx:58",
+   "evidence": "B.6: \"Distinguish empty reasons: 'no data' -> suggest creating; 'no filter results' -> suggest clearing filters.\" Code shows the same `No Secrets Found` / create body whether or not `search` is set (the list container does not receive `search`). Same in ContainerListContainer.tsx:58, and the empty Create hint is shown even to users without create permission.",
+   "precedent": ""
+  },
+  {
+   "claim": "Error states render the raw `error.message` as the Status title (`error?.message ?? t`Failed to Load Secret``), with no retry action or explanatory body.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretListContainer.tsx:33",
+   "evidence": "B.6: \"Always communicate the state and a possible course of action (retry link where feasible)\"; \"any empty/broken state without explanatory title/body\". Code: `<Status status=\"error\" title={error?.message ?? t`Failed to Load Secrets`} />`; same in all list containers and DetailsViews (e.g. ContainerDetailsView.tsx:37). Detail pages also have no `errorComponent`/403 handling of their own.",
+   "precedent": ""
+  },
+  {
+   "claim": "The Authorization nav entry does not honour service-visibility configuration (`isEnabled` / enabledServices / deniedServices) like the other in-core entries.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/-components/buildNavSections.ts:153",
+   "evidence": "Code: ` etc(serviceIndex[\"key-manager\"]?.[\"barbican\"] ? [{ etc}] : [])` with no isEnabled call. Part A/CLAUDE.md: `enabledServices` whitelists which services show in the nav.",
+   "precedent": "Other in-core entries use isEnabled in the same file.",
+   "discussion": "Copilot thread r4360389607."
+  },
+  {
+   "claim": "Page-state recovery after deletion: list URL `page` is not clamped when the last row of the last page is deleted, leaving an empty table with no pagination.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx:126",
+   "evidence": "B.9 (URL state must stay consistent) ; Code: `{totalPages > 1 && (<Pagination  etc/>)}` with `page` coming from the URL and no clamp after invalidate.",
+   "precedent": "",
+   "discussion": "Copilot threads r4360389254, r4360389387, r4360389532."
+  },
+  {
+   "claim": "The PR body checklist leaves the tests, docs, warnings and 'commented my code' items unchecked even though tests are added, and the Testing Instructions are only generic commands. No changeset is mentioned (memory: house style says no changesets in descriptions).",
+   "location": "PR body",
+   "evidence": "pr-body.md Checklist: `- [ ] I have added tests that prove my fix is effective or that my feature works.` and `- [ ] New and existing unit tests pass locally with my changes.` while the PR adds *.test.ts(x) files.",
+   "precedent": ""
+  }
+ ],
+ "checklist": [
+  {
+   "item": "Raw HTML element (<div>, <table>, <button>) where a Juno component exists",
+   "result": "violated",
+   "where": "key-manager.tsx:91; SecretTableRow.tsx:26; SecretsList.tsx:127"
+  },
+  {
+   "item": "Hardcoded Tailwind color class (text-gray-*, bg-red-*) instead of a text-theme-* token",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "error variant used for a destructive action (should be danger), or vice versa",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "Ad-hoc spacing value not in the approved list (B.3)",
+   "result": "violated",
+   "where": "SecretDetailsView.tsx:79,97,98; key-manager.tsx:104"
+  },
+  {
+   "item": "Permission prop not named can<Verb><Noun>",
+   "result": "violated",
+   "where": "*TableRow.tsx:15, *ListContainer.tsx:12"
+  },
+  {
+   "item": "UI control shown before permissions are resolved (not fail-closed)",
+   "result": "violated",
+   "where": "SecretDetailsView.tsx:89 (Reveal Payload, detail pages unchecked)"
+  },
+  {
+   "item": "Bulk-action controls or \"Create\" button rendered without permission check",
+   "result": "not violated",
+   "where": "Create buttons are gated on create permission; no bulk actions"
+  },
+  {
+   "item": "Nested interactive element in a clickable row without event.stopPropagation()",
+   "result": "not violated",
+   "where": "rows are not clickable; action cell stops propagation anyway"
+  },
+  {
+   "item": "toast.success/error with inline string instead of delegating to *ToastNotifications",
+   "result": "not violated",
+   "where": "no toast calls at all (see missing-toast candidate)"
+  },
+  {
+   "item": "toast.error used for a persistent/actionable error (use <Message> instead)",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "<Message> variant conflicting with the modal's primary button variant",
+   "result": "not violated",
+   "where": "modal Messages are error variant (operation errors allowed)"
+  },
+  {
+   "item": "Modal without disableCancelButton / disableCloseButton during async operations",
+   "result": "violated",
+   "where": "SecretModals.tsx:60,136; ContainerModals.tsx:50,116; OrderModals.tsx:58,132"
+  },
+  {
+   "item": "Custom modalFooter without explicit disableCloseButton on the Modal itself",
+   "result": "not violated",
+   "where": "no custom modalFooter"
+  },
+  {
+   "item": "Destructive modal without confirmButtonVariant=\"primary-danger\"",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "Destructive modal with alarmist/vague title (\"Danger!\", \"Are You Sure?\")",
+   "result": "not violated",
+   "where": "titles are not alarmist (but put object name in title, see B.5 candidate)"
+  },
+  {
+   "item": "PopupMenu without PopupMenuToggle as trigger",
+   "result": "violated",
+   "where": "SecretTableRow.tsx:35, ContainerTableRow.tsx:34, OrderTableRow.tsx:33"
+  },
+  {
+   "item": "\"Delete\" action not the last item in its menu group, or a single-entity menu missing the divider before it",
+   "result": "violated",
+   "where": "*TableRow.tsx: no divider before Delete"
+  },
+  {
+   "item": "URL-worthy state held in useState instead of search params",
+   "result": "not violated",
+   "where": "search/sort/page are in URL; useState only for modal visibility"
+  },
+  {
+   "item": "User-facing string not wrapped in <Trans> or t`...` (skip in packages/aurora)",
+   "result": "violated",
+   "where": "constants.ts:1; SecretsList.tsx:72,84,97,105 (low priority, lint-scope)"
+  },
+  {
+   "item": "Error element without role=\"alert\" and aria-live=\"assertive\"",
+   "result": "not violated",
+   "where": "errors use Juno Status/Message, no custom error elements"
+  },
+  {
+   "item": "Icon-only button without aria-label",
+   "result": "violated",
+   "where": "default PopupMenu toggle in *TableRow.tsx (no labelled toggle)"
+  },
+  {
+   "item": "outline-none suppressing focus ring without replacement",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "File named with lowercase-dash convention or generic name",
+   "result": "violated",
+   "where": "-components/usePermissions.ts, utils.ts, constants.ts, *Modals.tsx"
+  },
+  {
+   "item": "Import using ../../ traversal beyond one level instead of @/",
+   "result": "violated",
+   "where": "all *Modals/*TableRow/*DetailsView/*List files importing ../../-components/..."
+  },
+  {
+   "item": "Re-implementation of a utility hook from B.17",
+   "result": "not violated",
+   "where": "useSetBreadcrumb is used; projectId read via Route.useParams (useProjectId not used, minor)"
+  },
+  {
+   "item": "String using \"Please\", \"Thanks\", \"We\", exclamation marks, all-caps, or \"Sign In\"/\"Log in\"",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "B.1 Reject: plain <table>/<input>/<select>/<button> where a Juno equivalent exists; required components (SortInput)",
+   "result": "violated",
+   "where": "SecretsList.tsx:83 uses Select+SortButton instead of SortInput"
+  },
+  {
+   "item": "B.2 Reject: structure that mixes zones or skips Zone 2 when search is available",
+   "result": "violated",
+   "where": "Zone 1 distribution=\"end\" and no SortInput; containers list has no sort; orders have no search (API has none)"
+  },
+  {
+   "item": "B.3 Reject: ad-hoc mt-3, mb-5, px-6",
+   "result": "violated",
+   "where": "see B.3 candidate"
+  },
+  {
+   "item": "B.4 Reject: raw Tailwind color class / error-danger misuse",
+   "result": "not violated",
+   "where": "opacity-60 used for muted text instead of token is covered in the B.3 candidate"
+  },
+  {
+   "item": "B.5 Reject: modal missing disable flags / vague title / primary-danger for non-destructive / redundant Message / Message variant conflict",
+   "result": "violated",
+   "where": "missing disableCloseButton; object name in title (SecretModals.tsx:129)"
+  },
+  {
+   "item": "B.6 Reject: error without role alert; dismissible Message without onDismiss; empty/broken state without title/body; blank full-page error; 401/403 handled inline",
+   "result": "violated",
+   "where": "SecretsList.tsx:72 inline 403 Message; error Status without body; `if (permissionsLoading) return null` blank during load"
+  },
+  {
+   "item": "B.7 Reject: UI controls before permissions are confirmed",
+   "result": "violated",
+   "where": "SecretDetailsView.tsx:89"
+  },
+  {
+   "item": "B.8 Reject: permission prop not can<Verb><Noun>; hidden vs disabled strategy",
+   "result": "violated",
+   "where": "*TableRow.tsx:15; Delete hidden instead of disabled-and-explained (B.8 table, judgement)"
+  },
+  {
+   "item": "B.9 Reject: useState for state that should survive refresh",
+   "result": "not violated",
+   "where": "debounce/local mirror missing is reported separately"
+  },
+  {
+   "item": "B.10 Reject: toast with inline string not delegated to *ToastNotifications",
+   "result": "not violated",
+   "where": "no toasts exist; omission reported under B.16"
+  },
+  {
+   "item": "B.11 Reject: form mutating without validation / error state / placeholder as label",
+   "result": "violated",
+   "where": "OrderModals.tsx:52, SecretModals.tsx:48, ContainerModals.tsx:46"
+  },
+  {
+   "item": "B.12 Reject: lowercase-dash names, generic names, tests outside source dir",
+   "result": "violated",
+   "where": "usePermissions.ts, utils.ts, constants.ts, *Modals.tsx; tests are co-located (ok)"
+  },
+  {
+   "item": "B.13 import order and @/ aliases",
+   "result": "violated",
+   "where": "SecretModals.tsx:13; key-manager.tsx:2-8"
+  },
+  {
+   "item": "B.14 Reject: hardcoded English in JSX, error ARIA, icon-only button without aria-label",
+   "result": "violated",
+   "where": "see i18n and PopupMenuToggle candidates"
+  },
+  {
+   "item": "B.15 Reject: DataGrid bulk/create UI without permission, nested interactive stopPropagation, bulk without selection, tri-state select-all",
+   "result": "not violated",
+   "where": "no bulk/select; column order: name, status, type, actions ok; Orders list first column is ID only"
+  },
+  {
+   "item": "B.16 Reject: toast.error for persistent errors / Message conflicting with modal button",
+   "result": "not violated",
+   "where": "CRUD confirmation toasts missing, reported separately"
+  },
+  {
+   "item": "B.17 Reject: re-implementation of utility hooks",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "B.18 Reject: Delete not last / single-entity menu lacking divider before Delete",
+   "result": "violated",
+   "where": "*TableRow.tsx: no divider before Delete"
+  },
+  {
+   "item": "B.19 Reject: all-caps, exclamation, alarmist language, personal voice, Sign In, inconsistent terminology; title case",
+   "result": "not violated",
+   "where": "Titles are title case; `Loading Payload...` etc. fine; `unnamed` lowercase placeholder in cells and `Show Details` lacks entity (minor)"
+  },
+  {
+   "item": "A.1 React 19: minimize useEffect",
+   "result": "not violated",
+   "where": "no useEffect"
+  },
+  {
+   "item": "A.2 tRPC: procedures typed / protectedProcedure; errors handled in UI",
+   "result": "not violated",
+   "where": "projectScopedProcedure used; server-side policy enforcement missing is a finder-b topic (Copilot r4360389025)"
+  },
+  {
+   "item": "A.3 loader for critical data; no re-fetch of loader data in component; useNavigate/Link",
+   "result": "violated",
+   "where": "$secretId.tsx:19 + SecretDetailsView.tsx:24 (double fetch, no loader)"
+  },
+  {
+   "item": "A.4 Juno components/Stack/Container for layout",
+   "result": "violated",
+   "where": "raw div/p/pre usage (see raw HTML candidate)"
+  }
+ ]
+}

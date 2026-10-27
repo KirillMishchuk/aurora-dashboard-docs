@@ -1,0 +1,39 @@
+{
+ "candidates": [
+  {
+   "claim": "deleteContainerSecret calls DELETE /v1/containers/{id}/secrets/{secretName}; Barbican documents removal as DELETE /v1/containers/{container_uuid}/secrets with a JSON body {name, secret_ref}. The path-segment form is not in the reference, so removing a secret from a container likely fails (404/405) and the UI action is broken.",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:252",
+   "evidence": "Code at fd248f08: `.del(`v1/containers/${encodeURIComponent(input.containerId)}/secrets/${encodeURIComponent(input.secretName)}`)`; input has only containerId and secretName, no secret_ref. Reference (https://docs.openstack.org/barbican/latest/api/reference/containers.html, source https://raw.githubusercontent.com/openstack/barbican/master/doc/source/api/reference/containers.rst, section 'DELETE /v1/containers/{container_uuid}/secrets'): 'Remove a secret from a container.  This is only supported on generic containers.' Request attributes: 'secret_ref | uri | (required) Full URI reference to an existing secret.' Request: 'DELETE /v1/containers/{container_uuid}/secrets ... Content: { \"name\": \"private key\", \"secret_ref\": \"https://{barbican_host}/v1/secrets/{secret_uuid}\" }'; 400 'Missing secret_ref'. No `/secrets/{name}` path appears in that file."
+  },
+  {
+   "claim": "listContainers sends a `name` filter, but the Containers list documents only offset and limit. The search box would be silently ignored by Barbican (or the BFF would need to filter itself), so users see unfiltered results.",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:167",
+   "evidence": "Code: `if (input.name) params.set(\"name\", input.name)` in listContainers. Reference (containers.rst, 'GET /v1/containers' Parameters table): only 'offset | integer | The starting index within the total list of the containers...' and 'limit | integer | The maximum number of containers to return (up to 100). The default limit is 10.' No name filter. By contrast the Secrets list documents 'name | string | Selects all secrets with name similar to this value.' (secrets.rst)."
+  },
+  {
+   "claim": "listOrders translates `sort` into sort_key/sort_dir query params, which the Orders list does not document (it documents only offset and limit; the `sort` param of secrets uses `key:dir` in one `sort` param, not sort_key/sort_dir). The sort selector on the orders page therefore has no documented effect.",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:269",
+   "evidence": "Code: `const [sortKey, sortDir] = input.sort.split(\":\")` then `params.set(\"sort_key\", sortKey)` / `params.set(\"sort_dir\", sortDir)`. Reference (https://docs.openstack.org/barbican/latest/api/reference/orders.html, orders.rst 'GET /v1/orders' Parameters): only 'offset' and 'limit | The maximum number of records to return (up to 100). (Default is 10)'. Secrets.rst 'Sorting': 'The value of the ``sort`` parameter is a comma-separated list of sort keys... Each sort key may also include a direction... ``:asc`` / ``:desc``' - sort_key/sort_dir are not documented anywhere in the secrets/containers/orders reference files. UI offers only SORT_FIELDS = [{ value: \"created\" }] (OrdersList.tsx:19)."
+  },
+  {
+   "claim": "getSecretPayload does not send an Accept header; the reference says the Accept header must be set to one of the secret's content_types for GET /payload. signal-openstack adds no Accept header, so the call can return 406 (mapped to INTERNAL_SERVER_ERROR) or the wrong content type. Also mapKmError has no mapping for 406/415, which the reference lists for these endpoints.",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:98",
+   "evidence": "Code: `km.get(`v1/secrets/${encodeURIComponent(input.secretId)}/payload`)` with no options/headers; grep of packages/signal-openstack/src/client.ts shows only a Content-Type default, no Accept. Reference (secrets.rst 'GET /v1/secrets/{uuid}/payload'): 'When making a request for a secret's payload, you must set the accept header to one of the values listed in the ``content_types`` attribute of a secret's metadata.' Status codes: '406 | Not Acceptable'; POST /v1/secrets lists '415 | Unsupported media-type'. mapKmError codeMap covers only 400/401/403/404/409 (lines 43-49)."
+  },
+  {
+   "claim": "updateSecret uses PUT /v1/secrets/{id}, which the reference restricts to metadata-only secrets without a payload; the router offers it for any secret, so editing a secret that already has a payload fails (400/409), surfacing as a generic error. It also never sends Content-Encoding, so binary/base64 payloads cannot be stored.",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:137",
+   "evidence": "Code: `.put(`v1/secrets/${encodeURIComponent(input.secretId)}`, input.payload, { headers: { \"Content-Type\": input.payload_content_type } })`. Reference (secrets.rst 'PUT /v1/secrets/{uuid}'): 'Add the payload to an existing metadata-only secret, such as one made by sending a POST /v1/secrets request that does not include the ``payload`` attribute.' and note 'This action can only be done for a secret that doesn't have a payload.' Headers table lists optional 'Content-Encoding'. Documented status codes: 204, 401, 404 only."
+  },
+  {
+   "claim": "CreateOrderInputSchema accepts type \"certificate\", but the Orders reference documents only key and asymmetric as valid order types.",
+   "location": "packages/aurora/src/server/KeyManager/types/keyManager.ts:91",
+   "evidence": "Code: `type: z.enum([\"key\", \"asymmetric\", \"certificate\"])`. Reference (orders.rst 'POST /v1/orders' Parameters): 'type | string | The type of key to be generated. Valid types are key and asymmetric'. (Other Barbican docs may describe certificate orders; this orders reference page does not.)"
+  },
+  {
+   "claim": "List calls accept any numeric limit/offset (z.number() without .max(100)/.min(0)); Barbican caps limit at 100, so a client-supplied larger value is silently clamped and `total`-based paging math (PAGE_SIZE) would be off. Current UI uses 50 so impact is only for other callers.",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:21",
+   "evidence": "Code: `limit: z.number().default(20)`. Reference (secrets.rst/containers.rst/orders.rst): 'limit | integer | The maximum number of records to return (up to 100). The default limit is 10.' Pagination: code sends offset/limit (consistent with the documented offset/limit), UI page size 50 (OrdersList.tsx:17); `next`/`previous` are parsed in the schema but unused."
+  }
+ ]
+}

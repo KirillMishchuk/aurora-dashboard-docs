@@ -1,0 +1,6 @@
+exit 0
+Draft: <RUN>/report.md (dry run — DOCS untouched)
+Verdict: 🔴 Request Changes · Confidence Medium
+Findings: 10 Required Changes 🟠🟡🟡🟡🟡🟡🟡🟡🟡🟡, 1 Process, 21 Improvements
+Markdown: OK
+Index row would end with: Verdict: Request Changes — 11 Required Changes (🟠🟡🟡🟡🟡🟡🟡🟡🟡🟡 + 1 process), 21 Improvements

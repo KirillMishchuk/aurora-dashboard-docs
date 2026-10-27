@@ -1,0 +1,15 @@
+{
+ "candidates": [
+  {
+   "claim": "The new Authorization > Key Manager nav entry is gated only on the catalog (serviceIndex[\"key-manager\"][\"barbican\"]) and skips isEnabled(...). Since #1370, every built-in item and every extension is filtered by enabledServices/deniedServices, so a consumer cannot hide Key Manager via appConfig deny list or enabledServices allowlist (the allowlist would still show it).",
+   "location": "packages/aurora/src/client/routes/_auth/projects/-components/buildNavSections.ts | ...(serviceIndex[\"key-manager\"]?.[\"barbican\"]",
+   "evidence": "At base c65b36d0, buildNavSections.ts lines 29-33 define isEnabled with the comment 'Deny always wins and applies even without an allow/enabled list'; images, flavors, securitygroups, floatingips, routers, containers and ceph-containers all use `&& isEnabled(\"<key>\")`, and extensions check enabledServices/deniedServices (lines 154-155, added in b4b47df6 #1370). The PR diff for this file adds the key-manager item with no isEnabled call. The PR does not touch README 'Service key reference' either.",
+   "precedent": "routers/securitygroups/floatingips entries in the same file use isEnabled."
+  },
+  {
+   "claim": "The project landing page (projects/$projectId/index.tsx) builds service cards per service with the same isEnabled gating, but the PR does not touch it, so Key Manager gets a nav entry but no card on the project overview. The key-manager layout beforeLoad also checks only the catalog, not enabled/denied services, so a denied service stays reachable by URL.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager.tsx | if (!serviceIndex[\"key-manager\"]?.[\"barbican\"]) {",
+   "evidence": "At base c65b36d0, routes/_auth/projects/$projectId/index.tsx lines 56-110 push a card (group Compute/Network/Storage/Services) for each service under isEnabled; `git diff --stat` for the PR shows no change to that index.tsx (only key-manager/*/index.tsx files). #1370 touched both buildNavSections.ts and this index.tsx together to keep them in sync."
+  }
+ ]
+}

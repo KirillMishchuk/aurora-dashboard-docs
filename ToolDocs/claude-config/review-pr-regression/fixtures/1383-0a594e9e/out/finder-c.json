@@ -1,0 +1,10 @@
+{
+ "candidates": [
+  {
+   "claim": "Same work as open draft PR #1385 (Neutron Networks BFF + read-only Networks list/details). Both add the same networks.tsx, networks/index.tsx, $networkId.tsx, -components/*, networksRouter.ts, networkHelpers.ts, types/network.ts and the nav entry. Whichever merges second hits real conflicts in 9 non-generated files, so one of them is wasted effort.",
+   "location": "PR files",
+   "evidence": "context.json overlapping_prs: #1385 shares 18 files, merge conflicts in 9 non-generated files (networksRouter.ts, types/network.ts, networkHelpers.ts, NetworksList.tsx, NetworkDetailsView.tsx, etc.), conclusion conflicts_only_generated=False. git diff --stat of #1385 head 9ed42505 shows a superset: a changeset, docs/0017_networks_bff.md and tests for components, router, helpers and types. This PR adds no tests or changeset. The PR body does not mention #1385.",
+   "discussion": "Nothing in the discussion mentions #1385."
+  }
+ ]
+}

@@ -1,0 +1,339 @@
+{
+ "schema_version": 1,
+ "generated_at": "2026-10-23T06:48:46Z",
+ "today": "2026-10-23",
+ "repo": {
+  "name_with_owner": "cobaltcore-dev/aurora-dashboard",
+  "root": "{{SAP}}/aurora-dashboard"
+ },
+ "docs": "{{SAP}}/DOCS",
+ "run_dir": "{{SAP}}/aurora-dashboard/.claude/runs/review-and-comment-pr/1383-0a594e9e",
+ "pr": {
+  "number": 1383,
+  "title": "feat(aurora): add Neutron Networks BFF and read-only Networks page (list & details)",
+  "url": "https://github.com/cobaltcore-dev/aurora-dashboard/pull/1383",
+  "author": "hodanoori",
+  "state": "OPEN",
+  "is_draft": true,
+  "created": "2026-10-12",
+  "merged_at": null,
+  "closed_at": null,
+  "base": {
+   "ref": "main",
+   "oid": "a21ba3ecf60155f47d0e6a7fe98da20ecd59b6bd"
+  },
+  "head": {
+   "ref": "hoda-aurora-network",
+   "oid": "0a594e9eaf3055cb1c9a102f1aceae43420e7870",
+   "short": "0a594e9e"
+  },
+  "additions": 1346,
+  "deletions": 4,
+  "changed_files": 18,
+  "mergeable": "MERGEABLE",
+  "files": [
+   {
+    "path": "packages/aurora/src/client/routeTree.gen.ts",
+    "additions": 79,
+    "deletions": 0,
+    "generated": true
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks.tsx",
+    "additions": 37,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/$networkId.tsx",
+    "additions": 170,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkDetailsView.tsx",
+    "additions": 156,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkListContainer.tsx",
+    "additions": 126,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkTableRow.tsx",
+    "additions": 64,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworksList.tsx",
+    "additions": 257,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/index.tsx",
+    "additions": 57,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/-components/buildNavSections.test.ts",
+    "additions": 2,
+    "deletions": 2,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/-components/buildNavSections.ts",
+    "additions": 11,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/locales/de/messages.po",
+    "additions": 75,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/locales/de/messages.ts",
+    "additions": 1,
+    "deletions": 1,
+    "generated": true
+   },
+   {
+    "path": "packages/aurora/src/locales/en/messages.po",
+    "additions": 75,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/locales/en/messages.ts",
+    "additions": 1,
+    "deletions": 1,
+    "generated": true
+   },
+   {
+    "path": "packages/aurora/src/server/Network/helpers/networkHelpers.ts",
+    "additions": 33,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/server/Network/routers/index.ts",
+    "additions": 2,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/server/Network/routers/networksRouter.ts",
+    "additions": 105,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/server/Network/types/network.ts",
+    "additions": 95,
+    "deletions": 0,
+    "generated": false
+   }
+  ],
+  "body_file": "pr-body.md",
+  "diff_file": "pr.diff",
+  "generated_files_not_in_diff": [
+   "packages/aurora/src/client/routeTree.gen.ts",
+   "packages/aurora/src/locales/de/messages.ts",
+   "packages/aurora/src/locales/en/messages.ts"
+  ]
+ },
+ "flags": {
+  "base_not_main": false,
+  "release": {
+   "is_release": false,
+   "matched": []
+  },
+  "finder_f": {
+   "needed": true,
+   "files": [
+    "packages/aurora/src/server/Network/helpers/networkHelpers.ts",
+    "packages/aurora/src/server/Network/routers/index.ts",
+    "packages/aurora/src/server/Network/routers/networksRouter.ts",
+    "packages/aurora/src/server/Network/types/network.ts"
+   ]
+  },
+  "touches_published_src": true
+ },
+ "mode": "rerun",
+ "mode_reason": "re-run of a current report, confirmed",
+ "report": {
+  "path": "{{SAP}}/DOCS/aurora-dashboard-kb/prs/1383-neutron-networks-bff-read-only-networks-page.md",
+  "exists": true,
+  "status_frontmatter": "open",
+  "status_line": "draft",
+  "old_head": "0a594e9e",
+  "footer": "_Analyzed 2026-10-23 · commit `0a594e9e` · read-only · skill: review-and-comment-pr_",
+  "old_head_reachable": null,
+  "delta": null,
+  "status_update": null
+ },
+ "status_now": {
+  "frontmatter": "open",
+  "line": "draft",
+  "index_date": "2026-10-12 (draft)"
+ },
+ "process": [
+  {
+   "id": "draft",
+   "where": "PR state",
+   "text": "PR is still a draft"
+  },
+  {
+   "id": "missing-changeset",
+   "where": "PR files",
+   "text": "published package code changed without a .changeset/*.md"
+  }
+ ],
+ "provenance": [
+  "read-only"
+ ],
+ "fetch": {
+  "head": "already local",
+  "base": "already local"
+ },
+ "issue": {
+  "linked": [
+   {
+    "number": 1019,
+    "how": "repo-ref",
+    "title": "[EPIC](networking):  Networks Management (DRAFT)",
+    "state": "OPEN",
+    "url": "https://github.com/cobaltcore-dev/aurora-dashboard/issues/1019",
+    "file": "issue-1019.md"
+   }
+  ],
+  "supplied": null,
+  "source": "pr-body",
+  "mentioned_prs": []
+ },
+ "ci": {
+  "total": 22,
+  "pass": 18,
+  "fail": 0,
+  "pending": 0,
+  "skipping": 4,
+  "cancel": 0,
+  "failed": [],
+  "pending_names": []
+ },
+ "changeset": {
+  "files": [],
+  "bumps": [],
+  "missing": true
+ },
+ "discussion": {
+  "comments": 5,
+  "reviews": 0,
+  "threads": 0,
+  "bot_items": 2,
+  "own_reports_excluded": 3,
+  "inline_read": true,
+  "file": "discussion.json"
+ },
+ "overlapping_prs": [
+  {
+   "number": 1385,
+   "title": "feat(network): add Neutron Networks BFF and read-only Networks page (list & details)",
+   "head_oid": "9ed425055637c05119f3d7a7814c3af134b884cd",
+   "draft": true,
+   "shared_files": [
+    "packages/aurora/src/client/routeTree.gen.ts",
+    "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks.tsx",
+    "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/$networkId.tsx",
+    "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkDetailsView.tsx",
+    "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkListContainer.tsx",
+    "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkTableRow.tsx",
+    "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworksList.tsx",
+    "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/index.tsx",
+    "packages/aurora/src/client/routes/_auth/projects/-components/buildNavSections.test.ts",
+    "packages/aurora/src/client/routes/_auth/projects/-components/buildNavSections.ts",
+    "packages/aurora/src/locales/de/messages.po",
+    "packages/aurora/src/locales/de/messages.ts",
+    "packages/aurora/src/locales/en/messages.po",
+    "packages/aurora/src/locales/en/messages.ts",
+    "packages/aurora/src/server/Network/helpers/networkHelpers.ts",
+    "packages/aurora/src/server/Network/routers/index.ts",
+    "packages/aurora/src/server/Network/routers/networksRouter.ts",
+    "packages/aurora/src/server/Network/types/network.ts"
+   ],
+   "merge": "conflicts",
+   "conflict_files": [
+    "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/$networkId.tsx",
+    "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkDetailsView.tsx",
+    "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkListContainer.tsx",
+    "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkTableRow.tsx",
+    "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworksList.tsx",
+    "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/index.tsx",
+    "packages/aurora/src/locales/de/messages.po",
+    "packages/aurora/src/locales/de/messages.ts",
+    "packages/aurora/src/locales/en/messages.po",
+    "packages/aurora/src/locales/en/messages.ts",
+    "packages/aurora/src/server/Network/helpers/networkHelpers.ts",
+    "packages/aurora/src/server/Network/routers/networksRouter.ts",
+    "packages/aurora/src/server/Network/types/network.ts"
+   ],
+   "conflicts_only_generated": false
+  },
+  {
+   "number": 1377,
+   "title": "feat(aurora): add Neutron Ports BFF and read-only Ports page (list & details)",
+   "head_oid": "38bdc3fdb2293af5771ecfaa581b97c143fbd88e",
+   "draft": true,
+   "shared_files": [
+    "packages/aurora/src/client/routeTree.gen.ts",
+    "packages/aurora/src/client/routes/_auth/projects/-components/buildNavSections.test.ts",
+    "packages/aurora/src/client/routes/_auth/projects/-components/buildNavSections.ts",
+    "packages/aurora/src/locales/de/messages.po",
+    "packages/aurora/src/locales/de/messages.ts",
+    "packages/aurora/src/locales/en/messages.po",
+    "packages/aurora/src/locales/en/messages.ts",
+    "packages/aurora/src/server/Network/routers/index.ts"
+   ],
+   "merge": "conflicts",
+   "conflict_files": [
+    "packages/aurora/src/client/routes/_auth/projects/-components/buildNavSections.test.ts",
+    "packages/aurora/src/locales/de/messages.po",
+    "packages/aurora/src/locales/de/messages.ts",
+    "packages/aurora/src/locales/en/messages.po",
+    "packages/aurora/src/locales/en/messages.ts",
+    "packages/aurora/src/server/Network/routers/index.ts"
+   ],
+   "conflicts_only_generated": false
+  },
+  {
+   "number": 1390,
+   "title": "chore(portal): image UX improvements and validation tightening",
+   "head_oid": "3ef411e24a866513a7a6c893ebe80456ef889e57",
+   "draft": false,
+   "shared_files": [
+    "packages/aurora/src/locales/de/messages.po",
+    "packages/aurora/src/locales/de/messages.ts",
+    "packages/aurora/src/locales/en/messages.po",
+    "packages/aurora/src/locales/en/messages.ts"
+   ],
+   "merge": "conflicts",
+   "conflict_files": [
+    "packages/aurora/src/locales/de/messages.ts",
+    "packages/aurora/src/locales/en/messages.ts"
+   ],
+   "conflicts_only_generated": true
+  }
+ ],
+ "standards": {
+  "copilot_instructions_file": "copilot-instructions.md",
+  "claude_md": "{{SAP}}/aurora-dashboard/CLAUDE.md",
+  "claude_md_exists": true
+ }
+}

@@ -1,0 +1,2 @@
+exit 0
+findings.json written: 4 findings (0 merged). Now run render.py.

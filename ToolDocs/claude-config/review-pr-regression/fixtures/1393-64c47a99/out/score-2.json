@@ -1,0 +1,47 @@
+{
+ "scores": [
+  {
+   "id": "C8",
+   "score": 75,
+   "severity": "Major",
+   "category": "Bug",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts | headers: { Accept: \"application/octet-stream\" },",
+   "reason": "The update fixes CR1 by hardcoding `Accept: application/octet-stream` (line 102), but the Barbican secrets reference says the Accept header on /payload must be one of the secret's `content_types`, and lists 406 Not Acceptable. A secret stored as text/plain therefore still gets 406, which `mapKmError` turns into a generic failure. Reveal Payload only works for octet-stream secrets. The fix is half done, so this is scored as a new problem and not dropped as a repeat of CR1. Use the secret's `content_types.default`, or fetch the secret first.",
+   "precedent": null
+  },
+  {
+   "id": "C9",
+   "score": 0,
+   "reason": "The nullable name in `secret_refs` is the change CR7 asked for, so this objects to a requested fix. The schema is lenient and safe at runtime."
+  },
+  {
+   "id": "C10",
+   "score": 0,
+   "reason": "The handler and the missing server-side canUser check predate the update. Barbican enforces its own RBAC on the rescoped token, and other domains gate in the UI the same way. This is generic hardening with no concrete exploit path in this PR."
+  },
+  {
+   "id": "C11",
+   "score": 50,
+   "severity": "Low",
+   "category": "Code Quality",
+   "location": "PR files",
+   "reason": "The Phase 2 container secret association (`containers.updateSecrets`) is no longer implemented, because the update removed `addContainerSecret` and `deleteContainerSecret`. The issue lists it as the container 'Edit' scope (POST/DELETE /v1/containers/{id}/secrets), and the PR body states no scope exclusion. The acceptance criterion is only partly delivered.",
+   "precedent": null
+  },
+  {
+   "id": "C12",
+   "score": 0,
+   "reason": "The Orders list showing ID without a Name column is already raised as earlier finding I17."
+  },
+  {
+   "id": "C13",
+   "score": 0,
+   "reason": "Duplicate. The missing update UI is earlier finding I18, and the missing container association is C11."
+  },
+  {
+   "id": "C14",
+   "score": 0,
+   "reason": "Create, Delete and Reveal Payload are gated through `useKeyManagerPermissions`. The missing Edit action is the same gap as I18 and C11, and a gate cannot exist without the action."
+  }
+ ]
+}

@@ -1,0 +1,10 @@
+{
+ "candidates": [
+  {
+   "claim": "The new Key Manager nav item is gated only on the service catalog and skips isEnabled(\"key-manager\"). The comment above isEnabled says deny always wins and a service can be hidden by deniedServices alone, but enabledServices/deniedServices have no effect on Key Manager, so an operator cannot hide it or exclude it from an allowlist.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/-components/buildNavSections.ts:154",
+   "evidence": "Comment at lines 29-31 at fd248f08: \"Deny always wins and applies even without an allow/enabled list, so a service can be hidden by deniedServices alone ... see resolveServiceVisibility.\" Every other built-in item uses `&& isEnabled(...)` (images, flavors, securitygroups, floatingips, routers, containers, ceph-containers). The new entry uses only `serviceIndex[\"key-manager\"]?.[\"barbican\"]`. The route beforeLoad in key-manager.tsx also checks only the catalog, so a denied service stays reachable by URL.",
+   "precedent": "Extensions at lines 176-178 check both enabledServices and deniedServices."
+  }
+ ]
+}

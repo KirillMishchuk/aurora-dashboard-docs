@@ -53,6 +53,25 @@ def markdown_problems(path):
         return None  # hook not installed on this machine: skip, don't block
     return check_report_md.check(path)
 
+MAX_COMMENT = 60000   # GitHub caps a comment at 65536 characters
+KB_URL = "https://github.com/KirillMishchuk/aurora-dashboard-docs/blob/main/"
+
+
+def fit(body, report):
+    """A too long review drops its Solution Overview (it stays in the KB report) — -> (body, note)."""
+    if len(body) <= MAX_COMMENT:
+        return body, None
+    a = body.find("\n---\n\n## Solution Overview")
+    b = body.find("\n---\n\n## ", a + 1) if a >= 0 else -1
+    if a < 0:
+        return body, f"{len(body)} chars, over {MAX_COMMENT}, and no Solution Overview to leave out"
+    i = report.replace("\\", "/").find("aurora-dashboard-kb/")
+    link = f"[the full report]({KB_URL}{report.replace(chr(92), '/')[i:]})" if i >= 0 else "the full report in the KB"
+    body = body[:a] + f"\n---\n\n## Solution Overview\n\nLeft out of this comment for length — see {link}.\n" \
+        + (body[b:] if b >= 0 else "")
+    return body, f"Solution Overview left out for length (now {len(body)} chars)"
+
+
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith("--")]
     if len(args) != 2: print(__doc__); return 2
@@ -61,6 +80,7 @@ def main():
         body = slice_comment(open(report, encoding="utf-8").read(), "--update" in sys.argv)
     except Exception as e:
         print(f"ERROR: {e}"); return 2
+    body, fit_note = fit(body, report)
     out = f"/tmp/pr-{number}-comment.md"
     open(out, "w", encoding="utf-8").write(body)
 
@@ -83,14 +103,14 @@ def main():
     links = sorted(set(re.findall(r"https?://[^\s)>\]]+", body)))
 
     print(f"Comment file: {out} ({len(body)} chars, {body.count(chr(10))} lines)")
+    if fit_note:
+        print(f"Length: {fit_note}")
     print(f"Post as: @{login}")
-    if "--update" in sys.argv:  # an Update block has no verdict; its "Before merge" list says what blocks
-        print("Verdict: — (an Update block has none)")
-        m = re.search(r"^### Before merge\n(.*?)(?=^#{2,3} |\Z)", body, re.M | re.S)
+    print(f"Verdict: {verdict.group(0) if verdict else '(no Recommendation line)'}")
+    if "--update" in sys.argv:  # the Update's verdict list: its own blockers and the earlier ones still open
+        m = re.search(r"^### ⚖️ &nbsp; Verdict\n(.*?)(?=^#{2,3} |\Z)", body, re.M | re.S)
         before = [l for l in (m.group(1).splitlines() if m else []) if l.startswith("- ")]
         print("Before merge:" + ("\n" + "\n".join("  " + l for l in before) if before else " none"))
-    else:
-        print(f"Verdict: {verdict.group(0) if verdict else '(no Recommendation line)'}")
     print(f"Reviewed: {reviewed.group(0).strip('_') if reviewed else '(no Reviewed line — older report)'}")
     print(f"Findings: {counts['CR']} Required Changes, {counts['P']} Process, {counts['I']} Improvements")
     print("Sections: " + " | ".join(re.findall(r"^#{2,3} +(.+)$", body, re.M)))

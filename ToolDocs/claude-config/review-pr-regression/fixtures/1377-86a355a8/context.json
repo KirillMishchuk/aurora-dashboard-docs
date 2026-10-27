@@ -1,0 +1,466 @@
+{
+ "schema_version": 1,
+ "generated_at": "2026-10-26T11:09:09Z",
+ "today": "2026-10-26",
+ "repo": {
+  "name_with_owner": "cobaltcore-dev/aurora-dashboard",
+  "root": "{{SAP}}/aurora-dashboard"
+ },
+ "docs": "{{SAP}}/DOCS",
+ "run_dir": "{{SAP}}/aurora-dashboard/.claude/runs/review-and-comment-pr/1377-86a355a8",
+ "pr": {
+  "number": 1377,
+  "title": "feat(aurora): add Neutron Ports BFF and read-only Ports page (list & details)",
+  "url": "https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377",
+  "author": "mark-karnaukh-extern-sap",
+  "state": "OPEN",
+  "is_draft": true,
+  "created": "2026-10-09",
+  "merged_at": null,
+  "closed_at": null,
+  "base": {
+   "ref": "main",
+   "oid": "af14a6a0d76d4a3019d8b49308d503e7247bc338"
+  },
+  "head": {
+   "ref": "mark-manage-ports-interface",
+   "oid": "86a355a8d6da94478e77c0869d9720efe6823e2a",
+   "short": "86a355a8"
+  },
+  "additions": 5338,
+  "deletions": 268,
+  "changed_files": 47,
+  "mergeable": "MERGEABLE",
+  "files": [
+   {
+    "path": ".changeset/neutron-ports-management.md",
+    "additions": 13,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/docs/0010_routers_bff.md",
+    "additions": 9,
+    "deletions": 6,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/docs/0017_ports_bff.md",
+    "additions": 476,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routeTree.gen.ts",
+    "additions": 79,
+    "deletions": 0,
+    "generated": true
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/index.tsx",
+    "additions": 7,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports.tsx",
+    "additions": 37,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/$portId.tsx",
+    "additions": 192,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortDetailsView.test.tsx",
+    "additions": 190,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortDetailsView.tsx",
+    "additions": 91,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortListContainer.test.tsx",
+    "additions": 195,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortListContainer.tsx",
+    "additions": 135,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortTableRow.test.tsx",
+    "additions": 269,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortTableRow.tsx",
+    "additions": 92,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.test.tsx",
+    "additions": 423,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.tsx",
+    "additions": 314,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/index.tsx",
+    "additions": 57,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/$routerId.tsx",
+    "additions": 26,
+    "deletions": 2,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/-components/RouterDetailsView.test.tsx",
+    "additions": 60,
+    "deletions": 18,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/-components/RouterDetailsView.tsx",
+    "additions": 23,
+    "deletions": 11,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/-components/RouterListContainer.tsx",
+    "additions": 3,
+    "deletions": 3,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/-components/RouterTableRow.tsx",
+    "additions": 11,
+    "deletions": 1,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/-components/RoutersList.test.tsx",
+    "additions": 5,
+    "deletions": 3,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/-components/RoutersList.tsx",
+    "additions": 13,
+    "deletions": 7,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/-components/buildNavSections.test.ts",
+    "additions": 15,
+    "deletions": 2,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/-components/buildNavSections.ts",
+    "additions": 10,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/locales/de/messages.po",
+    "additions": 87,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/locales/de/messages.ts",
+    "additions": 1,
+    "deletions": 1,
+    "generated": true
+   },
+   {
+    "path": "packages/aurora/src/locales/en/messages.po",
+    "additions": 87,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/locales/en/messages.ts",
+    "additions": 1,
+    "deletions": 1,
+    "generated": true
+   },
+   {
+    "path": "packages/aurora/src/server/Network/helpers/lookupHelpers.test.ts",
+    "additions": 150,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/server/Network/helpers/lookupHelpers.ts",
+    "additions": 82,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/server/Network/helpers/portHelpers.test.ts",
+    "additions": 263,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/server/Network/helpers/portHelpers.ts",
+    "additions": 166,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/server/Network/helpers/requestHelpers.test.ts",
+    "additions": 114,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/server/Network/helpers/requestHelpers.ts",
+    "additions": 68,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/server/Network/helpers/routerHelpers.test.ts",
+    "additions": 1,
+    "deletions": 84,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/server/Network/helpers/routerHelpers.ts",
+    "additions": 2,
+    "deletions": 48,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/server/Network/routers/index.ts",
+    "additions": 2,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/server/Network/routers/portsRouter.test.ts",
+    "additions": 801,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/server/Network/routers/portsRouter.ts",
+    "additions": 170,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/server/Network/routers/routersRouter.test.ts",
+    "additions": 39,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/server/Network/routers/routersRouter.ts",
+    "additions": 21,
+    "deletions": 58,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/server/Network/types/index.ts",
+    "additions": 39,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/server/Network/types/port.test.ts",
+    "additions": 281,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/server/Network/types/port.ts",
+    "additions": 215,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/server/Network/types/router.ts",
+    "additions": 2,
+    "deletions": 22,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/server/Network/types/routers.test.ts",
+    "additions": 1,
+    "deletions": 1,
+    "generated": false
+   }
+  ],
+  "body_file": "pr-body.md",
+  "diff_file": "pr.diff",
+  "generated_files_not_in_diff": [
+   "packages/aurora/src/client/routeTree.gen.ts",
+   "packages/aurora/src/locales/de/messages.ts",
+   "packages/aurora/src/locales/en/messages.ts"
+  ]
+ },
+ "flags": {
+  "base_not_main": false,
+  "release": {
+   "is_release": false,
+   "matched": []
+  },
+  "finder_f": {
+   "needed": true,
+   "files": [
+    "packages/aurora/src/server/Network/helpers/lookupHelpers.ts",
+    "packages/aurora/src/server/Network/helpers/portHelpers.ts",
+    "packages/aurora/src/server/Network/helpers/requestHelpers.ts",
+    "packages/aurora/src/server/Network/helpers/routerHelpers.ts",
+    "packages/aurora/src/server/Network/routers/index.ts",
+    "packages/aurora/src/server/Network/routers/portsRouter.ts",
+    "packages/aurora/src/server/Network/routers/routersRouter.ts",
+    "packages/aurora/src/server/Network/types/index.ts",
+    "packages/aurora/src/server/Network/types/port.ts",
+    "packages/aurora/src/server/Network/types/router.ts"
+   ]
+  },
+  "touches_published_src": true
+ },
+ "mode": "update",
+ "mode_reason": "head moved 512f01b1 → 86a355a8",
+ "report": {
+  "path": "{{SAP}}/DOCS/aurora-dashboard-kb/prs/1377-neutron-ports-bff-read-only-ports-page.md",
+  "exists": true,
+  "status_frontmatter": "open",
+  "status_line": "draft",
+  "old_head": "512f01b1",
+  "footer": "_Analyzed 2026-10-17 · commit `512f01b1` · read-only · CI from PR API · skill: review-and-comment-pr_",
+  "old_head_reachable": true,
+  "delta": "512f01b1bd79771fbf6b959225231e777c2c7c42..86a355a8d6da94478e77c0869d9720efe6823e2a",
+  "status_update": null,
+  "footer_new": "_Analyzed 2026-10-17 · commit `512f01b1` · read-only · CI from PR API · updated for `86a355a8` on 2026-10-26 · skill: review-and-comment-pr_"
+ },
+ "status_now": {
+  "frontmatter": "open",
+  "line": "draft",
+  "index_date": "2026-10-09 (draft)"
+ },
+ "process": [
+  {
+   "id": "draft",
+   "where": "PR state",
+   "text": "PR is still a draft"
+  }
+ ],
+ "provenance": [
+  "read-only"
+ ],
+ "fetch": {
+  "head": "already local",
+  "base": "already local"
+ },
+ "issue": {
+  "linked": [
+   {
+    "number": 1380,
+    "how": "closing-ref",
+    "title": "[Task](aurora): Create an AI agent skill for scaffolding new OpenStack resources",
+    "state": "CLOSED",
+    "url": "https://github.com/cobaltcore-dev/aurora-dashboard/issues/1380",
+    "file": "issue-1380.md"
+   },
+   {
+    "number": 1381,
+    "how": "closing-ref",
+    "title": "[Task](networking): Ports BFF",
+    "state": "OPEN",
+    "url": "https://github.com/cobaltcore-dev/aurora-dashboard/issues/1381",
+    "file": "issue-1381.md"
+   },
+   {
+    "number": 1382,
+    "how": "closing-ref",
+    "title": "[Task](networking): Ports list view and details view",
+    "state": "OPEN",
+    "url": "https://github.com/cobaltcore-dev/aurora-dashboard/issues/1382",
+    "file": "issue-1382.md"
+   },
+   {
+    "number": 816,
+    "how": "part of",
+    "title": "[EPIC](networking): Ports Management 001",
+    "state": "OPEN",
+    "url": "https://github.com/cobaltcore-dev/aurora-dashboard/issues/816",
+    "file": "issue-816.md"
+   },
+   {
+    "number": 1019,
+    "how": "bare",
+    "title": "[EPIC](networking):  Networks Management (DRAFT)",
+    "state": "OPEN",
+    "url": "https://github.com/cobaltcore-dev/aurora-dashboard/issues/1019",
+    "file": "issue-1019.md"
+   }
+  ],
+  "supplied": null,
+  "source": "pr-body",
+  "mentioned_prs": []
+ },
+ "ci": {
+  "total": 22,
+  "pass": 18,
+  "fail": 0,
+  "pending": 0,
+  "skipping": 4,
+  "cancel": 0,
+  "failed": [],
+  "pending_names": []
+ },
+ "changeset": {
+  "files": [
+   ".changeset/neutron-ports-management.md"
+  ],
+  "bumps": [
+   {
+    "file": ".changeset/neutron-ports-management.md",
+    "package": "@cobaltcore-dev/aurora",
+    "bump": "minor"
+   }
+  ],
+  "missing": false
+ },
+ "discussion": {
+  "comments": 14,
+  "reviews": 0,
+  "threads": 0,
+  "bot_items": 8,
+  "own_reports_excluded": 3,
+  "inline_read": true,
+  "file": "discussion.json"
+ },
+ "standards": {
+  "copilot_instructions_file": "copilot-instructions.md",
+  "claude_md": "{{SAP}}/aurora-dashboard/CLAUDE.md",
+  "claude_md_exists": true
+ }
+}

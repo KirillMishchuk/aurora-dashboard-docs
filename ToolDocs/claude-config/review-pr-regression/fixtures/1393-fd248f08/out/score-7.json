@@ -1,0 +1,69 @@
+{
+ "scores": [
+  {
+   "id": "C33",
+   "score": 75,
+   "severity": "Moderate",
+   "category": "Bug",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:252",
+   "reason": "Line 252 issues DELETE v1/containers/{id}/secrets/{secretName}; the Barbican containers reference documents only DELETE /v1/containers/{container_uuid}/secrets with a JSON body {name, secret_ref} (secret_ref required, 400 'Missing secret_ref'), and the input schema has no secret_ref. The path-segment form is undocumented so the call will fail. Moderate rather than Major because no client component calls deleteContainerSecret yet. C42 describes the same problem.",
+   "same_as": null,
+   "precedent": null
+  },
+  {
+   "id": "C42",
+   "score": 75,
+   "severity": "Moderate",
+   "category": "Bug",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:252",
+   "reason": "Same problem as C33 (wrong DELETE path/body for removing a container secret); verified against containers.rst.",
+   "same_as": "C33",
+   "precedent": null
+  },
+  {
+   "id": "C34",
+   "score": 50,
+   "severity": "Moderate",
+   "category": "Bug",
+   "location": "packages/aurora/src/server/KeyManager/types/keyManager.ts:25",
+   "reason": "secret_refs items use name: z.string() while the reference marks name as optional for container secret refs, and sibling name fields are nullable; an unnamed ref returning null would make parseOrThrow reject the whole container/list response. Rare in practice, hence 50.",
+   "same_as": null,
+   "precedent": null
+  },
+  {
+   "id": "C43",
+   "score": 25,
+   "reason": "Containers list reference documents only offset/limit, so name is likely ignored, but the client's ContainersList does not appear to send a name search, so I could not confirm any user-visible effect.",
+   "same_as": null,
+   "precedent": null
+  },
+  {
+   "id": "C46",
+   "score": 25,
+   "reason": "The reference restricts PUT /v1/secrets/{uuid} to payload-less secrets, but I found no client caller of updateSecret, and the failure would just surface Barbican's error; impact unclear.",
+   "same_as": null,
+   "precedent": null
+  },
+  {
+   "id": "C47",
+   "score": 25,
+   "reason": "orders.rst says valid types are key and asymmetric, but Barbican also supports certificate orders (documented elsewhere) and the UI deliberately offers it; the reference page alone does not show it fails.",
+   "same_as": null,
+   "precedent": null
+  },
+  {
+   "id": "C48",
+   "score": 25,
+   "reason": "limit: z.number().default(20) at line 21 has no max, but Barbican clamps to 100 and the UI uses 50; no concrete user-visible effect.",
+   "same_as": null,
+   "precedent": null
+  },
+  {
+   "id": "C50",
+   "score": 25,
+   "reason": "No KeyManager mutation checks the policy engine; permissionRouter only exposes canUser. Barbican enforces its own authorization with the user's token, and the same pattern exists in Network routers, so no concrete exploit path in this PR.",
+   "same_as": null,
+   "precedent": null
+  }
+ ]
+}

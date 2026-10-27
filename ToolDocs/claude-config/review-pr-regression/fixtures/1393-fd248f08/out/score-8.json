@@ -1,0 +1,69 @@
+{
+ "scores": [
+  {
+   "id": "C51",
+   "score": 25,
+   "reason": "SecretDetailsView.tsx:34 uses useQuery with enabled:false, so the payload stays in the query cache after Hide. The user already saw it in this browser session, and no standard requires gcTime 0, so this is generic hardening. The binary corruption from res.text() at keyManagerRouter.ts:103 is real for octet-stream secrets but is a secondary point in this candidate.",
+   "same_as": null,
+   "precedent": null
+  },
+  {
+   "id": "C52",
+   "score": 25,
+   "reason": "keyManagerRouter.ts:37-39 use z.string() ids and :19-22 use unbounded z.number(). The calls run with the user's own project token against the same service, there is no concrete exploit path, and Barbican caps limit itself. This is generic hardening.",
+   "same_as": null,
+   "precedent": null
+  },
+  {
+   "id": "C53",
+   "score": 0,
+   "reason": "keyManagerRouter.ts:53 sets cause: error. tRPC does not send cause to the client by default, and nothing shows a formatter or logger that serialises it. Purely speculative.",
+   "same_as": null,
+   "precedent": null
+  },
+  {
+   "id": "C54",
+   "score": 25,
+   "reason": "The create response is cast at keyManagerRouter.ts:128 (data.secret_ref as string), and list/get responses are parsed with parseOrThrow. This is minor type looseness. Barbican's PUT only replaces the payload, so updateSecret not changing metadata is not a defect. It is a different problem from C56, and it is not a clear gap against the criterion.",
+   "same_as": null,
+   "precedent": null
+  },
+  {
+   "id": "C56",
+   "score": 50,
+   "severity": "Low",
+   "category": "Code Quality",
+   "location": "PR files",
+   "reason": "git grep at headRefOid finds no use of updateSecret, addContainerSecret or deleteContainerSecret under packages/aurora/src/client. So there is no edit-secret or manage-container-secrets UI, which only partly delivers the update criterion. Low per the partly-delivered-criterion precedent.",
+   "same_as": null,
+   "precedent": null
+  },
+  {
+   "id": "C58",
+   "score": 50,
+   "severity": "Low",
+   "category": "UI/UX",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:52",
+   "reason": "mapKmError builds the message as `Key Manager ${operation} failed`. The !res.ok paths pass only {statusCode}, so Barbican's response body is dropped and users see generic text, for example for a 409 conflict. The error-handling criterion is only partly met, so Low.",
+   "same_as": null,
+   "precedent": null
+  },
+  {
+   "id": "C59",
+   "score": 0,
+   "reason": "The unwrapped strings in SecretsList.tsx (lines 84, 97, 105) are in packages/aurora, where eslint-plugin-lingui enforces i18n. The review standards' 'What NOT to Review' and the Quick Reject checklist both exclude this, so it is not a finding.",
+   "same_as": null,
+   "precedent": null
+  },
+  {
+   "id": "C60",
+   "score": 50,
+   "severity": "Low",
+   "category": "Test coverage",
+   "location": "PR files",
+   "reason": "The PR has only router and schema tests plus TableRow/ListContainer tests. There are no tests for the lists with permissions, modals, detail views or layout guard, and no E2E, so the testing criterion is only partly delivered. Low per the precedent for no tests when the epic requires them.",
+   "same_as": null,
+   "precedent": null
+  }
+ ]
+}

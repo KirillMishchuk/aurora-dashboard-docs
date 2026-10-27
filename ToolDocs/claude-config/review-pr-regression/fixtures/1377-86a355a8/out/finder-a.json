@@ -1,0 +1,274 @@
+{
+ "candidates": [
+  {
+   "claim": "The 401 case in the port details error view is handled inline (an error page with a Sign in button that navigates to \"/\") instead of redirecting to Sign-in with the target remembered. The code comment claims this follows B.6, but B.6 requires a redirect and redirect-back after auth.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/$portId.tsx:68",
+   "evidence": "B.6 Reject: \"a 401/403 handled inline instead of via redirect / page-level info Message\"; table row: \"401 Unauthenticated | Redirect to Sign-in, remember target, redirect back after auth\". Code: `if (errorCode === \"UNAUTHORIZED\") { return <RouteIdLevelDefaultError code={401} ... action={<Button ... onClick={() => navigate({ to: \"/\" })}>`"
+  },
+  {
+   "claim": "The port details route loader was removed, so the port is fetched only inside the component through a React Query call. A.3 says data critical for rendering must come from the route loader. The head title also no longer shows the port name and is a hardcoded, untranslated \"Port Details\".",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/$portId.tsx:155",
+   "evidence": "A.3: \"Data critical for rendering a page must be fetched via the route's `loader` function rather than loading it inside the component body.\" Delta removes `loader: async ({ context, params }) => { ... getById.query ... }` and sets `head: () => ({ meta: [{ title: \"Port Details\" }] })`.",
+   "precedent": "The flavors detail route (the B reference implementation) keeps its data fetch in the route layer. The removal is justified in the PR comment as avoiding a double request."
+  },
+  {
+   "claim": "The Status column renders the raw status string (`{port.status}` / `{router.status}`) in a DataGridCell instead of a Badge. The delta moves this cell, so it touches the line.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortTableRow.tsx:51",
+   "evidence": "B.1 table: \"Status indicators | `Badge`\". Same in routers/-components/RouterTableRow.tsx:51 (`<DataGridCell>{router.status}</DataGridCell>`).",
+   "precedent": "Both lists already used plain text before this delta, and the details views also use plain text."
+  },
+  {
+   "claim": "The new 403 info Message banners in the list views have no `mb-4`, so the spacing is not the approved Message banner margin.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.tsx:160",
+   "evidence": "B.3 Margin table: \"`Message` banners | `mb-4`\". `<Message variant=\"info\" title={t`Insufficient Permissions`}>` has no className. The same applies to routers/-components/RoutersList.tsx:105 and ports/$portId.tsx:87, where the Stack has `mt-6` and the Message has no `mb-4`.",
+   "precedent": "The Message is the only content on the page in the list views, so the visual impact is small."
+  }
+ ],
+ "checklist": [
+  {
+   "item": "Raw HTML element where a Juno component exists",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "Hardcoded Tailwind color class instead of text-theme-* token",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "error variant used for destructive action / vice versa",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "Ad-hoc spacing value not in approved list (B.3)",
+   "result": "violated",
+   "where": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.tsx:160 (Message without mb-4)"
+  },
+  {
+   "item": "Permission prop not named can<Verb><Noun>",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "UI control shown before permissions are resolved",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "Bulk-action controls or Create button without permission check",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "Nested interactive element in clickable row without stopPropagation",
+   "result": "not violated",
+   "where": "PortTableRow/RouterTableRow action cell has onClick stopPropagation"
+  },
+  {
+   "item": "toast with inline string",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "toast.error for persistent/actionable error",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "Message variant conflicting with modal primary button",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "Modal without disableCancelButton/disableCloseButton",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "Custom modalFooter without disableCloseButton",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "Destructive modal without primary-danger",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "Destructive modal alarmist title",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "PopupMenu without PopupMenuToggle as trigger",
+   "result": "not violated",
+   "where": "toggle added in this delta"
+  },
+  {
+   "item": "Delete not last / missing divider",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "URL-worthy state in useState instead of search params",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "User-facing string not wrapped in Trans/t",
+   "result": "not violated",
+   "where": "head title \"Port Details\" is untranslated but not JSX; reported under the loader candidate"
+  },
+  {
+   "item": "Error element without role=alert and aria-live=assertive",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "Icon-only button without aria-label",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "outline-none suppressing focus ring",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "File naming",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "Import with ../../ traversal",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "Re-implementation of utility hook (B.17)",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "Strings with Please/We/exclamation/all-caps/Sign In",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "B.1 Reject: plain table/input/select/button; Status indicators use Badge",
+   "result": "violated",
+   "where": "PortTableRow.tsx:51, RouterTableRow.tsx:51"
+  },
+  {
+   "item": "B.2 Reject: mixed zones / skipped Zone 2",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "B.4 Reject: raw color class / error-danger misuse",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "B.5 Reject: modal rules",
+   "result": "not violated",
+   "where": "no modals in the delta"
+  },
+  {
+   "item": "B.6 Reject: 401/403 inline instead of redirect / page-level info Message",
+   "result": "violated",
+   "where": "ports/$portId.tsx:68 (401 inline). 403 uses an info Message, which is OK."
+  },
+  {
+   "item": "B.6 Reject: dismissible Message without onDismiss",
+   "result": "not violated",
+   "where": "the new Messages are not dismissible"
+  },
+  {
+   "item": "B.6 Reject: empty/broken state without title/body",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "B.8 Reject: permission prop naming / hidden vs disabled",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "B.9 Reject: useState for URL-worthy state",
+   "result": "not violated",
+   "where": "search, sort and page stay in the URL; retryCount and the local search mirror are allowed"
+  },
+  {
+   "item": "B.10 Reject: inline toast",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "B.11 Reject: form without validation",
+   "result": "not violated",
+   "where": "no forms"
+  },
+  {
+   "item": "B.12 Reject: file naming",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "B.13 Import order",
+   "result": "not violated",
+   "where": "index.tsx moves zod right after the tanstack import, which is correct"
+  },
+  {
+   "item": "B.14 Reject: hardcoded strings, ARIA, icon-only aria-label",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "B.15 Reject: DataGrid rules (action column PopupMenu, stopPropagation, status column near the left)",
+   "result": "not violated",
+   "where": "Status moved to the second column"
+  },
+  {
+   "item": "B.16 Reject: toast.error for actionable error / Message variant",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "B.17 Reject: hook re-implementation",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "B.18 Reject: menu ordering",
+   "result": "not violated",
+   "where": "a single Show Details item"
+  },
+  {
+   "item": "B.19 Reject: UX writing",
+   "result": "not violated",
+   "where": "Session Expired, Insufficient Permissions, Sign in are all fine"
+  },
+  {
+   "item": "A.1 Minimize useEffect",
+   "result": "not violated",
+   "where": "the delta removes an effect in PortListContainer; the remaining effects in PortsList are the B.9-allowed search mirror and page reset"
+  },
+  {
+   "item": "A.2 tRPC type-safety / procedures",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "A.3 Data critical for rendering fetched via route loader",
+   "result": "violated",
+   "where": "ports/$portId.tsx:155 (loader removed)"
+  },
+  {
+   "item": "A.4 Juno components / layout",
+   "result": "not violated",
+   "where": ""
+  }
+ ]
+}

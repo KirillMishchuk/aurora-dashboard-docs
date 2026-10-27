@@ -1,0 +1,16 @@
+{
+ "scores": [
+  {
+   "id": "C15",
+   "score": 0,
+   "reason": "Same point as earlier finding I19 (mapKmError drops Barbican's error body, keyManagerRouter.ts:52); already raised in this report, not a new problem.",
+   "same_as": null
+  },
+  {
+   "id": "C17",
+   "score": 0,
+   "reason": "Same point as earlier finding I20 (no tests for modals, detail views, nav, layout guard; no E2E); already raised in this report, not a new problem.",
+   "same_as": null
+  }
+ ]
+}

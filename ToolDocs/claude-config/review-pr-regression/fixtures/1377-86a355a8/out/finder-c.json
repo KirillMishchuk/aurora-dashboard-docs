@@ -1,0 +1,11 @@
+{
+ "candidates": [
+  {
+   "claim": "The new pagination fix covers only the main ports/routers list request. The other Neutron collection reads in the same procedures still read one page: the router interface-port lookup (fetchRouterInterfacePorts, chunks of router IDs, fields-filtered /v2.0/ports) and the batched name lookups (fetchNetworkSummaries / fetchSubnetSummaries / fetchSecurityGroupSummaries, 50 IDs per request). On a deployment with pagination_max_limit, the router list now returns every router but silently drops private networks (or names) beyond the first page. This is the same failure the fix claims to remove.",
+   "location": "packages/aurora/src/server/Network/routers/routersRouter.ts:85",
+   "evidence": "At 86a355a8 fetchRouterInterfacePorts does `network.get(withQuery(PORTS_BASE_URL, params))` and parses `.ports` without reading `ports_links`. lookupHelpers.ts getJson/fetchSummaries likewise never follow `*_links`. grep of `_links` under packages/aurora/src/server shows it is used only in the two list loops, requestHelpers.nextPageUrl and the two list schemas. The new docs/0010 sentence says 'The BFF-side search and filters therefore see every router', but the private-network enrichment still depends on a single-page response.",
+   "precedent": "Router list loop in routersRouter.ts:131-150 and ports list loop in portsRouter.ts:66-84 (the new code) do follow `next`.",
+   "discussion": "Not raised. CR1 in mark-karnaukh-extern-sap's 2026-10-20 verification only covered the main ports list."
+  }
+ ]
+}

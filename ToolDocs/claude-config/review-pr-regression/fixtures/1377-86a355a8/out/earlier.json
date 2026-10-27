@@ -1,0 +1,74 @@
+{
+ "earlier": {
+  "CR1": {
+   "status": "fixed",
+   "note": "portsRouter.list now follows ports_links next pages (visited-guarded loop) and returns the full list.",
+   "evidence": "git grep portsRouter.ts at 86a355a8: 'while (nextUrl && !visited.has(nextUrl))' ... 'nextUrl = nextPageUrl(PORTS_BASE_URL, ports_links)'"
+  },
+  "CR2": {
+   "status": "partly",
+   "note": "403 is now a page-level info Message on both details and list; 401 is still not a redirect: details shows a 'Sign in' error page, list falls into the generic 'Failed to Load Ports' boundary.",
+   "evidence": "$portId.tsx: 'if (errorCode === \"UNAUTHORIZED\") return <RouteIdLevelDefaultError code={401} ... navigate({ to: \"/\" })'; 'FORBIDDEN' -> <Message variant=\"info\">; PortsList.tsx: only FORBIDDEN is caught in createPortsPromise, 401 reaches ErrorBoundary"
+  },
+  "CR3": {
+   "status": "fixed",
+   "note": "The route loader is gone; only the component's useQuery fetches the port.",
+   "evidence": "$portId.tsx Route has comment 'No loader fetch: the component's query is the single source for the port' and no loader property"
+  },
+  "CR4": {
+   "status": "dropped",
+   "note": "Merge conflicts are no longer part of this review; GitHub shows them.",
+   "evidence": "n/a"
+  },
+  "P1": {
+   "status": "open",
+   "note": "PR is still a draft.",
+   "evidence": "context.json: pr.is_draft = true"
+  },
+  "P2": {
+   "status": "fixed",
+   "note": "The description now covers the ?tab= search param on routers/$routerId.tsx.",
+   "evidence": "grep -n tab pr-body.md line 28: 'the active details tab is now kept in the URL as a `?tab=` search param (via `validateSearch`)'"
+  },
+  "I1": {
+   "status": "fixed",
+   "note": "Copy now reads 'Sign in again to continue.'",
+   "evidence": "$portId.tsx: t`Your session has expired. Sign in again to continue.`"
+  },
+  "I2": {
+   "status": "fixed",
+   "note": "PopupMenu now has a PopupMenuToggle wrapping the icon Button.",
+   "evidence": "PortTableRow.tsx: '<PopupMenu> <PopupMenuToggle as=\"div\"> <Button icon=\"moreVert\" ...'"
+  },
+  "I3": {
+   "status": "fixed",
+   "note": "gap=\"1\" is gone; PortDetailsView uses \"0.5\", \"2\", \"6\", which the B.3 table allows.",
+   "evidence": "git grep 'gap=\"1\"' in the ports folder at 86a355a8: no matches; PortDetailsView.tsx uses gap=\"0.5\"/\"2\"/\"6\""
+  },
+  "I4": {
+   "status": "fixed",
+   "note": "Status is now the 2nd column, right after Name / ID.",
+   "evidence": "PortListContainer.tsx header order: Name / ID, Status, Description, Network, Fixed IPs / Subnet, Device Owner / ID"
+  },
+  "I5": {
+   "status": "fixed",
+   "note": "Routers doc now says lookups are chunked into requests of at most 50 IDs.",
+   "evidence": "0010_routers_bff.md:82 'one lookup (chunked into requests of at most 50 IDs)'; :121 'each chunked into requests of at most 50 IDs'"
+  },
+  "I6": {
+   "status": "fixed",
+   "note": "Error tables in the ports doc carry the ': {Neutron message}' suffix again.",
+   "evidence": "0017_ports_bff.md:105-108 'Invalid request data for Port: {Neutron message}' etc."
+  },
+  "I7": {
+   "status": "fixed",
+   "note": "The useEffect is gone; PageInput is keyed on currentPage instead.",
+   "evidence": "PortListContainer.tsx: '<PageInput key={currentPage} ...' ; no useEffect match"
+  },
+  "I8": {
+   "status": "fixed",
+   "note": "zod is now imported right after the router import, before the Lingui imports.",
+   "evidence": "ports/index.tsx lines 1-4: createFileRoute, zod, @lingui/core/macro, @lingui/react/macro"
+  }
+ }
+}

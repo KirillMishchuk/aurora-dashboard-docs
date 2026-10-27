@@ -1,0 +1,81 @@
+## describer: exit 1
+INVALID — 1 error(s), nothing saved; fix them and run again:
+  overview.what: names run-folder files or fields (context.json, headRefOid) — write for the PR's readers: "the head commit", "the PR description", "the linked issue", "CI"
+
+## factcheck: exit 1
+INVALID — 1 error(s), nothing saved; fix them and run again:
+  findings.json missing — the fact-check runs after assemble.py --texts
+
+## finder-a: exit 1
+INVALID — 21 error(s), nothing saved; fix them and run again:
+  candidates[0].evidence: cites a review-standard rule but names no `example: <path:line>` — merged code outside this PR that follows the rule, for the author to copy (or `example: none` and a precedent)
+  candidates[1].evidence: cites a review-standard rule but names no `example: <path:line>` — merged code outside this PR that follows the rule, for the author to copy (or `example: none` and a precedent)
+  candidates[2].evidence: cites a review-standard rule but names no `example: <path:line>` — merged code outside this PR that follows the rule, for the author to copy (or `example: none` and a precedent)
+  candidates[3].evidence: cites a review-standard rule but names no `example: <path:line>` — merged code outside this PR that follows the rule, for the author to copy (or `example: none` and a precedent)
+  candidates[4].evidence: cites a review-standard rule but names no `example: <path:line>` — merged code outside this PR that follows the rule, for the author to copy (or `example: none` and a precedent)
+  candidates[5].evidence: cites a review-standard rule but names no `example: <path:line>` — merged code outside this PR that follows the rule, for the author to copy (or `example: none` and a precedent)
+  candidates[6].evidence: cites a review-standard rule but names no `example: <path:line>` — merged code outside this PR that follows the rule, for the author to copy (or `example: none` and a precedent)
+  candidates[7].evidence: cites a review-standard rule but names no `example: <path:line>` — merged code outside this PR that follows the rule, for the author to copy (or `example: none` and a precedent)
+  candidates[8].evidence: cites a review-standard rule but names no `example: <path:line>` — merged code outside this PR that follows the rule, for the author to copy (or `example: none` and a precedent)
+  candidates[9].evidence: cites a review-standard rule but names no `example: <path:line>` — merged code outside this PR that follows the rule, for the author to copy (or `example: none` and a precedent)
+  candidates[10].evidence: cites a review-standard rule but names no `example: <path:line>` — merged code outside this PR that follows the rule, for the author to copy (or `example: none` and a precedent)
+  candidates[11].evidence: cites a review-standard rule but names no `example: <path:line>` — merged code outside this PR that follows the rule, for the author to copy (or `example: none` and a precedent)
+  candidates[12].evidence: cites a review-standard rule but names no `example: <path:line>` — merged code outside this PR that follows the rule, for the author to copy (or `example: none` and a precedent)
+  candidates[13].evidence: cites a review-standard rule but names no `example: <path:line>` — merged code outside this PR that follows the rule, for the author to copy (or `example: none` and a precedent)
+  candidates[14].evidence: cites a review-standard rule but names no `example: <path:line>` — merged code outside this PR that follows the rule, for the author to copy (or `example: none` and a precedent)
+  candidates[15].evidence: cites a review-standard rule but names no `example: <path:line>` — merged code outside this PR that follows the rule, for the author to copy (or `example: none` and a precedent)
+  candidates[16].evidence: cites a review-standard rule but names no `example: <path:line>` — merged code outside this PR that follows the rule, for the author to copy (or `example: none` and a precedent)
+  candidates[17].evidence: cites a review-standard rule but names no `example: <path:line>` — merged code outside this PR that follows the rule, for the author to copy (or `example: none` and a precedent)
+  candidates[18].evidence: cites a review-standard rule but names no `example: <path:line>` — merged code outside this PR that follows the rule, for the author to copy (or `example: none` and a precedent)
+  candidates[19].evidence: cites a review-standard rule but names no `example: <path:line>` — merged code outside this PR that follows the rule, for the author to copy (or `example: none` and a precedent)
+  candidates[21].evidence: cites a review-standard rule but names no `example: <path:line>` — merged code outside this PR that follows the rule, for the author to copy (or `example: none` and a precedent)
+
+## finder-b: exit 0
+saved out/finder-b.json: 3 candidate(s)
+
+## finder-c: exit 0
+saved out/finder-c.json: 2 candidate(s)
+
+## finder-d: exit 1
+INVALID — 3 error(s), nothing saved; fix them and run again:
+  candidates[0].evidence: cites a review-standard rule but names no `example: <path:line>` — merged code outside this PR that follows the rule, for the author to copy (or `example: none` and a precedent)
+  candidates[7].evidence: cites a review-standard rule but names no `example: <path:line>` — merged code outside this PR that follows the rule, for the author to copy (or `example: none` and a precedent)
+  candidates[9].evidence: cites a review-standard rule but names no `example: <path:line>` — merged code outside this PR that follows the rule, for the author to copy (or `example: none` and a precedent)
+
+## finder-e: exit 0
+saved out/finder-e.json: 1 candidate(s)
+
+## finder-f: exit 0
+saved out/finder-f.json: 7 candidate(s)
+
+## finder-g: exit 0
+saved out/finder-g.json: 5 candidate(s)
+
+## score-1: exit 0
+saved out/score-1.json: 7 score(s)
+
+## score-2: exit 1
+INVALID — 1 error(s), nothing saved; fix them and run again:
+  C8.reason: names run-folder files or fields (headRefOid) — this text can be posted; write "the head commit", "the PR description", "the linked issue", "CI"
+
+## score-3: exit 0
+saved out/score-3.json: 7 score(s)
+
+## score-4: exit 0
+saved out/score-4.json: 7 score(s)
+
+## score-5: exit 0
+saved out/score-5.json: 8 score(s)
+
+## score-6: exit 0
+saved out/score-6.json: 8 score(s)
+
+## score-7: exit 0
+saved out/score-7.json: 8 score(s)
+
+## score-8: exit 1
+INVALID — 1 error(s), nothing saved; fix them and run again:
+  C56.reason: names run-folder files or fields (headRefOid) — this text can be posted; write "the head commit", "the PR description", "the linked issue", "CI"
+
+## score-9: exit 0
+saved out/score-9.json: 3 score(s)

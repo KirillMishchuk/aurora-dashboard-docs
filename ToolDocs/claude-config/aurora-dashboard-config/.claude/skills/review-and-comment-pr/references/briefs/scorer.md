@@ -27,7 +27,7 @@ The evidence is as the finders reported it, unchanged.
       "severity": "Moderate",
       "category": "Performance",
       "location": "path:line, verified at headRefOid",
-      "reason": "One or two sentences: what you checked and found (file:line, quote, behaviour) and why this score and severity.",
+      "reason": "One or two sentences: what you checked and found (file:line, quote, behaviour) and why this score and severity. Written for the PR's readers — it can be posted: \"the head commit\", \"the PR description\", not run-folder file names.",
       "same_as": null,
       "precedent": null
     }

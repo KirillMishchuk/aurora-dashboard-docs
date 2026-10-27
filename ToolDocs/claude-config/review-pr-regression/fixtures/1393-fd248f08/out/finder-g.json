@@ -1,0 +1,31 @@
+{
+ "candidates": [
+  {
+   "claim": "The Reveal Payload button (and the detail views generally) is not gated by the `key-manager:secrets:payload` permission, which is mapped server-side but never read by any client code. A user without payload rights still sees the button and the server procedure fetches the plaintext secret; only Barbican's own ACLs stop it.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretDetailsView.tsx | <Button variant=\"subdued\" onClick={handleRevealPayload} disabled={payloadFetching}>",
+   "evidence": "git grep of usePermissions/permissions[ under key-manager/ (at head) shows usage only in ContainersList, OrdersList and SecretsList (list/create/delete); SecretDetailsView, ContainerDetailsView and OrderDetailsView have none. `key-manager:secrets:payload` appears only in usePermissions.ts type and permissionRouter mappings.",
+   "precedent": ""
+  },
+  {
+   "claim": "None of the KeyManager mutations or the payload query enforce a server-side canUser/policy check; they rely only on projectScopedProcedure and Barbican's own authorization. The policy file key-manager.json (viewer/editor split) is therefore advisory UI-hiding only, including for getSecretPayload (plaintext key material) and delete/create/update.",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts | getSecretPayload: projectScopedProcedure",
+   "evidence": "All procedures in keyManagerRouter.ts go straight from projectScopedProcedure to km.get/post/put/del with no call to the policy engine; permissionRouter.ts only exposes the canUser query.",
+   "precedent": "Network routers (e.g. floatingIpRouter) also do not call the policy engine in mutations, so this matches existing convention, but the review rubric requires server enforcement."
+  },
+  {
+   "claim": "Decrypted secret payload is fetched via a TanStack Query useQuery (enabled:false + refetch) and so stays in the client query cache after 'Hide' (default gcTime 5 min, also refetchable/shared across components), and is returned as `res.text()` which corrupts binary payloads. Plaintext secrets remaining in cache longer than needed is a data-protection concern; consider a mutation or gcTime:0 and clear on hide/unmount.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretDetailsView.tsx | trpcReact.keyManager.getSecretPayload.useQuery({ project_id: projectId, secretId }, { enabled: false })",
+   "evidence": "setShowPayload(false) on Hide only toggles UI state; no cache removal or gcTime option on the query."
+  },
+  {
+   "claim": "ID/ref inputs interpolated into outbound Barbican paths are unvalidated `z.string()`; encodeURIComponent does not encode `.`, so `secretId`/`containerId`/`orderId`/`secretName` of `..` yields `v1/secrets/..` style paths that a URL normaliser collapses (e.g. DELETE v1/containers/.. -> v1/). Also secret_ref/secret_refs entries are arbitrary strings forwarded to Barbican, and `sort` is free text split into sort_key/sort_dir. Low impact (same project token, same service) but should be constrained with uuid()/regex.",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:37",
+   "evidence": "`const resourceIdInput = z.object({ secretId: z.string() })`, containerIdInput/orderIdInput the same; deleteContainerSecret uses `secretName: z.string()` in the path; addContainerSecret `secret_ref: z.string()`; pagination `offset`/`limit` are unbounded z.number() (no int/min/max)."
+  },
+  {
+   "claim": "mapKmError attaches the raw upstream error as `cause` for every failure; if the tRPC error formatter or logger serialises causes this can expose OpenStack internals, and the secret payload in createSecret/updateSecret bodies could flow into logged errors. Worth confirming the error formatter strips `cause`.",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:50",
+   "evidence": "`return new TRPCError({ code: ..., message: ..., cause: error })`"
+  }
+ ]
+}

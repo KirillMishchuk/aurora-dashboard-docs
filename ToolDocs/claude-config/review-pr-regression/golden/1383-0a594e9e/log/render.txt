@@ -1,0 +1,3 @@
+exit 1
+INVALID findings.json — 1 error(s), nothing written:
+  findings.c13.category: 'Conflict' not one of ['Bug', 'Security', 'Accessibility', 'UI/UX', 'Code Quality', 'Performance', 'Docs', 'Test coverage']

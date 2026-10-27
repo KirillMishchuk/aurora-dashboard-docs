@@ -1,0 +1,10 @@
+{
+ "candidates": [
+  {
+   "claim": "The delta rewrites the Port error tables to say the message ends in `{Neutron message}`, but the shared ErrorHandler appends the HTTP `statusText` (or \"Unknown error\"), not the Neutron response body message. The docs therefore describe behaviour the code does not have.",
+   "location": "packages/aurora/docs/0017_ports_bff.md | | 400         | `BAD_REQUEST`           | Invalid request data for Port: {Neutron message} |",
+   "evidence": "errorHandling.ts at 86a355a8: `message: `Unauthorized access to ${resourceLabel}: ${response.statusText || \"Unknown error\"}``, same for 400/403/default (Failed to process). errorHandling.ts is not changed in the PR, and requestOrThrow passes the response to the handler, so no Neutron body message is used. delta.diff lines 41-142 add `{Neutron message}` to the 401/403/default/412 rows.",
+   "precedent": "The pre-existing 400 rows for create/update already said {Neutron message}, so the doc inaccuracy was present before and this delta extends it to more rows."
+  }
+ ]
+}

@@ -1,0 +1,64 @@
+{
+ "scores": [
+  {
+   "id": "C1",
+   "score": 75,
+   "severity": "Low",
+   "category": "Code Quality",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretTableRow.tsx:15",
+   "reason": "SecretTableRow.tsx:15 has `canDelete: boolean` (same in Container/Order rows and ListContainers); Quick Reject 'Permission prop not named can<Verb><Noun>' and B.8 require canDeleteSecret etc. Verified violation, naming only so Low.",
+   "precedent": null,
+   "same_as": null
+  },
+  {
+   "id": "C36",
+   "score": 0,
+   "reason": "Same problem as C1; scored there.",
+   "same_as": "C1"
+  },
+  {
+   "id": "C2",
+   "score": 75,
+   "severity": "Low",
+   "category": "Accessibility",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretTableRow.tsx:35",
+   "reason": "SecretTableRow.tsx:35-36 renders `<PopupMenu><PopupMenuOptions>` with no PopupMenuToggle; Quick Reject 'PopupMenu without PopupMenuToggle as trigger' and B.14 are violated (same in Container/Order rows). Default toggle is used, so Low.",
+   "precedent": null,
+   "same_as": null
+  },
+  {
+   "id": "C3",
+   "score": 75,
+   "severity": "Low",
+   "category": "UI/UX",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretTableRow.tsx:38",
+   "reason": "SecretTableRow.tsx:37-38 has `Show Details` and `Delete` with no entity in labels and no PopupMenuSectionSeparator before Delete (separator is used elsewhere, e.g. flavors/$flavorId.tsx); violates B.18. Distinct from the missing toggle.",
+   "precedent": null,
+   "same_as": null
+  },
+  {
+   "id": "C37",
+   "score": 0,
+   "reason": "Same problem as C2; scored there.",
+   "same_as": "C2"
+  },
+  {
+   "id": "C4",
+   "score": 50,
+   "severity": "Low",
+   "category": "UI/UX",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretModals.tsx:129",
+   "reason": "SecretModals.tsx:129 title is `Delete Secret \"${secretName}\"`, body at :140 does not name the entity and the confirm label is bare `Delete`; contradicts B.5 (name in body, verb+object label). Not a Quick Reject item, wording only.",
+   "precedent": null
+  },
+  {
+   "id": "C5",
+   "score": 75,
+   "severity": "Low",
+   "category": "UI/UX",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretModals.tsx:136",
+   "reason": "Only `disableCancelButton={deleteMutation.isPending}` at SecretModals.tsx:136 (and :60), no disableCloseButton anywhere in the folder; Quick Reject 'Modal without disableCancelButton / disableCloseButton during async operations'. Other modals (DeleteFlavorModal.tsx:119) pass disableCloseButton. Close-X still active mid-request, so Low.",
+   "precedent": null
+  }
+ ]
+}

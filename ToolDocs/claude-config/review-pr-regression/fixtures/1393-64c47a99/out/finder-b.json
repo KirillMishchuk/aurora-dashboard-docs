@@ -1,0 +1,10 @@
+{
+ "candidates": [
+  {
+   "claim": "After switching Accept to application/octet-stream, getSecretPayload still reads the body with res.text(). For binary secrets (e.g. application/octet-stream keys, PKCS12 certificates) the bytes are decoded as UTF-8, so Reveal Payload and Copy show corrupted data (replacement characters). Text payloads are unaffected.",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:110",
+   "evidence": "keyManagerRouter.ts lines 100-111 at 64c47a9: request with Accept: application/octet-stream, then `const text = await res.text()` and `return { payload: text, contentType }`. The delta does not touch the read path or base64-encode non-text content types.",
+   "precedent": "The raw-text read was already there before this commit; the Accept change is what makes binary bodies reachable."
+  }
+ ]
+}

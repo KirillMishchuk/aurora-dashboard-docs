@@ -1,0 +1,34 @@
+{
+ "scores": [
+  {
+   "id": "C8",
+   "score": 0,
+   "reason": "The delta adds the `{Neutron message}` suffix to the Port error tables because earlier finding I6 asked for it; objecting to that is not a new problem.",
+   "same_as": null
+  },
+  {
+   "id": "C10",
+   "score": 0,
+   "reason": "portsRouter.ts:73 stops on a repeated URL only to avoid an endless loop when Neutron misbehaves; healthy data ends at the missing `next` link. Following `next` to the end is what earlier finding CR1 asked for. The silent cut-off on a server bug is hypothetical.",
+   "same_as": null
+  },
+  {
+   "id": "C11",
+   "score": 25,
+   "reason": "The loop at portsRouter.ts:73 has no page or item cap, but it ends when `next` is missing and `visited` stops a repeated URL. Only a pathological Neutron response or a very large project would make it unbounded, and complete pagination is what earlier finding CR1 requested, so I can't tell this is a real problem.",
+   "same_as": null
+  },
+  {
+   "id": "C12",
+   "score": 0,
+   "reason": "Issue #1380 (an agent skill) is not in the PR's stated scope: the description relates only #816, #1381 and #1382, and the PR is a Ports feature, not a skill.",
+   "same_as": null
+  },
+  {
+   "id": "C13",
+   "score": 0,
+   "reason": "ports.list still accepts sort_key, sort_dir and searchTerm as a documented, tested BFF API (filterPortsBySearchTerm and its tests exist). The page not using them is a design decision stated in the PR description (client-side sort and search), not a broken caller.",
+   "same_as": null
+  }
+ ]
+}

@@ -1,0 +1,77 @@
+{
+ "candidates": [
+  {
+   "claim": "Reveal Payload button is rendered and fetches secret material without checking the separately defined key-manager:secrets:payload permission (the key exists in permissionRouter but is never used client-side). Users without the permission see a working control; not fail-closed.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretDetailsView.tsx | {payloadFetching ? t`Loading Payload...` : t`Reveal Payload`}",
+   "evidence": "git grep at head: SecretDetailsView.tsx has no permission lookup/usePermissions; permissionRouter.ts:6 defines \"key-manager:secrets:payload\". copilot-instructions B.7/B.8: permissions default false while loading, reject controls shown before permissions confirmed.",
+   "discussion": "Copilot inline comment r4360388886 (CRITICAL), no replies, not addressed at head."
+  },
+  {
+   "claim": "Key Manager server procedures never evaluate the loaded policy; canUser is registered but each handler (incl. getSecretPayload, deleteContainerSecret, createSecret) only uses projectScopedProcedure, so permission gating is UI-only and a direct tRPC call bypasses Aurora policy.",
+   "location": "packages/aurora/src/server/KeyManager/routers/index.ts:8",
+   "evidence": "git grep for policy|canUser|FORBIDDEN in server/KeyManager shows only permissionRouter wiring and mapKmError 403 mapping; no handler checks a rule.",
+   "precedent": "Not checked whether Compute/Storage routers enforce server-side.",
+   "discussion": "Copilot inline r4360389025 (CRITICAL), no replies, still applies."
+  },
+  {
+   "claim": "getSecretPayload (and other calls) use the session default Accept: application/json; Barbican's payload endpoint serves raw secret content and can return 406 for non-JSON payloads. The response is also read with res.text() with no Accept override.",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:98",
+   "evidence": "context.ts:116 sets default Accept: application/json; keyManagerRouter.ts:98 km.get(`v1/secrets/${id}/payload`) passes no headers.",
+   "discussion": "Copilot inline r4360389136, no replies, still applies. Behaviour with Barbican unverified live."
+  },
+  {
+   "claim": "Secret payload plaintext can be logged: signal-openstack logs a bodyPreview for text responses when debug is on, and debug defaults to true outside production; getSecretPayload does not disable it.",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:98",
+   "evidence": "signal-openstack/src/client.ts:169-183 builds bodyPreview from text; context.ts:114 debug: config.debug ?? NODE_ENV !== \"production\".",
+   "discussion": "Copilot inline r4360389080 (CRITICAL), no replies, still applies in non-production."
+  },
+  {
+   "claim": "deleteContainerSecret DELETEs v1/containers/{id}/secrets/{secretName}; Barbican's removal endpoint is DELETE /v1/containers/{uuid}/secrets with name and secret_ref in a JSON body, so association removal will fail.",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:252",
+   "evidence": "Line 252: .del(`v1/containers/${containerId}/secrets/${secretName}`) with input only containerId+secretName; the test asserts the same URL.",
+   "discussion": "Copilot inline r4360389656, no replies, still applies."
+  },
+  {
+   "claim": "Container secret_refs schema requires name: string, but Barbican may return name: null for unnamed references; parseOrThrow would then reject the whole container/list response.",
+   "location": "packages/aurora/src/server/KeyManager/types/keyManager.ts:25",
+   "evidence": "Line 25: secret_refs: z.array(z.object({ name: z.string(), secret_ref: z.string() })), while sibling name fields use .nullable().",
+   "discussion": "Copilot inline r4360389713, no replies, still applies."
+  },
+  {
+   "claim": "Key Manager nav entry ignores isEnabled, so enabledServices/deniedServices cannot hide it, unlike the other entries.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/-components/buildNavSections.ts:154",
+   "evidence": "Line 154: serviceIndex[\"key-manager\"]?.[\"barbican\"] ? ... with no && isEnabled(...); other entries at lines 36,46,60,71,82,97,119 use isEnabled.",
+   "discussion": "Copilot inline r4360389607, no replies, still applies."
+  },
+  {
+   "claim": "Boolean permission props are named canDelete instead of can<Verb><Noun> (canDeleteContainer/canDeleteSecret/canDeleteOrder), violating B.8.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretTableRow.tsx:15",
+   "evidence": "canDelete in Secret/Container/Order TableRow (line 15), ListContainer (line 12) and passed from Lists; copilot-instructions line 329 requires can<Verb><Noun>.",
+   "discussion": "Copilot inline threads r4360388743, r4360388949, r4360389203, r4360389452, r4360389872, r4360389932; no replies, unchanged."
+  },
+  {
+   "claim": "Row action PopupMenu has no PopupMenuToggle trigger (labelled more-actions button) and no PopupMenuSectionSeparator before destructive Delete, in the secret, container and order rows.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretTableRow.tsx:35",
+   "evidence": "SecretTableRow.tsx:35-40 <PopupMenu><PopupMenuOptions> with Show Details and Delete only; imports lack PopupMenuToggle. copilot-instructions line 457 requires PopupMenuToggle as trigger.",
+   "discussion": "Copilot inline r4360388832 on OrderTableRow; same pattern in other rows."
+  },
+  {
+   "claim": "Hook is named generically usePermissions though it is Key Manager specific; the convention is use<Feature>Permissions (useKeyManagerPermissions).",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/-components/usePermissions.ts:21",
+   "evidence": "export function usePermissions(...) at line 21; copilot-instructions B.8 line 328.",
+   "discussion": "Copilot inline r4360389782, no replies, unchanged."
+  },
+  {
+   "claim": "After deleting the last item on the final page the URL page stays beyond the new total; pagination is hidden (totalPages <= 1) and the table is empty with no way back. Same in Secrets, Containers and Orders lists.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx:126",
+   "evidence": "SecretsList.tsx:62 offset=(page-1)*PAGE_SIZE, line 75 totalPages from data.total, line 126 {totalPages > 1 && Pagination}; no clamp/reset of page on delete or total shrink.",
+   "discussion": "Copilot inline r4360389532, r4360389254 (ContainersList:91), r4360389387 (OrdersList:97); no replies."
+  },
+  {
+   "claim": "Create Order modal does not validate Bit Length: parseInt of empty or invalid input yields NaN, zero/negative values are accepted, and Create stays enabled; no inline error.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderModals.tsx:52",
+   "evidence": "Line 52 meta: { algorithm, bit_length: parseInt(bitLength, 10) }; disableConfirmButton only on isPending (line 57); no server-side check (meta is unrestricted).",
+   "discussion": "Copilot inline r4360389321, no replies, still applies."
+  }
+ ]
+}

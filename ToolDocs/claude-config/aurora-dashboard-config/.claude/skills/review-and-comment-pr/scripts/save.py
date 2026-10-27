@@ -78,6 +78,40 @@ def location(repo, loc, where, errors):
         errors.append(f"{where}: {loc} is out of range ({len(ls)} lines at head)")
 
 
+def public(errors, obj, key, where):
+    """A field that can reach the posted comment (claim, scorer reason, earlier note): no run-folder names."""
+    v = obj.get(key)
+    hits = sorted({m.group(0) for m in quotes.INTERNAL.finditer(quotes.FENCE.sub("", v))}) if isinstance(v, str) else []
+    if hits:
+        errors.append(f"{where}.{key}: names run-folder files or fields ({', '.join(hits)}) — this text can be posted; "
+                      "write \"the head commit\", \"the PR description\", \"the linked issue\", \"CI\"")
+
+
+STANDARD_RULE = re.compile(r"\bB\.\d+\b|Quick Reject")
+EXAMPLE = re.compile(r"\bexample:\s*(none\b|`?([\w.$@/\[\]()+-]+\.[A-Za-z0-9]+):(\d+)`?)")
+
+
+def example(repo, c, where, errors):
+    """A standards candidate must name merged code outside the PR that does it right (or say there is none)."""
+    ev = c.get("evidence") if isinstance(c.get("evidence"), str) else ""
+    if not STANDARD_RULE.search(ev + " " + str(c.get("claim") or "")):
+        return
+    m = EXAMPLE.search(ev)
+    if not m:
+        errors.append(f"{where}.evidence: cites a review-standard rule but names no `example: <path:line>` — merged code "
+                      "outside this PR that follows the rule, for the author to copy (or `example: none` and a precedent)")
+        return
+    if m.group(1).startswith("none"):
+        return
+    path, line = repo.resolve_name(m.group(2)) or m.group(2), int(m.group(3))
+    if path in repo.changed:
+        errors.append(f"{where}.evidence: example {path} is one of this PR's files — name merged code outside the PR")
+    elif not (repo.lines(path) or repo.lines(path, repo.base)):
+        errors.append(f"{where}.evidence: example {path} does not exist at head or base")
+    elif not 1 <= line <= len(repo.lines(path) or repo.lines(path, repo.base)):
+        errors.append(f"{where}.evidence: example {path}:{line} is out of range")
+
+
 def check_finder(name, data, repo):
     errors = []
     allowed = {"candidates", "checklist"} if name == "finder-a" else {"candidates"}
@@ -92,7 +126,9 @@ def check_finder(name, data, repo):
         if not keys(errors, c, {"claim", "location", "evidence", "precedent", "discussion"}, w):
             continue
         text(errors, c, "claim", w)
+        public(errors, c, "claim", w)
         text(errors, c, "evidence", w)
+        example(repo, c, w, errors)
         text(errors, c, "precedent", w, required=False)
         text(errors, c, "discussion", w, required=False)
         loc = text(errors, c, "location", w)
@@ -143,6 +179,7 @@ def check_scores(name, data, repo, run_dir):
             if not (isinstance(s.get("reason"), str) and s["reason"].strip()):
                 s["reason"] = f"Same problem as {s['same_as']}."
         text(errors, s, "reason", w)
+        public(errors, s, "reason", w)
         if s.get("score") not in SCORES:
             errors.append(f"{w}.score: {s.get('score')!r} — use 0, 25, 50, 75 or 100")
         group = mine[cid].get("group")
@@ -234,29 +271,33 @@ def check_earlier(data, ctx):
             continue
         if not keys(errors, v, {"status", "note", "evidence"}, w):
             continue
-        if v.get("status") not in ("fixed", "partly", "open"):
-            errors.append(f"{w}.status: {v.get('status')!r} — fixed, partly or open")
+        if v.get("status") not in ("fixed", "partly", "open", "dropped"):
+            errors.append(f"{w}.status: {v.get('status')!r} — fixed, partly, open, or dropped (merge conflicts only)")
         note = text(errors, v, "note", w)
+        public(errors, v, "note", w)
         if note and "\n" in note.strip():
             errors.append(f"{w}.note: one line")
         text(errors, v, "evidence", w)
     return errors, len(e)
 
 
-def check_describer(data, repo):
+def check_describer(data, repo, update=False):
+    """On an Update the describer leaves out what earlier findings cover: how/affects may be empty, no QA plan."""
     errors = []
     if not keys(errors, data, {"overview", "qa", "acceptance", "stale_callers", "scope"}, "describer"):
         return errors
     ov = data.get("overview")
     if keys(errors, ov or {}, {"what", "how", "affects"}, "overview"):
         for k in ("what", "how", "affects"):
-            t = text(errors, ov or {}, k, "overview")
+            t = text(errors, ov or {}, k, "overview", required=k == "what" or not update)
             if t:
                 quotes.resolve_text(repo, t, f"overview.{k}", errors)
     qa = data.get("qa")
     if keys(errors, qa or {}, {"core_path", "edge_cases"}, "qa"):
         for k in ("core_path", "edge_cases"):
             v = (qa or {}).get(k)
+            if update and v == []:
+                continue
             if not isinstance(v, list) or not v or not all(isinstance(x, str) and x.strip() for x in v):
                 errors.append(f"qa.{k}: must be a non-empty list of strings")
                 continue
@@ -313,7 +354,7 @@ def main(argv):
         return 1
     repo = quotes.Repo(ctx)
     if name == "describer":
-        errors, what = check_describer(data, repo), "describer result"
+        errors, what = check_describer(data, repo, ctx["mode"] == "update"), "describer result"
     elif name == "factcheck":
         errors, n = check_factcheck(data, ctx, run_dir)
         what = f"{n} wrong claim(s)"

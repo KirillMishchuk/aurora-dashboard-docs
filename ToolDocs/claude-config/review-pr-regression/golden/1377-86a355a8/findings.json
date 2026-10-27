@@ -1,0 +1,180 @@
+{
+ "schema_version": 1,
+ "summary": "",
+ "confidence": "Medium",
+ "findings": [
+  {
+   "id": "c1",
+   "score": 50,
+   "severity": "Low",
+   "category": "UI/UX",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/$portId.tsx | <Button variant=\"primary\" onClick={() => navigate({ to: \"/\" })}>",
+   "precedent": null,
+   "issue": "Port details still renders a 401 inline with a Sign in button to `/` instead of redirecting (B.6)",
+   "title": "401 on the port details page is an inline error page, not a redirect to Sign-in",
+   "explanation": "The CR2 fix turns `UNAUTHORIZED` into a `RouteIdLevelDefaultError` with code 401 and a button that navigates to `/`, at [[at:packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/$portId.tsx | if (errorCode === \"UNAUTHORIZED\")]]:\n\n[[code:packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/$portId.tsx | if (errorCode === \"UNAUTHORIZED\") | 12]]\n\nB.6 lists \"a 401/403 handled inline instead of via redirect\" as a Reject and asks for a redirect to Sign-in that remembers the target and returns there after auth. Here the user lands on `/` and loses the port they were looking at; the comment above the branch also describes behaviour the code doesn't have.",
+   "fix": "Redirect to the sign-in route with the current location as the return target (the way `_auth.tsx` does for a missing session) instead of rendering the error page, and update the comment."
+  },
+  {
+   "id": "c3",
+   "score": 50,
+   "severity": "Low",
+   "category": "UI/UX",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortTableRow.tsx | <DataGridCell>{port.status}</DataGridCell>",
+   "precedent": null,
+   "issue": "Status column renders the raw status string instead of a `Badge` (B.1)",
+   "title": "Port status is plain text in the list",
+   "explanation": "[[at:packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortTableRow.tsx | <DataGridCell>{port.status}</DataGridCell>]] renders `port.status` as text. B.1 maps status indicators to `Badge`; the delta moved this cell to the 2nd column, so it now sits prominently as unstyled text (`ACTIVE`, `DOWN`, `BUILD`).",
+   "fix": "Render the status as a `Badge` with a variant per status (e.g. success for `ACTIVE`, danger for `ERROR`/`DOWN`); the router list can follow in the same or a later PR."
+  },
+  {
+   "id": "c6",
+   "score": 50,
+   "severity": "Low",
+   "category": "UI/UX",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.tsx | body={error instanceof Error ? error.message : t`An unexpected error occurred.`}",
+   "precedent": null,
+   "issue": "Ports list handles only 403; a 401 or other error shows the raw BFF `error.message`",
+   "title": "Ports list shows the raw error message and no Sign in path on 401",
+   "explanation": "`createPortsPromise` converts only `FORBIDDEN` into the info Message; everything else, including `UNAUTHORIZED`, is rethrown:\n\n[[code:packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.tsx:50-55]]\n\nThe error boundary then prints `error.message` as the body at [[at:packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.tsx | body={error instanceof Error ? error.message : t`An unexpected error occurred.`}]], so an expired session shows the BFF's text and no way to sign in. CR2 of the earlier review covered the list error as well; mark-karnaukh-extern-sap confirmed it in https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#issuecomment-6293554974 and listed it as fixed in https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#issuecomment-6295356006, but only the details page got the 401 handling.",
+   "fix": "Handle `UNAUTHORIZED` in the list the same way as the details page (ideally a redirect to Sign-in, see [[ref:c1]]) and show a generic translated message instead of `error.message` for the remaining errors."
+  }
+ ],
+ "process": [],
+ "process_overrides": {},
+ "overview": {
+  "what": "This update covers `512f01b1` to `86a355a8`. The PR is still a draft. CI on the head commit: 18 of 22 checks pass, 4 are skipped, none failed or pending.\n\n**Ports list moves to client-side sorting and search.** The list now fetches the full port list once per project/network and sorts, searches and paginates it in the browser. Sort, search and page changes no longer send a request, and the `useDeferredValue`/stale-result handling is gone. The sort keys offered shrink to `name`, `status` and `device_owner`. Search filtering now runs on the locally typed text on every keystroke, while the URL is still updated with a debounce. The BFF `list` procedure still accepts `sort_key`, `sort_dir` and `searchTerm`, but the page no longer uses them.\n\n**Routers get the same treatment in places the findings did not cover.** The Routers BFF `list` now also follows Neutron pagination through `routers_links`, with a new test. In the Routers list, the Status column moves to second position, the row action menu gets a visible `PopupMenuToggle` button, and a 403 now shows an info message \"Insufficient Permissions\" instead of the \"Failed to Load Routers\" error. The Router tests are updated to match.\n\n**Port details page title is now static.** With the loader removed, the browser tab title is always \"Port Details\" and no longer shows the port name.\n\n**Pagination plumbing.** `nextPageUrl` is a new shared helper in `requestHelpers.ts`, and `PortListResponseSchema` and `RouterListResponseSchema` gain an optional `*_links` field. Both list loops use a `visited` set as a guard against a non-advancing `next` link.",
+  "how": "Each list loop reuses only the query string of Neutron's absolute `next` href, against the known relative base path:\n\n[[code:packages/aurora/src/server/Network/helpers/requestHelpers.ts:63-68]]\n\nThe client-side list pipeline filters, then sorts, then pages:\n\n[[code:packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.tsx | const visiblePorts = useMemo( | 4]]",
+  "affects": "- The Routers BFF `list` contract changes: it now issues several requests when Neutron paginates. `packages/aurora/docs/0010_routers_bff.md` was updated for this.\n- Search, sort and pagination on the Ports list now run on the full list in the browser. For projects with many ports, the first load is heavier, and `filterPorts` in `PortsList.tsx` duplicates the BFF's `filterPortsBySearchTerm`, so the two must be kept in sync.\n- `sort_key`, `sort_dir` and `searchTerm` on `ports.list` (`packages/aurora/src/server/Network/types/port.ts:115`) are now unused by the only client, but remain in the contract and docs.\n- Router list and Router tests were edited as part of this update, although the Routers feature is outside the Ports scope in the PR description. The description does not mention the Routers list changes (Status column order, action toggle, 403 info message, pagination)."
+ },
+ "qa": {
+  "core_path": [],
+  "edge_cases": []
+ },
+ "provenance_extra": [],
+ "index_affected": "",
+ "scope": "#816 — read-only Ports UI plus BFF; write UI and network Ports tab are follow-ups",
+ "earlier": {
+  "CR1": {
+   "status": "fixed",
+   "note": "portsRouter.list now follows `ports_links` next pages (visited-guarded loop) and returns the full list."
+  },
+  "CR2": {
+   "status": "partly",
+   "note": "403 is now a page-level info Message on both details and list. 401 is still not a redirect: the details page shows a 'Sign in' error page ([[ref:c1]]) and the list falls into the generic error boundary with the raw BFF message ([[ref:c6]])."
+  },
+  "CR3": {
+   "status": "fixed",
+   "note": "The route loader is gone; only the component's `useQuery` fetches the port."
+  },
+  "CR4": {
+   "status": "dropped",
+   "note": "Merge conflicts are no longer part of this review; GitHub shows them."
+  },
+  "P1": {
+   "status": "open",
+   "note": "PR is still a draft."
+  },
+  "P2": {
+   "status": "fixed",
+   "note": "The description now covers the `?tab=` search param on the router details route."
+  },
+  "I1": {
+   "status": "fixed",
+   "note": "Copy now reads 'Sign in again to continue.'"
+  },
+  "I2": {
+   "status": "fixed",
+   "note": "`PopupMenu` now has a `PopupMenuToggle` wrapping the icon Button."
+  },
+  "I3": {
+   "status": "fixed",
+   "note": "`gap=\"1\"` is gone; PortDetailsView uses `0.5`, `2` and `6`, which B.3 allows."
+  },
+  "I4": {
+   "status": "fixed",
+   "note": "Status is now the 2nd column, right after Name / ID."
+  },
+  "I5": {
+   "status": "fixed",
+   "note": "Routers doc now says lookups are chunked into requests of at most 50 IDs."
+  },
+  "I6": {
+   "status": "fixed",
+   "note": "Error tables in the ports doc carry the `: {Neutron message}` suffix again."
+  },
+  "I7": {
+   "status": "fixed",
+   "note": "The `useEffect` is gone; `PageInput` is keyed on `currentPage` instead."
+  },
+  "I8": {
+   "status": "fixed",
+   "note": "`zod` is now imported right after the router import, before the Lingui imports."
+  }
+ },
+ "dismissed": [
+  {
+   "score": 25,
+   "claim": "The new 403 info Message banners in the list views have no `mb-4`, so the spacing is not the approved Message banner margin.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.tsx:160",
+   "reason": "B.3 lists mb-4 for Message banners, and the Messages in PortsList/RoutersList have no className. But the Message is the only content on the page (and in $portId.tsx it sits in a Stack with gap 4), so there is no visible spacing effect; pedantic.",
+   "discussion": ""
+  },
+  {
+   "score": 25,
+   "claim": "The new pagination fix covers only the main ports/routers list request. The other Neutron collection reads in the same procedures still read one page: the router interface-port lookup (fetchRouterInterfacePorts, chunks of router IDs, fields-filtered /v2.0/ports) and the batched name lookups (fetchNetworkSummaries / fetchSubnetSummaries / fetchSecurityGroupSummaries, 50 IDs per request). On a deployment with pagination_max_limit, the router list now returns every router but silently drops private networks (or names) beyond the first page. This is the same failure the fix claims to remove.",
+   "location": "packages/aurora/src/server/Network/routers/routersRouter.ts:85",
+   "reason": "fetchRouterInterfacePorts (routersRouter.ts:85) and the id-batch lookups do read one Neutron page, but this code already exists at the base commit and the delta does not touch it; the PR's pagination fix and its docs sentence concern the router/port lists. Real, but pre-existing and I can't confirm the PR claims more than that.",
+   "discussion": "Not raised. CR1 in mark-karnaukh-extern-sap's 2026-10-20 verification only covered the main ports list."
+  },
+  {
+   "score": 25,
+   "claim": "Client-side search duplicates the BFF filterPortsBySearchTerm field list by hand (comment says 'mirroring'), and the BFF still accepts and runs search/sort/limit params that the UI no longer uses. The two implementations can drift and the BFF params are dead code for the only consumer.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.tsx:60",
+   "reason": "PortsList.tsx:59 duplicates the BFF search field list, and the BFF params are unused by the UI. It is a deliberate perf decision the author raised as an open question, and a code-quality opinion with no concrete defect.",
+   "discussion": "Raised by the author as the 'Perf' change and open decision 1 in https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#issuecomment-6295356006 ('BFF still accepts the params for API/tests'); no reviewer response."
+  },
+  {
+   "score": 25,
+   "claim": "The new Neutron pagination loop in ports.list (and routers.list) has no upper bound on pages or accumulated items. The `visited` set only stops a repeated identical URL, so a `next` link whose marker keeps changing (or a very large project) makes one tRPC query issue unbounded sequential Neutron requests and buffer every result in BFF memory before the network/subnet lookups. Any authenticated user can trigger it by opening the list page.",
+   "location": "packages/aurora/src/server/Network/routers/portsRouter.ts:73",
+   "reason": "The loop at portsRouter.ts:73 has no page or item cap, but it ends when `next` is missing and `visited` stops a repeated URL. Only a pathological Neutron response or a very large project would make it unbounded, and complete pagination is what earlier finding CR1 requested, so I can't tell this is a real problem.",
+   "discussion": ""
+  },
+  {
+   "score": 0,
+   "claim": "The port details route loader was removed, so the port is fetched only inside the component through a React Query call. A.3 says data critical for rendering must come from the route loader. The head title also no longer shows the port name and is a hardcoded, untranslated \"Port Details\".",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/$portId.tsx:155",
+   "reason": "Removing the loader is the fix CR3 asked for (details route fetched the port twice); not a new problem. The remaining hardcoded head title is a nit.",
+   "discussion": ""
+  },
+  {
+   "score": 0,
+   "claim": "The delta rewrites the Port error tables to say the message ends in `{Neutron message}`, but the shared ErrorHandler appends the HTTP `statusText` (or \"Unknown error\"), not the Neutron response body message. The docs therefore describe behaviour the code does not have.",
+   "location": "packages/aurora/docs/0017_ports_bff.md:105",
+   "reason": "The delta adds the `{Neutron message}` suffix to the Port error tables because earlier finding I6 asked for it; objecting to that is not a new problem.",
+   "discussion": ""
+  },
+  {
+   "score": 0,
+   "claim": "Pagination follows `next` by reusing only the query string of the absolute href against the BFF base path, and the list schemas accept `ports_links`/`routers_links` as optional arrays. Reference documents the links field as `*_links` with rel next/previous; consistent. However the guard `visited` silently stops and returns a partial list (no error) if Neutron returns a repeating next URL, so the user sees a truncated list without any signal.",
+   "location": "packages/aurora/src/server/Network/routers/portsRouter.ts:73",
+   "reason": "portsRouter.ts:73 stops on a repeated URL only to avoid an endless loop when Neutron misbehaves; healthy data ends at the missing `next` link. Following `next` to the end is what earlier finding CR1 asked for. The silent cut-off on a server bug is hypothetical.",
+   "discussion": ""
+  },
+  {
+   "score": 0,
+   "claim": "Acceptance criterion unmet: #1380: Create an AI agent skill for scaffolding new OpenStack resources (skill structure, intake, three phase guides, templates)",
+   "location": "PR files",
+   "reason": "Issue #1380 (an agent skill) is not in the PR's stated scope: the description relates only #816, #1381 and #1382, and the PR is a Ports feature, not a skill.",
+   "discussion": ""
+  },
+  {
+   "score": 0,
+   "claim": "Stale caller of `sort_key / sort_dir / searchTerm on ports.list`: The Ports page no longer sends these to the BFF; the client mirrors the search in `filterPorts` instead. The input fields and docs still describe server-side sort and search.",
+   "location": "packages/aurora/src/server/Network/types/port.ts:115",
+   "reason": "ports.list still accepts sort_key, sort_dir and searchTerm as a documented, tested BFF API (filterPortsBySearchTerm and its tests exist). The page not using them is a design decision stated in the PR description (client-side sort and search), not a broken caller.",
+   "discussion": ""
+  }
+ ]
+}

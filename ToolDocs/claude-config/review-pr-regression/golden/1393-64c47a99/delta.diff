@@ -1,0 +1,1025 @@
+diff --git a/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/-components/useKeyManagerPermissions.ts b/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/-components/useKeyManagerPermissions.ts
+new file mode 100644
+index 00000000..bc062d40
+--- /dev/null
++++ b/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/-components/useKeyManagerPermissions.ts
+@@ -0,0 +1,37 @@
++import { trpcReact } from "@/client/trpcClient"
++
++type KeyManagerPermission =
++  | "key-manager:secrets:list"
++  | "key-manager:secrets:get"
++  | "key-manager:secrets:payload"
++  | "key-manager:secrets:create"
++  | "key-manager:secrets:update"
++  | "key-manager:secrets:delete"
++  | "key-manager:containers:list"
++  | "key-manager:containers:get"
++  | "key-manager:containers:create"
++  | "key-manager:containers:update"
++  | "key-manager:containers:delete"
++  | "key-manager:orders:list"
++  | "key-manager:orders:get"
++  | "key-manager:orders:create"
++  | "key-manager:orders:delete"
++  | "key-manager:orders:update"
++
++export function useKeyManagerPermissions(
++  projectId: string,
++  permissions: KeyManagerPermission[]
++): { permissions: Record<KeyManagerPermission, boolean>; isLoading: boolean } {
++  const { data = [], isLoading } = trpcReact.keyManager.canUser.useQuery(
++    { project_id: projectId, permission: permissions },
++    { enabled: Boolean(projectId), staleTime: Infinity }
++  )
++
++  return {
++    isLoading,
++    permissions: Object.fromEntries(permissions.map((p, i) => [p, data[i] ?? false])) as Record<
++      KeyManagerPermission,
++      boolean
++    >,
++  }
++}
+diff --git a/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainerListContainer.test.tsx b/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainerListContainer.test.tsx
+index 9aab5d00..8870f31a 100644
+--- a/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainerListContainer.test.tsx
++++ b/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainerListContainer.test.tsx
+@@ -37,7 +37,7 @@ const defaultProps = {
+   isLoading: false,
+   isError: false,
+   error: null,
+-  canDelete: true,
++  canDeleteContainer: true,
+   onShowDetails: vi.fn(),
+   onDelete: vi.fn(),
+ }
+diff --git a/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainerListContainer.tsx b/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainerListContainer.tsx
+index 74130066..256d0870 100644
+--- a/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainerListContainer.tsx
++++ b/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainerListContainer.tsx
+@@ -9,7 +9,7 @@ interface ContainerListContainerProps {
+   isLoading: boolean
+   isError: boolean
+   error: { message?: string } | null
+-  canDelete: boolean
++  canDeleteContainer: boolean
+   onShowDetails: (container: Container) => void
+   onDelete: (container: Container) => void
+ }
+@@ -19,7 +19,7 @@ export function ContainerListContainer({
+   isLoading,
+   isError,
+   error,
+-  canDelete,
++  canDeleteContainer,
+   onShowDetails,
+   onDelete,
+ }: ContainerListContainerProps) {
+@@ -45,7 +45,7 @@ export function ContainerListContainer({
+           <ContainerTableRow
+             key={container.container_ref}
+             container={container}
+-            canDelete={canDelete}
++            canDeleteContainer={canDeleteContainer}
+             onShowDetails={onShowDetails}
+             onDelete={onDelete}
+           />
+diff --git a/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainerTableRow.test.tsx b/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainerTableRow.test.tsx
+index cd01f99b..d0c14db9 100644
+--- a/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainerTableRow.test.tsx
++++ b/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainerTableRow.test.tsx
+@@ -25,7 +25,7 @@ const renderRow = (container: Container = mockContainer, canDelete = true) => {
+       <PortalProvider>
+         <ContainerTableRow
+           container={container}
+-          canDelete={canDelete}
++          canDeleteContainer={canDelete}
+           onShowDetails={onShowDetails}
+           onDelete={onDelete}
+         />
+@@ -72,7 +72,7 @@ describe("ContainerTableRow", () => {
+       const user = userEvent.setup()
+       const { onShowDetails } = renderRow()
+ 
+-      await user.click(screen.getByRole("button", { name: "More" }))
++      await user.click(screen.getByRole("button", { name: "Container actions" }))
+       await user.click(await screen.findByText("Show Details"))
+ 
+       expect(onShowDetails).toHaveBeenCalledWith(mockContainer)
+@@ -82,7 +82,7 @@ describe("ContainerTableRow", () => {
+       const user = userEvent.setup()
+       const { onDelete } = renderRow(mockContainer, true)
+ 
+-      await user.click(screen.getByRole("button", { name: "More" }))
++      await user.click(screen.getByRole("button", { name: "Container actions" }))
+       await user.click(await screen.findByText("Delete"))
+ 
+       expect(onDelete).toHaveBeenCalledWith(mockContainer)
+@@ -92,7 +92,7 @@ describe("ContainerTableRow", () => {
+       const user = userEvent.setup()
+       renderRow(mockContainer, false)
+ 
+-      await user.click(screen.getByRole("button", { name: "More" }))
++      await user.click(screen.getByRole("button", { name: "Container actions" }))
+ 
+       expect(await screen.findByText("Show Details")).toBeInTheDocument()
+       expect(screen.queryByText("Delete")).not.toBeInTheDocument()
+diff --git a/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainerTableRow.tsx b/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainerTableRow.tsx
+index ef3443fa..5e458d99 100644
+--- a/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainerTableRow.tsx
++++ b/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainerTableRow.tsx
+@@ -1,9 +1,12 @@
+ import {
+   DataGridRow,
+   DataGridCell,
++  Button,
+   PopupMenu,
++  PopupMenuToggle,
+   PopupMenuItem,
+   PopupMenuOptions,
++  PopupMenuSectionSeparator,
+ } from "@cloudoperators/juno-ui-components"
+ import { useLingui } from "@lingui/react/macro"
+ import { uuidFromRef } from "../../-components/utils"
+@@ -12,12 +15,12 @@ import type { Container } from "@/server/KeyManager/types/keyManager"
+ 
+ interface ContainerTableRowProps {
+   container: Container
+-  canDelete: boolean
++  canDeleteContainer: boolean
+   onShowDetails: (container: Container) => void
+   onDelete: (container: Container) => void
+ }
+ 
+-export function ContainerTableRow({ container, canDelete, onShowDetails, onDelete }: ContainerTableRowProps) {
++export function ContainerTableRow({ container, canDeleteContainer, onShowDetails, onDelete }: ContainerTableRowProps) {
+   const { t } = useLingui()
+   const id = uuidFromRef(container.container_ref)
+   return (
+@@ -32,9 +35,17 @@ export function ContainerTableRow({ container, canDelete, onShowDetails, onDelet
+       <DataGridCell>{container.type}</DataGridCell>
+       <DataGridCell onClick={(e: React.MouseEvent) => e.stopPropagation()} className="items-end pr-0">
+         <PopupMenu>
++          <PopupMenuToggle as="div">
++            <Button icon="moreVert" title={t`Container actions`} />
++          </PopupMenuToggle>
+           <PopupMenuOptions>
+             <PopupMenuItem label={t`Show Details`} onClick={() => onShowDetails(container)} />
+-            {canDelete && <PopupMenuItem label={t`Delete`} onClick={() => onDelete(container)} />}
++            {canDeleteContainer && (
++              <>
++                <PopupMenuSectionSeparator />
++                <PopupMenuItem label={t`Delete`} onClick={() => onDelete(container)} />
++              </>
++            )}
+           </PopupMenuOptions>
+         </PopupMenu>
+       </DataGridCell>
+diff --git a/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainersList.tsx b/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainersList.tsx
+index f60c8395..395665a6 100644
+--- a/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainersList.tsx
++++ b/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainersList.tsx
+@@ -1,7 +1,7 @@
+-import { useState } from "react"
++import { useEffect, useState } from "react"
+ import { Button, DataGridToolbar, Message, Pagination, SearchInput, Stack } from "@cloudoperators/juno-ui-components"
+ import { trpcReact } from "@/client/trpcClient"
+-import { usePermissions } from "../../-components/usePermissions"
++import { useKeyManagerPermissions } from "../../-components/useKeyManagerPermissions"
+ import { ContainerListContainer } from "./ContainerListContainer"
+ import { CreateContainerModal, DeleteContainerModal } from "./ContainerModals"
+ import type { Container } from "@/server/KeyManager/types/keyManager"
+@@ -28,7 +28,7 @@ export function ContainersList({
+   const [showCreate, setShowCreate] = useState(false)
+   const [deleteTarget, setDeleteTarget] = useState<Container | null>(null)
+ 
+-  const { permissions, isLoading: permissionsLoading } = usePermissions(projectId, [
++  const { permissions, isLoading: permissionsLoading } = useKeyManagerPermissions(projectId, [
+     "key-manager:containers:list",
+     "key-manager:containers:create",
+     "key-manager:containers:delete",
+@@ -45,6 +45,13 @@ export function ContainersList({
+     { enabled: permissions["key-manager:containers:list"] }
+   )
+ 
++  // After deleting the last item on a page, step back so the user never lands on an empty page.
++  useEffect(() => {
++    if (!isLoading && !isError && page > 1 && (data?.containers.length ?? 0) === 0) {
++      onPageChange(page - 1)
++    }
++  }, [isLoading, isError, page, data, onPageChange])
++
+   if (permissionsLoading) return null
+   if (!permissions["key-manager:containers:list"]) {
+     return <Message variant="warning">You do not have permission to view containers.</Message>
+@@ -82,7 +89,7 @@ export function ContainersList({
+           isLoading={isLoading}
+           isError={isError}
+           error={error}
+-          canDelete={permissions["key-manager:containers:delete"]}
++          canDeleteContainer={permissions["key-manager:containers:delete"]}
+           onShowDetails={onShowDetail}
+           onDelete={setDeleteTarget}
+         />
+diff --git a/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderListContainer.test.tsx b/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderListContainer.test.tsx
+index 0acc53bd..b27f9c25 100644
+--- a/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderListContainer.test.tsx
++++ b/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderListContainer.test.tsx
+@@ -39,7 +39,7 @@ const defaultProps = {
+   isLoading: false,
+   isError: false,
+   error: null,
+-  canDelete: true,
++  canDeleteOrder: true,
+   onShowDetails: vi.fn(),
+   onDelete: vi.fn(),
+ }
+diff --git a/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderListContainer.tsx b/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderListContainer.tsx
+index e1b0dc50..93c7d7c2 100644
+--- a/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderListContainer.tsx
++++ b/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderListContainer.tsx
+@@ -9,7 +9,7 @@ interface OrderListContainerProps {
+   isLoading: boolean
+   isError: boolean
+   error: { message?: string } | null
+-  canDelete: boolean
++  canDeleteOrder: boolean
+   onShowDetails: (order: Order) => void
+   onDelete: (order: Order) => void
+ }
+@@ -19,7 +19,7 @@ export function OrderListContainer({
+   isLoading,
+   isError,
+   error,
+-  canDelete,
++  canDeleteOrder,
+   onShowDetails,
+   onDelete,
+ }: OrderListContainerProps) {
+@@ -45,7 +45,7 @@ export function OrderListContainer({
+           <OrderTableRow
+             key={order.order_ref}
+             order={order}
+-            canDelete={canDelete}
++            canDeleteOrder={canDeleteOrder}
+             onShowDetails={onShowDetails}
+             onDelete={onDelete}
+           />
+diff --git a/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderModals.tsx b/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderModals.tsx
+index 4c695db0..16ed616f 100644
+--- a/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderModals.tsx
++++ b/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderModals.tsx
+@@ -39,22 +39,31 @@ export function CreateOrderModal({
+     },
+   })
+ 
++  const parsedBitLength = Number(bitLength)
++  const algorithmError = algorithm.trim() === "" ? t`Algorithm is required.` : undefined
++  const bitLengthError =
++    !Number.isInteger(parsedBitLength) || parsedBitLength <= 0 ? t`Bit length must be a positive integer.` : undefined
++  const isValid = !algorithmError && !bitLengthError
++
++  const handleConfirm = () => {
++    if (!isValid) return
++    createMutation.mutate({
++      project_id: projectId,
++      type: orderType,
++      meta: { algorithm: algorithm.trim(), bit_length: parsedBitLength },
++    })
++  }
++
+   return (
+     <Modal
+       open
+       size="large"
+       title={t`Create Order`}
+       onCancel={onClose}
+-      onConfirm={() =>
+-        createMutation.mutate({
+-          project_id: projectId,
+-          type: orderType,
+-          meta: { algorithm, bit_length: parseInt(bitLength, 10) },
+-        })
+-      }
++      onConfirm={handleConfirm}
+       confirmButtonLabel={t`Create`}
+       cancelButtonLabel={t`Cancel`}
+-      disableConfirmButton={createMutation.isPending}
++      disableConfirmButton={createMutation.isPending || !isValid}
+       disableCancelButton={createMutation.isPending}
+     >
+       <Form
+@@ -79,8 +88,11 @@ export function CreateOrderModal({
+             <TextInput
+               id="algorithm"
+               label={t`Algorithm`}
++              required
+               value={algorithm}
+               onChange={(e) => setAlgorithm(e.target.value)}
++              invalid={Boolean(algorithmError)}
++              errortext={algorithmError}
+             />
+           </FormRow>
+           <FormRow>
+@@ -88,8 +100,11 @@ export function CreateOrderModal({
+               id="bit-length"
+               type="number"
+               label={t`Bit Length`}
++              required
+               value={bitLength}
+               onChange={(e) => setBitLength(e.target.value)}
++              invalid={Boolean(bitLengthError)}
++              errortext={bitLengthError}
+             />
+           </FormRow>
+         </FormSection>
+diff --git a/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderTableRow.test.tsx b/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderTableRow.test.tsx
+index 9e1e8d2e..05764cdb 100644
+--- a/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderTableRow.test.tsx
++++ b/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderTableRow.test.tsx
+@@ -25,7 +25,7 @@ const renderRow = (order: Order = mockOrder, canDelete = true) => {
+   render(
+     <I18nProvider i18n={i18n}>
+       <PortalProvider>
+-        <OrderTableRow order={order} canDelete={canDelete} onShowDetails={onShowDetails} onDelete={onDelete} />
++        <OrderTableRow order={order} canDeleteOrder={canDelete} onShowDetails={onShowDetails} onDelete={onDelete} />
+       </PortalProvider>
+     </I18nProvider>
+   )
+@@ -62,7 +62,7 @@ describe("OrderTableRow", () => {
+       const user = userEvent.setup()
+       const { onShowDetails } = renderRow()
+ 
+-      await user.click(screen.getByRole("button", { name: "More" }))
++      await user.click(screen.getByRole("button", { name: "Order actions" }))
+       await user.click(await screen.findByText("Show Details"))
+ 
+       expect(onShowDetails).toHaveBeenCalledWith(mockOrder)
+@@ -72,7 +72,7 @@ describe("OrderTableRow", () => {
+       const user = userEvent.setup()
+       const { onDelete } = renderRow(mockOrder, true)
+ 
+-      await user.click(screen.getByRole("button", { name: "More" }))
++      await user.click(screen.getByRole("button", { name: "Order actions" }))
+       await user.click(await screen.findByText("Delete"))
+ 
+       expect(onDelete).toHaveBeenCalledWith(mockOrder)
+@@ -82,7 +82,7 @@ describe("OrderTableRow", () => {
+       const user = userEvent.setup()
+       renderRow(mockOrder, false)
+ 
+-      await user.click(screen.getByRole("button", { name: "More" }))
++      await user.click(screen.getByRole("button", { name: "Order actions" }))
+ 
+       expect(await screen.findByText("Show Details")).toBeInTheDocument()
+       expect(screen.queryByText("Delete")).not.toBeInTheDocument()
+diff --git a/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderTableRow.tsx b/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderTableRow.tsx
+index c797b953..dcf44945 100644
+--- a/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderTableRow.tsx
++++ b/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderTableRow.tsx
+@@ -1,9 +1,12 @@
+ import {
+   DataGridRow,
+   DataGridCell,
++  Button,
+   PopupMenu,
++  PopupMenuToggle,
+   PopupMenuItem,
+   PopupMenuOptions,
++  PopupMenuSectionSeparator,
+ } from "@cloudoperators/juno-ui-components"
+ import { useLingui } from "@lingui/react/macro"
+ import { uuidFromRef } from "../../-components/utils"
+@@ -12,12 +15,12 @@ import type { Order } from "@/server/KeyManager/types/keyManager"
+ 
+ interface OrderTableRowProps {
+   order: Order
+-  canDelete: boolean
++  canDeleteOrder: boolean
+   onShowDetails: (order: Order) => void
+   onDelete: (order: Order) => void
+ }
+ 
+-export function OrderTableRow({ order, canDelete, onShowDetails, onDelete }: OrderTableRowProps) {
++export function OrderTableRow({ order, canDeleteOrder, onShowDetails, onDelete }: OrderTableRowProps) {
+   const { t } = useLingui()
+   const id = uuidFromRef(order.order_ref)
+   return (
+@@ -31,9 +34,17 @@ export function OrderTableRow({ order, canDelete, onShowDetails, onDelete }: Ord
+       <DataGridCell>{order.type}</DataGridCell>
+       <DataGridCell onClick={(e: React.MouseEvent) => e.stopPropagation()} className="items-end pr-0">
+         <PopupMenu>
++          <PopupMenuToggle as="div">
++            <Button icon="moreVert" title={t`Order actions`} />
++          </PopupMenuToggle>
+           <PopupMenuOptions>
+             <PopupMenuItem label={t`Show Details`} onClick={() => onShowDetails(order)} />
+-            {canDelete && <PopupMenuItem label={t`Delete`} onClick={() => onDelete(order)} />}
++            {canDeleteOrder && (
++              <>
++                <PopupMenuSectionSeparator />
++                <PopupMenuItem label={t`Delete`} onClick={() => onDelete(order)} />
++              </>
++            )}
+           </PopupMenuOptions>
+         </PopupMenu>
+       </DataGridCell>
+diff --git a/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrdersList.tsx b/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrdersList.tsx
+index 78f2dcc7..c0127857 100644
+--- a/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrdersList.tsx
++++ b/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrdersList.tsx
+@@ -1,4 +1,4 @@
+-import { useState } from "react"
++import { useEffect, useState } from "react"
+ import {
+   Button,
+   Message,
+@@ -9,7 +9,7 @@ import {
+   Stack,
+ } from "@cloudoperators/juno-ui-components"
+ import { trpcReact } from "@/client/trpcClient"
+-import { usePermissions } from "../../-components/usePermissions"
++import { useKeyManagerPermissions } from "../../-components/useKeyManagerPermissions"
+ import { OrderListContainer } from "./OrderListContainer"
+ import { CreateOrderModal, DeleteOrderModal } from "./OrderModals"
+ import type { Order } from "@/server/KeyManager/types/keyManager"
+@@ -31,7 +31,7 @@ export function OrdersList({ projectId, sort, page, onSortChange, onPageChange,
+   const [showCreate, setShowCreate] = useState(false)
+   const [deleteTarget, setDeleteTarget] = useState<Order | null>(null)
+ 
+-  const { permissions, isLoading: permissionsLoading } = usePermissions(projectId, [
++  const { permissions, isLoading: permissionsLoading } = useKeyManagerPermissions(projectId, [
+     "key-manager:orders:list",
+     "key-manager:orders:create",
+     "key-manager:orders:delete",
+@@ -50,6 +50,13 @@ export function OrdersList({ projectId, sort, page, onSortChange, onPageChange,
+     { enabled: permissions["key-manager:orders:list"] }
+   )
+ 
++  // After deleting the last item on a page, step back so the user never lands on an empty page.
++  useEffect(() => {
++    if (!isLoading && !isError && page > 1 && (data?.orders.length ?? 0) === 0) {
++      onPageChange(page - 1)
++    }
++  }, [isLoading, isError, page, data, onPageChange])
++
+   if (permissionsLoading) return null
+   if (!permissions["key-manager:orders:list"]) {
+     return <Message variant="warning">You do not have permission to view orders.</Message>
+@@ -88,7 +95,7 @@ export function OrdersList({ projectId, sort, page, onSortChange, onPageChange,
+           isLoading={isLoading}
+           isError={isError}
+           error={error}
+-          canDelete={permissions["key-manager:orders:delete"]}
++          canDeleteOrder={permissions["key-manager:orders:delete"]}
+           onShowDetails={onShowDetail}
+           onDelete={setDeleteTarget}
+         />
+diff --git a/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretDetailsView.tsx b/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretDetailsView.tsx
+index 2501f619..77d4f230 100644
+--- a/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretDetailsView.tsx
++++ b/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretDetailsView.tsx
+@@ -5,6 +5,7 @@ import { trpcReact } from "@/client/trpcClient"
+ import { ContentHeader } from "@/client/components/ContentHeader/ContentHeader"
+ import { TwoColumnDescriptionList, type DetailListItem } from "@/client/components/TwoColumnDescriptionList"
+ import ClipboardText from "@/client/components/ClipboardText"
++import { useKeyManagerPermissions } from "../../-components/useKeyManagerPermissions"
+ 
+ interface SecretDetailsViewProps {
+   projectId: string
+@@ -16,6 +17,10 @@ export function SecretDetailsView({ projectId, secretId, onBack }: SecretDetails
+   const { t } = useLingui()
+   const [showPayload, setShowPayload] = useState(false)
+ 
++  // Payload exposes the raw secret material; fail-closed until the dedicated permission resolves.
++  const { permissions } = useKeyManagerPermissions(projectId, ["key-manager:secrets:payload"])
++  const canRevealPayload = permissions["key-manager:secrets:payload"]
++
+   const {
+     data: secret,
+     isLoading,
+@@ -38,6 +43,7 @@ export function SecretDetailsView({ projectId, secretId, onBack }: SecretDetails
+   if (!secret) return <Status status="empty" title={t`Secret Not Found`} />
+ 
+   const handleRevealPayload = async () => {
++    if (!canRevealPayload) return
+     await fetchPayload()
+     setShowPayload(true)
+   }
+@@ -82,34 +88,36 @@ export function SecretDetailsView({ projectId, secretId, onBack }: SecretDetails
+           <TwoColumnDescriptionList items={detailItems} />
+         </Stack>
+ 
+-        <Stack direction="vertical" gap="2">
+-          <ContentHeading>{t`Payload`}</ContentHeading>
+-          {!showPayload ? (
+-            <div>
+-              <Button variant="subdued" onClick={handleRevealPayload} disabled={payloadFetching}>
+-                {payloadFetching ? t`Loading Payload...` : t`Reveal Payload`}
+-              </Button>
+-            </div>
+-          ) : payloadError ? (
+-            <Message variant="error" text={t`Failed to load payload.`} />
+-          ) : payloadData ? (
+-            <Stack direction="vertical" gap="2">
+-              <p className="text-sm opacity-60">{payloadData.contentType}</p>
+-              <pre className="bg-theme-background-lvl-2 max-h-48 overflow-auto rounded p-3 text-xs">
+-                {payloadData.payload}
+-              </pre>
+-              <Stack gap="2">
+-                <Button
+-                  size="small"
+-                  variant="subdued"
+-                  onClick={() => void navigator.clipboard.writeText(payloadData.payload)}
+-                  label={t`Copy`}
+-                />
+-                <Button size="small" variant="subdued" onClick={() => setShowPayload(false)} label={t`Hide`} />
++        {canRevealPayload && (
++          <Stack direction="vertical" gap="2">
++            <ContentHeading>{t`Payload`}</ContentHeading>
++            {!showPayload ? (
++              <div>
++                <Button variant="subdued" onClick={handleRevealPayload} disabled={payloadFetching}>
++                  {payloadFetching ? t`Loading Payload...` : t`Reveal Payload`}
++                </Button>
++              </div>
++            ) : payloadError ? (
++              <Message variant="error" text={t`Failed to load payload.`} />
++            ) : payloadData ? (
++              <Stack direction="vertical" gap="2">
++                <p className="text-sm opacity-60">{payloadData.contentType}</p>
++                <pre className="bg-theme-background-lvl-2 max-h-48 overflow-auto rounded p-3 text-xs">
++                  {payloadData.payload}
++                </pre>
++                <Stack gap="2">
++                  <Button
++                    size="small"
++                    variant="subdued"
++                    onClick={() => void navigator.clipboard.writeText(payloadData.payload)}
++                    label={t`Copy`}
++                  />
++                  <Button size="small" variant="subdued" onClick={() => setShowPayload(false)} label={t`Hide`} />
++                </Stack>
+               </Stack>
+-            </Stack>
+-          ) : null}
+-        </Stack>
++            ) : null}
++          </Stack>
++        )}
+       </Stack>
+     </>
+   )
+diff --git a/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretListContainer.test.tsx b/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretListContainer.test.tsx
+index 82fd4108..baa21da8 100644
+--- a/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretListContainer.test.tsx
++++ b/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretListContainer.test.tsx
+@@ -41,7 +41,7 @@ const defaultProps = {
+   isLoading: false,
+   isError: false,
+   error: null,
+-  canDelete: true,
++  canDeleteSecret: true,
+   onShowDetails: vi.fn(),
+   onDelete: vi.fn(),
+ }
+diff --git a/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretListContainer.tsx b/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretListContainer.tsx
+index e2cad148..2d1f34cb 100644
+--- a/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretListContainer.tsx
++++ b/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretListContainer.tsx
+@@ -9,7 +9,7 @@ interface SecretListContainerProps {
+   isLoading: boolean
+   isError: boolean
+   error: { message?: string } | null
+-  canDelete: boolean
++  canDeleteSecret: boolean
+   onShowDetails: (secret: Secret) => void
+   onDelete: (secret: Secret) => void
+ }
+@@ -19,7 +19,7 @@ export function SecretListContainer({
+   isLoading,
+   isError,
+   error,
+-  canDelete,
++  canDeleteSecret,
+   onShowDetails,
+   onDelete,
+ }: SecretListContainerProps) {
+@@ -45,7 +45,7 @@ export function SecretListContainer({
+           <SecretTableRow
+             key={secret.secret_ref}
+             secret={secret}
+-            canDelete={canDelete}
++            canDeleteSecret={canDeleteSecret}
+             onShowDetails={onShowDetails}
+             onDelete={onDelete}
+           />
+diff --git a/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretTableRow.test.tsx b/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretTableRow.test.tsx
+index 7a30daa8..78bf1747 100644
+--- a/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretTableRow.test.tsx
++++ b/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretTableRow.test.tsx
+@@ -27,7 +27,7 @@ const renderRow = (secret: Secret = mockSecret, canDelete = true) => {
+   render(
+     <I18nProvider i18n={i18n}>
+       <PortalProvider>
+-        <SecretTableRow secret={secret} canDelete={canDelete} onShowDetails={onShowDetails} onDelete={onDelete} />
++        <SecretTableRow secret={secret} canDeleteSecret={canDelete} onShowDetails={onShowDetails} onDelete={onDelete} />
+       </PortalProvider>
+     </I18nProvider>
+   )
+@@ -83,7 +83,7 @@ describe("SecretTableRow", () => {
+       const user = userEvent.setup()
+       const { onShowDetails } = renderRow()
+ 
+-      await user.click(screen.getByRole("button", { name: "More" }))
++      await user.click(screen.getByRole("button", { name: "Secret actions" }))
+       await user.click(await screen.findByText("Show Details"))
+ 
+       expect(onShowDetails).toHaveBeenCalledWith(mockSecret)
+@@ -93,7 +93,7 @@ describe("SecretTableRow", () => {
+       const user = userEvent.setup()
+       const { onDelete } = renderRow(mockSecret, true)
+ 
+-      await user.click(screen.getByRole("button", { name: "More" }))
++      await user.click(screen.getByRole("button", { name: "Secret actions" }))
+       await user.click(await screen.findByText("Delete"))
+ 
+       expect(onDelete).toHaveBeenCalledWith(mockSecret)
+@@ -103,7 +103,7 @@ describe("SecretTableRow", () => {
+       const user = userEvent.setup()
+       renderRow(mockSecret, false)
+ 
+-      await user.click(screen.getByRole("button", { name: "More" }))
++      await user.click(screen.getByRole("button", { name: "Secret actions" }))
+ 
+       expect(await screen.findByText("Show Details")).toBeInTheDocument()
+       expect(screen.queryByText("Delete")).not.toBeInTheDocument()
+diff --git a/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretTableRow.tsx b/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretTableRow.tsx
+index b2f48277..6f70e33d 100644
+--- a/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretTableRow.tsx
++++ b/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretTableRow.tsx
+@@ -1,9 +1,12 @@
+ import {
+   DataGridRow,
+   DataGridCell,
++  Button,
+   PopupMenu,
++  PopupMenuToggle,
+   PopupMenuItem,
+   PopupMenuOptions,
++  PopupMenuSectionSeparator,
+ } from "@cloudoperators/juno-ui-components"
+ import { useLingui } from "@lingui/react/macro"
+ import { uuidFromRef } from "../../-components/utils"
+@@ -12,12 +15,12 @@ import type { Secret } from "@/server/KeyManager/types/keyManager"
+ 
+ interface SecretTableRowProps {
+   secret: Secret
+-  canDelete: boolean
++  canDeleteSecret: boolean
+   onShowDetails: (secret: Secret) => void
+   onDelete: (secret: Secret) => void
+ }
+ 
+-export function SecretTableRow({ secret, canDelete, onShowDetails, onDelete }: SecretTableRowProps) {
++export function SecretTableRow({ secret, canDeleteSecret, onShowDetails, onDelete }: SecretTableRowProps) {
+   const { t } = useLingui()
+   const id = uuidFromRef(secret.secret_ref)
+   return (
+@@ -33,9 +36,17 @@ export function SecretTableRow({ secret, canDelete, onShowDetails, onDelete }: S
+       <DataGridCell>{secret.content_types ? Object.values(secret.content_types).join(", ") : "- -"}</DataGridCell>
+       <DataGridCell onClick={(e: React.MouseEvent) => e.stopPropagation()} className="items-end pr-0">
+         <PopupMenu>
++          <PopupMenuToggle as="div">
++            <Button icon="moreVert" title={t`Secret actions`} />
++          </PopupMenuToggle>
+           <PopupMenuOptions>
+             <PopupMenuItem label={t`Show Details`} onClick={() => onShowDetails(secret)} />
+-            {canDelete && <PopupMenuItem label={t`Delete`} onClick={() => onDelete(secret)} />}
++            {canDeleteSecret && (
++              <>
++                <PopupMenuSectionSeparator />
++                <PopupMenuItem label={t`Delete`} onClick={() => onDelete(secret)} />
++              </>
++            )}
+           </PopupMenuOptions>
+         </PopupMenu>
+       </DataGridCell>
+diff --git a/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx b/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx
+index 88576d48..0f34051f 100644
+--- a/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx
++++ b/packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx
+@@ -1,4 +1,4 @@
+-import { useState } from "react"
++import { useEffect, useState } from "react"
+ import {
+   Button,
+   DataGridToolbar,
+@@ -11,7 +11,7 @@ import {
+   Stack,
+ } from "@cloudoperators/juno-ui-components"
+ import { trpcReact } from "@/client/trpcClient"
+-import { usePermissions } from "../../-components/usePermissions"
++import { useKeyManagerPermissions } from "../../-components/useKeyManagerPermissions"
+ import { SecretListContainer } from "./SecretListContainer"
+ import { CreateSecretModal, DeleteSecretModal } from "./SecretModals"
+ import type { Secret } from "@/server/KeyManager/types/keyManager"
+@@ -47,7 +47,7 @@ export function SecretsList({
+   const [showCreate, setShowCreate] = useState(false)
+   const [deleteTarget, setDeleteTarget] = useState<Secret | null>(null)
+ 
+-  const { permissions, isLoading: permissionsLoading } = usePermissions(projectId, [
++  const { permissions, isLoading: permissionsLoading } = useKeyManagerPermissions(projectId, [
+     "key-manager:secrets:list",
+     "key-manager:secrets:create",
+     "key-manager:secrets:delete",
+@@ -67,6 +67,13 @@ export function SecretsList({
+     { enabled: permissions["key-manager:secrets:list"] }
+   )
+ 
++  // After deleting the last item on a page, step back so the user never lands on an empty page.
++  useEffect(() => {
++    if (!isLoading && !isError && page > 1 && (data?.secrets.length ?? 0) === 0) {
++      onPageChange(page - 1)
++    }
++  }, [isLoading, isError, page, data, onPageChange])
++
+   if (permissionsLoading) return null
+   if (!permissions["key-manager:secrets:list"]) {
+     return <Message variant="warning">You do not have permission to view secrets.</Message>
+@@ -117,7 +124,7 @@ export function SecretsList({
+           isLoading={isLoading}
+           isError={isError}
+           error={error}
+-          canDelete={permissions["key-manager:secrets:delete"]}
++          canDeleteSecret={permissions["key-manager:secrets:delete"]}
+           onShowDetails={onShowDetail}
+           onDelete={setDeleteTarget}
+         />
+diff --git a/packages/aurora/src/client/routes/_auth/projects/-components/buildNavSections.ts b/packages/aurora/src/client/routes/_auth/projects/-components/buildNavSections.ts
+index 338fd0f7..5d20d263 100644
+--- a/packages/aurora/src/client/routes/_auth/projects/-components/buildNavSections.ts
++++ b/packages/aurora/src/client/routes/_auth/projects/-components/buildNavSections.ts
+@@ -151,7 +151,7 @@ export function buildNavSections(
+         section: "authorization",
+         label: t`Authorization`,
+         services: [
+-          ...(serviceIndex["key-manager"]?.["barbican"]
++          ...(serviceIndex["key-manager"]?.["barbican"] && isEnabled("key-manager")
+             ? [
+                 {
+                   service: "key-manager",
+diff --git a/packages/aurora/src/server/KeyManager/routers/keyManagerRouter.test.ts b/packages/aurora/src/server/KeyManager/routers/keyManagerRouter.test.ts
+index f4bf0e5b..3a2ddc17 100644
+--- a/packages/aurora/src/server/KeyManager/routers/keyManagerRouter.test.ts
++++ b/packages/aurora/src/server/KeyManager/routers/keyManagerRouter.test.ts
+@@ -288,13 +288,16 @@ describe("keyManagerRouter secrets", () => {
+       expect(result).toEqual({ payload: "my-key", contentType: "application/octet-stream" })
+     })
+ 
+-    it("requests the payload endpoint", async () => {
++    it("requests the payload endpoint with an octet-stream Accept header and debugging disabled", async () => {
+       const ctx = createMockContext()
+       const caller = createCaller(ctx)
+ 
+       await caller.keyManager.getSecretPayload({ project_id: TEST_PROJECT_ID, secretId: "secret-1" })
+ 
+-      expect(ctx.__getMock).toHaveBeenCalledWith("v1/secrets/secret-1/payload")
++      expect(ctx.__getMock).toHaveBeenCalledWith("v1/secrets/secret-1/payload", {
++        headers: { Accept: "application/octet-stream" },
++        debug: false,
++      })
+     })
+   })
+ 
+@@ -440,38 +443,6 @@ describe("keyManagerRouter containers", () => {
+     })
+   })
+ 
+-  describe("addContainerSecret / deleteContainerSecret", () => {
+-    it("posts a secret reference into the container", async () => {
+-      const ctx = createMockContext()
+-      const caller = createCaller(ctx)
+-
+-      await caller.keyManager.addContainerSecret({
+-        project_id: TEST_PROJECT_ID,
+-        containerId: "container-1",
+-        name: "extra",
+-        secret_ref: "https://barbican.example.com/v1/secrets/secret-2",
+-      })
+-
+-      expect(ctx.__postMock).toHaveBeenCalledWith("v1/containers/container-1/secrets", {
+-        name: "extra",
+-        secret_ref: "https://barbican.example.com/v1/secrets/secret-2",
+-      })
+-    })
+-
+-    it("deletes a named secret from the container", async () => {
+-      const ctx = createMockContext({ httpStatus: 204 })
+-      const caller = createCaller(ctx)
+-
+-      await caller.keyManager.deleteContainerSecret({
+-        project_id: TEST_PROJECT_ID,
+-        containerId: "container-1",
+-        secretName: "extra",
+-      })
+-
+-      expect(ctx.__delMock).toHaveBeenCalledWith("v1/containers/container-1/secrets/extra")
+-    })
+-  })
+-
+   describe("deleteContainer", () => {
+     it("calls the delete endpoint", async () => {
+       const ctx = createMockContext({ httpStatus: 204 })
+diff --git a/packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts b/packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts
+index 3388ecb3..c760244f 100644
+--- a/packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts
++++ b/packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts
+@@ -95,9 +95,16 @@ export const keyManagerRouter = {
+     .query(async ({ input, ctx }) => {
+       const km = ctx.openstack?.service("key-manager")
+       validateOpenstackService(km, "key-manager")
+-      const res = await km.get(`v1/secrets/${encodeURIComponent(input.secretId)}/payload`).catch((e: unknown) => {
+-        throw mapKmError(e, "get secret payload")
+-      })
++      // Barbican's /payload endpoint rejects the client's default Accept: application/json with 406;
++      // request the raw stored material instead. debug:false keeps secret material out of transport logs.
++      const res = await km
++        .get(`v1/secrets/${encodeURIComponent(input.secretId)}/payload`, {
++          headers: { Accept: "application/octet-stream" },
++          debug: false,
++        })
++        .catch((e: unknown) => {
++          throw mapKmError(e, "get secret payload")
++        })
+       if (!res.ok) throw mapKmError({ statusCode: res.status }, "get secret payload")
+       const contentType = res.headers?.get?.("content-type") ?? "text/plain"
+       const text = await res.text()
+@@ -216,46 +223,6 @@ export const keyManagerRouter = {
+       if (res && !res.ok) throw mapKmError({ statusCode: res.status }, "delete container")
+     }),
+ 
+-  addContainerSecret: projectScopedProcedure
+-    .input(
+-      projectScopedInputSchema.extend({
+-        containerId: z.string(),
+-        name: z.string(),
+-        secret_ref: z.string(),
+-      })
+-    )
+-    .mutation(async ({ input, ctx }) => {
+-      const km = ctx.openstack?.service("key-manager")
+-      validateOpenstackService(km, "key-manager")
+-      const res = await km
+-        .post(`v1/containers/${encodeURIComponent(input.containerId)}/secrets`, {
+-          name: input.name,
+-          secret_ref: input.secret_ref,
+-        })
+-        .catch((e: unknown) => {
+-          throw mapKmError(e, "add container secret")
+-        })
+-      if (!res.ok) throw mapKmError({ statusCode: res.status }, "add container secret")
+-    }),
+-
+-  deleteContainerSecret: projectScopedProcedure
+-    .input(
+-      projectScopedInputSchema.extend({
+-        containerId: z.string(),
+-        secretName: z.string(),
+-      })
+-    )
+-    .mutation(async ({ input, ctx }) => {
+-      const km = ctx.openstack?.service("key-manager")
+-      validateOpenstackService(km, "key-manager")
+-      const res = await km
+-        .del(`v1/containers/${encodeURIComponent(input.containerId)}/secrets/${encodeURIComponent(input.secretName)}`)
+-        .catch((e: unknown) => {
+-          throw mapKmError(e, "delete container secret")
+-        })
+-      if (res && !res.ok) throw mapKmError({ statusCode: res.status }, "delete container secret")
+-    }),
+-
+   // ─── Orders ───────────────────────────────────────────────────────────────
+ 
+   listOrders: projectScopedProcedure
+diff --git a/packages/aurora/src/server/KeyManager/types/keyManager.test.ts b/packages/aurora/src/server/KeyManager/types/keyManager.test.ts
+index 26214ea4..c590ca64 100644
+--- a/packages/aurora/src/server/KeyManager/types/keyManager.test.ts
++++ b/packages/aurora/src/server/KeyManager/types/keyManager.test.ts
+@@ -91,6 +91,14 @@ describe("ContainerSchema", () => {
+   it("requires secret_refs entries to have a name and secret_ref", () => {
+     expect(ContainerSchema.safeParse({ ...validContainer, secret_refs: [{ name: "x" }] }).success).toBe(false)
+   })
++
++  it("accepts a null name on a secret reference (Barbican allows unnamed references)", () => {
++    const result = ContainerSchema.safeParse({
++      ...validContainer,
++      secret_refs: [{ name: null, secret_ref: "https://barbican.example.com/v1/secrets/secret-9" }],
++    })
++    expect(result.success).toBe(true)
++  })
+ })
+ 
+ describe("OrderSchema", () => {
+diff --git a/packages/aurora/src/server/KeyManager/types/keyManager.ts b/packages/aurora/src/server/KeyManager/types/keyManager.ts
+index d4e587e2..da391660 100644
+--- a/packages/aurora/src/server/KeyManager/types/keyManager.ts
++++ b/packages/aurora/src/server/KeyManager/types/keyManager.ts
+@@ -22,7 +22,7 @@ export const ContainerSchema = z.object({
+   status: z.string(),
+   created: z.string(),
+   updated: z.string(),
+-  secret_refs: z.array(z.object({ name: z.string(), secret_ref: z.string() })),
++  secret_refs: z.array(z.object({ name: z.string().nullable(), secret_ref: z.string() })),
+   consumers: z.array(z.unknown()).optional(),
+ })
+ 
+diff --git a/packages/aurora/src/locales/de/messages.po b/packages/aurora/src/locales/de/messages.po
+index a83b0b19..a32e26d4 100644
+--- a/packages/aurora/src/locales/de/messages.po
++++ b/packages/aurora/src/locales/de/messages.po
+@@ -475,6 +475,9 @@ msgstr ""
+ msgid "Algorithm"
+ msgstr ""
+ 
++msgid "Algorithm is required."
++msgstr ""
++
+ msgid "All"
+ msgstr ""
+ 
+@@ -643,6 +646,9 @@ msgstr "Grundlegende Informationen"
+ msgid "Bit Length"
+ msgstr ""
+ 
++msgid "Bit length must be a positive integer."
++msgstr ""
++
+ msgid "Boot RAM"
+ msgstr "Boot-RAM"
+ 
+@@ -3061,6 +3070,9 @@ msgstr "oder per Drag & Drop"
+ msgid "Order"
+ msgstr ""
+ 
++msgid "Order actions"
++msgstr ""
++
+ msgid "Order Details"
+ msgstr ""
+ 
+@@ -3493,6 +3505,9 @@ msgstr ""
+ msgid "Secret Access Key"
+ msgstr ""
+ 
++msgid "Secret actions"
++msgstr ""
++
+ msgid "Secret Details"
+ msgstr ""
+ 
+diff --git a/packages/aurora/src/locales/en/messages.po b/packages/aurora/src/locales/en/messages.po
+index 318d9d31..7a19b90e 100644
+--- a/packages/aurora/src/locales/en/messages.po
++++ b/packages/aurora/src/locales/en/messages.po
+@@ -475,6 +475,9 @@ msgstr "After restoring, this version's content will become the new latest versi
+ msgid "Algorithm"
+ msgstr "Algorithm"
+ 
++msgid "Algorithm is required."
++msgstr "Algorithm is required."
++
+ msgid "All"
+ msgstr "All"
+ 
+@@ -643,6 +646,9 @@ msgstr "Basic Info"
+ msgid "Bit Length"
+ msgstr "Bit Length"
+ 
++msgid "Bit length must be a positive integer."
++msgstr "Bit length must be a positive integer."
++
+ msgid "Boot RAM"
+ msgstr "Boot RAM"
+ 
+@@ -3061,6 +3070,9 @@ msgstr "or drag and drop"
+ msgid "Order"
+ msgstr "Order"
+ 
++msgid "Order actions"
++msgstr "Order actions"
++
+ msgid "Order Details"
+ msgstr "Order Details"
+ 
+@@ -3493,6 +3505,9 @@ msgstr "Secret access key"
+ msgid "Secret Access Key"
+ msgstr "Secret Access Key"
+ 
++msgid "Secret actions"
++msgstr "Secret actions"
++
+ msgid "Secret Details"
+ msgstr "Secret Details"
+ 

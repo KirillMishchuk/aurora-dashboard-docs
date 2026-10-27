@@ -1,0 +1,278 @@
+{
+ "candidates": [
+  {
+   "claim": "The detail route's loader already fetches the network via getById, and RouteComponent then fetches the same network again with trpcReact getById.useQuery. The loader only uses the result for the page title, so every detail visit makes two identical requests.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/$networkId.tsx:124",
+   "evidence": "A.3: 'Data critical for rendering a page must be fetched via the route's loader function rather than loading it inside the component body.' Loader line 124 calls context.trpcClient?.network.networks.getById.query; line 149 calls trpcReact.network.networks.getById.useQuery with the same input.",
+   "source": "finder-a",
+   "id": "C1",
+   "group": null,
+   "batch": 1
+  },
+  {
+   "claim": "A 401 is handled inline: NetworkLoadError renders an error message ('The session has expired...') in the page instead of redirecting to Sign-in. 403 also renders a plain error page without the page-level info Message explaining the lack of access.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/$networkId.tsx:65",
+   "evidence": "B.6 Reject: 'a 401/403 handled inline instead of via redirect / page-level info Message'. Lines 63-66 map FORBIDDEN and UNAUTHORIZED to error descriptions in RouteIdLevelDefaultError.",
+   "source": "finder-a",
+   "id": "C2",
+   "group": [
+    "C2",
+    "C3"
+   ],
+   "batch": 1
+  },
+  {
+   "claim": "The UNAUTHORIZED copy says 'Log in again to continue.' The UX writing rule requires 'Sign in', and the recommended 401 copy is 'Authentication failed. Verify your credentials and try again.'",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/$networkId.tsx:66",
+   "evidence": "Quick Reject: 'String using ... \"Sign In\"/\"Log in\" (use \"Sign in\")'. B.19: '\"Sign in\", not \"Sign In\" or \"Log in\"'.",
+   "source": "finder-a",
+   "id": "C3",
+   "group": [
+    "C2",
+    "C3"
+   ],
+   "batch": 1
+  },
+  {
+   "claim": "A raw <button> is used for the 'Try Again' action in the subnets error state, where Juno's Button exists. It has no Juno styling or variant.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkDetailsView.tsx:69",
+   "evidence": "B.1 Reject: 'any PR that introduces a plain <table>, <input>, <select>, or <button> where a Juno equivalent exists.' Line 69: action={<button onClick={() => refetch()}>{t`Try Again`}</button>}. Quick Reject: 'Raw HTML element (<div>, <table>, <button>) where a Juno component exists'.",
+   "source": "finder-a",
+   "id": "C4",
+   "group": null,
+   "batch": 1
+  },
+  {
+   "claim": "Raw <div> elements are used as layout wrappers (break-all wrapper in DetailsList, relative wrapper around ErrorBoundary in Networks) where Juno Stack/Container are the primary layout primitive.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworksList.tsx:223",
+   "evidence": "B.1: 'Primary layout primitive | Stack'; Quick Reject: 'Raw HTML element (<div>...) where a Juno component exists'. NetworksList.tsx:223 <div className=\"relative\">; NetworkDetailsView.tsx:38 <div className=\"break-all\">{value}</div>.",
+   "source": "finder-a",
+   "id": "C5",
+   "group": null,
+   "batch": 1
+  },
+  {
+   "claim": "The active detail tab is held in useState instead of the URL search params, so the Subnets tab is not shareable and is lost on refresh.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkDetailsView.tsx:109",
+   "evidence": "B.9: 'All persistent UI state must live in URL search params' with 'Active tab | tab'; 'Reject any useState for state that should survive a page refresh or be shareable via URL.' Line 109: const [activeTab, setActiveTab] = useState<NetworkDetailsTab>(\"overview\"). Quick Reject: 'URL-worthy state held in useState instead of search params'.",
+   "source": "finder-a",
+   "id": "C6",
+   "group": null,
+   "batch": 1
+  },
+  {
+   "claim": "The row action menu uses <PopupMenu> without a PopupMenuToggle trigger (default toggle), contrary to the required pattern <PopupMenuToggle as=\"div\"><Button icon=\"moreVert\" /></PopupMenuToggle>.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkTableRow.tsx:56",
+   "evidence": "Quick Reject: 'PopupMenu without PopupMenuToggle as trigger'; B.14: 'Context menus must use <PopupMenuToggle as=\"div\"><Button icon=\"moreVert\" /></PopupMenuToggle> as the trigger.' Lines 56-60 render <PopupMenu><PopupMenuOptions>...</PopupMenuOptions></PopupMenu> with no PopupMenuToggle; PopupMenuToggle is not imported.",
+   "source": "finder-a",
+   "id": "C7",
+   "group": null,
+   "batch": 1
+  },
+  {
+   "claim": "Network status is rendered as plain text in the list (and detail Overview) instead of a Badge status indicator.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkTableRow.tsx:43",
+   "evidence": "B.1: 'Status indicators | Badge'. Line 43: <DataGridCell>{network.status}</DataGridCell>; NetworkDetailsView.tsx:116 value: network.status.",
+   "source": "finder-a",
+   "id": "C8",
+   "group": [
+    "C8",
+    "C9"
+   ],
+   "batch": 2
+  },
+  {
+   "claim": "Admin state is shown as 'UP' / 'DOWN', all-caps strings, which the UX writing rule forbids.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkTableRow.tsx:46",
+   "evidence": "Quick Reject: 'String using ... all-caps'; B.19: 'Never all-caps (ever)'. Line 46: network.admin_state_up ? t`UP` : t`DOWN`; same in NetworkDetailsView.tsx:117.",
+   "source": "finder-a",
+   "id": "C9",
+   "group": [
+    "C8",
+    "C9"
+   ],
+   "batch": 2
+  },
+  {
+   "claim": "The label 'Created At' and 'Updated At' capitalise the short preposition 'At', which title-case rules require lowercase.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkDetailsView.tsx:132",
+   "evidence": "B.19: 'Lowercase ... short prepositions (max 5 letters: at, by, for, in, of, on, to, up...)'. Lines 132-133: t`Created At`, t`Updated At`.",
+   "source": "finder-a",
+   "id": "C10",
+   "group": null,
+   "batch": 2
+  },
+  {
+   "claim": "NetworkListContainer mirrors the currentPage prop into inputPage state through a useEffect. This synchronisation can be handled during render or by keying, and costs an extra render on every page change.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkListContainer.tsx:36",
+   "evidence": "A.1: 'Critically evaluate every useEffect hook. Flag synchronizations, computed states ... that can be handled during rendering'. Lines 36-38: useEffect(() => { setInputPage(currentPage.toString()) }, [currentPage]).",
+   "source": "finder-a",
+   "id": "C11",
+   "group": null,
+   "batch": 2
+  },
+  {
+   "claim": "A useEffect corrects an out-of-range page by calling onPageChange(1). This is derived state: safePage is already clamped during render, so the effect only exists to rewrite the URL.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworksList.tsx:97",
+   "evidence": "A.1: 'Flag synchronizations, computed states, or event-driven triggers ... that can be handled during rendering or inside event handlers'. Lines 97-99: useEffect(() => { if (!isStale && currentPage > totalPages) onPageChange(1) }, ...).",
+   "source": "finder-a",
+   "id": "C12",
+   "group": null,
+   "batch": 2
+  },
+  {
+   "claim": "Same work as open draft PR #1385 (Neutron Networks BFF + read-only Networks list/details). Both add the same networks.tsx, networks/index.tsx, $networkId.tsx, -components/*, networksRouter.ts, networkHelpers.ts, types/network.ts and the nav entry. Whichever merges second hits real conflicts in 9 non-generated files, so one of them is wasted effort.",
+   "location": "PR files",
+   "evidence": "context.json overlapping_prs: #1385 shares 18 files, merge conflicts in 9 non-generated files (networksRouter.ts, types/network.ts, networkHelpers.ts, NetworksList.tsx, NetworkDetailsView.tsx, etc.), conclusion conflicts_only_generated=False. git diff --stat of #1385 head 9ed42505 shows a superset: a changeset, docs/0017_networks_bff.md and tests for components, router, helpers and types. This PR adds no tests or changeset. The PR body does not mention #1385.",
+   "discussion": "Nothing in the discussion mentions #1385.",
+   "source": "finder-c",
+   "id": "C13",
+   "group": [
+    "C13",
+    "C22",
+    "C24"
+   ],
+   "batch": 2
+  },
+  {
+   "claim": "The PR adds a new `networks` service key to buildNavSections (gated by isEnabled(\"networks\")), but the comment listing the available enabledServices keys was not updated, so operators reading it do not learn that `networks` can be whitelisted. A deployment that sets VITE_ENABLED_SERVICES per the documented list will silently hide the new Networks nav entry.",
+   "location": "apps/dashboard/.env.example:11",
+   "evidence": "At the head commit, apps/dashboard/.env.example:11 reads '# Available keys: images, flavors, securitygroups, floatingips, containers, ceph-containers, pca'. packages/aurora/README.md:183 and :210 list the same set of service keys. The PR's changed files (context.json) touch neither. buildNavSections.ts:60 now uses isEnabled(\"networks\").",
+   "precedent": "Existing keys (securitygroups, floatingips) are all listed there; routers is also missing, so the list was already incomplete.",
+   "source": "finder-e",
+   "id": "C14",
+   "group": null,
+   "batch": 3
+  },
+  {
+   "claim": "networks.list forwards project_id (from projectScopedInputSchema) to Neutron as a filter, so networks the user may see but does not own (shared networks, external/provider networks owned by another project) are hidden from the list.",
+   "location": "packages/aurora/src/server/Network/routers/networksRouter.ts:42",
+   "evidence": "Code: `const { searchTerm, status, ...openstackFilters } = input` then `const queryParams = appendQueryParamsFromObject(openstackFilters)`; input extends projectScopedInputSchema (`project_id: z.string().trim().min(1, ...)`, trpc.ts:143-144), so project_id=<id> is sent. Reference (https://docs.openstack.org/api-ref/network/v2/#list-networks, networks.inc): 'Default policy settings return only networks that the project who submits the request owns, unless an administrative user submits the request. In addition, networks shared with the project who submits the request are also returned.' project_id is a documented filter (`project_id: project_id-query`), so filtering by it excludes shared networks and external networks owned by other projects. The same-PR-era securityGroupRouter works around this by fetching own and shared separately and unioning. Note also for admin tokens the unfiltered call would return all projects, so the filter is a behaviour choice that should be explicit.",
+   "precedent": "securityGroupRouter.ts:80-87 fetches own (project_id, shared=false) plus shared (shared=true) and merges; floatingIpRouter lists external networks via router:external=true.",
+   "source": "finder-f",
+   "id": "C15",
+   "group": [
+    "C15",
+    "C16",
+    "C18"
+   ],
+   "batch": 3
+  },
+  {
+   "claim": "The list call sends no limit/marker and does not follow next links, so if Neutron pagination is enabled with a max page size, only the first page is shown with no indication of truncation.",
+   "location": "packages/aurora/src/server/Network/routers/networksRouter.ts:43",
+   "evidence": "Code: `network.get(withQuery(NETWORKS_BASE_URL, queryParams))`, then `const { networks } = parseOrThrow(NetworkListResponseSchema, data, ...)`; schema has only `networks`, no `networks_links`. Reference (https://docs.openstack.org/api-ref/network/v2/#pagination, intro.inc): 'To reduce load on the service, list operations will return a maximum number of items at a time. To navigate the collection, the parameters limit, marker and page_reverse can be set in the URI.' ... 'If the client requests a limit beyond the maximum limit configured by the deployment, the server returns the maximum limit number of items.' ... 'list responses contain atom next links and previous links.' Also: 'Pagination is an optional feature ... If pagination is disabled, the pagination parameters will be ignored and return all the items.' The reference gives no numeric default or max (deployment configured). User sees only the first page when there are more networks, silently; subnet_count/search/status filters apply to that page only.",
+   "source": "finder-f",
+   "id": "C16",
+   "group": [
+    "C15",
+    "C16",
+    "C18"
+   ],
+   "batch": 3
+  },
+  {
+   "claim": "NetworkSortKeySchema accepts `shared`, which Neutron's documented network sort keys do not include.",
+   "location": "packages/aurora/src/server/Network/types/network.ts:61",
+   "evidence": "Code: `export const NetworkSortKeySchema = z.enum([\"name\", \"status\", \"admin_state_up\", \"shared\"])` with comment 'Sort keys supported by Neutron'. Reference (https://docs.openstack.org/api-ref/network/v2/#list-networks, parameters.yaml network-sort_key): 'The sort keys are limited to: admin_state_up, availability_zone_hints, id, mtu, name, status, tenant_id, project_id'. `shared` is not listed; sort_key=shared is forwarded to Neutron unchanged, so the comment is wrong and the request may be rejected or ignored. Also sorting is only honoured 'if Neutron configuration supports it with allow_sorting=true' (filtering-list.inc), and the BFF has no fallback sort.",
+   "source": "finder-f",
+   "id": "C17",
+   "group": null,
+   "batch": 3
+  },
+  {
+   "claim": "status filter is applied BFF-side although Neutron documents a server-side `status` filter for list networks; combined with no pagination, filtering only the first page.",
+   "location": "packages/aurora/src/server/Network/routers/networksRouter.ts:39",
+   "evidence": "Code: `const { searchTerm, status, ...openstackFilters } = input` and helper `filterNetworksByBffParams` described as 'Filters Neutron doesn't support directly'. Reference (networks.inc List networks request params): `- status: network-status-query`; parameters.yaml: 'Filter the network list result by network status. Values are ACTIVE, DOWN, BUILD or ERROR.' So the comment in networkHelpers.ts is inaccurate; BFF could pass status through. (BFF compares case-insensitively, Neutron values are uppercase.)",
+   "source": "finder-f",
+   "id": "C18",
+   "group": [
+    "C15",
+    "C16",
+    "C18"
+   ],
+   "batch": 3
+  },
+  {
+   "claim": "listSubnets sends fields and network_id correctly but lists subnets with no pagination and under the same owner-only default policy, so subnets of a shared/external network owned by another project are not returned in the Subnets tab.",
+   "location": "packages/aurora/src/server/Network/routers/networksRouter.ts:92",
+   "evidence": "Code: `appendQueryParamsFromObject({ network_id, fields: [\"id\",\"name\",\"cidr\",\"ip_version\",\"gateway_ip\",\"enable_dhcp\"] })` then `service.get(withQuery(SUBNETS_BASE_URL, params))`. Reference (https://docs.openstack.org/api-ref/network/v2/#list-subnets, subnets.inc): 'Default policy settings return only subnets owned by the project of the user submitting the request, unless the user has administrative role.' (no 'shared' clause, unlike networks). network_id filter is documented (subnet-network_id-query). Fields check: all fields UI schema reads (id,name,cidr,ip_version,gateway_ip,enable_dhcp) are in the list, consistent. Pagination: no limit/marker/next as in the networks list (https://docs.openstack.org/api-ref/network/v2/#pagination).",
+   "source": "finder-f",
+   "id": "C19",
+   "group": null,
+   "batch": 3
+  },
+  {
+   "claim": "Acceptance criterion partly met: tRPC BFF is implemented with complete Zod schema validation for Networks.",
+   "location": "packages/aurora/src/server/Network/types/network.ts:9",
+   "evidence": "`packages/aurora/src/server/Network/types/network.ts:9-95` validates responses and inputs for list, get and subnets. Create, update and delete procedures and their schemas are missing. `pr-body.md` says \"Read-only for now\" and \"Implements the read-view portion\", so the missing writes are out of the PR's stated scope.",
+   "source": "describer (acceptance)",
+   "id": "C20",
+   "group": null,
+   "batch": 3
+  },
+  {
+   "claim": "Acceptance criterion partly met: Users can list, view, create, update, and delete networks (P1 & P2).",
+   "location": "packages/aurora/src/server/Network/routers/networksRouter.ts:35",
+   "evidence": "List (`networksRouter.ts:35`) and view (`networksRouter.ts:61`) are implemented. Create, update and delete (P2) are not. `pr-body.md`: \"Read-only for now — no create/update/delete\". The P2 part falls outside the stated read-view scope, and the P1 part is met.",
+   "source": "describer (acceptance)",
+   "id": "C21",
+   "group": null,
+   "batch": 3
+  },
+  {
+   "claim": "Acceptance criterion partly met: Advanced properties like MTU, Admin State, and Shared status are visible and manageable where appropriate (P3).",
+   "location": "PR files",
+   "evidence": "MTU, admin state, shared, external and port security are visible in `NetworkDetailsView.tsx` `overviewItems` and in the list columns. They are not editable, so the manageable half is not done. `pr-body.md` limits the PR to the read-only part, so that half is out of scope. Tags are shown read-only when present.",
+   "source": "describer (acceptance)",
+   "id": "C22",
+   "group": [
+    "C13",
+    "C22",
+    "C24"
+   ],
+   "batch": 2
+  },
+  {
+   "claim": "Acceptance criterion partly met: Comprehensive error handling provides user-friendly feedback for Neutron errors (e.g., preventing deletion of networks with active ports).",
+   "location": "packages/aurora/src/server/Network/helpers/networkHelpers.ts:8",
+   "evidence": "Reads are covered: BFF `NetworkErrorHandlers` use the shared `ErrorHandler` (`networkHelpers.ts:8-12`). The detail page maps codes to messages with retry (`$networkId.tsx` `getErrorDescription`), and the list handles FORBIDDEN and the error boundary. Delete-time errors are not covered, since there is no delete (out of the read-only scope).",
+   "source": "describer (acceptance)",
+   "id": "C23",
+   "group": null,
+   "batch": 4
+  },
+  {
+   "claim": "Acceptance criterion unmet: Complete testing coverage (unit, integration, E2E) is achieved.",
+   "location": "PR files",
+   "evidence": "The diff has no tests for `networksRouter.ts`, `networkHelpers.ts` or any new component. Only `buildNavSections.test.ts` changed, and the unchecked boxes in `pr-body.md` confirm \"I have added tests\" is unticked. No E2E was added. `pr-body.md` does not limit scope for testing.",
+   "source": "describer (acceptance)",
+   "id": "C24",
+   "group": [
+    "C13",
+    "C22",
+    "C24"
+   ],
+   "batch": 2
+  },
+  {
+   "claim": "Stale caller of `isEnabled(\"networks\") / project home service cards`: The project home page builds Network cards for securitygroups, floatingips and routers but not networks, so Networks appears in the sidebar but not on the home page.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/index.tsx:87",
+   "evidence": "The project home page builds Network cards for securitygroups, floatingips and routers but not networks, so Networks appears in the sidebar but not on the home page.",
+   "source": "describer (stale caller)",
+   "id": "C25",
+   "group": null,
+   "batch": 4
+  },
+  {
+   "claim": "Stale caller of `Service key reference`: The README service-key list (also at line 210) does not include the new `networks` key, which is part of the public `enabledServices` contract. `routers` was already missing.",
+   "location": "packages/aurora/README.md:183",
+   "evidence": "The README service-key list (also at line 210) does not include the new `networks` key, which is part of the public `enabledServices` contract. `routers` was already missing.",
+   "source": "describer (stale caller)",
+   "id": "C26",
+   "group": null,
+   "batch": 4
+  }
+ ],
+ "batches": 4
+}

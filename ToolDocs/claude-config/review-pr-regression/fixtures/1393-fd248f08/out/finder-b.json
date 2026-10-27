@@ -1,0 +1,19 @@
+{
+ "candidates": [
+  {
+   "claim": "SearchInput wires both onSearch and onInput to onSearchChange, and onSearchChange navigates, so every keystroke changes the URL, resets page and fires a new listSecrets request (and likely adds a history entry per character). Typing a name causes request churn and a polluted back-history.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx | onInput={(e) => onSearchChange((e.target as HTMLInputElement).value)}",
+   "evidence": "SecretsList.tsx: SearchInput has onSearch, onClear and onInput all calling onSearchChange; handleSearch in secrets/index.tsx calls navigate({search:{search:value,...}}) with no debounce or replace. Same pattern likely in containers list."
+  },
+  {
+   "claim": "getSecretPayload reads the secret with res.text() and returns it as a tRPC query result, so binary secrets (e.g. application/octet-stream, symmetric keys) are corrupted by UTF-8 decoding and shown as garbage; the plaintext payload also gets cached in the TanStack Query cache.",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:103",
+   "evidence": "keyManagerRouter.ts lines 102-104: `const text = await res.text(); return { payload: text, contentType }`; no Accept header is sent and no binary/base64 handling."
+  },
+  {
+   "claim": "listOrders translates `sort` into sort_key/sort_dir query params, but Barbican's orders list API only supports offset and limit, so the orders sort control is likely a no-op.",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:269",
+   "evidence": "keyManagerRouter.ts lines 269-273 set sort_key/sort_dir; Barbican API reference for GET /v1/orders lists only limit and offset (from memory, not verified online)."
+  }
+ ]
+}

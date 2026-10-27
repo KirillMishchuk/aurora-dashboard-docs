@@ -1,0 +1,122 @@
+{
+ "comments": [
+  {
+   "author": "github-actions",
+   "created": "2026-10-09T10:22:25Z",
+   "url": "https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#issuecomment-6078993959",
+   "body": "🚀 **Preview deployed!**\n👉 [PR #1377](https://pr-1377.aurora-previews.d.c.eu-nl-1.cloud.sap)\n\nCommit: `d381c0dae9cf91bba42f1b1dfb3920bf364799cc`",
+   "bot": true,
+   "own_report": false
+  },
+  {
+   "author": "github-actions",
+   "created": "2026-10-09T10:41:23Z",
+   "url": "https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#issuecomment-6079269753",
+   "body": "🚀 **Preview deployed!**\n👉 [PR #1377](https://pr-1377.aurora-previews.d.c.eu-nl-1.cloud.sap)\n\nCommit: `6b7e9cd08d22396d280446dd372775af7ac56ce0`",
+   "bot": true,
+   "own_report": false
+  },
+  {
+   "author": "github-actions",
+   "created": "2026-10-09T11:13:26Z",
+   "url": "https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#issuecomment-6079741274",
+   "body": "🚀 **Preview deployed!**\n👉 [PR #1377](https://pr-1377.aurora-previews.d.c.eu-nl-1.cloud.sap)\n\nCommit: `ee41646044fec648915611855453fd178023cba3`",
+   "bot": true,
+   "own_report": false
+  },
+  {
+   "author": "github-actions",
+   "created": "2026-10-09T11:21:13Z",
+   "url": "https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#issuecomment-6079853873",
+   "body": "🚀 **Preview deployed!**\n👉 [PR #1377](https://pr-1377.aurora-previews.d.c.eu-nl-1.cloud.sap)\n\nCommit: `86c0e680a0c014f7926e2b6ecd07501907cc4dae`",
+   "bot": true,
+   "own_report": false
+  },
+  {
+   "author": "github-actions",
+   "created": "2026-10-09T11:34:25Z",
+   "url": "https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#issuecomment-6080042726",
+   "body": "🚀 **Preview deployed!**\n👉 [PR #1377](https://pr-1377.aurora-previews.d.c.eu-nl-1.cloud.sap)\n\nCommit: `512f01b1bd79771fbf6b959225231e777c2c7c42`",
+   "bot": true,
+   "own_report": false
+  },
+  {
+   "author": "KirillMishchuk",
+   "created": "2026-10-16T06:59:55Z",
+   "url": "https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#issuecomment-6209974511",
+   "body": "(earlier review-and-comment-pr report — omitted; see the url)",
+   "bot": false,
+   "own_report": true,
+   "own_kind": "review"
+  },
+  {
+   "author": "KirillMishchuk",
+   "created": "2026-10-17T09:54:53Z",
+   "url": "https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#issuecomment-6232520357",
+   "body": "(earlier review-and-comment-pr report — omitted; see the url)",
+   "bot": false,
+   "own_report": true,
+   "own_kind": "review"
+  },
+  {
+   "author": "github-actions",
+   "created": "2026-10-20T14:06:58Z",
+   "url": "https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#issuecomment-6292778054",
+   "body": "🚀 **Preview deployed!**\n👉 [PR #1377](https://pr-1377.aurora-previews.d.c.eu-nl-1.cloud.sap)\n\nCommit: `dc1a4c9057b56429c91902b4d681e7336f560d22`",
+   "bot": true,
+   "own_report": false
+  },
+  {
+   "author": "mark-karnaukh-extern-sap",
+   "created": "2026-10-20T14:43:17Z",
+   "url": "https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#issuecomment-6293554974",
+   "body": "# PR #1377 — Review Findings Verification\r\n\r\n**PR:** feat(aurora): add Neutron Ports BFF and read-only Ports page (list & details)\r\n**Branch:** `mark-manage-ports-interface`\r\n**Epic:** [#816](https://github.com/cobaltcore-dev/aurora-dashboard/issues/816) — Ports Management 001 (Phase 1 = read-only)\r\n**Review verified:** latest report ([issuecomment-6232520357](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#issuecomment-6232520357))\r\n\r\nEach finding below was checked against the actual code on the branch, not against the review's own summary.\r\n\r\n## Verification table — all 12 findings\r\n\r\n| # | Finding | How verified | Final verdict |\r\n|---|---|---|---|\r\n| **CR1** | List reads one Neutron page, ignores `ports_links` | Read `portsRouter.ts:65-71` | ✅ **Valid** — real correctness bug; the one item to gate a P1 merge on. Deployment-dependent (fine on Neutron default). |\r\n| **CR2** | 401/403 handled in-page (details + raw BFF msg on list) vs B.6 redirect/info-Message | Read `$portId.tsx:55-102` + `PortsList.tsx:54-55`, `:115-116` | ✅ **Valid** (corrected from earlier \"overstated\" — initially misread as a styling complaint). Caveat: merged Routers/FloatingIP pages share it → debatable as a blocker. |\r\n| **CR3** | Port fetched twice (loader + `useQuery`), no shared cache | Read `$portId.tsx:127-136` + `:154-157` | ✅ **Valid** — but already team-deferred per maintainer reply on #1355. |\r\n| **CR4** | Conflicts with main + PRs #1383/#1385 | Ran `git merge-tree` vs `origin/main` | ⚠️ **Largely stale** — main conflict resolved in `dc1a4c90` (merge is clean); cross-PR half out of scope (each PR evaluated separately). |\r\n| **P1** | PR still draft | PR metadata | ✅ **Valid** (factual) |\r\n| **P2** | Body omits `?tab=` router change | Read changeset + PR body | ✅ **Valid** — Fix section covers `createFileRoute` only, not the tab-URL change. |\r\n| **I1** | \"Log in again\" → \"Sign in\" | `$portId.tsx:71` vs `$projectId.tsx:123` | ✅ **Valid** |\r\n| **I2** | `PopupMenu` without `PopupMenuToggle` | `PortTableRow.tsx:79-83` | ✅ **Valid** — existing codebase pattern (FloatingIp/Router). |\r\n| **I3** | `gap=\"1\"` not in approved set (0.5/2/4/6) | `PortDetailsView.tsx:51`, also `PortTableRow.tsx:57` | ✅ **Valid** (upgraded from \"questionable\") — caveat: merged RouterTableRow violates it too. |\r\n| **I4** | Status is 6th of 7 columns (B.15) | `PortListContainer.tsx:83-86` | ✅ **Factually correct** — but #1382 specifies this order, so likely intentional. |\r\n| **I5** | Routers doc says \"one request\", now chunked by 50 | `0010_routers_bff.md:80` vs `fetchSummaries` chunking | ✅ **Valid** doc staleness |\r\n| **I6** | Ports doc error table drops `: {Neutron message}` suffix | `errorHandling.ts:24-73` appends it; `0017_ports_bff.md:101-106` omits it | ✅ **Valid** (upgraded from \"plausible\") — doc self-contradicts (`:195` has it). |\r\n| **I7** | `useEffect` mirrors `currentPage` prop into state | `PortListContainer.tsx:35-39` | ✅ **Valid** — genuine derived-state smell. |\r\n| **I8** | `zod` imported after Lingui (B.13) | `index.tsx:2-4` | ✅ **Factually correct** import-order nit |\r\n\r\n## Net assessment\r\n\r\n- **11 of 12** findings stand up to code inspection. **CR4** is the only stale one (and its cross-PR half is out of scope — each PR is evaluated separately, both branched from `main` with no direct dependency).\r\n- During verification, two of my initial hedges resolved **in the report's favor** (CR2, I3) and two moved from plausible → **confirmed** (P2, I6). The report is more accurate than a first pass suggested.\r\n- The report is **well-calibrated**: it openly notes where a flagged pattern already ships in merged code or was previously accepted by a maintainer (CR2/I2/I3/I7 → Routers/FloatingIP/flavors; CR3 → deferred per #1355).\r\n\r\n## Against epic #816 (Phase 1, read-only)\r\n\r\n| Bucket | Findings |\r\n|---|---|\r\n| **Must-fix for P1** | CR1 (pagination truncation) |\r\n| **Real but team-accepted / deferred** | CR2, CR3, I2, I3 (codebase-wide conventions) |\r\n| **Genuine code smell, low stakes** | I7 |\r\n| **Stale / out of scope** | CR4 |\r\n| **Process** | P1, P2 |\r\n| **Docs / polish** | I1, I4, I5, I6, I8 |\r\n\r\nNothing contradicts the epic's intent. The lone item worth blocking a P1 read-only merge on is **CR1**.\r\n\r\n",
+   "bot": false,
+   "own_report": false
+  },
+  {
+   "author": "mark-karnaukh-extern-sap",
+   "created": "2026-10-20T16:06:21Z",
+   "url": "https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#issuecomment-6295356006",
+   "body": "# PR #1377 — Fixes Applied\r\n\r\n**PR:** feat(aurora): add Neutron Ports BFF and read-only Ports page (list & details)\r\n**Branch:** `mark-manage-ports-interface`\r\n**Commit:** `8394081`\r\n**Source:** latest review report ([issuecomment-6232520357](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#issuecomment-6232520357))\r\n\r\nVerification: typecheck clean, eslint clean, prettier-formatted, 793 server tests + ports client tests pass, i18n catalogs regenerated.\r\n\r\n## Fixes\r\n\r\n| #                 | What changed                                                                                                                                                                                                                          | Files                                                |\r\n| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |\r\n| **CR1**           | `list` follows Neutron's `ports_links` `next` until exhausted, assembling the full list before enrichment/search. `visited`-set guarded (no fixed cap, loop-safe against a non-advancing `next`). Added `ports_links` to the schema.  | `portsRouter.ts`, `types/port.ts`                    |\r\n| **CR1 (shared)**  | Extracted `nextPageUrl(baseUrl, links)` so Ports/Routers share one next-link implementation.                                                                                                                                          | `helpers/requestHelpers.ts`                          |\r\n| **CR1 (Routers)** | Same pagination loop applied to the Routers list (the \"same pattern\" CR1 flagged). Added `routers_links` to the schema.                                                                                                               | `routersRouter.ts`, `types/router.ts`                |\r\n| **CR2**           | 401 → \"Sign in\" action to `/`; 403 → page-level info `Message` (details + list), no raw BFF text.                                                                                                                                     | `$portId.tsx`, `PortsList.tsx`                       |\r\n| **CR3**           | Dropped the loader's duplicate `getById` fetch; component query is the single source.                                                                                                                                                 | `$portId.tsx`                                        |\r\n| **I1**            | \"Log in again\" → \"Sign in again\".                                                                                                                                                                                                     | `$portId.tsx`                                        |\r\n| **I2**            | Explicit `PopupMenuToggle` + `moreVert` button with aria-label.                                                                                                                                                                       | `PortTableRow.tsx`                                   |\r\n| **I3**            | `gap=\"1\"` → `gap=\"2\"` (approved).                                                                                                                                                                                                     | `PortDetailsView.tsx`, `PortTableRow.tsx`            |\r\n| **I4**            | Status moved to 2nd column (header + row).                                                                                                                                                                                            | `PortListContainer.tsx`, `PortTableRow.tsx`          |\r\n| **I5**            | Routers doc: lookups chunk at 50 IDs.                                                                                                                                                                                                 | `docs/0010_routers_bff.md`                           |\r\n| **I6**            | Added `: {Neutron message}` to every default-handler row across all 5 error tables.                                                                                                                                                   | `docs/0017_ports_bff.md`                             |\r\n| **I7**            | Removed prop-to-state `useEffect`; extracted `PageInput` keyed on `currentPage`.                                                                                                                                                      | `PortListContainer.tsx`                              |\r\n| **I8**            | `zod` moved into the framework import group.                                                                                                                                                                                          | `ports/index.tsx`                                    |\r\n| **Perf**          | Sort, search, and pagination now run client-side over a single per-scope fetch (instant, no refetch). Added `filterPorts`/`sortPorts` (natural numeric sort); dropped `useDeferredValue`. BFF still accepts the params for API/tests. | `PortsList.tsx`                                      |\r\n| **P2**            | Changeset line for the router `?tab=` change.                                                                                                                                                                                         | `.changeset/neutron-ports-management.md`             |\r\n| **Docs**          | Pagination notes added to both list sections.                                                                                                                                                                                         | `docs/0017_ports_bff.md`, `docs/0010_routers_bff.md` |\r\n| **i18n**          | Regenerated catalogs for new strings.                                                                                                                                                                                                 | `src/locales/{de,en}/messages.{po,ts}`               |\r\n\r\n## Tests added / updated\r\n\r\n- CR1 ports pagination (2) + routers pagination (1) + `nextPageUrl` unit tests (3).\r\n- Rewrote `PortsList.test.tsx` to the client-side model (23 tests; removed 3 refetch-coupled tests: recover-on-URL-change, keep-list-visible-while-next-loads, keep-valid-page-while-next-loads).\r\n- Updated the forbidden-list tests to the info-`Message` behavior.\r\n\r\n## Open decisions\r\n\r\n1. **Divergence from siblings:** Ports now differs from the merged Routers/FloatingIP pages — CR2/I2/I3/I4 (design-system conventions those pages still share) **and** the client-side sort/search perf change (those lists still round-trip to the server).\r\n2. **Routers pagination fix** is bundled on this branch; it could be split into its own PR (the shared `nextPageUrl` helper would move with it).\r\n3. **Perf change scope:** implemented as client-side sort/search on the existing promise + Suspense structure, not a full React Query migration. A React Query version would add cross-navigation caching/dedupe — optional follow-up.",
+   "bot": false,
+   "own_report": false
+  },
+  {
+   "author": "github-actions",
+   "created": "2026-10-20T16:20:48Z",
+   "url": "https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#issuecomment-6295655227",
+   "body": "🚀 **Preview deployed!**\n👉 [PR #1377](https://pr-1377.aurora-previews.d.c.eu-nl-1.cloud.sap)\n\nCommit: `8394081f68026d21e18661bfbc4f903e391f4331`",
+   "bot": true,
+   "own_report": false
+  },
+  {
+   "author": "mark-karnaukh-extern-sap",
+   "created": "2026-10-21T19:33:55Z",
+   "url": "https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#issuecomment-6324780483",
+   "body": "# Security Review — `mark-manage-ports-interface`\r\n\r\n**Date:** 2026-10-21  \r\n**Scope:** branch diff vs `main` (Neutron Ports BFF + UI)  \r\n**Reviewer:** automated (security-review skill)\r\n\r\n---\r\n\r\n## Findings\r\n\r\n**No security findings.**\r\n\r\n---\r\n\r\n## Review notes\r\n\r\nThe PR adds a Neutron Ports tRPC BFF router (`portsRouter.ts`) and associated types, helpers, and UI components. All new server-side code follows the established patterns of the existing routers in the codebase.\r\n\r\n### What was checked\r\n\r\n| Area                                  | Verdict                                                                                                                                                                                                                                    |\r\n| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |\r\n| Authentication on all mutations       | All five mutations (`list`, `getById`, `create`, `update`, `delete`) use `projectScopedProcedure` — consistent with every other resource router in the codebase                                                                            |\r\n| Input validation                      | `PortCreateRequestSchema` / `PortUpdateRequestSchema` validate IP addresses with `isValidIpAddress`, MAC addresses with a regex, names/descriptions with length caps; nothing passes raw user strings to Neutron without going through Zod |\r\n| URL construction                      | Port IDs pass through `validateAndEncodeResourceId` before being inserted into URL paths; base paths are compile-time literals (`v2.0/ports`)                                                                                              |\r\n| Pagination SSRF                       | `nextPageUrl` (new helper) extracts only the query string (`href.slice(queryIndex)`) from Neutron's `ports_links.next` href and appends it to the hardcoded base path — the Neutron host is never derived from the response                |\r\n| Lookup helper                         | `fetchNetworkSummaries`, `fetchSubnetSummaries`, `fetchSecurityGroupSummaries` use hardcoded base paths; IDs come from earlier Neutron responses and are never user-supplied directly                                                      |\r\n| `device_owner` / `device_id` writable | Accepted as `z.string().trim().optional()` — standard Neutron fields; enforcement of reserved values (e.g. `network:router_interface`) is Neutron server-side policy, same delegation model as the existing router router                  |\r\n| `allowed_address_pairs`               | IP/CIDR validated, MAC validated; setting address pairs on a port is standard Neutron functionality governed by the `allowed-address-pairs` extension policy                                                                               |\r\n| Router helpers refactor               | Logic extracted from `routersRouter.ts` into `routerHelpers.ts` — pure refactor, no change to security-relevant logic                                                                                                                      |\r\n| Client-side components                | React components; no `dangerouslySetInnerHTML` or other unsafe patterns                                                                                                                                                                    |\r\n",
+   "bot": false,
+   "own_report": false
+  },
+  {
+   "author": "KirillMishchuk",
+   "created": "2026-10-26T07:32:22Z",
+   "url": "https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#issuecomment-6410665537",
+   "body": "(earlier review-and-comment-pr report — omitted; see the url)",
+   "bot": false,
+   "own_report": true,
+   "own_kind": "update"
+  },
+  {
+   "author": "github-actions",
+   "created": "2026-10-26T10:59:11Z",
+   "url": "https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#issuecomment-6414360473",
+   "body": "🚀 **Preview deployed!**\n👉 [PR #1377](https://pr-1377.aurora-previews.d.c.eu-nl-1.cloud.sap)\n\nCommit: `86a355a8d6da94478e77c0869d9720efe6823e2a`",
+   "bot": true,
+   "own_report": false
+  }
+ ],
+ "reviews": [],
+ "threads": [],
+ "inline_read": true
+}

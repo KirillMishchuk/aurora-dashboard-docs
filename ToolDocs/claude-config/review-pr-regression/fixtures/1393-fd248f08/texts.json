@@ -1,0 +1,243 @@
+{
+ "summary": "The PR adds a full Key Manager (Barbican) area — BFF router with Zod schemas, a permission router, nav entry and Secrets/Containers/Orders tabs with list, detail, create and delete — and CI is green. What matters most is the Barbican contract: Reveal Payload sends no `Accept` matching the secret's content type, so typical secrets fail with 406, and removing a secret from a container and sorting orders use endpoints/params the reference does not document. On the client, the Reveal Payload action is not permission-gated, the nav entry ignores `enabledServices`/`deniedServices`, create forms mutate without validation, search navigates on every keystroke and CRUD success shows no toast. Against epic #1133 most criteria are only partly met (no update/manage-secrets UI, Orders columns, error text, tests), and a changeset is missing.",
+ "confidence": "Medium",
+ "index_affected": "New `KeyManager` server domain (keyManagerRouter, permissionRouter, Zod types) merged into the app router; Authorization > Key Manager nav entry; key-manager routes with Secrets/Containers/Orders lists, details and modals.",
+ "findings": {
+  "c45": {
+   "issue": "`getSecretPayload` sends the default `Accept: application/json`, so Barbican answers 406 for most secrets",
+   "title": "Reveal Payload does not set `Accept` to the secret's content type",
+   "explanation": "`getSecretPayload` fetches the payload with no headers:\n\n[[code:packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts | v1/secrets/${encodeURIComponent(input.secretId)}/payload | 1]]\n\nThe session's default headers send `Accept: application/json`, while the Barbican reference for `GET /v1/secrets/{uuid}/payload` says the accept header must be one of the values in the secret's `content_types`. For `text/plain` or `application/octet-stream` secrets — the common case — Barbican returns 406 Not Acceptable, and `mapKmError` has no 406 entry, so the user sees a generic internal error and Reveal Payload is broken. No test covers a non-JSON content type.",
+   "fix": "Read the secret's metadata (or take its `content_types.default` from the client) and pass it as the `Accept` header on the payload request; map 406/415 in `mapKmError`."
+  },
+  "c6": {
+   "issue": "Create modals mutate without validation; Bit Length is sent as `NaN` when empty",
+   "title": "Create Order/Secret/Container forms have no validation or inline errors",
+   "explanation": "The Create Order modal sends `parseInt(bitLength, 10)` (NaN for an empty field; zero and negative values are accepted), the algorithm may be empty, and the confirm button is disabled only while the mutation is pending:\n\n[[code:packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderModals.tsx | bit_length: parseInt(bitLength, 10) | 1]]\n\nThe secret and container create modals have no validator either. This breaks B.5/B.11 (confirm disabled while required fields are empty or invalid) — bad input reaches Barbican and only comes back as a message at the top of the form. Copilot raised the bit-length case on `OrderModals.tsx:52`; no reply.",
+   "fix": "Validate required fields and a positive integer bit length (react-form + Zod, as elsewhere), show inline errors and keep Create disabled until the form is valid."
+  },
+  "c8": {
+   "issue": "Create and delete of secrets, containers and orders show no confirming toast",
+   "title": "CRUD success is silent",
+   "explanation": "On success the modals only invalidate the query and close; there is no `toast` and no `*ToastNotifications` helper anywhere under `key-manager/`. B.16/B.10 require a transient confirming toast for create/update/delete, extracted into a `<Resource>ToastNotifications.tsx`.",
+   "fix": "Add `SecretToastNotifications`/`ContainerToastNotifications`/`OrderToastNotifications` helpers and show a toast from each mutation's `onSuccess`."
+  },
+  "c11": {
+   "issue": "Reveal Payload and the detail views ignore `key-manager:secrets:payload` / `get` permissions",
+   "title": "Reveal Payload is not permission-gated (not fail-closed)",
+   "explanation": "The Reveal Payload button is rendered unconditionally:\n\n[[code:packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretDetailsView.tsx | <Button variant=\"subdued\" onClick={handleRevealPayload} disabled={payloadFetching}> | 1]]\n\n`key-manager:secrets:payload` is defined in the permission router and the hook's types but no client code reads it; none of the `*DetailsView` files call the permissions hook. Users without payload rights see a working control that triggers a plaintext fetch — only Barbican's own ACLs stop it. This violates the Quick Reject rule on controls shown before permissions resolve and leaves the epic's \"all action-triggering elements gated\" criterion partly met. Copilot flagged it as CRITICAL (r4360388886); no reply.",
+   "fix": "Check `key-manager:secrets:payload` (and `get` for the detail routes) via the permissions hook, defaulting to false while loading, and hide or disable the button until allowed."
+  },
+  "c13": {
+   "issue": "Search inputs navigate on every keystroke, with no local state or debounce",
+   "title": "Secrets/Containers search fires a navigation and a request per character",
+   "explanation": "`SearchInput` calls `onSearchChange` on every input event:\n\n[[code:packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx | onInput={(e) => onSearchChange((e.target as HTMLInputElement).value)} | 1]]\n\n`handleSearch` in `secrets/index.tsx` calls `navigate()` without debounce or `replace`, so each keystroke changes the URL, resets the page, adds a history entry and fires a new `listSecrets` request. Same in `ContainersList.tsx:74`. B.9 asks for a local mirror state with debounce, as the flavors list does (500 ms).",
+   "fix": "Keep the input value in local state, debounce the navigation (and use `replace: true`), and sync back from the URL in a `useEffect`."
+  },
+  "c24": {
+   "issue": "Search navigation per keystroke pollutes back-history and churns requests",
+   "title": "Search writes a history entry per character",
+   "explanation": "Same root cause as [[ref:c13]], seen from the history side.",
+   "fix": "See [[ref:c13]]."
+  },
+  "c33": {
+   "issue": "`deleteContainerSecret` calls an undocumented `DELETE /v1/containers/{id}/secrets/{name}`",
+   "title": "Removing a secret from a container uses the wrong Barbican endpoint",
+   "explanation": "The procedure deletes by path segment and takes only `containerId` and `secretName`:\n\n[[code:packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:252-252]]\n\nThe Barbican containers reference documents removal only as `DELETE /v1/containers/{container_uuid}/secrets` with a JSON body `{ \"name\", \"secret_ref\" }`, where `secret_ref` is required (400 \"Missing secret_ref\"). The path form is not in the reference, so the call will fail once a UI uses it; the router test asserts the same wrong URL. Copilot raised it (r4360389656); no reply.",
+   "fix": "Send `DELETE v1/containers/{id}/secrets` with a body `{ name, secret_ref }`, add `secret_ref` to the input schema, and update the test."
+  },
+  "c34": {
+   "issue": "Container `secret_refs[].name` is required `z.string()`, but Barbican allows unnamed refs",
+   "title": "An unnamed secret reference makes the whole container response fail validation",
+   "explanation": "[[code:packages/aurora/src/server/KeyManager/types/keyManager.ts:25-25]]\n\n`name` is optional for container secret references in the reference, and sibling `name` fields in this file are `.nullable()`. A container with an unnamed ref returns `name: null`, `parseOrThrow` rejects it, and the whole container list fails to load. Copilot raised it (r4360389713); no reply.",
+   "fix": "Make it `name: z.string().nullable().optional()` and render a fallback in the UI."
+  },
+  "c39": {
+   "issue": "Deleting the last row on the last page leaves an empty table with no pagination",
+   "title": "List `page` is not clamped after a delete",
+   "explanation": "`offset` is `(page - 1) * PAGE_SIZE` and `totalPages` comes from `data.total`, but nothing clamps `page` when the total shrinks. Pagination is hidden when there is one page:\n\n[[code:packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx | {totalPages > 1 && ( | 1]]\n\nSo after deleting the only row of the last page the user sees an empty table with no way back. Same in the Containers and Orders lists; Copilot raised all three (r4360389532, r4360389254, r4360389387), no replies.",
+   "fix": "When `page > totalPages` after data loads, navigate to `max(totalPages, 1)` with `replace: true`."
+  },
+  "c41": {
+   "issue": "Key Manager nav entry and route ignore `enabledServices` / `deniedServices`",
+   "title": "Key Manager can't be hidden through service-visibility config",
+   "explanation": "The new nav item is gated only on the catalog:\n\n[[code:packages/aurora/src/client/routes/_auth/projects/-components/buildNavSections.ts | ...(serviceIndex[\"key-manager\"]?.[\"barbican\"] | 1]]\n\nEvery other built-in item uses `&& isEnabled(...)`, whose comment says deny always wins. A host cannot hide Key Manager via `deniedServices` or leave it out of an `enabledServices` allowlist, and the `key-manager.tsx` `beforeLoad` also checks only the catalog, so a denied service stays reachable by URL. The project overview (`projects/$projectId/index.tsx`) gets no Key Manager card either.",
+   "fix": "Add `&& isEnabled(\"key-manager\")` to the nav item, apply the same check in the route `beforeLoad`, add the card on the project overview and document the service key in the README."
+  },
+  "c44": {
+   "issue": "`listOrders` sends undocumented `sort_key`/`sort_dir`; the Orders sort control does nothing",
+   "title": "Orders sort uses parameters Barbican doesn't support",
+   "explanation": "[[code:packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:269-273]]\n\nThe Barbican reference for `GET /v1/orders` documents only `offset` and `limit`; `sort_key`/`sort_dir` appear nowhere in the secrets, containers or orders references. The Sort by / direction controls in `OrdersList.tsx` are visible but have no documented effect.",
+   "fix": "Remove the sort control from the Orders tab (or sort client-side within the page) and drop the sort params from `listOrders`."
+  },
+  "c1": {
+   "issue": "Permission props are named `canDelete` instead of `can<Verb><Noun>`",
+   "title": "Permission prop naming",
+   "explanation": "`SecretTableRow.tsx:15` has `canDelete: boolean`; the same in `ContainerTableRow`, `OrderTableRow` and the three `*ListContainer.tsx`. B.8 requires `canDeleteSecret` etc. Copilot raised it on all six files; no replies.",
+   "fix": "Rename to `canDeleteSecret`, `canDeleteContainer`, `canDeleteOrder`."
+  },
+  "c2": {
+   "issue": "Row `PopupMenu` has no `PopupMenuToggle` with a labelled `moreVert` button",
+   "title": "Row action menus lack the standard toggle",
+   "explanation": "`SecretTableRow.tsx:35` renders `<PopupMenu><PopupMenuOptions>` with no `PopupMenuToggle`, so the default toggle is used without an accessible label (also `ContainerTableRow.tsx:34`, `OrderTableRow.tsx:33`). B.14 requires `<PopupMenuToggle as=\"div\"><Button icon=\"moreVert\" /></PopupMenuToggle>`. Copilot raised it (r4360388832).",
+   "fix": "Use `PopupMenuToggle` with an icon `Button` carrying an `aria-label`, as the network views do."
+  },
+  "c3": {
+   "issue": "Row menu items `Show Details` / `Delete` lack the entity name and a separator before Delete",
+   "title": "Row menu labels and Delete separator",
+   "explanation": "`SecretTableRow.tsx:37-38` lists `Show Details` then `Delete` with no `PopupMenuSectionSeparator`; same in the container and order rows. B.18 asks to name the entity in labels and separate Delete with a divider.",
+   "fix": "Label as `Show Secret Details` / `Delete Secret` and add a `PopupMenuSectionSeparator` before Delete."
+  },
+  "c4": {
+   "issue": "Delete modals put the name/ID in the title and use a bare `Delete` confirm label",
+   "title": "Delete modal wording",
+   "explanation": "`SecretModals.tsx:129` uses ``title={t`Delete Secret \"${secretName}\"`}`` while the body doesn't name the entity and the confirm label is `Delete`; the order modal title shows a raw UUID (`OrderModals.tsx:125`, `ContainerModals.tsx:109`). B.5 puts the object name in the body and asks for verb + object labels.",
+   "fix": "Title `Delete Secret`, name the entity in the body, confirm label `Delete Secret`."
+  },
+  "c5": {
+   "issue": "Modals disable Cancel but not the close-X while a mutation is pending",
+   "title": "Missing `disableCloseButton` during async operations",
+   "explanation": "All six modals pass only `disableCancelButton={…isPending}` (e.g. `SecretModals.tsx:136`, `:60`), so the user can dismiss mid-request. B.5 / Quick Reject require disabling close-X and Cancel together, as `DeleteFlavorModal` does.",
+   "fix": "Add `disableCloseButton={mutation.isPending}` to every create and delete modal."
+  },
+  "c7": {
+   "issue": "Create modals use `useState` without react-form, `autoFocus` or disabled inputs in flight",
+   "title": "Create forms don't follow the form standard",
+   "explanation": "`ContainerModals.tsx:30` keeps `name` in `useState`; no create modal uses `@tanstack/react-form` + Zod, sets `autoFocus` on the primary input, or disables inputs while the mutation runs (B.11). Validation itself is [[ref:c6]].",
+   "fix": "Move the create forms to react-form with Zod validators, add `autoFocus` and `disabled={isPending}` on inputs."
+  },
+  "c9": {
+   "issue": "Sort uses raw `Select` + `SortButton` instead of `SortInput`; toolbar uses `distribution=\"end\"`",
+   "title": "List toolbar doesn't use `SortInput`",
+   "explanation": "`SecretsList.tsx:93` and `OrdersList.tsx:76` build sorting from `Select` and `SortButton` in a `Stack distribution=\"end\"`; B.1/B.2 require `SortInput` from `@/client/components/ListToolbar/SortInput` and `distribution=\"between\"`. The Containers list has no sort control at all.",
+   "fix": "Replace with `SortInput` and use `distribution=\"between\"` for the toolbar."
+  },
+  "c10": {
+   "issue": "403 on list pages is an inline warning `Message` with hard-coded English",
+   "title": "Permission-denied state is not page-level",
+   "explanation": "`SecretsList.tsx:72`, `ContainersList.tsx:50` and `OrdersList.tsx:55` render `<Message variant=\"warning\">You do not have permission to view …</Message>` without `mb-4` and without Lingui. B.6 expects a page-level info `Message` for 403.",
+   "fix": "Use a translated page-level info `Message` (with `mb-4`), matching the recommended 403 copy."
+  },
+  "c12": {
+   "issue": "Detail routes fetch in the component (twice) instead of in the route `loader`",
+   "title": "Detail data not loaded in the route loader",
+   "explanation": "`containers/$containerId.tsx:19` and `ContainerDetailsView` both call `getContainer.useQuery` (same for secrets and orders), and the routes have no `loader`. React Query dedupes the request, but A.3 asks for page-critical data in the loader.",
+   "fix": "Fetch in the route `loader` and pass the data (or rely on one query) to the details view."
+  },
+  "c14": {
+   "issue": "Ad-hoc spacing/styling classes (`my-6`, `mt-4`, `p-3`, `opacity-60`) outside the approved lists",
+   "title": "Off-standard spacing and muted text",
+   "explanation": "E.g. `className=\"my-6\"` on the detail stacks, `opacity-60` instead of `text-theme-light` at `SecretDetailsView.tsx:97`, and `mt-4` in `key-manager.tsx`. B.3/B.4 reject classes outside the approved lists.",
+   "fix": "Use the approved spacing (`mt-6` detail offset) and `text-theme-light` for muted text."
+  },
+  "c15": {
+   "issue": "Raw `<div>`, `<p>`, `<pre>` used where Juno components exist",
+   "title": "Raw HTML instead of Juno layout primitives",
+   "explanation": "`key-manager.tsx` wraps content in `<div className=\"mt-4\">`, rows and pagination use `<div>`s, and `SecretDetailsView.tsx` wraps the button in a `<div>`. Quick Reject / B.1 prefer `Stack` and other Juno components.",
+   "fix": "Replace the wrappers with `Stack`/`Container` and the text elements with Juno equivalents."
+  },
+  "c16": {
+   "issue": "Generic names: `usePermissions`, bundled `*Modals.tsx`, `utils.ts`, `constants.ts`",
+   "title": "File and hook naming",
+   "explanation": "`usePermissions.ts:21` exports a generic `usePermissions(projectId, permissions)`; B.8 asks for `useKeyManagerPermissions(projectId)`. `SecretModals.tsx` etc. bundle several modals where B.12 wants `<Verb><Resource>Modal.tsx`. Copilot asked for `useKeyManagerPermissions` (r4360389782).",
+   "fix": "Rename the hook to `useKeyManagerPermissions` and split modals into `CreateSecretModal.tsx`, `DeleteSecretModal.tsx`, …"
+  },
+  "c19": {
+   "issue": "Empty state suggests creating even when a search returned no results",
+   "title": "Empty state doesn't distinguish no data from no matches",
+   "explanation": "`SecretListContainer.tsx:59` always shows the create hint and doesn't receive `search`; same in `ContainerListContainer.tsx:58`. The hint is also shown to users without create permission. B.6 asks to distinguish the two reasons.",
+   "fix": "Pass `search` in and show \"No results — clear the search\" when filtering."
+  },
+  "c20": {
+   "issue": "Error states show the raw `error.message` as title with no body or retry",
+   "title": "Error state lacks explanation and retry",
+   "explanation": "``<Status status=\"error\" title={error?.message ?? t`Failed to Load Secrets`} />`` at `SecretListContainer.tsx:33`, and the same in the other list containers and detail views. B.6 asks for a course of action (retry) where feasible.",
+   "fix": "Use a fixed translated title, the message as body and a retry action."
+  },
+  "c25": {
+   "issue": "`getSecretPayload` decodes binary payloads with `res.text()`",
+   "title": "Binary secrets are corrupted when revealed",
+   "explanation": "[[code:packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:102-104]]\n\nAn `application/octet-stream` secret (e.g. a symmetric key) is UTF-8-decoded and shown as garbage in the `<pre>`; there is no base64 path.",
+   "fix": "For non-text content types read `arrayBuffer()` and return base64 with a flag so the UI can label it."
+  },
+  "c28": {
+   "issue": "Key Manager has no project-overview card and its route ignores visibility config",
+   "title": "Project overview and route guard out of sync with nav",
+   "explanation": "Part of [[ref:c41]].",
+   "fix": "See [[ref:c41]]."
+  },
+  "c32": {
+   "issue": "Secret plaintext can land in server logs via signal-openstack's debug body preview",
+   "title": "Payload logged in non-production debug mode",
+   "explanation": "Debug is on by default outside production (`context.ts:114`), and signal-openstack logs a `bodyPreview` for text responses, so a `text/plain` secret fetched by `getSecretPayload` is written to the logs (truncated). Copilot flagged it as CRITICAL (r4360389080); no reply.",
+   "fix": "Disable body preview for the payload request (or redact `/payload` responses in the client's debug logging)."
+  },
+  "c55": {
+   "issue": "Orders list lacks the Name column from the epic's UI spec",
+   "title": "Orders columns don't match the spec",
+   "explanation": "Epic #1133 lists Orders columns Name / ID, Type, Status; `orders/-components/constants.ts:1` has `ID`, `Status`, `Type` and the row shows no name or reference.",
+   "fix": "Show the order's name/secret reference alongside the ID, or note the deviation in the epic."
+  },
+  "c56": {
+   "issue": "No update UI: `updateSecret`, `addContainerSecret`, `deleteContainerSecret` have no client caller",
+   "title": "Update / manage-container-secrets flows are missing",
+   "explanation": "The epic criterion is list, view, create, update and delete. The server procedures exist but no client code calls them — no Edit Secret modal, no way to attach secrets to a container (`secret_refs: []` on create), and Create Secret offers only name, type and payload.",
+   "fix": "Add the update/manage flows, or state in the PR which part of #1133 this delivers and track the rest."
+  },
+  "c57": {
+   "issue": "Epic criterion \"all actions gated by canUser\" only partly met",
+   "title": "Reveal Payload ungated",
+   "explanation": "Same as [[ref:c11]].",
+   "fix": "See [[ref:c11]]."
+  },
+  "c58": {
+   "issue": "`mapKmError` drops Barbican's error body; users see generic `Key Manager … failed`",
+   "title": "Error messages aren't user-friendly",
+   "explanation": "`keyManagerRouter.ts:52` builds the message as `Key Manager ${operation} failed` and the `!res.ok` paths pass only the status code, so a 409 (e.g. deleting a container in use) gets no specific text. The epic asks for user-friendly feedback for Barbican errors.",
+   "fix": "Read Barbican's `description`/`title` from the error body and include it in the TRPCError message."
+  },
+  "c60": {
+   "issue": "No tests for lists with permissions, modals, detail views, nav or layout guard; no E2E",
+   "title": "Test coverage below the epic's criterion",
+   "explanation": "Tests cover the router, the schemas and the TableRow/ListContainer components only; the epic asks for unit, integration and E2E coverage.",
+   "fix": "Add component tests for lists (permission states), modals and details, a nav/guard test and a basic E2E."
+  },
+  "c17": {
+   "issue": "Import order and `../../` relative imports break B.13",
+   "title": "Import order and path aliases",
+   "explanation": "`SecretsList.tsx` imports `@/client/trpcClient` after Juno and `usePermissions` via `../../-components/usePermissions`; `SecretModals.tsx` imports `useState` after Juno. B.13 orders react, i18n, tRPC, Juno and forbids `../../` traversal.",
+   "fix": "Reorder imports and switch to `@/` aliases."
+  }
+ },
+ "edge_cases": [
+  "Reveal Payload on a `text/plain` or `application/octet-stream` secret: Barbican should return 406 because `Accept: application/json` is sent ([[ref:c45]]); a binary secret that does load shows garbled text ([[ref:c25]]).",
+  "Remove a secret from a generic container via `deleteContainerSecret`: the path-segment DELETE is not a documented endpoint and should fail ([[ref:c33]]).",
+  "Load a container whose `secret_refs` contains an unnamed reference (`name: null`): the containers list fails validation ([[ref:c34]]).",
+  "With more than 50 secrets, go to the last page holding a single item and delete it: an empty table with no pagination remains ([[ref:c39]]).",
+  "Set `deniedServices` to include `key-manager` (or an `enabledServices` list without it): the Key Manager nav entry still shows and the route is reachable by URL ([[ref:c41]]).",
+  "On the Orders tab change Sort by / direction: the order of rows should not change, since Barbican ignores `sort_key`/`sort_dir` ([[ref:c44]]).",
+  "As a user without `key-manager:secrets:payload`, open a secret's details: Reveal Payload is still shown and clickable ([[ref:c11]])."
+ ],
+ "merge": {
+  "c24": "c13",
+  "c57": "c11",
+  "c28": "c41"
+ },
+ "provenance_extra": [],
+ "fixes": [
+  {
+   "field": "overview.how",
+   "old": "The Authorization section is always emitted, but with an empty `services` list when Barbican is absent.",
+   "new": "The Authorization section is seeded in the section map with an empty `services` list when Barbican is absent, but `buildNavSections` ends with `.filter((s) => s.services.length > 0)`, so the empty section is dropped from the returned nav model."
+  },
+  {
+   "field": "overview.affects",
+   "old": "**Nav.** The Authorization section is now always present in the nav model, even when empty. Check that an empty section does not render as an empty header.",
+   "new": "**Nav.** The Authorization section is seeded in the section map, but the existing final `.filter((s) => s.services.length > 0)` removes it when it has no services, so without Barbican the nav is unchanged. With Barbican present, a new Authorization section appears."
+  },
+  {
+   "field": "overview.what",
+   "old": "CI on headRefOid: 17 pass, 0 fail, 0 pending, 4 skipped, 1 cancelled (`context.json` ci).",
+   "new": "CI on the head commit: 17 pass, 0 fail, 0 pending, 4 skipped, 1 cancelled."
+  }
+ ]
+}

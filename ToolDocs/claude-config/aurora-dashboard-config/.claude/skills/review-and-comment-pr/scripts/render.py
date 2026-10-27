@@ -12,8 +12,8 @@ the report from the fixed template, checks its Markdown, writes it to DOCS,
 upserts the PR's row in the reports index and runs DOCS/tools/update-related.py.
 Mode status: applies context.json report.status_update to the existing
 report and its index row (no findings.json needed). Mode update: renders an
-"## Update — <today>, head `<sha>`" block (What changed, Fixed since last
-analysis, the delta's findings numbered after the report's earlier ones),
+"## Update — <today>, head `<sha>`" block (Verdict, Fixed since last analysis,
+the delta's findings numbered after the report's earlier ones, What changed),
 inserts it before the report's footer — replacing an earlier block for the
 same head — and updates the footer, the status and the index Date cell.
 
@@ -42,6 +42,9 @@ SKILL_URL = ("https://github.com/KirillMishchuk/aurora-dashboard-docs/blob/main/
 SEVERITIES = ["Critical", "Major", "Moderate", "Low", "Trivial"]
 MARKER = {"Critical": "🔴", "Major": "🟠", "Moderate": "🟡", "Low": "🟢", "Trivial": "⚪"}
 REQUIRED_SEVERITIES = {"Critical", "Major", "Moderate"}
+# a Required Change blocks the merge only when it breaks behaviour or safety; conventions (UI/UX, Performance,
+# Code Quality, …) and anything with a precedent tag are the team's call
+BLOCKING_CATEGORIES = {"Bug", "Security"}
 CATEGORIES = ["Bug", "Security", "Accessibility", "UI/UX", "Code Quality", "Performance",
               "Docs", "Test coverage"]
 SCORES = {50, 75, 100}
@@ -81,7 +84,51 @@ def text_fields(fd):
 
 
 def resolve_refs(text, nums):
-    return REF.sub(lambda m: nums[m.group(1)], text)
+    return link_comments(REF.sub(lambda m: nums[m.group(1)], text))
+
+
+COMMENT_URLS = {}   # comment id -> (author, url) from discussion.json; filled by load_comment_urls(ctx)
+# a bare comment id in text: "comment 6293554974", "issuecomment-6293554974", "r4360389025"
+BARE_COMMENT = re.compile(r"\b(?:([Cc]omment) (\d{8,})|issuecomment-(\d{8,})|r(\d{8,}))\b")
+# left alone: code spans, Markdown links, bare URLs
+NOT_PLAIN = re.compile(r"(`[^`\n]*`|\[[^\]\n]*\]\([^)\s]*\)|https?://\S+)")
+
+
+def load_comment_urls(ctx):
+    """Every comment and inline thread in discussion.json by id; own reports included (a link to them is fine)."""
+    COMMENT_URLS.clear()
+    f = Path(ctx.get("run_dir") or ".") / ((ctx.get("discussion") or {}).get("file") or "discussion.json")
+    try:
+        d = json.loads(f.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return COMMENT_URLS
+
+    def walk(c):
+        if c.get("url"):
+            COMMENT_URLS[str(c.get("id"))] = (c.get("user") or "?", c["url"])
+        for r in c.get("replies") or []:
+            walk(r)
+    for c in d.get("threads") or []:
+        walk(c)
+    for c in d.get("comments") or []:
+        m = re.search(r"issuecomment-(\d+)", c.get("url") or "")
+        if m:
+            COMMENT_URLS[m.group(1)] = (c.get("author") or "?", c["url"])
+    return COMMENT_URLS
+
+
+def link_comments(text):
+    """A comment id the text names bare becomes a link to that comment (ids not in discussion.json stay as they are)."""
+    if not COMMENT_URLS or not text:
+        return text
+
+    def sub(m):
+        i = m.group(2) or m.group(3) or m.group(4)
+        if i not in COMMENT_URLS:
+            return m.group(0)
+        label = f"r{i}" if m.group(4) else (m.group(1) or "comment")
+        return f"[{label}]({COMMENT_URLS[i][1]})"
+    return "".join(p if NOT_PLAIN.fullmatch(p) else BARE_COMMENT.sub(sub, p) for p in NOT_PLAIN.split(text))
 
 
 class Invalid(Exception):
@@ -205,7 +252,7 @@ class Checker:
         self.text(f, "fix", where)
 
 
-EARLIER_STATUS = ("fixed", "partly", "open")
+EARLIER_STATUS = ("fixed", "partly", "open", "dropped")   # dropped: a merge-conflict finding — no longer reviewed
 
 
 def number_key(n):
@@ -265,7 +312,7 @@ def validate(ctx, fd):
         c.text(fd, "summary", "")
         if fd.get("earlier") is not None:
             c.err("earlier", "exists only on an Update")
-    if not update and fd.get("confidence") not in CONFIDENCE:
+    if fd.get("confidence") not in CONFIDENCE:
         c.err("confidence", f"{fd.get('confidence')!r} not one of {sorted(CONFIDENCE)}")
     prec_repo = quotes.Repo(ctx)
     for i, f in enumerate(fd.get("findings") or []):
@@ -362,6 +409,10 @@ def default_process(item, ctx):
     return base
 
 
+def blocks(f):
+    return f.get("category") in BLOCKING_CATEGORIES and not f.get("precedent")
+
+
 def layout(ctx, fd, start=None, ctx_process=True):
     """start: {'CR': n, 'P': n, 'I': n} — numbers already used (an Update continues after them)."""
     start = start or {"CR": 0, "P": 0, "I": 0}
@@ -388,34 +439,41 @@ def layout(ctx, fd, start=None, ctx_process=True):
         for k in ("issue", "title", "explanation", "fix"):
             f[k] = resolve_refs(f[k], nums)
     fd["_nums"] = nums
-    if any(not f.get("precedent") for f in req):
+    if any(blocks(f) for f in req):
         rec = "Request Changes"
-    elif req:  # every Required Change is an existing pattern or deferred by a maintainer
-        rec = "Approve — team call first"
+    elif req:  # every Required Change is a convention, an existing pattern or deferred by a maintainer
+        rec = "Approve with changes"
     elif procs:
-        rec = "Approve — process to-dos first"
+        rec = "Approve with process to-dos"
     else:
         rec = "Approve with nits" if imp else "Approve"
     return req, procs, imp, rec
 
 
 def recommendation_md(rec):
-    return {"Request Changes": "🔴 Request Changes", "Approve with nits": "🟢 Approve with nits",
-            "Approve": "🟢 Approve"}.get(rec, rec)
+    return {"Request Changes": "🔴 Request Changes", "Approve with changes": "🟡 Approve with changes",
+            "Approve with process to-dos": "🟡 Approve with process to-dos",
+            "Approve with nits": "🟢 Approve with nits", "Approve": "🟢 Approve"}.get(rec, rec)
+
+
+def carried(v):
+    """An earlier finding not fully fixed whose note names one of this Update's findings ([[ref:…]]): what is
+    left of it is that new finding, so it is counted there — not twice."""
+    return v["status"] in ("partly", "open") and bool(REF.search(v.get("note") or ""))
 
 
 def before_merge(req, procs, scope, earlier=None):
     """The verdict's short list: blockers, team calls (Required Changes with a precedent tag), process to-dos;
     on an Update also the earlier Required Changes and Process items that are still open."""
-    must = [f["n"] for f in req if not f.get("precedent")]
-    team = [f["n"] for f in req if f.get("precedent")]
+    must = [f["n"] for f in req if blocks(f)]
+    team = [f["n"] for f in req if not blocks(f)]
     L = []
     if must:
         L.append(f"- **Must fix before merge**{f' ({scope.strip()})' if scope else ''}: {', '.join(must)}")
     if team:
-        L.append(f"- **Team call** (existing pattern or deferred by a maintainer): {', '.join(team)}")
+        L.append(f"- **Team call** (convention, existing pattern or deferred by a maintainer): {', '.join(team)}")
     still = [(n, v["status"]) for n, v in sorted((earlier or {}).items(), key=lambda kv: number_key(kv[0]))
-             if v["status"] != "fixed" and not n.startswith("I")]
+             if v["status"] not in ("fixed", "dropped") and not carried(v) and not n.startswith("I")]
     if still:
         tag = lambda n, s: n + (" (partly)" if s == "partly" else "")  # noqa: E731
         cr = ", ".join(tag(n, s) for n, s in still if n.startswith("CR"))
@@ -437,7 +495,8 @@ def verdict_index(rec, req, procs, imp):
         parts.append(f"{plural(len(req) + len(procs), 'Required Change')} ({markers})")
     if imp:
         parts.append(plural(len(imp), "Improvement"))
-    head = "Verdict: " + (rec if rec == "Request Changes" or rec.startswith("Approve — ") else "Approve")
+    head = "Verdict: " + (rec if rec in ("Request Changes", "Approve with changes", "Approve with process to-dos")
+                          else "Approve")
     return head + " — " + ", ".join(parts)
 
 
@@ -475,10 +534,10 @@ def precedent_line(p):
     return [f"_Precedent:_ a maintainer accepted or deferred the same point — [discussion]({p['ref']})."]
 
 
-def short(text, limit):
+def short(text, limit, first_sentence=True):
     """First sentence (or a word-boundary cut), code spans kept whole, safe for a table cell."""
     t = " ".join(str(text).split())
-    m = re.match(r"(.+?[.!?])(\s|$)", t)
+    m = re.match(r"(.+?[.!?])(\s|$)", t) if first_sentence else None
     if m and len(m.group(1)) <= limit:
         t = m.group(1)
     elif len(t) > limit:
@@ -500,6 +559,36 @@ def dismissed_section(items):
             table(["Score", "Candidate", "Location", "Why"], rows), "", "</details>", ""]
 
 
+def _discussion(ctx):
+    f = Path(ctx.get("run_dir") or ".") / ((ctx.get("discussion") or {}).get("file") or "discussion.json")
+    try:
+        return json.loads(f.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+
+
+def not_taken_up(ctx, items):
+    """Dismissed candidates that a reviewer's comment raised: a short answer in the posted review, so a
+    comment (e.g. Copilot's) we checked and disagree with isn't left looking ignored. The thread is found
+    by the comment id the finder cited in `discussion` (r<id> or issuecomment-<id>) in discussion.json."""
+    by_id = load_comment_urls(ctx)
+    own = {u for c in (_discussion(ctx).get("comments") or []) if c.get("own_report") for u in [c.get("url")]}
+    rows = []
+    for it in items:
+        # "r4360389025", "issuecomment-…", or a full thread URL ("…#discussion_r4360389025")
+        ids = re.findall(r"(?:\br|discussion_r|issuecomment-)(\d{6,})\b", it.get("discussion") or "")
+        refs = list(dict.fromkeys(f"{by_id[i][0]} [{'r' + i if 'discussion_r' in by_id[i][1] else 'comment'}]"
+                                  f"({by_id[i][1]})" for i in ids if i in by_id and by_id[i][1] not in own))
+        if refs:
+            rows.append([", ".join(refs), link_comments(short(it["claim"], 300, False)),
+                         link_comments(short(it["reason"], 400, False))])
+    if not rows:
+        return []
+    return ["### 🗨️ &nbsp; Review comments not taken up", "",
+            "Raised in the review discussion, checked at this head and not counted as findings:", "",
+            table(["Raised by", "Claim", "Why not a finding"], rows), ""]
+
+
 def reviewed_line(ctx):
     """'Reviewed at head … · base … · time' — which code the findings hold for."""
     p = ctx["pr"]
@@ -517,6 +606,7 @@ def fold(summary, body):
 
 def render(ctx, fd, today):
     p, f = ctx["pr"], ctx["flags"]
+    load_comment_urls(ctx)
     req, procs, imp, rec = layout(ctx, fd)
     issues = [i["number"] for i in (ctx.get("issue") or {}).get("linked", [])]
     now = ctx["status_now"]
@@ -536,6 +626,7 @@ def render(ctx, fd, today):
     L += [          resolve_refs(fd["summary"].strip(), fd["_nums"]), ""]
     L += findings_section("### 🔧 &nbsp; Required Changes", req + procs)
     L += findings_section("### 💡 &nbsp; Improvements", imp)
+    L += not_taken_up(ctx, fd.get("dismissed") or [])
     nums = fd["_nums"]
     ov = {k: resolve_refs(v, nums) for k, v in fd["overview"].items() if v}
     qa = {k: [resolve_refs(x, nums) for x in v] for k, v in fd["qa"].items() if v}
@@ -608,8 +699,8 @@ def set_index_date(readme, number, date_cell):
 UPDATE_TAIL = re.compile(r" · Update \d{4}-\d{2}-\d{2} \(`[0-9a-f]+`\):[^|]*$")
 
 
-def update_tail(today, short, req, procs, imp, fixed=None):
-    """' · Update <date> (`sha`): …' — what the latest Update block added, for the index row."""
+def update_tail(today, short, req, procs, imp, fixed=None, rec=None):
+    """' · Update <date> (`sha`): <recommendation> — …' — the PR's state at that head and what the block added."""
     parts = []
     if req or procs:
         markers = "".join(MARKER[f["severity"]] for f in req)
@@ -618,7 +709,8 @@ def update_tail(today, short, req, procs, imp, fixed=None):
         parts.append(f"{plural(len(req) + len(procs), 'Required Change')} ({markers})")
     if imp:
         parts.append(plural(len(imp), "Improvement"))
-    return (f" · Update {today} (`{short}`): " + (", ".join(parts) if parts else "no new findings")
+    return (f" · Update {today} (`{short}`): " + (f"{rec} — " if rec else "")
+            + (", ".join(parts) if parts else "no new findings")
             + (f"; {fixed} earlier fixed" if fixed is not None else ""))
 
 
@@ -703,32 +795,58 @@ def used_numbers(report_text):
     return used
 
 
+def update_recommendation(ctx, req, procs, imp, earlier):
+    """The PR's state at this head: the Update's own findings plus the earlier ones not fixed yet,
+    by the same rule as layout(): blocks() on the earlier rows' Category and Precedent cells."""
+    try:
+        row = {r[0]: {"category": r[5], "precedent": r[4] not in ("", "—", "-")} for r in
+               quotes.earlier_rows(ctx["report"]["path"], ctx["pr"]["head"]["short"], detail=True)}
+    except (OSError, KeyError, TypeError):
+        row = {}
+    still = [n for n, v in (earlier or {}).items() if v["status"] not in ("fixed", "dropped") and not carried(v)]
+    old = [row.get(n, {"category": "Bug"}) for n in still if n.startswith("CR")]  # unknown row: count it as blocking
+    must = [f for f in req if blocks(f)] + [r for r in old if blocks(r)]
+    team = [f for f in req if not blocks(f)] + [r for r in old if not blocks(r)]
+    if must:
+        return "Request Changes"
+    if team:
+        return "Approve with changes"
+    if procs or any(n.startswith("P") for n in still):
+        return "Approve with process to-dos"
+    return "Approve with nits" if imp or any(n.startswith("I") for n in still) else "Approve"
+
+
 def render_update(ctx, fd, today, report_text):
     """-> (block, layout tuple). The block goes before the report's footer."""
     short = ctx["pr"]["head"]["short"]
     base_text = strip_update(report_text, short)
+    load_comment_urls(ctx)
     req, procs, imp, rec = layout(ctx, fd, start=used_numbers(base_text), ctx_process=False)
     nums = fd["_nums"]
     ov = {k: resolve_refs(v, nums) for k, v in (fd.get("overview") or {}).items() if v}
-    L = [f"## Update — {today}, head `{short}`", "", reviewed_line(ctx), "",
-         "### What changed", "", ov["what"].strip(), ""]
-    for k, title in (("how", "How it is implemented"), ("affects", "What it affects (blast radius)")):
-        if ov.get(k):  # folded, as in the main report: the walkthrough is there for whoever wants it
-            L += fold(title, ov[k])
+    L = [f"## Update — {today}, head `{short}`", "", reviewed_line(ctx), ""]
     earlier = fd["earlier"]
+    rec = update_recommendation(ctx, req, procs, imp, earlier)
+    # the verdict first, as in the main report: earlier findings still open count as much as new ones
+    L += ["### ⚖️ &nbsp; Verdict", "",
+          f"Recommendation: **{recommendation_md(rec)}** {NBSP4} Confidence to Merge: **{fd['confidence']}**", ""]
+    L += before_merge(req, procs, fd.get("scope"), earlier)
     by = {s: [(n, resolve_refs(v["note"].strip(), nums)) for n, v in sorted(earlier.items(), key=lambda kv: number_key(kv[0]))
               if v["status"] == s] for s in EARLIER_STATUS}
     L += ["### Fixed since last analysis", ""]
     L += [f"- {n} — {note}" for n, note in by["fixed"]] or ["None of the earlier findings is fixed yet."]
     L += [""]
-    for s, title in (("partly", "Partly fixed"), ("open", "Still open")):
+    for s, title in (("partly", "Partly fixed"), ("open", "Still open"), ("dropped", "No longer reviewed")):
         if by[s]:
             L += [f"**{title}**", ""] + [f"- {n} — {note}" for n, note in by[s]] + [""]
-    bm = before_merge(req, procs, fd.get("scope"), earlier)
-    if bm:
-        L += ["### Before merge", ""] + bm
     L += findings_section("### 🔧 &nbsp; Required Changes", req + procs)
     L += findings_section("### 💡 &nbsp; Improvements", imp)
+    L += not_taken_up(ctx, fd.get("dismissed") or [])
+    # the delta's walkthrough last and folded, as Solution Overview in the main report: statuses and findings first
+    L += ["### What changed", ""] + fold("What was done", ov["what"])
+    for k, title in (("how", "How it is implemented"), ("affects", "What it affects (blast radius)")):
+        if ov.get(k):
+            L += fold(title, ov[k])
     block = re.sub(r"\n{3,}", "\n\n", "\n".join(L)).rstrip() + "\n"
     return block, (req, procs, imp, rec)
 
@@ -870,7 +988,7 @@ def main(argv):
         if chk.warnings:
             L.append("Warnings:\n  " + "\n  ".join(chk.warnings))
         fixed = sum(v["status"] == "fixed" for v in fd["earlier"].values()) if fd.get("earlier") else None
-        tail = update_tail(today, ctx["pr"]["head"]["short"], req, procs, imp, fixed)
+        tail = update_tail(today, ctx["pr"]["head"]["short"], req, procs, imp, fixed, rec)
         if args["dry"]:
             print("\n".join([f"Draft: {draft} (dry run — DOCS untouched)"] + L + [f"Index row tail would be:{tail}"]))
             return 0

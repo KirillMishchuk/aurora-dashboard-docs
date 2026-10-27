@@ -1,0 +1,739 @@
+{
+ "candidates": [
+  {
+   "claim": "Permission props are named `canDelete` instead of `can<Verb><Noun>` (canDeleteSecret / canDeleteContainer / canDeleteOrder), in the row and list-container props of all three resources.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretTableRow.tsx:15",
+   "evidence": "Quick Reject: \"Permission prop not named `can<Verb><Noun>`\"; B.8: \"Boolean permission props must be named can<Verb><Noun> (e.g., canDeleteFlavor  etc)\". Code: `canDelete: boolean`. Same in ContainerTableRow.tsx:15, OrderTableRow.tsx:15 and the three *ListContainer.tsx:12.",
+   "precedent": "Network plugin uses `canDeleteRule` (SecurityGroupRulesTable).",
+   "discussion": "Copilot raised it on all six files (threads r4360388743, r4360388949, r4360389203, r4360389452, r4360389872, r4360389932).",
+   "source": "finder-a",
+   "id": "C1",
+   "group": [
+    "C1",
+    "C36"
+   ],
+   "batch": 1
+  },
+  {
+   "claim": "Row action menus use `<PopupMenu>` without a `PopupMenuToggle` trigger, so the default toggle is used with no `<Button icon=\"moreVert\" aria-label>`; the icon-only trigger has no accessible label.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretTableRow.tsx:35",
+   "evidence": "Quick Reject: \"`PopupMenu` without `PopupMenuToggle` as trigger\"; B.14: \"Context menus must use <PopupMenuToggle as=\\\"div\\\"><Button icon=\\\"moreVert\\\" /></PopupMenuToggle>\". Code: `<PopupMenu><PopupMenuOptions> etc`. Same in ContainerTableRow.tsx:34 and OrderTableRow.tsx:33.",
+   "precedent": "Network floating IP / security group views import PopupMenuToggle.",
+   "discussion": "Copilot thread r4360388832 (OrderTableRow).",
+   "source": "finder-a",
+   "id": "C2",
+   "group": [
+    "C2",
+    "C3",
+    "C37"
+   ],
+   "batch": 1
+  },
+  {
+   "claim": "Delete menu item is neither labelled with the entity nor separated by a divider from the other item (single-entity menu): labels are `Delete` / `Show Details` rather than `Delete Secret` / `Show Secret Details`, and there is no `PopupMenuSectionSeparator` before Delete.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretTableRow.tsx:38",
+   "evidence": "B.18: \"Single-entity menus  etc: separate the Delete action from the rest with a divider.\" and \"Include the referenced entity in labels\". Code: `{canDelete && <PopupMenuItem label={t`Delete`}  etc/>}` directly after `Show Details`. Same in Container/Order rows (line 37/36).",
+   "discussion": "Copilot r4360388832 mentions the separator.",
+   "source": "finder-a",
+   "id": "C3",
+   "group": [
+    "C2",
+    "C3",
+    "C37"
+   ],
+   "batch": 1
+  },
+  {
+   "claim": "Delete modals put the object name/ID in the title (`Delete Secret \"${secretName}\"`, `Delete Order \"${orderId}\"`) and the confirm label is a bare `Delete` / `Deleting...`; the standard says the object goes in the body and the confirm label should be verb + object type. The body doesn't name the entity at all (container/secret), and the order modal title shows a raw UUID.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretModals.tsx:129",
+   "evidence": "B.5: \"Put the object name in the body, not the title.  etc Reference the affected entity by name/identifier in the body\"; \"Confirm labels: prefer verb + object type: Delete Image\". Code: title={t`Delete Secret \"${secretName}\"`}, body `This action cannot be undone. The secret will be permanently deleted.` Same at ContainerModals.tsx:109, OrderModals.tsx:125.",
+   "precedent": "",
+   "source": "finder-a",
+   "id": "C4",
+   "group": null,
+   "batch": 1
+  },
+  {
+   "claim": "None of the six modals pass `disableCloseButton` while the mutation is pending, so the close-X stays active and the user can dismiss the modal mid-request, while Cancel is disabled (they must be disabled together).",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretModals.tsx:136",
+   "evidence": "Quick Reject: \"Modal without `disableCancelButton` / `disableCloseButton` during async operations\"; B.5: \"disable close-X and Cancel together\". Code has `disableCancelButton={deleteMutation.isPending}` only. Same in SecretModals.tsx:60, ContainerModals.tsx:50/116, OrderModals.tsx:58/132.",
+   "precedent": "",
+   "source": "finder-a",
+   "id": "C5",
+   "group": null,
+   "batch": 1
+  },
+  {
+   "claim": "The create modals mutate with no form validation and no inline errors: the confirm button is only disabled while pending. Bit Length is parsed with parseInt (NaN on empty), Algorithm may be empty, and fields are not marked required. Validation errors on the server show only as a Message at form top.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderModals.tsx:52",
+   "evidence": "B.11 Reject: \"any form that mutates without validation\"; B.5: \"keep the primary/confirm button disabled while any required field is empty or any field fails validation\". Code: `meta: { algorithm, bit_length: parseInt(bitLength, 10) }`, `disableConfirmButton={createMutation.isPending}`; no @tanstack/react-form / zod used. Secret and container create modals use useState with no validator at all.",
+   "precedent": "",
+   "discussion": "Copilot thread on OrderModals.tsx:52 (bit length validation).",
+   "source": "finder-a",
+   "id": "C6",
+   "group": [
+    "C6",
+    "C40"
+   ],
+   "batch": 2
+  },
+  {
+   "claim": "The create modals do not follow the form standard (state in `useState` instead of @tanstack/react-form + Zod, no `autoFocus` on the primary input, inputs are not `disabled` while the mutation is in flight, no `required` markers).",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainerModals.tsx:30",
+   "evidence": "B.11: \"Preferred: @tanstack/react-form with Zod schema validators\", \"`autoFocus` on the primary input. `disabled={isMutating}` on all inputs during in-flight mutations.\" Code: `const [name, setName] = useState(\"\")`  etc TextInput has no autoFocus/disabled.",
+   "precedent": "",
+   "source": "finder-a",
+   "id": "C7",
+   "group": null,
+   "batch": 2
+  },
+  {
+   "claim": "Create/delete success is silent: no toast is shown for create or delete of secrets, containers or orders; the modal just closes. The standard requires a confirming toast delegated to a `*ToastNotifications` helper for CRUD actions.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretModals.tsx:35",
+   "evidence": "B.16 table: \"CRUD action confirmed (create, delete, update) | toast (transient)\"; B.10: \"All toast messages must be extracted to a dedicated <Resource>ToastNotifications.tsx\"; B.11: \"(modal) close and show a confirming toast\". grep of the PR diff finds no `toast` and no *ToastNotifications file. onSuccess only calls invalidate()/onClose().",
+   "precedent": "Network plugins ship *ToastNotifications files.",
+   "source": "finder-a",
+   "id": "C8",
+   "group": null,
+   "batch": 2
+  },
+  {
+   "claim": "Row/list sort control is built from raw `Select` + `SortButton` instead of the required `SortInput` from `@/client/components/ListToolbar/SortInput`; Zone 1 is also `distribution=\"end\"` rather than `\"between\"`.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx:83",
+   "evidence": "B.1 table: \"Sort control | SortInput from @/client/components/ListToolbar/SortInput\"; B.2: \"Sort controls (SortInput) + primary action Button  etc distribution=\\\"between\\\"\". Code uses `<Select label=\"Sort by\"  etc>` + `<SortButton  etc/>` in `<Stack distribution=\"end\"  etc className=\"jn:pb-2\">`. Same in OrdersList.tsx:66. Containers list has no sort control at all although the PR body advertises sort for the lists.",
+   "precedent": "floatingips/-components/FloatingIpsList.tsx and routers/-components/RoutersList.tsx import SortInput.",
+   "source": "finder-a",
+   "id": "C9",
+   "group": null,
+   "batch": 2
+  },
+  {
+   "claim": "The permission-denied state for the list pages is rendered inline as a non-page-level warning `Message` with hardcoded English and no `mb-4`, instead of a 403 page-level error with an info `Message`; the copy also differs from the recommended 403 text.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx:72",
+   "evidence": "B.6 Reject: \"a 401/403 handled inline instead of via redirect / page-level info Message\"; 403 row: \"plus an info Message explaining lack of access\". Code: `<Message variant=\"warning\">You do not have permission to view secrets.</Message>`. Same ContainersList.tsx:50, OrdersList.tsx:55. B.3 requires `mb-4` on Message banners.",
+   "precedent": "Network lists use a Message for the same case (\"You do not have permission to view security groups\" in messages.po), so this may be accepted locally.",
+   "source": "finder-a",
+   "id": "C10",
+   "group": null,
+   "batch": 2
+  },
+  {
+   "claim": "Reveal Payload button, secret detail and the other detail routes do not check any permission (`key-manager:secrets:payload` / `get`); the control is rendered functional before permissions are known (not fail-closed).",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretDetailsView.tsx:89",
+   "evidence": "Quick Reject: \"UI control shown before permissions are resolved (not fail-closed)\"; B.7/B.8: \"Never optimistically show actions before permissions resolve.\" Code: `<Button variant=\"subdued\" onClick={handleRevealPayload} disabled={payloadFetching}>`; usePermissions is never imported in the *DetailsView files. The `payload` permission is defined in usePermissions.ts:6 and the policy but unused.",
+   "precedent": "",
+   "discussion": "Copilot thread r4360388886 (CRITICAL).",
+   "source": "finder-a",
+   "id": "C11",
+   "group": [
+    "C11",
+    "C29",
+    "C49"
+   ],
+   "batch": 3
+  },
+  {
+   "claim": "Detail data is fetched in the component twice (route component and *DetailsView both call the same getX.useQuery) rather than in the route `loader`; the route has no loader, and the breadcrumb is set from a separately fetched copy.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/$containerId.tsx:19",
+   "evidence": "A.3: \"Data critical for rendering a page must be fetched via the route's loader function rather than loading it inside the component body.\" and (task) data the loader already fetched is not fetched again. Code: `$containerId.tsx:19 trpcReact.keyManager.getContainer.useQuery( etc)` and `ContainerDetailsView.tsx:31 trpcReact.keyManager.getContainer.useQuery( etc)`. Same for $secretId.tsx:19 / SecretDetailsView.tsx:24 and $orderId.tsx:19 / OrderDetailsView.tsx:22. B.7 allows tRPC useQuery, so severity is a judgement call.",
+   "precedent": "",
+   "discussion": "",
+   "source": "finder-a",
+   "id": "C12",
+   "group": null,
+   "batch": 3
+  },
+  {
+   "claim": "Search input navigates on every keystroke (`onInput` -> navigate) with no local mirror state / debounce, producing a router navigation and a server request per character.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx:104",
+   "evidence": "B.9: \"Use a local mirror state for debounced search inputs; sync back on external navigation via useEffect.\" Code: `onInput={(e) => onSearchChange((e.target as HTMLInputElement).value)}` where onSearchChange calls `navigate({ etc search: { search: value || undefined  etc}})`. Same ContainersList.tsx:74.",
+   "precedent": "",
+   "source": "finder-a",
+   "id": "C13",
+   "group": null,
+   "batch": 3
+  },
+  {
+   "claim": "Ad-hoc spacing and styling classes outside the approved lists: `my-6` on the detail Stack, `mt-4` wrapper, `p-3`/`rounded`/`max-h-48` and `text-xs opacity-60` on payload/ID text, `items-end pr-0`, `jn:min-w-40`; `opacity-60` is used instead of a `text-theme-light` token.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretDetailsView.tsx:79",
+   "evidence": "B.3: \"Reject any use of ad-hoc mt-3, mb-5, px-6, etc. not listed above\" (detail top offset is `mt-6`); B.4: \"Muted / secondary text | text-theme-light\". Code: `className=\"my-6\"` (also ContainerDetailsView.tsx:62, OrderDetailsView.tsx:67), `<p className=\"text-sm opacity-60\">` :97, `<pre className=\"bg-theme-background-lvl-2 max-h-48 overflow-auto rounded p-3 text-xs\">` :98, key-manager.tsx:104 `className=\"mt-4\"`, rows `text-xs opacity-60`.",
+   "precedent": "",
+   "source": "finder-a",
+   "id": "C14",
+   "group": null,
+   "batch": 3
+  },
+  {
+   "claim": "Raw HTML elements are used where Juno components exist: `<div>` wrappers (layout, row cells, pagination wrapper), `<p>` bodies in modals and `<pre>` for the payload.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager.tsx:91",
+   "evidence": "Quick Reject: \"Raw HTML element (<div>, <table>, <button>) where a Juno component exists\"; B.1 \"Primary layout primitive | Stack\". Code: `<div><ContentHeader  etc/>  etc <div className=\"mt-4\">`; SecretTableRow.tsx:26-27 `<div>{secret.name  etc}</div><div className=\"text-xs opacity-60\">`; SecretsList.tsx:127 `<div className=\"flex justify-center py-4\">`; SecretDetailsView.tsx:88 `<div>` around the button.",
+   "precedent": "",
+   "source": "finder-a",
+   "id": "C15",
+   "group": null,
+   "batch": 3
+  },
+  {
+   "claim": "Files do not follow the B.12 naming table: the modal files bundle two modals each (`SecretModals.tsx`, `ContainerModals.tsx`, `OrderModals.tsx` instead of `CreateSecretModal.tsx` / `DeleteSecretModal.tsx`), the hook file is a generic `usePermissions.ts` instead of `useKeyManagerPermissions.ts`, and `utils.ts` / `constants.ts` are generic names.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/-components/usePermissions.ts:21",
+   "evidence": "B.12: \"Modal | <Verb><Resource>Modal.tsx\"; \"Hook | use<PascalCase>.ts (useCephPermissions.ts)\"; Reject: \"generic names (Modal.tsx, Table.tsx)\"; B.8: \"a use<Feature>Permissions(projectId) hook\". Hook is exported as `usePermissions(projectId, permissions)` and takes a permission list rather than projectId only.",
+   "precedent": "Network plugin has per-modal files.",
+   "discussion": "Copilot thread r4360389782 asked for useKeyManagerPermissions.",
+   "source": "finder-a",
+   "id": "C16",
+   "group": [
+    "C16",
+    "C38"
+   ],
+   "batch": 4
+  },
+  {
+   "claim": "Import order and path rules are broken: Juno imports come before `@lingui` imports (and `useState` after Juno in SecretModals), and `../../-components/...` relative traversal two levels up is used instead of `@/` aliases.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretModals.tsx:13",
+   "evidence": "B.13: order is react, i18n, tRPC, Juno; \"All imports must use @/ path aliases. No relative ../../ traversal beyond one level.\" Code: SecretModals.tsx imports Juno (l.1-12) then `useState` from react (l.13); key-manager.tsx:2-4 Juno, server, then lingui. `import { uuidFromRef } from \"../../-components/utils\"` in all *Modals/*TableRow/*DetailsView files and `import { usePermissions } from \"../../-components/usePermissions\"` in all *List files; secrets/index.tsx:5 `../-components/utils`.",
+   "precedent": "",
+   "source": "finder-a",
+   "id": "C17",
+   "group": null,
+   "batch": 4
+  },
+  {
+   "claim": "User-facing strings are not translated: JSX button/placeholder/label literals (`Create Secret`, `Search by name...`, `Sort by`, `Created At`), the permission-denied Messages, and the DataGrid column header arrays in constants.ts (`Name / ID`, `Status`, `Type`, ...) are plain English, so the de locale will show English.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/constants.ts:1",
+   "evidence": "B.14: \"All user-facing strings must be wrapped in <Trans> or t` etc`\" (the review scope says lingui lint covers aurora, but these aren't caught). `export const SECRETS_COLUMNS = [\"Name / ID\", \"Status\",  etc]`; SecretsList.tsx:97 `Create Secret`, :105 `placeholder=\"Search by name etc\"`, :84 `label=\"Sort by\"`; `msgid \"Name / ID\"` and `msgid \"Search by name\"` are absent from en/messages.po at head (git show | grep).",
+   "precedent": "Low priority: out of the stated review scope if lint is assumed to catch it.",
+   "source": "finder-a",
+   "id": "C18",
+   "group": [
+    "C18",
+    "C55"
+   ],
+   "batch": 4
+  },
+  {
+   "claim": "Empty-state wording does not distinguish `no data` from `no filter results`: with an active search the secrets/containers list shows `There are no secrets in this project. Create one to get started.`",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretListContainer.tsx:58",
+   "evidence": "B.6: \"Distinguish empty reasons: 'no data' -> suggest creating; 'no filter results' -> suggest clearing filters.\" Code shows the same `No Secrets Found` / create body whether or not `search` is set (the list container does not receive `search`). Same in ContainerListContainer.tsx:58, and the empty Create hint is shown even to users without create permission.",
+   "precedent": "",
+   "source": "finder-a",
+   "id": "C19",
+   "group": null,
+   "batch": 4
+  },
+  {
+   "claim": "Error states render the raw `error.message` as the Status title (`error?.message ?? t`Failed to Load Secret``), with no retry action or explanatory body.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretListContainer.tsx:33",
+   "evidence": "B.6: \"Always communicate the state and a possible course of action (retry link where feasible)\"; \"any empty/broken state without explanatory title/body\". Code: `<Status status=\"error\" title={error?.message ?? t`Failed to Load Secrets`} />`; same in all list containers and DetailsViews (e.g. ContainerDetailsView.tsx:37). Detail pages also have no `errorComponent`/403 handling of their own.",
+   "precedent": "",
+   "source": "finder-a",
+   "id": "C20",
+   "group": null,
+   "batch": 4
+  },
+  {
+   "claim": "The Authorization nav entry does not honour service-visibility configuration (`isEnabled` / enabledServices / deniedServices) like the other in-core entries.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/-components/buildNavSections.ts:153",
+   "evidence": "Code: ` etc(serviceIndex[\"key-manager\"]?.[\"barbican\"] ? [{ etc}] : [])` with no isEnabled call. Part A/CLAUDE.md: `enabledServices` whitelists which services show in the nav.",
+   "precedent": "Other in-core entries use isEnabled in the same file.",
+   "discussion": "Copilot thread r4360389607.",
+   "source": "finder-a",
+   "id": "C21",
+   "group": [
+    "C21",
+    "C27",
+    "C35",
+    "C41"
+   ],
+   "batch": 5
+  },
+  {
+   "claim": "Page-state recovery after deletion: list URL `page` is not clamped when the last row of the last page is deleted, leaving an empty table with no pagination.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx:126",
+   "evidence": "B.9 (URL state must stay consistent) ; Code: `{totalPages > 1 && (<Pagination  etc/>)}` with `page` coming from the URL and no clamp after invalidate.",
+   "precedent": "",
+   "discussion": "Copilot threads r4360389254, r4360389387, r4360389532.",
+   "source": "finder-a",
+   "id": "C22",
+   "group": [
+    "C22",
+    "C39"
+   ],
+   "batch": 5
+  },
+  {
+   "claim": "The PR body checklist leaves the tests, docs, warnings and 'commented my code' items unchecked even though tests are added, and the Testing Instructions are only generic commands. No changeset is mentioned (memory: house style says no changesets in descriptions).",
+   "location": "PR body",
+   "evidence": "pr-body.md Checklist: `- [ ] I have added tests that prove my fix is effective or that my feature works.` and `- [ ] New and existing unit tests pass locally with my changes.` while the PR adds *.test.ts(x) files.",
+   "precedent": "",
+   "source": "finder-a",
+   "id": "C23",
+   "group": null,
+   "batch": 5
+  },
+  {
+   "claim": "SearchInput wires both onSearch and onInput to onSearchChange, and onSearchChange navigates, so every keystroke changes the URL, resets page and fires a new listSecrets request (and likely adds a history entry per character). Typing a name causes request churn and a polluted back-history.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx:109",
+   "evidence": "SecretsList.tsx: SearchInput has onSearch, onClear and onInput all calling onSearchChange; handleSearch in secrets/index.tsx calls navigate({search:{search:value,...}}) with no debounce or replace. Same pattern likely in containers list.",
+   "source": "finder-b",
+   "id": "C24",
+   "group": null,
+   "batch": 5
+  },
+  {
+   "claim": "getSecretPayload reads the secret with res.text() and returns it as a tRPC query result, so binary secrets (e.g. application/octet-stream, symmetric keys) are corrupted by UTF-8 decoding and shown as garbage; the plaintext payload also gets cached in the TanStack Query cache.",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:103",
+   "evidence": "keyManagerRouter.ts lines 102-104: `const text = await res.text(); return { payload: text, contentType }`; no Accept header is sent and no binary/base64 handling.",
+   "source": "finder-b",
+   "id": "C25",
+   "group": null,
+   "batch": 6
+  },
+  {
+   "claim": "listOrders translates `sort` into sort_key/sort_dir query params, but Barbican's orders list API only supports offset and limit, so the orders sort control is likely a no-op.",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:269",
+   "evidence": "keyManagerRouter.ts lines 269-273 set sort_key/sort_dir; Barbican API reference for GET /v1/orders lists only limit and offset (from memory, not verified online).",
+   "source": "finder-b",
+   "id": "C26",
+   "group": [
+    "C26",
+    "C44"
+   ],
+   "batch": 6
+  },
+  {
+   "claim": "The new Authorization > Key Manager nav entry is gated only on the catalog (serviceIndex[\"key-manager\"][\"barbican\"]) and skips isEnabled(...). Since #1370, every built-in item and every extension is filtered by enabledServices/deniedServices, so a consumer cannot hide Key Manager via appConfig deny list or enabledServices allowlist (the allowlist would still show it).",
+   "location": "packages/aurora/src/client/routes/_auth/projects/-components/buildNavSections.ts:154",
+   "evidence": "At base c65b36d0, buildNavSections.ts lines 29-33 define isEnabled with the comment 'Deny always wins and applies even without an allow/enabled list'; images, flavors, securitygroups, floatingips, routers, containers and ceph-containers all use `&& isEnabled(\"<key>\")`, and extensions check enabledServices/deniedServices (lines 154-155, added in b4b47df6 #1370). The PR diff for this file adds the key-manager item with no isEnabled call. The PR does not touch README 'Service key reference' either.",
+   "precedent": "routers/securitygroups/floatingips entries in the same file use isEnabled.",
+   "source": "finder-c",
+   "id": "C27",
+   "group": [
+    "C21",
+    "C27",
+    "C35",
+    "C41"
+   ],
+   "batch": 5
+  },
+  {
+   "claim": "The project landing page (projects/$projectId/index.tsx) builds service cards per service with the same isEnabled gating, but the PR does not touch it, so Key Manager gets a nav entry but no card on the project overview. The key-manager layout beforeLoad also checks only the catalog, not enabled/denied services, so a denied service stays reachable by URL.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager.tsx:46",
+   "evidence": "At base c65b36d0, routes/_auth/projects/$projectId/index.tsx lines 56-110 push a card (group Compute/Network/Storage/Services) for each service under isEnabled; `git diff --stat` for the PR shows no change to that index.tsx (only key-manager/*/index.tsx files). #1370 touched both buildNavSections.ts and this index.tsx together to keep them in sync.",
+   "source": "finder-c",
+   "id": "C28",
+   "group": null,
+   "batch": 6
+  },
+  {
+   "claim": "Reveal Payload button is rendered and fetches secret material without checking the separately defined key-manager:secrets:payload permission (the key exists in permissionRouter but is never used client-side). Users without the permission see a working control; not fail-closed.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretDetailsView.tsx:90",
+   "evidence": "git grep at head: SecretDetailsView.tsx has no permission lookup/usePermissions; permissionRouter.ts:6 defines \"key-manager:secrets:payload\". copilot-instructions B.7/B.8: permissions default false while loading, reject controls shown before permissions confirmed.",
+   "discussion": "Copilot inline comment r4360388886 (CRITICAL), no replies, not addressed at head.",
+   "source": "finder-d",
+   "id": "C29",
+   "group": [
+    "C11",
+    "C29",
+    "C49"
+   ],
+   "batch": 3
+  },
+  {
+   "claim": "Key Manager server procedures never evaluate the loaded policy; canUser is registered but each handler (incl. getSecretPayload, deleteContainerSecret, createSecret) only uses projectScopedProcedure, so permission gating is UI-only and a direct tRPC call bypasses Aurora policy.",
+   "location": "packages/aurora/src/server/KeyManager/routers/index.ts:8",
+   "evidence": "git grep for policy|canUser|FORBIDDEN in server/KeyManager shows only permissionRouter wiring and mapKmError 403 mapping; no handler checks a rule.",
+   "precedent": "Not checked whether Compute/Storage routers enforce server-side.",
+   "discussion": "Copilot inline r4360389025 (CRITICAL), no replies, still applies.",
+   "source": "finder-d",
+   "id": "C30",
+   "group": null,
+   "batch": 6
+  },
+  {
+   "claim": "getSecretPayload (and other calls) use the session default Accept: application/json; Barbican's payload endpoint serves raw secret content and can return 406 for non-JSON payloads. The response is also read with res.text() with no Accept override.",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:98",
+   "evidence": "context.ts:116 sets default Accept: application/json; keyManagerRouter.ts:98 km.get(`v1/secrets/${id}/payload`) passes no headers.",
+   "discussion": "Copilot inline r4360389136, no replies, still applies. Behaviour with Barbican unverified live.",
+   "source": "finder-d",
+   "id": "C31",
+   "group": [
+    "C31",
+    "C32",
+    "C45"
+   ],
+   "batch": 6
+  },
+  {
+   "claim": "Secret payload plaintext can be logged: signal-openstack logs a bodyPreview for text responses when debug is on, and debug defaults to true outside production; getSecretPayload does not disable it.",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:98",
+   "evidence": "signal-openstack/src/client.ts:169-183 builds bodyPreview from text; context.ts:114 debug: config.debug ?? NODE_ENV !== \"production\".",
+   "discussion": "Copilot inline r4360389080 (CRITICAL), no replies, still applies in non-production.",
+   "source": "finder-d",
+   "id": "C32",
+   "group": [
+    "C31",
+    "C32",
+    "C45"
+   ],
+   "batch": 6
+  },
+  {
+   "claim": "deleteContainerSecret DELETEs v1/containers/{id}/secrets/{secretName}; Barbican's removal endpoint is DELETE /v1/containers/{uuid}/secrets with name and secret_ref in a JSON body, so association removal will fail.",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:252",
+   "evidence": "Line 252: .del(`v1/containers/${containerId}/secrets/${secretName}`) with input only containerId+secretName; the test asserts the same URL.",
+   "discussion": "Copilot inline r4360389656, no replies, still applies.",
+   "source": "finder-d",
+   "id": "C33",
+   "group": [
+    "C33",
+    "C42"
+   ],
+   "batch": 7
+  },
+  {
+   "claim": "Container secret_refs schema requires name: string, but Barbican may return name: null for unnamed references; parseOrThrow would then reject the whole container/list response.",
+   "location": "packages/aurora/src/server/KeyManager/types/keyManager.ts:25",
+   "evidence": "Line 25: secret_refs: z.array(z.object({ name: z.string(), secret_ref: z.string() })), while sibling name fields use .nullable().",
+   "discussion": "Copilot inline r4360389713, no replies, still applies.",
+   "source": "finder-d",
+   "id": "C34",
+   "group": null,
+   "batch": 7
+  },
+  {
+   "claim": "Key Manager nav entry ignores isEnabled, so enabledServices/deniedServices cannot hide it, unlike the other entries.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/-components/buildNavSections.ts:154",
+   "evidence": "Line 154: serviceIndex[\"key-manager\"]?.[\"barbican\"] ? ... with no && isEnabled(...); other entries at lines 36,46,60,71,82,97,119 use isEnabled.",
+   "discussion": "Copilot inline r4360389607, no replies, still applies.",
+   "source": "finder-d",
+   "id": "C35",
+   "group": [
+    "C21",
+    "C27",
+    "C35",
+    "C41"
+   ],
+   "batch": 5
+  },
+  {
+   "claim": "Boolean permission props are named canDelete instead of can<Verb><Noun> (canDeleteContainer/canDeleteSecret/canDeleteOrder), violating B.8.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretTableRow.tsx:15",
+   "evidence": "canDelete in Secret/Container/Order TableRow (line 15), ListContainer (line 12) and passed from Lists; copilot-instructions line 329 requires can<Verb><Noun>.",
+   "discussion": "Copilot inline threads r4360388743, r4360388949, r4360389203, r4360389452, r4360389872, r4360389932; no replies, unchanged.",
+   "source": "finder-d",
+   "id": "C36",
+   "group": [
+    "C1",
+    "C36"
+   ],
+   "batch": 1
+  },
+  {
+   "claim": "Row action PopupMenu has no PopupMenuToggle trigger (labelled more-actions button) and no PopupMenuSectionSeparator before destructive Delete, in the secret, container and order rows.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretTableRow.tsx:35",
+   "evidence": "SecretTableRow.tsx:35-40 <PopupMenu><PopupMenuOptions> with Show Details and Delete only; imports lack PopupMenuToggle. copilot-instructions line 457 requires PopupMenuToggle as trigger.",
+   "discussion": "Copilot inline r4360388832 on OrderTableRow; same pattern in other rows.",
+   "source": "finder-d",
+   "id": "C37",
+   "group": [
+    "C2",
+    "C3",
+    "C37"
+   ],
+   "batch": 1
+  },
+  {
+   "claim": "Hook is named generically usePermissions though it is Key Manager specific; the convention is use<Feature>Permissions (useKeyManagerPermissions).",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/-components/usePermissions.ts:21",
+   "evidence": "export function usePermissions(...) at line 21; copilot-instructions B.8 line 328.",
+   "discussion": "Copilot inline r4360389782, no replies, unchanged.",
+   "source": "finder-d",
+   "id": "C38",
+   "group": [
+    "C16",
+    "C38"
+   ],
+   "batch": 4
+  },
+  {
+   "claim": "After deleting the last item on the final page the URL page stays beyond the new total; pagination is hidden (totalPages <= 1) and the table is empty with no way back. Same in Secrets, Containers and Orders lists.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx:126",
+   "evidence": "SecretsList.tsx:62 offset=(page-1)*PAGE_SIZE, line 75 totalPages from data.total, line 126 {totalPages > 1 && Pagination}; no clamp/reset of page on delete or total shrink.",
+   "discussion": "Copilot inline r4360389532, r4360389254 (ContainersList:91), r4360389387 (OrdersList:97); no replies.",
+   "source": "finder-d",
+   "id": "C39",
+   "group": [
+    "C22",
+    "C39"
+   ],
+   "batch": 5
+  },
+  {
+   "claim": "Create Order modal does not validate Bit Length: parseInt of empty or invalid input yields NaN, zero/negative values are accepted, and Create stays enabled; no inline error.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderModals.tsx:52",
+   "evidence": "Line 52 meta: { algorithm, bit_length: parseInt(bitLength, 10) }; disableConfirmButton only on isPending (line 57); no server-side check (meta is unrestricted).",
+   "discussion": "Copilot inline r4360389321, no replies, still applies.",
+   "source": "finder-d",
+   "id": "C40",
+   "group": [
+    "C6",
+    "C40"
+   ],
+   "batch": 2
+  },
+  {
+   "claim": "The new Key Manager nav item is gated only on the service catalog and skips isEnabled(\"key-manager\"). The comment above isEnabled says deny always wins and a service can be hidden by deniedServices alone, but enabledServices/deniedServices have no effect on Key Manager, so an operator cannot hide it or exclude it from an allowlist.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/-components/buildNavSections.ts:154",
+   "evidence": "Comment at lines 29-31 at fd248f08: \"Deny always wins and applies even without an allow/enabled list, so a service can be hidden by deniedServices alone ... see resolveServiceVisibility.\" Every other built-in item uses `&& isEnabled(...)` (images, flavors, securitygroups, floatingips, routers, containers, ceph-containers). The new entry uses only `serviceIndex[\"key-manager\"]?.[\"barbican\"]`. The route beforeLoad in key-manager.tsx also checks only the catalog, so a denied service stays reachable by URL.",
+   "precedent": "Extensions at lines 176-178 check both enabledServices and deniedServices.",
+   "source": "finder-e",
+   "id": "C41",
+   "group": [
+    "C21",
+    "C27",
+    "C35",
+    "C41"
+   ],
+   "batch": 5
+  },
+  {
+   "claim": "deleteContainerSecret calls DELETE /v1/containers/{id}/secrets/{secretName}; Barbican documents removal as DELETE /v1/containers/{container_uuid}/secrets with a JSON body {name, secret_ref}. The path-segment form is not in the reference, so removing a secret from a container likely fails (404/405) and the UI action is broken.",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:252",
+   "evidence": "Code at fd248f08: `.del(`v1/containers/${encodeURIComponent(input.containerId)}/secrets/${encodeURIComponent(input.secretName)}`)`; input has only containerId and secretName, no secret_ref. Reference (https://docs.openstack.org/barbican/latest/api/reference/containers.html, source https://raw.githubusercontent.com/openstack/barbican/master/doc/source/api/reference/containers.rst, section 'DELETE /v1/containers/{container_uuid}/secrets'): 'Remove a secret from a container.  This is only supported on generic containers.' Request attributes: 'secret_ref | uri | (required) Full URI reference to an existing secret.' Request: 'DELETE /v1/containers/{container_uuid}/secrets ... Content: { \"name\": \"private key\", \"secret_ref\": \"https://{barbican_host}/v1/secrets/{secret_uuid}\" }'; 400 'Missing secret_ref'. No `/secrets/{name}` path appears in that file.",
+   "source": "finder-f",
+   "id": "C42",
+   "group": [
+    "C33",
+    "C42"
+   ],
+   "batch": 7
+  },
+  {
+   "claim": "listContainers sends a `name` filter, but the Containers list documents only offset and limit. The search box would be silently ignored by Barbican (or the BFF would need to filter itself), so users see unfiltered results.",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:167",
+   "evidence": "Code: `if (input.name) params.set(\"name\", input.name)` in listContainers. Reference (containers.rst, 'GET /v1/containers' Parameters table): only 'offset | integer | The starting index within the total list of the containers...' and 'limit | integer | The maximum number of containers to return (up to 100). The default limit is 10.' No name filter. By contrast the Secrets list documents 'name | string | Selects all secrets with name similar to this value.' (secrets.rst).",
+   "source": "finder-f",
+   "id": "C43",
+   "group": null,
+   "batch": 7
+  },
+  {
+   "claim": "listOrders translates `sort` into sort_key/sort_dir query params, which the Orders list does not document (it documents only offset and limit; the `sort` param of secrets uses `key:dir` in one `sort` param, not sort_key/sort_dir). The sort selector on the orders page therefore has no documented effect.",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:269",
+   "evidence": "Code: `const [sortKey, sortDir] = input.sort.split(\":\")` then `params.set(\"sort_key\", sortKey)` / `params.set(\"sort_dir\", sortDir)`. Reference (https://docs.openstack.org/barbican/latest/api/reference/orders.html, orders.rst 'GET /v1/orders' Parameters): only 'offset' and 'limit | The maximum number of records to return (up to 100). (Default is 10)'. Secrets.rst 'Sorting': 'The value of the ``sort`` parameter is a comma-separated list of sort keys... Each sort key may also include a direction... ``:asc`` / ``:desc``' - sort_key/sort_dir are not documented anywhere in the secrets/containers/orders reference files. UI offers only SORT_FIELDS = [{ value: \"created\" }] (OrdersList.tsx:19).",
+   "source": "finder-f",
+   "id": "C44",
+   "group": [
+    "C26",
+    "C44"
+   ],
+   "batch": 6
+  },
+  {
+   "claim": "getSecretPayload does not send an Accept header; the reference says the Accept header must be set to one of the secret's content_types for GET /payload. signal-openstack adds no Accept header, so the call can return 406 (mapped to INTERNAL_SERVER_ERROR) or the wrong content type. Also mapKmError has no mapping for 406/415, which the reference lists for these endpoints.",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:98",
+   "evidence": "Code: `km.get(`v1/secrets/${encodeURIComponent(input.secretId)}/payload`)` with no options/headers; grep of packages/signal-openstack/src/client.ts shows only a Content-Type default, no Accept. Reference (secrets.rst 'GET /v1/secrets/{uuid}/payload'): 'When making a request for a secret's payload, you must set the accept header to one of the values listed in the ``content_types`` attribute of a secret's metadata.' Status codes: '406 | Not Acceptable'; POST /v1/secrets lists '415 | Unsupported media-type'. mapKmError codeMap covers only 400/401/403/404/409 (lines 43-49).",
+   "source": "finder-f",
+   "id": "C45",
+   "group": [
+    "C31",
+    "C32",
+    "C45"
+   ],
+   "batch": 6
+  },
+  {
+   "claim": "updateSecret uses PUT /v1/secrets/{id}, which the reference restricts to metadata-only secrets without a payload; the router offers it for any secret, so editing a secret that already has a payload fails (400/409), surfacing as a generic error. It also never sends Content-Encoding, so binary/base64 payloads cannot be stored.",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:137",
+   "evidence": "Code: `.put(`v1/secrets/${encodeURIComponent(input.secretId)}`, input.payload, { headers: { \"Content-Type\": input.payload_content_type } })`. Reference (secrets.rst 'PUT /v1/secrets/{uuid}'): 'Add the payload to an existing metadata-only secret, such as one made by sending a POST /v1/secrets request that does not include the ``payload`` attribute.' and note 'This action can only be done for a secret that doesn't have a payload.' Headers table lists optional 'Content-Encoding'. Documented status codes: 204, 401, 404 only.",
+   "source": "finder-f",
+   "id": "C46",
+   "group": null,
+   "batch": 7
+  },
+  {
+   "claim": "CreateOrderInputSchema accepts type \"certificate\", but the Orders reference documents only key and asymmetric as valid order types.",
+   "location": "packages/aurora/src/server/KeyManager/types/keyManager.ts:91",
+   "evidence": "Code: `type: z.enum([\"key\", \"asymmetric\", \"certificate\"])`. Reference (orders.rst 'POST /v1/orders' Parameters): 'type | string | The type of key to be generated. Valid types are key and asymmetric'. (Other Barbican docs may describe certificate orders; this orders reference page does not.)",
+   "source": "finder-f",
+   "id": "C47",
+   "group": null,
+   "batch": 7
+  },
+  {
+   "claim": "List calls accept any numeric limit/offset (z.number() without .max(100)/.min(0)); Barbican caps limit at 100, so a client-supplied larger value is silently clamped and `total`-based paging math (PAGE_SIZE) would be off. Current UI uses 50 so impact is only for other callers.",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:21",
+   "evidence": "Code: `limit: z.number().default(20)`. Reference (secrets.rst/containers.rst/orders.rst): 'limit | integer | The maximum number of records to return (up to 100). The default limit is 10.' Pagination: code sends offset/limit (consistent with the documented offset/limit), UI page size 50 (OrdersList.tsx:17); `next`/`previous` are parsed in the schema but unused.",
+   "source": "finder-f",
+   "id": "C48",
+   "group": null,
+   "batch": 7
+  },
+  {
+   "claim": "The Reveal Payload button (and the detail views generally) is not gated by the `key-manager:secrets:payload` permission, which is mapped server-side but never read by any client code. A user without payload rights still sees the button and the server procedure fetches the plaintext secret; only Barbican's own ACLs stop it.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretDetailsView.tsx:89",
+   "evidence": "git grep of usePermissions/permissions[ under key-manager/ (at head) shows usage only in ContainersList, OrdersList and SecretsList (list/create/delete); SecretDetailsView, ContainerDetailsView and OrderDetailsView have none. `key-manager:secrets:payload` appears only in usePermissions.ts type and permissionRouter mappings.",
+   "precedent": "",
+   "source": "finder-g",
+   "id": "C49",
+   "group": [
+    "C11",
+    "C29",
+    "C49"
+   ],
+   "batch": 3
+  },
+  {
+   "claim": "None of the KeyManager mutations or the payload query enforce a server-side canUser/policy check; they rely only on projectScopedProcedure and Barbican's own authorization. The policy file key-manager.json (viewer/editor split) is therefore advisory UI-hiding only, including for getSecretPayload (plaintext key material) and delete/create/update.",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:93",
+   "evidence": "All procedures in keyManagerRouter.ts go straight from projectScopedProcedure to km.get/post/put/del with no call to the policy engine; permissionRouter.ts only exposes the canUser query.",
+   "precedent": "Network routers (e.g. floatingIpRouter) also do not call the policy engine in mutations, so this matches existing convention, but the review rubric requires server enforcement.",
+   "source": "finder-g",
+   "id": "C50",
+   "group": null,
+   "batch": 7
+  },
+  {
+   "claim": "Decrypted secret payload is fetched via a TanStack Query useQuery (enabled:false + refetch) and so stays in the client query cache after 'Hide' (default gcTime 5 min, also refetchable/shared across components), and is returned as `res.text()` which corrupts binary payloads. Plaintext secrets remaining in cache longer than needed is a data-protection concern; consider a mutation or gcTime:0 and clear on hide/unmount.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretDetailsView.tsx:34",
+   "evidence": "setShowPayload(false) on Hide only toggles UI state; no cache removal or gcTime option on the query.",
+   "source": "finder-g",
+   "id": "C51",
+   "group": null,
+   "batch": 8
+  },
+  {
+   "claim": "ID/ref inputs interpolated into outbound Barbican paths are unvalidated `z.string()`; encodeURIComponent does not encode `.`, so `secretId`/`containerId`/`orderId`/`secretName` of `..` yields `v1/secrets/..` style paths that a URL normaliser collapses (e.g. DELETE v1/containers/.. -> v1/). Also secret_ref/secret_refs entries are arbitrary strings forwarded to Barbican, and `sort` is free text split into sort_key/sort_dir. Low impact (same project token, same service) but should be constrained with uuid()/regex.",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:37",
+   "evidence": "`const resourceIdInput = z.object({ secretId: z.string() })`, containerIdInput/orderIdInput the same; deleteContainerSecret uses `secretName: z.string()` in the path; addContainerSecret `secret_ref: z.string()`; pagination `offset`/`limit` are unbounded z.number() (no int/min/max).",
+   "source": "finder-g",
+   "id": "C52",
+   "group": null,
+   "batch": 8
+  },
+  {
+   "claim": "mapKmError attaches the raw upstream error as `cause` for every failure; if the tRPC error formatter or logger serialises causes this can expose OpenStack internals, and the secret payload in createSecret/updateSecret bodies could flow into logged errors. Worth confirming the error formatter strips `cause`.",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:50",
+   "evidence": "`return new TRPCError({ code: ..., message: ..., cause: error })`",
+   "source": "finder-g",
+   "id": "C53",
+   "group": null,
+   "batch": 8
+  },
+  {
+   "claim": "Acceptance criterion partly met: tRPC BFF is implemented with complete Zod schema validation for Secrets, Containers, and Orders.",
+   "location": "PR files",
+   "evidence": "`packages/aurora/src/server/KeyManager/types/keyManager.ts` defines schemas for all three, and list/get responses are parsed with `parseOrThrow`. But create/add-secret responses are cast (`data.secret_ref as string`) and the payload response has no schema. `updateSecret` only replaces payload, not metadata.",
+   "source": "describer (acceptance)",
+   "id": "C54",
+   "group": [
+    "C54",
+    "C56",
+    "C58",
+    "C59",
+    "C60"
+   ],
+   "batch": 8
+  },
+  {
+   "claim": "Acceptance criterion partly met: Each tab renders its own overview list with the columns specified in the UI Specification.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/constants.ts:1",
+   "evidence": "Secrets list (`secrets/-components/constants.ts:1`) has Name/ID, Status, Type, Content Types. Containers list shows name/ID, status, type. Orders list (`orders/-components/constants.ts:1`) has ID only, with no order name or reference. Column order differs from the spec (Status is second, by design per the PR body).",
+   "source": "describer (acceptance)",
+   "id": "C55",
+   "group": [
+    "C18",
+    "C55"
+   ],
+   "batch": 4
+  },
+  {
+   "claim": "Acceptance criterion partly met: Users can list, view, create, update, and delete Secrets, Containers, and Orders (P1, P2 & P3).",
+   "location": "PR files",
+   "evidence": "List, view, create and delete are implemented in the UI for all three. Update is missing in the UI: `updateSecret`, `addContainerSecret` and `deleteContainerSecret` exist on the server but no client code calls them, so there is no Edit Secret modal and no Manage Container Secrets flow. Create Secret has only name, type and payload (no algorithm, bit length, mode, content type or expiration); Create Container cannot attach secrets (`secret_refs: []`).",
+   "source": "describer (acceptance)",
+   "id": "C56",
+   "group": [
+    "C54",
+    "C56",
+    "C58",
+    "C59",
+    "C60"
+   ],
+   "batch": 8
+  },
+  {
+   "claim": "Acceptance criterion partly met: All action-triggering UI elements (Create, Edit, Delete, etc.) are gated using canUser(...) against the corresponding key-manager:* policy rules and are hidden/disabled for unauthorized users.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx:67",
+   "evidence": "Create and Delete are gated in the lists (`SecretsList.tsx:67` and siblings, and `canDelete` in the row components). Reveal Payload is not gated (`SecretDetailsView.tsx:90`), and there are no Edit or Manage-secrets actions to gate. Detail views do not check `get` permission. The server procedures do no policy check of their own.",
+   "source": "describer (acceptance)",
+   "id": "C57",
+   "group": null,
+   "batch": 9
+  },
+  {
+   "claim": "Acceptance criterion partly met: Comprehensive error handling provides user-friendly feedback for Barbican errors.",
+   "location": "PR files",
+   "evidence": "Modals show `mutation.error.message` and lists show a `Status` error, but `mapKmError` in `keyManagerRouter.ts` discards Barbican's response body and returns a generic message like 'Key Manager delete container failed', so conflicts such as a container with secrets get no specific text.",
+   "source": "describer (acceptance)",
+   "id": "C58",
+   "group": [
+    "C54",
+    "C56",
+    "C58",
+    "C59",
+    "C60"
+   ],
+   "batch": 8
+  },
+  {
+   "claim": "Acceptance criterion partly met: All UI components follow the Aurora design system.",
+   "location": "PR files",
+   "evidence": "Juno DataGrid, Modal and Status are used. Several visible strings in lists are not i18n-wrapped, for example 'Create Secret', 'Search by name...', 'Sort by' and the permission warning in `SecretsList.tsx`, and the sort labels in the `SORT_FIELDS` constant. Column header labels in `constants.ts` are plain strings too.",
+   "source": "describer (acceptance)",
+   "id": "C59",
+   "group": [
+    "C54",
+    "C56",
+    "C58",
+    "C59",
+    "C60"
+   ],
+   "batch": 8
+  },
+  {
+   "claim": "Acceptance criterion partly met: Complete testing coverage (unit, integration, E2E) is achieved.",
+   "location": "PR files",
+   "evidence": "Unit tests are added for the router (`keyManagerRouter.test.ts`), the schemas (`keyManager.test.ts`) and the TableRow and ListContainer components of all three resources. No tests for the lists with permissions, modals, detail views, nav or the layout guard, and no E2E.",
+   "source": "describer (acceptance)",
+   "id": "C60",
+   "group": [
+    "C54",
+    "C56",
+    "C58",
+    "C59",
+    "C60"
+   ],
+   "batch": 8
+  },
+  {
+   "claim": "Stale caller of `updateSecret / addContainerSecret / deleteContainerSecret`: Server procedures with no client caller, and no UI flow behind them (Edit Secret, Manage Container Secrets)",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:61",
+   "evidence": "Server procedures with no client caller, and no UI flow behind them (Edit Secret, Manage Container Secrets)",
+   "source": "describer (stale caller)",
+   "id": "C61",
+   "group": null,
+   "batch": 9
+  },
+  {
+   "claim": "Stale caller of `key-manager:secrets:update / key-manager:containers:update / key-manager:secrets:payload`: Permission keys defined and mapped but never checked in the UI; the payload reveal is not gated by any of them",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/-components/usePermissions.ts:6",
+   "evidence": "Permission keys defined and mapped but never checked in the UI; the payload reveal is not gated by any of them",
+   "source": "describer (stale caller)",
+   "id": "C62",
+   "group": null,
+   "batch": 9
+  }
+ ],
+ "batches": 9
+}

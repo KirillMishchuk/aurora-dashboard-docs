@@ -1,0 +1,69 @@
+## describer: exit 0
+saved out/describer.json: describer result
+
+## factcheck: exit 1
+INVALID — 1 error(s), nothing saved; fix them and run again:
+  findings.json missing — the fact-check runs after assemble.py --texts
+
+## finder-a: exit 1
+INVALID — 9 error(s), nothing saved; fix them and run again:
+  candidates[1].evidence: cites a review-standard rule but names no `example: <path:line>` — merged code outside this PR that follows the rule, for the author to copy (or `example: none` and a precedent)
+  candidates[2].evidence: cites a review-standard rule but names no `example: <path:line>` — merged code outside this PR that follows the rule, for the author to copy (or `example: none` and a precedent)
+  candidates[3].evidence: cites a review-standard rule but names no `example: <path:line>` — merged code outside this PR that follows the rule, for the author to copy (or `example: none` and a precedent)
+  candidates[4].evidence: cites a review-standard rule but names no `example: <path:line>` — merged code outside this PR that follows the rule, for the author to copy (or `example: none` and a precedent)
+  candidates[5].evidence: cites a review-standard rule but names no `example: <path:line>` — merged code outside this PR that follows the rule, for the author to copy (or `example: none` and a precedent)
+  candidates[6].evidence: cites a review-standard rule but names no `example: <path:line>` — merged code outside this PR that follows the rule, for the author to copy (or `example: none` and a precedent)
+  candidates[7].evidence: cites a review-standard rule but names no `example: <path:line>` — merged code outside this PR that follows the rule, for the author to copy (or `example: none` and a precedent)
+  candidates[8].evidence: cites a review-standard rule but names no `example: <path:line>` — merged code outside this PR that follows the rule, for the author to copy (or `example: none` and a precedent)
+  candidates[9].evidence: cites a review-standard rule but names no `example: <path:line>` — merged code outside this PR that follows the rule, for the author to copy (or `example: none` and a precedent)
+
+## finder-b: exit 0
+saved out/finder-b.json: 0 candidate(s)
+
+## finder-c: exit 0
+saved out/finder-c.json: 1 candidate(s)
+
+## finder-d: exit 0
+saved out/finder-d.json: 0 candidate(s)
+
+## finder-e: exit 0
+saved out/finder-e.json: 1 candidate(s)
+
+## finder-f: exit 0
+saved out/finder-f.json: 5 candidate(s)
+
+## finder-g: exit 0
+saved out/finder-g.json: 0 candidate(s)
+
+## score-1: exit 1
+INVALID — 6 error(s), nothing saved; fix them and run again:
+  C1.precedent: required for a score of 50 or more — null, or {"kind": "existing" | "deferred", "ref": …}
+  C2.precedent: required for a score of 50 or more — null, or {"kind": "existing" | "deferred", "ref": …}
+  C3.precedent: required for a score of 50 or more — null, or {"kind": "existing" | "deferred", "ref": …}
+  C4.precedent: required for a score of 50 or more — null, or {"kind": "existing" | "deferred", "ref": …}
+  C6.precedent: required for a score of 50 or more — null, or {"kind": "existing" | "deferred", "ref": …}
+  C7.precedent: required for a score of 50 or more — null, or {"kind": "existing" | "deferred", "ref": …}
+
+## score-2: exit 1
+INVALID — 8 error(s), nothing saved; fix them and run again:
+  C8.precedent: required for a score of 50 or more — null, or {"kind": "existing" | "deferred", "ref": …}
+  C9.precedent: required for a score of 50 or more — null, or {"kind": "existing" | "deferred", "ref": …}
+  C10.precedent: required for a score of 50 or more — null, or {"kind": "existing" | "deferred", "ref": …}
+  C11.precedent: required for a score of 50 or more — null, or {"kind": "existing" | "deferred", "ref": …}
+  C13.reason: names run-folder files or fields (context.json) — this text can be posted; write "the head commit", "the PR description", "the linked issue", "CI"
+  C13.category: 'Conflict' not one of ['Bug', 'Security', 'Accessibility', 'UI/UX', 'Code Quality', 'Performance', 'Docs', 'Test coverage']
+  C13.precedent: required for a score of 50 or more — null, or {"kind": "existing" | "deferred", "ref": …}
+  C24.precedent: required for a score of 50 or more — null, or {"kind": "existing" | "deferred", "ref": …}
+
+## score-3: exit 1
+INVALID — 5 error(s), nothing saved; fix them and run again:
+  C14.precedent: required for a score of 50 or more — null, or {"kind": "existing" | "deferred", "ref": …}
+  C15.precedent: required for a score of 50 or more — null, or {"kind": "existing" | "deferred", "ref": …}
+  C16.precedent: required for a score of 50 or more — null, or {"kind": "existing" | "deferred", "ref": …}
+  C17.precedent: required for a score of 50 or more — null, or {"kind": "existing" | "deferred", "ref": …}
+  C20.reason: names run-folder files or fields (pr-body.md) — this text can be posted; write "the head commit", "the PR description", "the linked issue", "CI"
+
+## score-4: exit 1
+INVALID — 2 error(s), nothing saved; fix them and run again:
+  C25.precedent: required for a score of 50 or more — null, or {"kind": "existing" | "deferred", "ref": …}
+  C26.precedent: required for a score of 50 or more — null, or {"kind": "existing" | "deferred", "ref": …}

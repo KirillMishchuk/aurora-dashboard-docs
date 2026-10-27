@@ -1,0 +1,7 @@
+{
+ "base_changes_removed": [
+  "packages/aurora/src/locales/de/messages.po",
+  "packages/aurora/src/locales/en/messages.po"
+ ],
+ "plain": []
+}

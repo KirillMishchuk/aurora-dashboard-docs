@@ -1,0 +1,25 @@
+{
+ "scores": [
+  {
+   "id": "C23",
+   "score": 0,
+   "reason": "Read-path errors are handled (ErrorHandler in the BFF, error mapping on the detail page). The missing delete-time errors belong to delete, which this read-only PR does not implement, so there is nothing in scope to flag."
+  },
+  {
+   "id": "C25",
+   "score": 50,
+   "severity": "Low",
+   "category": "UI/UX",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/index.tsx:87",
+   "reason": "The Network cards at index.tsx:73-93 cover securitygroups, floatingips and routers, with no isEnabled(\"networks\") card. buildNavSections.ts:60 does add the networks entry to the sidebar, so the home page is out of step with it. The effect is cosmetic and the sidebar still reaches Networks."
+  },
+  {
+   "id": "C26",
+   "score": 50,
+   "severity": "Low",
+   "category": "Docs",
+   "location": "packages/aurora/README.md:183",
+   "reason": "README.md:183 and :210 list the service keys without the new \"networks\" key, which this PR uses in isEnabled(\"networks\") and which is part of the public enabledServices contract. The README is the stated source of truth for AuroraApp props. The omission is a docs gap only, and routers was already missing before this PR."
+  }
+ ]
+}

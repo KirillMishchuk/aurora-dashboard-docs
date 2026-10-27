@@ -1,0 +1,5 @@
+exit 0
+Draft: <RUN>/report.md (dry run — DOCS untouched)
+Update block: 1 Required Changes 🟠, 0 Process, 3 Improvements (CR11, I22, I23, I24)
+Markdown: OK
+Index row tail would be: · Update 2026-10-26 (`64c47a99`): Request Changes — 1 Required Change (🟠), 3 Improvements; 7 earlier fixed

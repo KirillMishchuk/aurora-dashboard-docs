@@ -1,0 +1,426 @@
+{
+ "schema_version": 1,
+ "generated_at": "2026-10-25T14:20:03Z",
+ "today": "2026-10-25",
+ "repo": {
+  "name_with_owner": "cobaltcore-dev/aurora-dashboard",
+  "root": "{{SAP}}/aurora-dashboard"
+ },
+ "docs": "{{SAP}}/DOCS",
+ "run_dir": "{{SAP}}/aurora-dashboard/.claude/runs/review-and-comment-pr/1393-fd248f08",
+ "pr": {
+  "number": 1393,
+  "title": "feat(aurora): add Key Manager (Barbican) in-core plugin",
+  "url": "https://github.com/cobaltcore-dev/aurora-dashboard/pull/1393",
+  "author": "hodanoori",
+  "state": "OPEN",
+  "is_draft": false,
+  "created": "2026-10-23",
+  "merged_at": null,
+  "closed_at": null,
+  "base": {
+   "ref": "main",
+   "oid": "c65b36d0e901a4bc41727d3a04317680175c05da"
+  },
+  "head": {
+   "ref": "feat/key-manager-plugin",
+   "oid": "fd248f083f89fbe9caca6ad536106ffd08860159",
+   "short": "fd248f08"
+  },
+  "additions": 4439,
+  "deletions": 3,
+  "changed_files": 48,
+  "mergeable": "MERGEABLE",
+  "files": [
+   {
+    "path": "apps/dashboard/src/policies/key-manager.json",
+    "additions": 28,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routeTree.gen.ts",
+    "additions": 200,
+    "deletions": 0,
+    "generated": true
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager.tsx",
+    "additions": 109,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/-components/usePermissions.ts",
+    "additions": 37,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/-components/utils.ts",
+    "additions": 3,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/$containerId.tsx",
+    "additions": 34,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainerDetailsView.tsx",
+    "additions": 96,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainerListContainer.test.tsx",
+    "additions": 113,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainerListContainer.tsx",
+    "additions": 66,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainerModals.tsx",
+    "additions": 126,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainerTableRow.test.tsx",
+    "additions": 101,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainerTableRow.tsx",
+    "additions": 43,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainersList.tsx",
+    "additions": 123,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/constants.ts",
+    "additions": 2,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/index.tsx",
+    "additions": 62,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/index.tsx",
+    "additions": 10,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/$orderId.tsx",
+    "additions": 34,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderDetailsView.tsx",
+    "additions": 82,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderListContainer.test.tsx",
+    "additions": 113,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderListContainer.tsx",
+    "additions": 66,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderModals.tsx",
+    "additions": 142,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderTableRow.test.tsx",
+    "additions": 91,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderTableRow.tsx",
+    "additions": 42,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrdersList.tsx",
+    "additions": 129,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/constants.ts",
+    "additions": 2,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/index.tsx",
+    "additions": 62,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/$secretId.tsx",
+    "additions": 34,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretDetailsView.tsx",
+    "additions": 116,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretListContainer.test.tsx",
+    "additions": 116,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretListContainer.tsx",
+    "additions": 66,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretModals.tsx",
+    "additions": 144,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretTableRow.test.tsx",
+    "additions": 112,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretTableRow.tsx",
+    "additions": 44,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx",
+    "additions": 158,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/constants.ts",
+    "additions": 2,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/index.tsx",
+    "additions": 72,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/client/routes/_auth/projects/-components/buildNavSections.ts",
+    "additions": 23,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/locales/de/messages.po",
+    "additions": 189,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/locales/de/messages.ts",
+    "additions": 1,
+    "deletions": 1,
+    "generated": true
+   },
+   {
+    "path": "packages/aurora/src/locales/en/messages.po",
+    "additions": 189,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/locales/en/messages.ts",
+    "additions": 1,
+    "deletions": 1,
+    "generated": true
+   },
+   {
+    "path": "packages/aurora/src/server/KeyManager/routers/index.ts",
+    "additions": 10,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.test.ts",
+    "additions": 596,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts",
+    "additions": 320,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/server/KeyManager/routers/permissionRouter.ts",
+    "additions": 31,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/server/KeyManager/types/keyManager.test.ts",
+    "additions": 199,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/server/KeyManager/types/keyManager.ts",
+    "additions": 97,
+    "deletions": 0,
+    "generated": false
+   },
+   {
+    "path": "packages/aurora/src/server/routers.ts",
+    "additions": 3,
+    "deletions": 1,
+    "generated": false
+   }
+  ],
+  "body_file": "pr-body.md",
+  "diff_file": "pr.diff",
+  "generated_files_not_in_diff": [
+   "packages/aurora/src/client/routeTree.gen.ts",
+   "packages/aurora/src/locales/de/messages.ts",
+   "packages/aurora/src/locales/en/messages.ts"
+  ]
+ },
+ "flags": {
+  "base_not_main": false,
+  "release": {
+   "is_release": false,
+   "matched": []
+  },
+  "finder_f": {
+   "needed": true,
+   "files": [
+    "packages/aurora/src/server/KeyManager/routers/index.ts",
+    "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts",
+    "packages/aurora/src/server/KeyManager/routers/permissionRouter.ts",
+    "packages/aurora/src/server/KeyManager/types/keyManager.ts",
+    "packages/aurora/src/server/routers.ts"
+   ]
+  },
+  "touches_published_src": true
+ },
+ "mode": "full",
+ "mode_reason": "no report yet",
+ "report": {
+  "path": "{{SAP}}/DOCS/aurora-dashboard-kb/prs/1393-key-manager-core-plugin.md",
+  "exists": false,
+  "status_frontmatter": null,
+  "status_line": null,
+  "old_head": null,
+  "footer": null,
+  "old_head_reachable": null,
+  "delta": null,
+  "status_update": null
+ },
+ "status_now": {
+  "frontmatter": "open",
+  "line": "open",
+  "index_date": "2026-10-23 (open)"
+ },
+ "process": [
+  {
+   "id": "missing-changeset",
+   "where": "PR files",
+   "text": "published package code changed without a .changeset/*.md"
+  }
+ ],
+ "provenance": [
+  "read-only"
+ ],
+ "fetch": {
+  "head": "already local",
+  "base": "already local"
+ },
+ "issue": {
+  "linked": [
+   {
+    "number": 1133,
+    "how": "bare",
+    "title": "[EPIC](authorization):  OpenStack Key Manager (Barbican) — Secrets, Containers & Orders Management",
+    "state": "OPEN",
+    "url": "https://github.com/cobaltcore-dev/aurora-dashboard/issues/1133",
+    "file": "issue-1133.md"
+   }
+  ],
+  "supplied": null,
+  "source": "pr-body",
+  "mentioned_prs": []
+ },
+ "ci": {
+  "total": 22,
+  "pass": 17,
+  "fail": 0,
+  "pending": 0,
+  "skipping": 4,
+  "cancel": 1,
+  "failed": [],
+  "pending_names": []
+ },
+ "changeset": {
+  "files": [],
+  "bumps": [],
+  "missing": true
+ },
+ "discussion": {
+  "comments": 0,
+  "reviews": 1,
+  "threads": 19,
+  "bot_items": 20,
+  "own_reports_excluded": 0,
+  "inline_read": true,
+  "file": "discussion.json"
+ },
+ "standards": {
+  "copilot_instructions_file": "copilot-instructions.md",
+  "claude_md": "{{SAP}}/aurora-dashboard/CLAUDE.md",
+  "claude_md_exists": true
+ }
+}

@@ -158,15 +158,22 @@ JSON).
   `full`, but the agents analyze only the delta (`delta.diff`;
   `Delta: whole-pr` means a force-push made the old head unreachable —
   tell the user), and one more agent, `earlier`, checks every finding of
-  the existing report at the new head. In `texts.json` write `earlier` —
+  the existing report at the new head. The describer gets its own brief
+  (`describer-update.md`): the same list, and it describes only what no
+  earlier finding covers (no QA plan on an Update). In `texts.json` write `earlier` —
   the template in `compose.md` comes filled with that agent's status
-  (`fixed`, `partly`, `open`) and one-line note per earlier finding —
-  instead of `summary`, `confidence`,
+  (`fixed`, `partly`, `open`; `dropped` for an old merge-conflict finding,
+  which this review no longer covers; a `partly`/`open` note that names a
+  new finding with `[[ref:<id>]]` hands what is left over to it — the
+  verdict counts that new finding, not the earlier one) and one-line note per earlier finding — and
+  `confidence` (for the PR at the new head), instead of `summary`,
   `index_affected` and `edge_cases`. render.py inserts an
   `## Update — <today>, head <sha>` block before the report's footer
-  (What changed; Fixed since last analysis, Partly fixed, Still open; Before
-  merge with the earlier blockers still open; the delta's findings
-  numbered after the report's earlier ones; a re-render replaces it), and
+  (Verdict — the recommendation at this head, counting the earlier findings
+  still open, and Before merge with the earlier blockers still open; Fixed
+  since last analysis, Partly fixed, Still open; the delta's findings
+  numbered after the report's earlier ones; What changed, folded, last; a
+  re-render replaces it), and
   updates the footer, the status and the index row.
 - **`none`** — merged or closed without a report, or already up to
   date, or the user chose to stop: nothing to document. Say so and stop.
@@ -263,17 +270,20 @@ posting from here: the only GitHub write is Step 8.
    duplicate (the duplicate's evidence goes along), sorts them, flags
    pairs that look like one problem, and writes `<run folder>/compose.md`.
    Read it with the Read tool (not `cat`: long output gets cut).
-3. **Verdict** (not on an Update — its block has none). render.py derives the recommendation from Required
-   Changes (any code finding at 🟡 Moderate or worse without a precedent
-   tag → Request Changes; only tagged ones → Approve — team call first;
-   only Process items → Approve — process to-dos first; otherwise Approve,
+3. **Verdict** (an Update gets one too, counting the earlier findings still
+   open). render.py derives the recommendation from Required
+   Changes (a Bug or Security finding at 🟡 Moderate or worse without a
+   precedent tag → Request Changes; the rest — conventions such as UI/UX,
+   Performance, Code Quality, or tagged ones → 🟡 Approve with changes;
+   only Process items → 🟡 Approve with process to-dos; otherwise Approve,
    "with nits" if there are Improvements) and lists them under it — Must
    fix before merge (with the describer's `scope`), Team call, Process.
    You choose only **Confidence to
    Merge** (High / Medium / Low): how sure you are the PR is sound once the
    Required Changes are cleared — lower it for anything you could not
    verify (CI unreadable, acceptance not checkable, draft,
-   security-reviewer fallback used).
+   security-reviewer fallback used). A draft is never High — assemble.py
+   refuses it.
 
 Don't run builds yourself. A failing or missing CI run on `<headRefOid>`
 is reported as such, not as findings re-derived from the build errors.

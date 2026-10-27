@@ -1,0 +1,295 @@
+{
+ "schema_version": 1,
+ "summary": "",
+ "confidence": "Medium",
+ "findings": [
+  {
+   "id": "c8",
+   "score": 75,
+   "severity": "Major",
+   "category": "Bug",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts | headers: { Accept: \"application/octet-stream\" },",
+   "precedent": null,
+   "issue": "`getSecretPayload` hardcodes `Accept: application/octet-stream`, so non-octet-stream secrets still fail with 406",
+   "title": "Reveal Payload fails for secrets whose content type isn't `application/octet-stream`",
+   "explanation": "A user who stores a secret as `text/plain` (the common case for passwords and API keys created via the CLI) and clicks Reveal Payload gets the generic `Key Manager get secret payload failed` error instead of the value. The CR1 fix replaced the default Accept header with a hardcoded one:\n\n[[code:packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts | headers: { Accept: \"application/octet-stream\" } | 1]]\n\nBarbican only serves the payload in one of the secret's `content_types`; anything else is answered with `406 Not Acceptable`, which `mapKmError` turns into an `INTERNAL_SERVER_ERROR`. Only opaque (octet-stream) secrets work. No test covers a non-octet-stream secret. Reference: [Barbican secrets API — GET /v1/secrets/{uuid}/payload](https://docs.openstack.org/barbican/latest/api/reference/secrets.html#get-secrets-uuid-payload): \"you must set the accept header to one of the values listed in the `content_types` attribute of a secret's metadata\".",
+   "fix": "Fetch the secret's metadata first (or accept its content type as input from the client, which already reads `secret.content_types` in [[at:packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretDetailsView.tsx:51]]) and send `content_types.default` as the Accept header; add a router test for a `text/plain` secret."
+  },
+  {
+   "id": "c1",
+   "score": 75,
+   "severity": "Low",
+   "category": "Accessibility",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretTableRow.tsx:40",
+   "precedent": {
+    "kind": "existing",
+    "ref": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/floatingips/$floatingIpId/-components/-details/FloatingIpDetailsView.tsx:66"
+   },
+   "issue": "Icon-only `moreVert` row-action toggles have a `title` but no `aria-label`",
+   "title": "Row-action toggles lack an `aria-label`",
+   "explanation": "Screen-reader users get an unreliable name for the row-action button in every Key Manager list row, since `title` is only a fallback. The toggle is `<Button icon=\"moreVert\" title={t`Secret actions`} />` at [[at:packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretTableRow.tsx:40]], and the same in `ContainerTableRow.tsx:39` and `OrderTableRow.tsx:38`. B.14 / Quick Reject: \"Icon-only button without `aria-label`\".",
+   "fix": "Add a matching `aria-label` next to `title` on all three toggles, as in `packages/aurora/src/client/routes/_auth/projects/$projectId/storage/-components/Ceph/Buckets/BucketHeaderActions.tsx:67`."
+  },
+  {
+   "id": "c3",
+   "score": 50,
+   "severity": "Low",
+   "category": "UI/UX",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderModals.tsx:43",
+   "precedent": null,
+   "issue": "Create Order validation errors show as the user types instead of on blur / submit",
+   "title": "Create Order modal validates as-you-type",
+   "explanation": "Clearing the Algorithm or Bit Length field paints an error immediately, before the user has left the field. `algorithmError` and `bitLengthError` are derived from state on every render ([[at:packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderModals.tsx:43]]) and passed straight to `errortext`, with no touched/blur tracking. B.11: validate on blur by default and re-validate on submit; as-you-type only for strict-format fields, which these aren't. The defaults are valid, so nothing shows before interaction.",
+   "fix": "Track touched fields and show the error only after blur or a submit attempt, as `packages/aurora/src/client/routes/_auth/projects/$projectId/compute/flavors/-components/CreateFlavorModal.tsx:225` does."
+  },
+  {
+   "id": "c11",
+   "score": 50,
+   "severity": "Low",
+   "category": "Code Quality",
+   "location": "PR files",
+   "precedent": null,
+   "issue": "Container secret association (issue #1133 container Edit scope) was dropped with no scope note in the PR",
+   "title": "Container secret association is no longer delivered",
+   "explanation": "Users can't add or remove secrets in an existing container, which issue #1133 lists as the container Edit scope (`POST`/`DELETE /v1/containers/{id}/secrets`). This update removed `addContainerSecret` and `deleteContainerSecret` (fixing CR6), so the BFF covers list/get/create/delete for all three resources plus `updateSecret` and the payload query, but not container secret association. The PR body doesn't say this part is out of scope, so the acceptance criterion \"tRPC BFF … for Secrets, Containers, and Orders\" is only partly met.",
+   "fix": "Either reimplement association with the documented `POST /v1/containers/{id}/secrets` / `DELETE /v1/containers/{id}/secrets` (body with `secret_ref`), or state in the PR body that it's deferred and link a follow-up issue."
+  }
+ ],
+ "process": [],
+ "process_overrides": {},
+ "overview": {
+  "what": "This update covers `fd248f083f89fbe9caca6ad536106ffd08860159..64c47a995507e7e7f9bf4ba02c0cd8ba6d3f3fd7`. The PR is not a draft. On the head commit 13 checks passed, none failed, 4 were skipped and 5 are still pending (build, test, type-check, check-i18n, preview).\n\n**Container secret association.** The server procedure `addContainerSecret` (`POST /v1/containers/{id}/secrets`) was removed together with its unit test. This endpoint is documented by Barbican and is listed in the linked issue's Phase 2 (\"Manage Container Secrets\" / `containers.updateSecrets`). With it gone, the PR has no server procedure for adding or removing secret references on an existing container.\n\n**Translation catalogs.** The English and German `messages.po` files also changed for strings unrelated to Key Manager: the image-service rejection messages, \"No Project Access\", \"Project not found.\", \"This property is reserved and cannot be modified.\" and a removed \"Unnamed\" entry. These look like a catalog re-extract after merging the base branch, not part of the Key Manager work.",
+  "how": "",
+  "affects": "The PR description still lists \"add/remove secret refs\" among the container procedures, which no longer exists on the server. The linked issue's Phase 2 items for container secret association (`containers.updateSecrets` and the \"Manage Container Secrets\" flow) now have no server-side basis. Nothing else in the repository referenced `addContainerSecret` or `deleteContainerSecret` at the head commit."
+ },
+ "qa": {
+  "core_path": [],
+  "edge_cases": []
+ },
+ "provenance_extra": [],
+ "index_affected": "",
+ "scope": null,
+ "earlier": {
+  "CR1": {
+   "status": "partly",
+   "note": "getSecretPayload now sends `Accept: application/octet-stream`, which fixes octet-stream secrets but still gets 406 for secrets stored with another content type — see [[ref:c8]]."
+  },
+  "CR2": {
+   "status": "fixed",
+   "note": "Order modal now validates algorithm and bit length (positive integer) and disables Create; secret/container modals have only optional fields."
+  },
+  "CR3": {
+   "status": "open",
+   "note": "Still no success toast on create or delete of secrets, containers or orders."
+  },
+  "CR4": {
+   "status": "partly",
+   "note": "Reveal Payload is now gated by key-manager:secrets:payload; detail views still do not check the :get permissions."
+  },
+  "CR5": {
+   "status": "open",
+   "note": "SearchInput still calls onSearchChange (a navigate) on every onInput keystroke, with no local state or debounce."
+  },
+  "CR6": {
+   "status": "fixed",
+   "note": "deleteContainerSecret (and addContainerSecret) were removed from the router."
+  },
+  "CR7": {
+   "status": "fixed",
+   "note": "secret_refs[].name is now nullable."
+  },
+  "CR8": {
+   "status": "fixed",
+   "note": "An effect steps back one page when a page after the first comes back empty."
+  },
+  "CR9": {
+   "status": "partly",
+   "note": "Nav entry now honours enabledServices/deniedServices via isEnabled; the key-manager route beforeLoad still only checks the service catalog."
+  },
+  "CR10": {
+   "status": "open",
+   "note": "listOrders still sends sort_key/sort_dir and the Orders list still renders the sort control."
+  },
+  "P1": {
+   "status": "open",
+   "note": "No changeset in the PR."
+  },
+  "I1": {
+   "status": "fixed",
+   "note": "Prop renamed to canDeleteSecret."
+  },
+  "I2": {
+   "status": "fixed",
+   "note": "Row menu now has PopupMenuToggle with a titled moreVert button."
+  },
+  "I3": {
+   "status": "partly",
+   "note": "Separator before Delete added; labels are still bare Show Details / Delete without the entity name."
+  },
+  "I4": {
+   "status": "open",
+   "note": "Delete modal still puts the name in the title and uses a bare Delete confirm label."
+  },
+  "I5": {
+   "status": "open",
+   "note": "Only Cancel is disabled while pending; the close-X is not."
+  },
+  "I6": {
+   "status": "open",
+   "note": "Create modals still use plain useState, no autoFocus, inputs not disabled in flight."
+  },
+  "I7": {
+   "status": "open",
+   "note": "Still raw Select + SortButton and distribution=\"end\" toolbar."
+  },
+  "I8": {
+   "status": "open",
+   "note": "403 on list pages is still an inline warning Message with hard-coded English."
+  },
+  "I9": {
+   "status": "open",
+   "note": "Detail routes still fetch in the component, and the view fetches again."
+  },
+  "I10": {
+   "status": "open",
+   "note": "Ad-hoc classes still present."
+  },
+  "I11": {
+   "status": "open",
+   "note": "Raw div/p/pre still used."
+  },
+  "I12": {
+   "status": "partly",
+   "note": "usePermissions renamed to useKeyManagerPermissions; bundled *Modals.tsx, utils.ts and constants.ts remain."
+  },
+  "I13": {
+   "status": "open",
+   "note": "Empty state still says to create a secret even when a search returned nothing."
+  },
+  "I14": {
+   "status": "open",
+   "note": "Error state still shows raw error.message as title, no body or retry."
+  },
+  "I15": {
+   "status": "open",
+   "note": "Payload is still decoded with res.text(), so binary secrets are corrupted."
+  },
+  "I16": {
+   "status": "fixed",
+   "note": "Payload request now passes debug:false."
+  },
+  "I17": {
+   "status": "open",
+   "note": "Orders columns are still ID, Status, Type; no Name column."
+  },
+  "I18": {
+   "status": "partly",
+   "note": "addContainerSecret and deleteContainerSecret removed; updateSecret remains with no client caller."
+  },
+  "I19": {
+   "status": "open",
+   "note": "mapKmError still drops Barbican's error body."
+  },
+  "I20": {
+   "status": "partly",
+   "note": "Tests were added for secret/container/order list containers, table rows, router and schemas; no tests for modals, detail views, nav entry or layout guard, and no E2E."
+  },
+  "I21": {
+   "status": "open",
+   "note": "Import order and ../../ relative imports unchanged."
+  }
+ },
+ "dismissed": [
+  {
+   "score": 25,
+   "claim": "Accessible names/tooltips \"Secret actions\", \"Container actions\", \"Order actions\" are not title case, unlike sibling labels \"Bucket actions\"-style/\"More Actions\" in the reference modules.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretTableRow.tsx:40",
+   "reason": "The strings (\"Secret actions\") are tooltip/accessible names, not visible button labels, and the repo's own Ceph and Swift code uses the same lowercase form. B.19 title case applies to visible labels, so I can't say it is a real violation.",
+   "discussion": ""
+  },
+  {
+   "score": 25,
+   "claim": "The Key Manager canUser router only reports policy decisions. None of the tRPC procedures (getSecretPayload, deleteSecret, deleteContainer, deleteOrder, create*, update*) checks the policy before calling Barbican. A caller can use the tRPC API directly to run an action the UI hides and Aurora's policy denies, whenever Barbican itself allows it. This includes revealing secret payloads, since the hidden control is only a client-side gate.",
+   "location": "packages/aurora/src/server/KeyManager/routers/index.ts:8",
+   "reason": "Verified that keyManagerRouter procedures go straight to Barbican without a policy check. The Compute, Network and Storage routers do the same, and Barbican enforces its own policy server-side, so this is generic hardening with no concrete exploit in this PR. Copilot's thread is unanswered, so it may still be worth a maintainer decision.",
+   "discussion": "Raised by Copilot in https://github.com/cobaltcore-dev/aurora-dashboard/pull/1393#discussion_r4360389025 (CRITICAL, unanswered). Still applies at 64c47a99. Other Copilot threads were checked at head and look addressed: Accept header and debug:false on payload (keyManagerRouter.ts:98-104), isEnabled on the nav entry (buildNavSections.ts:154), nullable secret_refs name (keyManager.ts:25), canDelete renamed to canDeleteContainer/Secret/Order, hook renamed to useKeyManagerPermissions, payload gating via canRevealPayload (SecretDetailsView.tsx:21-22), bit length validation (OrderModals.tsx:42-46), menu toggle label and separator, and page step-back on an empty page (SecretsList.tsx:70-75). The container-secret DELETE endpoint no longer exists in the router."
+  },
+  {
+   "score": 0,
+   "claim": "Each list adds a useEffect that calls onPageChange when the current page becomes empty. This is event-driven state sync that could be done in the delete handler or by clamping the page, and it runs in three components.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx:71",
+   "reason": "The step-back effect was added to resolve earlier finding CR8 (empty last page after delete). It reacts to refetched data rather than to a user event, so a handler can't replace it, and it is guarded and working.",
+   "discussion": ""
+  },
+  {
+   "score": 0,
+   "claim": "The new useKeyManagerPermissions import uses a two-level relative path (`../../`) in the changed lines instead of the `@/` alias.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx:14",
+   "reason": "This is the same `../../` import problem as earlier finding I21. The update only renamed the hook, so it adds nothing new.",
+   "discussion": ""
+  },
+  {
+   "score": 0,
+   "claim": "After switching Accept to application/octet-stream, getSecretPayload still reads the body with res.text(). For binary secrets (e.g. application/octet-stream keys, PKCS12 certificates) the bytes are decoded as UTF-8, so Reveal Payload and Copy show corrupted data (replacement characters). Text payloads are unaffected.",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:110",
+   "reason": "This duplicates earlier finding I15 (`res.text()` on binary payloads). The update only changed Accept and debug, and CR1 asked for the Accept change.",
+   "discussion": ""
+  },
+  {
+   "score": 0,
+   "claim": "The container secret reference schema was loosened to name nullable, but the Barbican docs only show named references; the docs do not say a null name is allowed. The new test comment 'Barbican allows unnamed references' has no support in the container reference. The docs say a generic container's reference name is not restricted ('no specific restrictions are enforced on the contents name attribute'), but they do not document null.",
+   "location": "packages/aurora/src/server/KeyManager/types/keyManager.ts:25",
+   "reason": "The nullable name in `secret_refs` is the change CR7 asked for, so this objects to a requested fix. The schema is lenient and safe at runtime.",
+   "discussion": ""
+  },
+  {
+   "score": 0,
+   "claim": "The new payload gating (key-manager:secrets:payload via canUser) is client-only. The getSecretPayload procedure is a plain projectScopedProcedure with no server-side canUser/policy check, so anyone calling the tRPC endpoint directly skips the UI gate; only Barbican's own policy then decides. Same holds for the delete/create procedures whose buttons are now hidden by canUser.",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:93",
+   "reason": "The handler and the missing server-side canUser check predate the update. Barbican enforces its own RBAC on the rescoped token, and other domains gate in the UI the same way. This is generic hardening with no concrete exploit path in this PR.",
+   "discussion": ""
+  },
+  {
+   "score": 0,
+   "claim": "Acceptance criterion partly met: Each tab renders its own overview list with the columns specified in the UI Specification.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/constants.ts:1",
+   "reason": "The Orders list showing ID without a Name column is already raised as earlier finding I17.",
+   "discussion": ""
+  },
+  {
+   "score": 0,
+   "claim": "Acceptance criterion partly met: Users can list, view, create, update, and delete Secrets, Containers, and Orders (P1, P2 & P3).",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:138",
+   "reason": "Duplicate. The missing update UI is earlier finding I18, and the missing container association is C11.",
+   "discussion": ""
+  },
+  {
+   "score": 0,
+   "claim": "Acceptance criterion partly met: All action-triggering UI elements (Create, Edit, Delete, etc.) are gated using canUser(...) against the corresponding key-manager:* policy rules and are hidden/disabled for unauthorized users.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/-components/useKeyManagerPermissions.ts:25",
+   "reason": "Create, Delete and Reveal Payload are gated through `useKeyManagerPermissions`. The missing Edit action is the same gap as I18 and C11, and a gate cannot exist without the action.",
+   "discussion": ""
+  },
+  {
+   "score": 0,
+   "claim": "Acceptance criterion partly met: Comprehensive error handling provides user-friendly feedback for Barbican errors.",
+   "location": "PR files",
+   "reason": "Same point as earlier finding I19 (mapKmError drops Barbican's error body, keyManagerRouter.ts:52); already raised in this report, not a new problem.",
+   "discussion": ""
+  },
+  {
+   "score": 0,
+   "claim": "Acceptance criterion partly met: All UI components follow the Aurora design system.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretTableRow.tsx:39",
+   "reason": "This restates earlier findings (I7, I10, I11) that are already in the report. The toggle label and separator it mentions were added in this update. The only new gap there (no aria-label) is covered by C1.",
+   "discussion": ""
+  },
+  {
+   "score": 0,
+   "claim": "Acceptance criterion unmet: Complete testing coverage (unit, integration, E2E) is achieved.",
+   "location": "PR files",
+   "reason": "Same point as earlier finding I20 (no tests for modals, detail views, nav, layout guard; no E2E); already raised in this report, not a new problem.",
+   "discussion": ""
+  }
+ ]
+}

@@ -1,0 +1,39 @@
+## describer: exit 0
+saved out/describer.json: describer result
+
+## earlier: exit 0
+saved out/earlier.json: 14 earlier finding status(es)
+
+## factcheck: exit 1
+INVALID — 1 error(s), nothing saved; fix them and run again:
+  findings.json missing — the fact-check runs after assemble.py --texts
+
+## finder-a: exit 1
+INVALID — 3 error(s), nothing saved; fix them and run again:
+  candidates[0].evidence: cites a review-standard rule but names no `example: <path:line>` — merged code outside this PR that follows the rule, for the author to copy (or `example: none` and a precedent)
+  candidates[2].evidence: cites a review-standard rule but names no `example: <path:line>` — merged code outside this PR that follows the rule, for the author to copy (or `example: none` and a precedent)
+  candidates[3].evidence: cites a review-standard rule but names no `example: <path:line>` — merged code outside this PR that follows the rule, for the author to copy (or `example: none` and a precedent)
+
+## finder-b: exit 0
+saved out/finder-b.json: 0 candidate(s)
+
+## finder-c: exit 0
+saved out/finder-c.json: 1 candidate(s)
+
+## finder-d: exit 0
+saved out/finder-d.json: 2 candidate(s)
+
+## finder-e: exit 0
+saved out/finder-e.json: 1 candidate(s)
+
+## finder-f: exit 0
+saved out/finder-f.json: 2 candidate(s)
+
+## finder-g: exit 0
+saved out/finder-g.json: 1 candidate(s)
+
+## score-1: exit 0
+saved out/score-1.json: 8 score(s)
+
+## score-2: exit 0
+saved out/score-2.json: 5 score(s)

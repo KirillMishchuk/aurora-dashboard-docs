@@ -1,0 +1,83 @@
+{
+ "earlier": {
+  "CR1": {
+   "status": "fixed",
+   "note": "portsRouter.list now follows `ports_links` next pages (visited-guarded loop) and returns the full list."
+  },
+  "CR2": {
+   "status": "partly",
+   "note": "403 is now a page-level info Message on both details and list. 401 is still not a redirect: the details page shows a 'Sign in' error page ([[ref:c1]]) and the list falls into the generic error boundary with the raw BFF message ([[ref:c6]])."
+  },
+  "CR3": {
+   "status": "fixed",
+   "note": "The route loader is gone; only the component's `useQuery` fetches the port."
+  },
+  "CR4": {
+   "status": "dropped",
+   "note": "Merge conflicts are no longer part of this review; GitHub shows them."
+  },
+  "P1": {
+   "status": "open",
+   "note": "PR is still a draft."
+  },
+  "P2": {
+   "status": "fixed",
+   "note": "The description now covers the `?tab=` search param on the router details route."
+  },
+  "I1": {
+   "status": "fixed",
+   "note": "Copy now reads 'Sign in again to continue.'"
+  },
+  "I2": {
+   "status": "fixed",
+   "note": "`PopupMenu` now has a `PopupMenuToggle` wrapping the icon Button."
+  },
+  "I3": {
+   "status": "fixed",
+   "note": "`gap=\"1\"` is gone; PortDetailsView uses `0.5`, `2` and `6`, which B.3 allows."
+  },
+  "I4": {
+   "status": "fixed",
+   "note": "Status is now the 2nd column, right after Name / ID."
+  },
+  "I5": {
+   "status": "fixed",
+   "note": "Routers doc now says lookups are chunked into requests of at most 50 IDs."
+  },
+  "I6": {
+   "status": "fixed",
+   "note": "Error tables in the ports doc carry the `: {Neutron message}` suffix again."
+  },
+  "I7": {
+   "status": "fixed",
+   "note": "The `useEffect` is gone; `PageInput` is keyed on `currentPage` instead."
+  },
+  "I8": {
+   "status": "fixed",
+   "note": "`zod` is now imported right after the router import, before the Lingui imports."
+  }
+ },
+ "confidence": "Medium",
+ "findings": {
+  "c1": {
+   "issue": "Port details still renders a 401 inline with a Sign in button to `/` instead of redirecting (B.6)",
+   "title": "401 on the port details page is an inline error page, not a redirect to Sign-in",
+   "explanation": "The CR2 fix turns `UNAUTHORIZED` into a `RouteIdLevelDefaultError` with code 401 and a button that navigates to `/`, at [[at:packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/$portId.tsx | if (errorCode === \"UNAUTHORIZED\")]]:\n\n[[code:packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/$portId.tsx | if (errorCode === \"UNAUTHORIZED\") | 12]]\n\nB.6 lists \"a 401/403 handled inline instead of via redirect\" as a Reject and asks for a redirect to Sign-in that remembers the target and returns there after auth. Here the user lands on `/` and loses the port they were looking at; the comment above the branch also describes behaviour the code doesn't have.",
+   "fix": "Redirect to the sign-in route with the current location as the return target (the way `_auth.tsx` does for a missing session) instead of rendering the error page, and update the comment."
+  },
+  "c3": {
+   "issue": "Status column renders the raw status string instead of a `Badge` (B.1)",
+   "title": "Port status is plain text in the list",
+   "explanation": "[[at:packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortTableRow.tsx | <DataGridCell>{port.status}</DataGridCell>]] renders `port.status` as text. B.1 maps status indicators to `Badge`; the delta moved this cell to the 2nd column, so it now sits prominently as unstyled text (`ACTIVE`, `DOWN`, `BUILD`).",
+   "fix": "Render the status as a `Badge` with a variant per status (e.g. success for `ACTIVE`, danger for `ERROR`/`DOWN`); the router list can follow in the same or a later PR."
+  },
+  "c6": {
+   "issue": "Ports list handles only 403; a 401 or other error shows the raw BFF `error.message`",
+   "title": "Ports list shows the raw error message and no Sign in path on 401",
+   "explanation": "`createPortsPromise` converts only `FORBIDDEN` into the info Message; everything else, including `UNAUTHORIZED`, is rethrown:\n\n[[code:packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.tsx:50-55]]\n\nThe error boundary then prints `error.message` as the body at [[at:packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.tsx | body={error instanceof Error ? error.message : t`An unexpected error occurred.`}]], so an expired session shows the BFF's text and no way to sign in. CR2 of the earlier review covered the list error as well; mark-karnaukh-extern-sap confirmed it in https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#issuecomment-6293554974 and listed it as fixed in https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#issuecomment-6295356006, but only the details page got the 401 handling.",
+   "fix": "Handle `UNAUTHORIZED` in the list the same way as the details page (ideally a redirect to Sign-in, see [[ref:c1]]) and show a generic translated message instead of `error.message` for the remaining errors."
+  }
+ },
+ "merge": {},
+ "provenance_extra": []
+}

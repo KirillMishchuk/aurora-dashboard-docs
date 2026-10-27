@@ -1,0 +1,76 @@
+{
+ "scores": [
+  {
+   "id": "C14",
+   "score": 50,
+   "severity": "Low",
+   "category": "Docs",
+   "location": "apps/dashboard/.env.example:11",
+   "reason": "Line 11 still reads '# Available keys: images, flavors, securitygroups, floatingips, containers, ceph-containers, pca'; the PR adds isEnabled(\"networks\") but not the key here, so an operator following the list would hide the Networks nav. Rare and cosmetic; routers was already missing.",
+   "same_as": null
+  },
+  {
+   "id": "C15",
+   "score": 75,
+   "severity": "Major",
+   "category": "Bug",
+   "location": "packages/aurora/src/server/Network/routers/networksRouter.ts:42",
+   "reason": "list destructures only searchTerm/status, so project_id from projectScopedInputSchema stays in openstackFilters and is sent to Neutron as a filter at line 42. The API reference says the default policy also returns networks shared with the project, so the filter hides shared and external networks that the default policy lets the user see (precedent: list filter hides visible resources = Major).",
+   "same_as": null
+  },
+  {
+   "id": "C16",
+   "score": 50,
+   "severity": "Low",
+   "category": "Performance",
+   "location": "packages/aurora/src/server/Network/routers/networksRouter.ts:44",
+   "reason": "The list call sends no limit/marker and ignores next links. The quoted reference says pagination is optional and gives no finite default, so Neutron returns everything by default and only a deployment-configured cap truncates silently (precedent: API returns everything by default = Low). It is a different problem from C15 (page size vs owner filter).",
+   "same_as": null
+  },
+  {
+   "id": "C18",
+   "score": 25,
+   "severity": null,
+   "category": null,
+   "location": null,
+   "reason": "Neutron does document a server-side status filter, but filtering BFF-side gives the same result on the returned set; the only effect is an inaccurate comment, and the pagination interaction is already C16. Pedantic.",
+   "same_as": null
+  },
+  {
+   "id": "C17",
+   "score": 50,
+   "severity": "Low",
+   "category": "Bug",
+   "location": "packages/aurora/src/server/Network/types/network.ts:61",
+   "reason": "NetworkSortKeySchema allows 'shared' (line 61) with the comment 'supported by Neutron', while the reference limits sort keys to admin_state_up, availability_zone_hints, id, mtu, name, status, tenant_id, project_id. sort_key=shared would be forwarded and be rejected or ignored; it only matters if the UI offers that sort, so Low.",
+   "same_as": null
+  },
+  {
+   "id": "C19",
+   "score": 25,
+   "severity": null,
+   "category": null,
+   "location": null,
+   "reason": "listSubnets filters only by network_id (lines 91-94), with no project_id filter, so visibility is left to Neutron's policy and RBAC; I can't confirm that subnets of shared networks are hidden in practice. The pagination part duplicates C16.",
+   "same_as": null
+  },
+  {
+   "id": "C20",
+   "score": 0,
+   "severity": null,
+   "category": null,
+   "location": null,
+   "reason": "Create/update/delete schemas are outside the PR's stated read-only scope (pr-body.md); the in-scope validation is present.",
+   "same_as": null
+  },
+  {
+   "id": "C21",
+   "score": 0,
+   "severity": null,
+   "category": null,
+   "location": null,
+   "reason": "List and view are implemented; create/update/delete are explicitly out of the stated read-only scope.",
+   "same_as": null
+  }
+ ]
+}

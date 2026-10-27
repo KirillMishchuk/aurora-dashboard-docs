@@ -34,11 +34,16 @@ LANG = {".ts": "ts", ".tsx": "tsx", ".js": "js", ".jsx": "jsx", ".mjs": "js", ".
         ".css": "css", ".scss": "scss", ".po": "po", ".html": "html"}
 EXEMPT_LANGS = {"diff", "text", "console", "sh", "bash", "shell", "txt"}
 ELISION = re.compile(r"^\s*(\.\.\.|…|//\s*(\.\.\.|…)|/\*\s*(\.\.\.|…)\s*\*/|#\s*(\.\.\.|…))\s*$")
-PLACEHOLDER = re.compile(r"\[\[(code|at):([^\]]+)\]\]")
+PLACEHOLDER = re.compile(r"\[\[(code|at):(.+?)\]\](?!\])")   # text may contain "]" (e.g. `x["k"]`)
+PLACEHOLDER_START = re.compile(r"\[\[(?:code|at):")                # anything PLACEHOLDER did not parse
 CITE = re.compile(r"`([\w.$@/\[\]()+-]+\.[A-Za-z0-9]+):(\d+)(?:-(\d+))?`")
 FENCE = re.compile(r"(?ms)^([ \t]*)(`{3,}|~{3,})([^\n`]*)\n(.*?)^[ \t]*\2[ \t]*$")
 CAPTION = re.compile(r"^\s*(?://|#|<!--)\s*`?([\w.$@/\[\]()+-]+\.[A-Za-z0-9]+):(\d+)(?:-\d+)?`?\s*(?:-->)?\s*$")
 MAX_BLOCK = 30
+INTERNAL = re.compile(r"\b(headRefOid|baseRefOid|headRefName|baseRefName)\b|(?<![\w/.-])(context|discussion|candidates|findings|texts|describer)\.json\b"
+                      r"|(?<![\w/.-])(pr-body\.md|compose\.md|pr\.diff|delta\.diff|issue-\d+\.md)(?![\w/])"
+                      # this review's own steps — the reader doesn't know them
+                      r"|(?i:\bfinders?[ -][a-g](?:(?:,\s*|\s+and\s+)[a-g])*\b|\bscorers?\b|\bdescriber\b|\bfact-?check(?:er)?\b)")
 
 
 class Repo:
@@ -262,6 +267,12 @@ def resolve_text(repo, text, where, errors, code_ok=True, is_fix=False):
         return f"`{t[0]}:{t[1]}`" if t[1] == t[2] else f"`{t[0]}:{t[1]}-{t[2]}`"
 
     out = PLACEHOLDER.sub(sub, text)
+    internal = sorted({m.group(0) for m in INTERNAL.finditer(FENCE.sub("", text))})
+    if internal:
+        errors.append(f"{where}: names run-folder files or fields ({', '.join(internal)}) — write for the PR's readers: "
+                      "\"the head commit\", \"the PR description\", \"the linked issue\", \"CI\"")
+    if PLACEHOLDER_START.search(PLACEHOLDER.sub("", text)):
+        errors.append(f"{where}: unparsed [[code:…]]/[[at:…]] placeholder — it must open and close on one line with ]]")
     check_cites(repo, out, where, errors, repo.warnings)
     return out
 
@@ -343,7 +354,10 @@ def main(argv):
     repo, errors = Repo(ctx), []
     check_hand_blocks(repo, text, argv[3], errors)
     check_cites(repo, text, argv[3], errors, repo.warnings)
-    if PLACEHOLDER.search(text):
+    internal = sorted({m.group(0) for m in INTERNAL.finditer(FENCE.sub("", text))})
+    if internal:
+        errors.append(f"{argv[3]}: names run-folder files or fields ({', '.join(internal)}) — write for the PR's readers")
+    if PLACEHOLDER_START.search(text):
         errors.append(f"{argv[3]}: unresolved [[code:…]]/[[at:…]] placeholders — render.py resolves them; "
                       "for an Update, copy resolved text from quotes.py --describer")
     print("\n".join(errors) if errors else "Quotes and citations: OK")
@@ -394,9 +408,10 @@ def check_precedent(repo, p, where, errors):
 EARLIER_ROW = re.compile(r"^\| *(?:CR|P|I)\d+ *\|.*\|\s*$", re.M)
 
 
-def earlier_rows(report_path, head_short):
+def earlier_rows(report_path, head_short, detail=False):
     """[(number, severity, issue, location)] of the existing report's finding rows (5 columns, or 6 with
-    Precedent), without an Update block for this head — the one list every script uses for "earlier"."""
+    Precedent), without an Update block for this head — the one list every script uses for "earlier".
+    detail=True appends the Precedent cell ("" for a 5-column row, "—" for none) and the Category cell."""
     text = Path(report_path).read_text(encoding="utf-8")
     m = re.search(r"^## Update — [^\n]*head `" + re.escape(head_short) + "`", text, re.M)
     if m:
@@ -408,5 +423,6 @@ def earlier_rows(report_path, head_short):
     for line in EARLIER_ROW.findall(text):
         cells = [c.strip() for c in re.split(r"(?<!\\)\|", line.strip())[1:-1]]  # an escaped \| stays in its cell
         if len(cells) >= 5:
-            rows.append((cells[0], cells[1], cells[-2], cells[-1]))
+            rows.append((cells[0], cells[1], cells[-2], cells[-1])
+                        + (((cells[3] if len(cells) >= 6 else ""), cells[2]) if detail else ()))
     return rows

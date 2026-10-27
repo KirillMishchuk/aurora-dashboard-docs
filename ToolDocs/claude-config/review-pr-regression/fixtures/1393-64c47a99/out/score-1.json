@@ -1,0 +1,63 @@
+{
+ "scores": [
+  {
+   "id": "C1",
+   "score": 75,
+   "severity": "Low",
+   "category": "Accessibility",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretTableRow.tsx:40",
+   "reason": "The row toggle is `<Button icon=\"moreVert\" title={t`Secret actions`} />` with no `aria-label` (same in ContainerTableRow.tsx:39 and OrderTableRow.tsx:38). The Quick Reject Checklist says: \"Icon-only button without `aria-label`\". Severity is Low because `title` still gives most screen readers a fallback name, and Ceph and flavors pair `title` with `aria-label`.",
+   "same_as": null,
+   "precedent": {
+    "kind": "existing",
+    "ref": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/floatingips/$floatingIpId/-components/-details/FloatingIpDetailsView.tsx:66"
+   }
+  },
+  {
+   "id": "C2",
+   "score": 25,
+   "reason": "The strings (\"Secret actions\") are tooltip/accessible names, not visible button labels, and the repo's own Ceph and Swift code uses the same lowercase form. B.19 title case applies to visible labels, so I can't say it is a real violation.",
+   "same_as": null
+  },
+  {
+   "id": "C16",
+   "score": 0,
+   "reason": "This restates earlier findings (I7, I10, I11) that are already in the report. The toggle label and separator it mentions were added in this update. The only new gap there (no aria-label) is covered by C1.",
+   "same_as": null
+  },
+  {
+   "id": "C3",
+   "score": 50,
+   "severity": "Low",
+   "category": "UI/UX",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderModals.tsx:43",
+   "reason": "OrderModals.tsx:43-46 derives `algorithmError`/`bitLengthError` from state on every render and passes them to `errortext`, with no blur or touched tracking. B.11 says \"Validate on blur by default\", and Algorithm and Bit Length are not strict-format fields. Initial defaults are valid, so the effect is small. The update does what CR2 asked, so this is about when the errors show, not whether.",
+   "same_as": null,
+   "precedent": null
+  },
+  {
+   "id": "C4",
+   "score": 0,
+   "reason": "The step-back effect was added to resolve earlier finding CR8 (empty last page after delete). It reacts to refetched data rather than to a user event, so a handler can't replace it, and it is guarded and working.",
+   "same_as": null
+  },
+  {
+   "id": "C5",
+   "score": 0,
+   "reason": "This is the same `../../` import problem as earlier finding I21. The update only renamed the hook, so it adds nothing new.",
+   "same_as": null
+  },
+  {
+   "id": "C6",
+   "score": 0,
+   "reason": "This duplicates earlier finding I15 (`res.text()` on binary payloads). The update only changed Accept and debug, and CR1 asked for the Accept change.",
+   "same_as": null
+  },
+  {
+   "id": "C7",
+   "score": 25,
+   "reason": "Verified that keyManagerRouter procedures go straight to Barbican without a policy check. The Compute, Network and Storage routers do the same, and Barbican enforces its own policy server-side, so this is generic hardening with no concrete exploit in this PR. Copilot's thread is unanswered, so it may still be worth a maintainer decision.",
+   "same_as": null
+  }
+ ]
+}

@@ -1,0 +1,5 @@
+exit 0
+Draft: <RUN>/report.md (dry run — DOCS untouched)
+Update block: 0 Required Changes , 0 Process, 3 Improvements (I9, I10, I11)
+Markdown: OK
+Index row tail would be: · Update 2026-10-26 (`86a355a8`): Approve with process to-dos — 3 Improvements; 11 earlier fixed

@@ -1,0 +1,79 @@
+{
+ "scores": [
+  {
+   "id": "C21",
+   "score": 75,
+   "severity": "Moderate",
+   "category": "Bug",
+   "location": "packages/aurora/src/client/routes/_auth/projects/-components/buildNavSections.ts | ...(serviceIndex[\"key-manager\"]?.[\"barbican\"]",
+   "reason": "Same problem as C41: the Key Manager entry skips isEnabled.",
+   "same_as": "C41",
+   "precedent": null
+  },
+  {
+   "id": "C27",
+   "score": 75,
+   "severity": "Moderate",
+   "category": "Bug",
+   "location": "packages/aurora/src/client/routes/_auth/projects/-components/buildNavSections.ts | ...(serviceIndex[\"key-manager\"]?.[\"barbican\"]",
+   "reason": "Same problem as C41: the Key Manager entry skips isEnabled.",
+   "same_as": "C41",
+   "precedent": null
+  },
+  {
+   "id": "C35",
+   "score": 75,
+   "severity": "Moderate",
+   "category": "Bug",
+   "location": "packages/aurora/src/client/routes/_auth/projects/-components/buildNavSections.ts | ...(serviceIndex[\"key-manager\"]?.[\"barbican\"]",
+   "reason": "Same problem as C41: the Key Manager entry skips isEnabled.",
+   "same_as": "C41",
+   "precedent": null
+  },
+  {
+   "id": "C41",
+   "score": 75,
+   "severity": "Moderate",
+   "category": "Bug",
+   "location": "packages/aurora/src/client/routes/_auth/projects/-components/buildNavSections.ts | ...(serviceIndex[\"key-manager\"]?.[\"barbican\"]",
+   "reason": "Verified at fd248f08: line 154 gates the Key Manager entry only on the catalog, while images, flavors, securitygroups, floatingips, routers, containers and ceph-containers all use `&& isEnabled(...)` (lines 36-119) and extensions check enabledServices/deniedServices. An operator cannot hide Key Manager via deniedServices or leave it out of an allowlist; a broken project rule with a visible effect, so Moderate.",
+   "same_as": null,
+   "precedent": null
+  },
+  {
+   "id": "C22",
+   "score": 50,
+   "severity": "Moderate",
+   "category": "Bug",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx | {totalPages > 1 && (",
+   "reason": "Same problem as C39: no page clamp after deleting the last row of the last page.",
+   "same_as": "C39",
+   "precedent": null
+  },
+  {
+   "id": "C39",
+   "score": 50,
+   "severity": "Moderate",
+   "category": "Bug",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx | {totalPages > 1 && (",
+   "reason": "Verified: offset is (page-1)*PAGE_SIZE (line 62) and totalPages comes from data.total (line 75), with no clamp. If the last row of the last page is deleted, page stays above totalPages, Pagination is hidden (line 126) and the table is empty with no in-UI way back. Kept at 50 because PAGE_SIZE is 50, so it needs more than 50 items and is rare in practice.",
+   "same_as": null,
+   "precedent": null
+  },
+  {
+   "id": "C23",
+   "score": 25,
+   "reason": "Unchecked checklist boxes in the PR body are a process/docs nitpick; no standard requires them and the code is unaffected."
+  },
+  {
+   "id": "C24",
+   "score": 75,
+   "severity": "Moderate",
+   "category": "Performance",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx | onInput={(e) => onSearchChange((e.target as HTMLInputElement).value)}",
+   "reason": "Verified: line 109 calls onSearchChange on every input event, and handleSearch in secrets/index.tsx (line 32) calls navigate() with no debounce and no replace. Each keystroke changes the URL, adds a history entry and triggers a new listSecrets query. The flavors List debounces by 500ms (it does this correctly), so duplicate requests are avoidable.",
+   "same_as": null,
+   "precedent": null
+  }
+ ]
+}

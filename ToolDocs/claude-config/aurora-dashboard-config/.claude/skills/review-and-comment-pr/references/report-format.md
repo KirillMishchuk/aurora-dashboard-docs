@@ -15,8 +15,8 @@ the Verdict line with Recommendation and Confidence together, then the
 summary as plain text (no blockquote), the
 per-table "Explanation & Fix" fold, and the five-level severity markers
 (🔴 Critical · 🟠 Major · 🟡 Moderate · 🟢 Low · ⚪ Trivial). The only
-emoji that carries meaning on the recommendation line is 🔴 for Request
-Changes (🟢 for Approve). Severity markers in the tables are the only other
+emoji that carries meaning on the recommendation line is its colour: 🔴
+Request Changes, 🟡 Approve with changes / with process to-dos, 🟢 Approve. Severity markers in the tables are the only other
 colour. Don't add gates strips, score columns, or decorative emoji on the
 other headings.
 
@@ -53,10 +53,10 @@ _Reviewed at head [`<short sha>`](<PR url>/commits/<headRefOid>) · base `<baseR
 
 ### ⚖️ &nbsp; Verdict
 
-Recommendation: **<🔴 Request Changes | 🟢 Approve | Approve — team call first | Approve — process to-dos first>** &nbsp;&nbsp;&nbsp;&nbsp; Confidence to Merge: **<High | Medium | Low>**
+Recommendation: **<🔴 Request Changes | 🟡 Approve with changes | 🟡 Approve with process to-dos | 🟢 Approve with nits | 🟢 Approve>** &nbsp;&nbsp;&nbsp;&nbsp; Confidence to Merge: **<High | Medium | Low>**
 
-- **Must fix before merge** (<scope, if any>): <Required Changes without a precedent tag>
-- **Team call** (existing pattern or deferred by a maintainer): <Required Changes with one>
+- **Must fix before merge** (<scope, if any>): <Bug / Security Required Changes without a precedent tag>
+- **Team call** (convention, existing pattern or deferred by a maintainer): <the other Required Changes>
 - **Process:** <P items>
 
 <2–4 sentence summary: the overall shape, the one or two things that matter, what clears it. If CI/security fell back or acceptance couldn't be verified, that belongs in this summary.>
@@ -99,6 +99,14 @@ _Fix:_ <one or two sentences>
 </details>
 
 <if the section is empty: write "None." and omit the fold>
+
+### 🗨️ &nbsp; Review comments not taken up
+
+<only if a dismissed candidate cites a review comment (r<id> / issuecomment-<id>) — render.py builds it>
+
+| Raised by | Claim | Why not a finding |
+| --------- | ----- | ----------------- |
+| <author> [r<id>](<url>) | <candidate claim> | <scorer's reason> |
 
 ---
 
@@ -178,7 +186,7 @@ Keep the full history — never trim old rows.
   Report updates go in the report's footer, not here.
 - **Affected** — the touched surface only (procedures, routes, components,
   public exports), at most ~40 words, then the verdict and finding counts:
-  `Verdict: <Request Changes | Approve> — <n> Required Change(s) (<severity
+  `Verdict: <Request Changes | Approve with changes | Approve with process to-dos | Approve> — <n> Required Change(s) (<severity
 markers>), <m> Improvement(s)`, or `Verdict: Approve — clean`. Rows
   written under the old scheme keep their wording. Details live in the
   report.

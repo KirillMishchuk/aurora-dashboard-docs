@@ -1,0 +1,10 @@
+{
+ "candidates": [
+  {
+   "claim": "The new Neutron pagination loop in ports.list (and routers.list) has no upper bound on pages or accumulated items. The `visited` set only stops a repeated identical URL, so a `next` link whose marker keeps changing (or a very large project) makes one tRPC query issue unbounded sequential Neutron requests and buffer every result in BFF memory before the network/subnet lookups. Any authenticated user can trigger it by opening the list page.",
+   "location": "packages/aurora/src/server/Network/routers/portsRouter.ts | while (nextUrl && !visited.has(nextUrl)) {",
+   "evidence": "git show 86a355a8:packages/aurora/src/server/Network/routers/portsRouter.ts: loop pushes `...pagePorts` into `ports` until `nextPageUrl` returns undefined or a URL repeats; no max-page or max-item cap. Same pattern in routersRouter.ts list. nextPageUrl (requestHelpers.ts) reuses only the query from Neutron's absolute `next` href against the fixed base path, so there is no host/path injection; the concern is only resource exhaustion.",
+   "precedent": "Both ports and routers list share the identical loop."
+  }
+ ]
+}

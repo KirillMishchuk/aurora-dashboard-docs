@@ -1,0 +1,116 @@
+{
+ "overview": {
+  "what": "This update covers `512f01b1` to `86a355a8`. The PR is still a draft. CI on the head commit: 18 of 22 checks pass, 4 are skipped, none failed or pending.\n\n**Ports list moves to client-side sorting and search.** The list now fetches the full port list once per project/network and sorts, searches and paginates it in the browser. Sort, search and page changes no longer send a request, and the `useDeferredValue`/stale-result handling is gone. The sort keys offered shrink to `name`, `status` and `device_owner`. Search filtering now runs on the locally typed text on every keystroke, while the URL is still updated with a debounce. The BFF `list` procedure still accepts `sort_key`, `sort_dir` and `searchTerm`, but the page no longer uses them.\n\n**Routers get the same treatment in places the findings did not cover.** The Routers BFF `list` now also follows Neutron pagination through `routers_links`, with a new test. In the Routers list, the Status column moves to second position, the row action menu gets a visible `PopupMenuToggle` button, and a 403 now shows an info message \"Insufficient Permissions\" instead of the \"Failed to Load Routers\" error. The Router tests are updated to match.\n\n**Port details page title is now static.** With the loader removed, the browser tab title is always \"Port Details\" and no longer shows the port name.\n\n**Pagination plumbing.** `nextPageUrl` is a new shared helper in `requestHelpers.ts`, and `PortListResponseSchema` and `RouterListResponseSchema` gain an optional `*_links` field. Both list loops use a `visited` set as a guard against a non-advancing `next` link.",
+  "how": "Each list loop reuses only the query string of Neutron's absolute `next` href, against the known relative base path:\n\n[[code:packages/aurora/src/server/Network/helpers/requestHelpers.ts:63-68]]\n\nThe client-side list pipeline filters, then sorts, then pages:\n\n[[code:packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.tsx | const visiblePorts = useMemo( | 4]]",
+  "affects": "- The Routers BFF `list` contract changes: it now issues several requests when Neutron paginates. `packages/aurora/docs/0010_routers_bff.md` was updated for this.\n- Search, sort and pagination on the Ports list now run on the full list in the browser. For projects with many ports, the first load is heavier, and `filterPorts` in `PortsList.tsx` duplicates the BFF's `filterPortsBySearchTerm`, so the two must be kept in sync.\n- `sort_key`, `sort_dir` and `searchTerm` on `ports.list` (`packages/aurora/src/server/Network/types/port.ts:115`) are now unused by the only client, but remain in the contract and docs.\n- Router list and Router tests were edited as part of this update, although the Routers feature is outside the Ports scope in the PR description. The description does not mention the Routers list changes (Status column order, action toggle, 403 info message, pagination)."
+ },
+ "qa": {
+  "core_path": [],
+  "edge_cases": []
+ },
+ "acceptance": [
+  {
+   "criterion": "#1380: Create an AI agent skill for scaffolding new OpenStack resources (skill structure, intake, three phase guides, templates)",
+   "status": "unmet",
+   "evidence": "The PR adds no agent skill; the PR description does not reference #1380 and it is not in the Related Issues."
+  },
+  {
+   "criterion": "#1381: All procedures above are available, and both input and Neutron responses are validated with Zod.",
+   "status": "met",
+   "evidence": "`packages/aurora/src/server/Network/routers/portsRouter.ts` exposes list/getById/create/update/delete; `packages/aurora/src/server/Network/types/port.ts:77-81` validates the list response including `ports_links`."
+  },
+  {
+   "criterion": "#1381: Lists are restricted to the current project and can be narrowed to one network.",
+   "status": "met",
+   "evidence": "`packages/aurora/src/server/Network/routers/portsRouter.ts:62` forwards project and network filters; the list now follows pagination at `portsRouter.ts:73-84`."
+  },
+  {
+   "criterion": "#1381: List and details responses contain everything the list and details views need, including related resource names.",
+   "status": "met",
+   "evidence": "`packages/aurora/src/server/Network/routers/portsRouter.ts:94` applies network and subnet names to the full, paged list."
+  },
+  {
+   "criterion": "#1381: Missing related names (e.g. lookups not permitted) don't break the list or details; IDs are returned instead.",
+   "status": "met",
+   "evidence": "Best-effort lookups, documented in `packages/aurora/docs/0017_ports_bff.md`; no change in this update."
+  },
+  {
+   "criterion": "#1381: Neutron errors are mapped to tRPC errors with clear messages.",
+   "status": "met",
+   "evidence": "Error handlers in `portHelpers.ts`; `packages/aurora/docs/0017_ports_bff.md` error tables now show the `: {Neutron message}` suffix."
+  },
+  {
+   "criterion": "#1381: Tests cover success and error cases.",
+   "status": "met",
+   "evidence": "`packages/aurora/src/server/Network/routers/portsRouter.test.ts:258-315` adds pagination tests; `requestHelpers.test.ts` covers `nextPageUrl`."
+  },
+  {
+   "criterion": "#1381: Documentation is added alongside the existing service docs.",
+   "status": "met",
+   "evidence": "`packages/aurora/docs/0017_ports_bff.md` documents pagination at line 81."
+  },
+  {
+   "criterion": "#1382: The page is reachable from the side navigation and the project overview.",
+   "status": "met",
+   "evidence": "`packages/aurora/src/client/routes/_auth/projects/$projectId/index.tsx:94-99` adds the overview card gated on `ports`."
+  },
+  {
+   "criterion": "#1382: The list view shows the agreed columns for the current project, with working search, sorting and pagination.",
+   "status": "met",
+   "evidence": "`PortListContainer.tsx:55-72` shows Name / ID, Status, Description, Network, Fixed IPs / Subnet, Device Owner / ID; `PortsList.tsx` filters, sorts and pages client-side. Column order differs from the issue text (Status is second), but all columns are present."
+  },
+  {
+   "criterion": "#1382: The list can be rendered for a single network without the Network column.",
+   "status": "met",
+   "evidence": "`PortsList.tsx:215` and `:308` pass `isNetworkScoped` to `PortListContainer`, which hides the Network column."
+  },
+  {
+   "criterion": "#1382: The details view shows all fields listed above.",
+   "status": "met",
+   "evidence": "`PortDetailsView.tsx:41-72` shows Port ID, MAC, IPs, Device ID, Created/Updated at, Project ID and Security Groups; copy-to-clipboard via `ClipboardText`."
+  },
+  {
+   "criterion": "#1382: Missing data (e.g. unresolvable names, ports without IPs or device) is handled gracefully.",
+   "status": "met",
+   "evidence": "`PortDetailsView.tsx:66-68` falls back to \"—\" for missing values; the list falls back to \"–\"."
+  },
+  {
+   "criterion": "#1382: UI follows the design system and existing list/detail patterns.",
+   "status": "met",
+   "evidence": "401 and 403 handling at `$portId.tsx:68` and `:84`, the action toggle at `PortTableRow.tsx:82` and the corrected spacing in this update bring the page in line with the conventions."
+  },
+  {
+   "criterion": "#816: Ports can be listed globally (all ports in the project) and filtered by `networkId`.",
+   "status": "met",
+   "evidence": "`PortsList.tsx:44-47` queries with an optional `network_id`."
+  },
+  {
+   "criterion": "#816: Users can list, view, create, update, and delete ports (P1, P2 & P3).",
+   "status": "out of scope",
+   "evidence": "PR description: \"Write procedures (`create`, `update` and `delete`) are available in the BFF but not yet exposed in the UI.\" and \"Create, edit, delete and bulk delete in the UI\" under Not included / follow-ups."
+  },
+  {
+   "criterion": "#816: The Network Detail page contains a \"Ports\" tab that reuses the same overview component.",
+   "status": "out of scope",
+   "evidence": "PR description: \"\\\"Ports\\\" tab in the network details view (#1019)\" under Not included / follow-ups."
+  },
+  {
+   "criterion": "#816: All action-triggering UI elements are gated using `canUser(...)` against `network:port:*` policy.",
+   "status": "out of scope",
+   "evidence": "The UI is read-only; the PR description lists create, edit and delete in the UI as follow-ups. \"Show Details\" is the only row action."
+  },
+  {
+   "criterion": "#1019: Network Detail view clearly lists associated Subnets and provides visibility of Ports.",
+   "status": "out of scope",
+   "evidence": "PR description: \"\\\"Ports\\\" tab in the network details view (#1019)\" is listed under Not included / follow-ups; the PR only prepares the reusable list."
+  }
+ ],
+ "stale_callers": [
+  {
+   "symbol": "sort_key / sort_dir / searchTerm on ports.list",
+   "location": "packages/aurora/src/server/Network/types/port.ts:115",
+   "note": "The Ports page no longer sends these to the BFF; the client mirrors the search in `filterPorts` instead. The input fields and docs still describe server-side sort and search."
+  }
+ ],
+ "scope": "#816 — read-only Ports UI plus BFF; write UI and network Ports tab are follow-ups"
+}

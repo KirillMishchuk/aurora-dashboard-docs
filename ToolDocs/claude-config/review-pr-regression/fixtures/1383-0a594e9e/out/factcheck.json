@@ -1,0 +1,11 @@
+{
+ "wrong": [
+  {
+   "claim": "`list` forwards only `name`, `admin_state_up`, `shared`, `sort_key` and `sort_dir` to Neutron.",
+   "field": "overview.how",
+   "old": "`list` forwards only `name`, `admin_state_up`, `shared`, `sort_key` and `sort_dir` to Neutron.",
+   "new": "`list` forwards `project_id`, `name`, `admin_state_up`, `shared`, `sort_key` and `sort_dir` to Neutron (everything except `searchTerm` and `status`).",
+   "evidence": "networksRouter.ts:39 `const { searchTerm, status, ...openstackFilters } = input`; line 42 `appendQueryParamsFromObject(openstackFilters)`. NetworkQueryParametersSchema extends projectScopedInputSchema (trpc.ts:144 defines `project_id`), so project_id stays in openstackFilters and is appended to the query string; appendQueryParamsFromObject appends every non-null string."
+  }
+ ]
+}

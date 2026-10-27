@@ -1,0 +1,100 @@
+{
+ "overview": {
+  "what": "Adds an in-core Key Manager (OpenStack Barbican) plugin: 48 files, about 4.4k added lines, almost all new. CI on headRefOid: 17 pass, 0 fail, 0 pending, 4 skipped, 1 cancelled (`context.json` ci). The PR body checklist leaves the test and tests-pass boxes unticked, and its testing steps are only `pnpm i` and `pnpm run test`.\n\n**Server.** A new `packages/aurora/src/server/KeyManager/` domain has a `keyManagerRouter` (secrets: list/get/getPayload/create/update/delete; containers: list/get/create/delete/addSecret/deleteSecret; orders: list/get/create/delete), Zod schemas, and a `canUser` permission router built with `createPermissionRouter`. It is mounted as `keyManager` in `server/routers.ts`. A policy file `apps/dashboard/src/policies/key-manager.json` is added.\n\n**Client.** A `key-manager` layout route under `authorization/` has a tab bar (Secrets / Containers / Orders). Each tab is its own sub-route with an index list route and a `$id` detail route. Lists use the Juno DataGrid three-zone pattern (sort, search, pagination, with state in URL search params). There are Create and Delete modals for all three resources. `buildNavSections` gets a new Authorization section with one Key Manager entry, shown only if the catalog has `key-manager`/`barbican`.\n\n**Generated / i18n.** `routeTree.gen.ts` and the `en`/`de` locale catalogs are regenerated.\n\n**Gaps against the issue.** The server exposes `updateSecret`, `addContainerSecret` and `deleteContainerSecret`, but no client code calls them. There is no Edit Secret modal, no Manage Container Secrets flow, no bulk delete, and no tab hiding by permission. The Create Container modal always sends `secret_refs: []`.",
+  "how": "**Layout route and service guard.** The `key-manager` layout checks the catalog in `beforeLoad` and redirects to the project page when Barbican is absent. Any error is also turned into a redirect. The tabs are URL-driven by `useMatch`, so each tab is a real route rather than component state.\n\n[[code:packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager.tsx | const availableServices = await trpcClient | 7]]\n\n**Navigation.** The same catalog predicate gates the nav entry at `packages/aurora/src/client/routes/_auth/projects/-components/buildNavSections.ts:154`. The Authorization section is always emitted, but with an empty `services` list when Barbican is absent.\n\n**Server procedures.** Every procedure follows one shape. It resolves `ctx.openstack?.service(\"key-manager\")`, calls Barbican, maps failures through `mapKmError` (status code to TRPCError code), and validates the response with `parseOrThrow` and a Zod schema. The payload route is the exception. It returns raw `text` plus the content type, with no schema.\n\n[[code:packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts | listSecrets: projectScopedProcedure | 15]]\n\nAll procedures use `projectScopedProcedure`, so token rescoping comes from the existing builder. No procedure calls the policy engine itself. Permission checks exist only through the separate `canUser` query, which the UI calls.\n\n**Permission router.** `permissionRouter.ts` maps 16 `key-manager:*` keys 1:1 to rules in the new policy JSON, using the shared factory.\n\n[[code:packages/aurora/src/server/KeyManager/routers/permissionRouter.ts | export const buildKeyManagerPermissionRouter | 8]]\n\n**Client permission gating.** A local `usePermissions` hook calls `keyManager.canUser` once per list with `staleTime: Infinity`. Lists gate their query with `enabled: permissions[...:list]`, show a warning Message when list is denied (`packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx:71`), and hide Create/Delete when those are denied.\n\n**Payload reveal.** `SecretDetailsView.tsx:34` fetches the payload lazily (`enabled: false`) on button click (`:90`). The Reveal button is not gated by `canUser`, although the issue asks for `key-manager:secrets:get`.\n\n**List columns.** Column order is Name/ID, Status, Type, (Content Types), actions. This follows the DataGridSpec note in the PR body (status right after the primary column) but differs from the issue's column order. Orders have no name column, only the ID.\n\n[[code:packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/constants.ts | export const SECRETS_COLUMNS | 1]]",
+  "affects": "**New public tRPC surface.** `AuroraRouter` gains a `keyManager` namespace (`server/routers.ts` mounts `buildKeyManagerRouters(policyDir)`). Consumers who build on `AuroraRouter` types get the new keys. No existing procedure or export is changed. The only edits to existing files are `routers.ts`, `buildNavSections.ts`, the generated route tree and locale catalogs.\n\n**Code consumers outside the PR.** None: the new symbols are used only by files in this PR. `usePermissions` and `uuidFromRef` are local to the key-manager route folder. `uuidFromRef` is also duplicated in `keyManagerRouter.ts`.\n\n**Policy file.** `apps/dashboard/src/policies/key-manager.json` is picked up through `policyDir`, like the other policy files. Any host app that supplies its own `policyDir` must also ship `key-manager.json`. Otherwise the engine load behind `keyManager.canUser` fails, so every list shows the permission-denied warning.\n\n**Nav.** The Authorization section is now always present in the nav model, even when empty. Check that an empty section does not render as an empty header.\n\n**Docs.** No documentation changed. `packages/aurora/README.md` and the repo docs have no Key Manager mention, and the KB lists no Barbican domain. The new nav section and policy file are not described anywhere.\n\n**Stale or unused.** Server procedures `updateSecret`, `addContainerSecret`, `deleteContainerSecret` and the permission keys `key-manager:secrets:update`, `key-manager:containers:update`, `key-manager:secrets:payload` have no client caller (`usePermissions.ts` only lists them in a type)."
+ },
+ "qa": {
+  "core_path": [
+   "On a project whose catalog has key-manager/barbican, open the side nav and confirm an Authorization section with a single Key Manager entry; click it and land on the Secrets tab",
+   "On the Secrets tab, check columns Name/ID, Status, Type, Content Types; click the copy icon on a UUID and paste it to confirm it is the bare UUID, not the full ref URL",
+   "Search by name, change Sort by and direction, and page through results (page size 50); confirm the URL search params (`search`, `sort`, `page`) update and survive a reload",
+   "Create a Secret (name, type, payload) and confirm it appears in the list; open its row menu, choose Show Details, and check all fields and the Back button",
+   "On the secret detail page click Reveal Payload, verify content type and text, use Copy and Hide",
+   "Delete the secret via the row menu and confirm the dialog; confirm the row disappears",
+   "Switch to Containers: create a generic container, open its details (it will have no secrets, so the empty-state row shows), then delete it",
+   "Switch to Orders: create a key order (aes/256), open its details and wait for status/secret_ref to change; then delete it",
+   "Log in as a viewer-only user (role keymanager_viewer) and confirm Create and Delete are hidden but lists and details work"
+  ],
+  "edge_cases": [
+   "Project without a Barbican catalog entry: nav entry absent, and a direct URL to `/authorization/key-manager/...` redirects to the project page (`key-manager.tsx` beforeLoad)",
+   "Catalog lookup fails (network or tRPC error): silently redirects to the project page instead of showing the error component (`key-manager.tsx` catch branch)",
+   "User without `key-manager:secrets:list`: the Message 'You do not have permission to view secrets.' is shown (`SecretsList.tsx:71`), but the tab itself stays visible, and the message is hard-coded English, not i18n",
+   "Secrets, containers or orders with null name: list shows an italic 'unnamed' fallback, and the detail page falls back to the id as title; orders list shows only the UUID",
+   "Secret with null `content_types`, algorithm, bit_length or mode: renders '- -'; null expiration renders 'Never'",
+   "Reveal payload for a binary or non-text secret, or one with no payload yet (PENDING): the server reads `res.text()`, so check garbled output and the error Message 'Failed to load payload.'",
+   "Reveal payload as a user who has list/get but not the payload right: the button is still shown (no `canUser` gate at `SecretDetailsView.tsx:90`); confirm the server error surfaces",
+   "Delete a container that still has secrets or consumers (Barbican error): `mapKmError` returns a generic 'Key Manager delete container failed', so check whether the user sees a useful message",
+   "Search typing: `onInput` and `onSearch` both navigate, so every keystroke changes the URL and refetches; check for history spam and flicker, and that page resets to 1",
+   "Orders sort: the sort string `created:desc` is split into `sort_key`/`sort_dir` on the server; check that the Sort by options match the keys Barbican accepts for orders",
+   "Create Order with a non-numeric or empty bit length: `parseInt` gives NaN, and `meta.bit_length` is sent as NaN; for type 'asymmetric' or 'certificate' the meta fields are still just algorithm/bit_length",
+   "Deep-link to a detail route with an unknown id: the detail view shows the server error message through `Status status=\"error\"`, and the breadcrumb falls back to the id",
+   "Switch tabs while on a detail page: tab state comes from `useMatch` on the index and detail routes, so Containers and Orders detail pages keep their tab highlighted"
+  ]
+ },
+ "acceptance": [
+  {
+   "criterion": "tRPC BFF is implemented with complete Zod schema validation for Secrets, Containers, and Orders.",
+   "status": "partly met",
+   "evidence": "`packages/aurora/src/server/KeyManager/types/keyManager.ts` defines schemas for all three, and list/get responses are parsed with `parseOrThrow`. But create/add-secret responses are cast (`data.secret_ref as string`) and the payload response has no schema. `updateSecret` only replaces payload, not metadata."
+  },
+  {
+   "criterion": "A single \"Key Manager\" entry is added to the Side Navigation under the Authorization group.",
+   "status": "met",
+   "evidence": "`packages/aurora/src/client/routes/_auth/projects/-components/buildNavSections.ts:154` adds one Key Manager item in a new Authorization section, gated on the barbican catalog entry."
+  },
+  {
+   "criterion": "The Key Manager page exposes three tabs: Secrets, Containers, Orders.",
+   "status": "met",
+   "evidence": "`packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager.tsx` renders TabNavigation with three items, as sub-routes. The issue allows sub-routes only for detail views; here the tabs themselves are routes, which still satisfies the criterion. Secrets is the default through `activeTab`."
+  },
+  {
+   "criterion": "Each tab renders its own overview list with the columns specified in the UI Specification.",
+   "status": "partly met",
+   "evidence": "Secrets list (`secrets/-components/constants.ts:1`) has Name/ID, Status, Type, Content Types. Containers list shows name/ID, status, type. Orders list (`orders/-components/constants.ts:1`) has ID only, with no order name or reference. Column order differs from the spec (Status is second, by design per the PR body)."
+  },
+  {
+   "criterion": "Users can list, view, create, update, and delete Secrets, Containers, and Orders (P1, P2 & P3).",
+   "status": "partly met",
+   "evidence": "List, view, create and delete are implemented in the UI for all three. Update is missing in the UI: `updateSecret`, `addContainerSecret` and `deleteContainerSecret` exist on the server but no client code calls them, so there is no Edit Secret modal and no Manage Container Secrets flow. Create Secret has only name, type and payload (no algorithm, bit length, mode, content type or expiration); Create Container cannot attach secrets (`secret_refs: []`)."
+  },
+  {
+   "criterion": "Detail views are provided for each resource type (slide-out panel or sub-route).",
+   "status": "met",
+   "evidence": "`$secretId.tsx`, `$containerId.tsx` and `$orderId.tsx` sub-routes render `SecretDetailsView`, `ContainerDetailsView` and `OrderDetailsView`, with copy-to-clipboard on ID and ref. Container details show secret refs (the consumers array is not rendered)."
+  },
+  {
+   "criterion": "All action-triggering UI elements (Create, Edit, Delete, etc.) are gated using canUser(...) against the corresponding key-manager:* policy rules and are hidden/disabled for unauthorized users.",
+   "status": "partly met",
+   "evidence": "Create and Delete are gated in the lists (`SecretsList.tsx:67` and siblings, and `canDelete` in the row components). Reveal Payload is not gated (`SecretDetailsView.tsx:90`), and there are no Edit or Manage-secrets actions to gate. Detail views do not check `get` permission. The server procedures do no policy check of their own."
+  },
+  {
+   "criterion": "Comprehensive error handling provides user-friendly feedback for Barbican errors.",
+   "status": "partly met",
+   "evidence": "Modals show `mutation.error.message` and lists show a `Status` error, but `mapKmError` in `keyManagerRouter.ts` discards Barbican's response body and returns a generic message like 'Key Manager delete container failed', so conflicts such as a container with secrets get no specific text."
+  },
+  {
+   "criterion": "All UI components follow the Aurora design system.",
+   "status": "partly met",
+   "evidence": "Juno DataGrid, Modal and Status are used. Several visible strings in lists are not i18n-wrapped, for example 'Create Secret', 'Search by name...', 'Sort by' and the permission warning in `SecretsList.tsx`, and the sort labels in the `SORT_FIELDS` constant. Column header labels in `constants.ts` are plain strings too."
+  },
+  {
+   "criterion": "Complete testing coverage (unit, integration, E2E) is achieved.",
+   "status": "partly met",
+   "evidence": "Unit tests are added for the router (`keyManagerRouter.test.ts`), the schemas (`keyManager.test.ts`) and the TableRow and ListContainer components of all three resources. No tests for the lists with permissions, modals, detail views, nav or the layout guard, and no E2E."
+  }
+ ],
+ "stale_callers": [
+  {
+   "symbol": "updateSecret / addContainerSecret / deleteContainerSecret",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:61",
+   "note": "Server procedures with no client caller, and no UI flow behind them (Edit Secret, Manage Container Secrets)"
+  },
+  {
+   "symbol": "key-manager:secrets:update / key-manager:containers:update / key-manager:secrets:payload",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/-components/usePermissions.ts:6",
+   "note": "Permission keys defined and mapped but never checked in the UI; the payload reveal is not gated by any of them"
+  }
+ ],
+ "scope": null
+}

@@ -1,0 +1,5 @@
+exit 0
+17 candidates in 14 places. Launch these 3 scorers in ONE message, in the foreground, each with the prompt "Read your brief: <path>" and the subagent type shown:
+score-1    pr-reviewer           <RUN>/briefs/score-1.md   (C1, C2, C16, C3, C4, C5, C6, C7)
+score-2    pr-reviewer           <RUN>/briefs/score-2.md   (C8, C9, C10, C11, C12, C13, C14)
+score-3    pr-reviewer           <RUN>/briefs/score-3.md   (C15, C17)

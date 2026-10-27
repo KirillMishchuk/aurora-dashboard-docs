@@ -1,0 +1,30 @@
+{
+ "candidates": [
+  {
+   "claim": "networks.list forwards project_id (from projectScopedInputSchema) to Neutron as a filter, so networks the user may see but does not own (shared networks, external/provider networks owned by another project) are hidden from the list.",
+   "location": "packages/aurora/src/server/Network/routers/networksRouter.ts:42",
+   "evidence": "Code: `const { searchTerm, status, ...openstackFilters } = input` then `const queryParams = appendQueryParamsFromObject(openstackFilters)`; input extends projectScopedInputSchema (`project_id: z.string().trim().min(1, ...)`, trpc.ts:143-144), so project_id=<id> is sent. Reference (https://docs.openstack.org/api-ref/network/v2/#list-networks, networks.inc): 'Default policy settings return only networks that the project who submits the request owns, unless an administrative user submits the request. In addition, networks shared with the project who submits the request are also returned.' project_id is a documented filter (`project_id: project_id-query`), so filtering by it excludes shared networks and external networks owned by other projects. The same-PR-era securityGroupRouter works around this by fetching own and shared separately and unioning. Note also for admin tokens the unfiltered call would return all projects, so the filter is a behaviour choice that should be explicit.",
+   "precedent": "securityGroupRouter.ts:80-87 fetches own (project_id, shared=false) plus shared (shared=true) and merges; floatingIpRouter lists external networks via router:external=true."
+  },
+  {
+   "claim": "The list call sends no limit/marker and does not follow next links, so if Neutron pagination is enabled with a max page size, only the first page is shown with no indication of truncation.",
+   "location": "packages/aurora/src/server/Network/routers/networksRouter.ts:43",
+   "evidence": "Code: `network.get(withQuery(NETWORKS_BASE_URL, queryParams))`, then `const { networks } = parseOrThrow(NetworkListResponseSchema, data, ...)`; schema has only `networks`, no `networks_links`. Reference (https://docs.openstack.org/api-ref/network/v2/#pagination, intro.inc): 'To reduce load on the service, list operations will return a maximum number of items at a time. To navigate the collection, the parameters limit, marker and page_reverse can be set in the URI.' ... 'If the client requests a limit beyond the maximum limit configured by the deployment, the server returns the maximum limit number of items.' ... 'list responses contain atom next links and previous links.' Also: 'Pagination is an optional feature ... If pagination is disabled, the pagination parameters will be ignored and return all the items.' The reference gives no numeric default or max (deployment configured). User sees only the first page when there are more networks, silently; subnet_count/search/status filters apply to that page only."
+  },
+  {
+   "claim": "NetworkSortKeySchema accepts `shared`, which Neutron's documented network sort keys do not include.",
+   "location": "packages/aurora/src/server/Network/types/network.ts:61",
+   "evidence": "Code: `export const NetworkSortKeySchema = z.enum([\"name\", \"status\", \"admin_state_up\", \"shared\"])` with comment 'Sort keys supported by Neutron'. Reference (https://docs.openstack.org/api-ref/network/v2/#list-networks, parameters.yaml network-sort_key): 'The sort keys are limited to: admin_state_up, availability_zone_hints, id, mtu, name, status, tenant_id, project_id'. `shared` is not listed; sort_key=shared is forwarded to Neutron unchanged, so the comment is wrong and the request may be rejected or ignored. Also sorting is only honoured 'if Neutron configuration supports it with allow_sorting=true' (filtering-list.inc), and the BFF has no fallback sort."
+  },
+  {
+   "claim": "status filter is applied BFF-side although Neutron documents a server-side `status` filter for list networks; combined with no pagination, filtering only the first page.",
+   "location": "packages/aurora/src/server/Network/routers/networksRouter.ts:39",
+   "evidence": "Code: `const { searchTerm, status, ...openstackFilters } = input` and helper `filterNetworksByBffParams` described as 'Filters Neutron doesn't support directly'. Reference (networks.inc List networks request params): `- status: network-status-query`; parameters.yaml: 'Filter the network list result by network status. Values are ACTIVE, DOWN, BUILD or ERROR.' So the comment in networkHelpers.ts is inaccurate; BFF could pass status through. (BFF compares case-insensitively, Neutron values are uppercase.)"
+  },
+  {
+   "claim": "listSubnets sends fields and network_id correctly but lists subnets with no pagination and under the same owner-only default policy, so subnets of a shared/external network owned by another project are not returned in the Subnets tab.",
+   "location": "packages/aurora/src/server/Network/routers/networksRouter.ts:92",
+   "evidence": "Code: `appendQueryParamsFromObject({ network_id, fields: [\"id\",\"name\",\"cidr\",\"ip_version\",\"gateway_ip\",\"enable_dhcp\"] })` then `service.get(withQuery(SUBNETS_BASE_URL, params))`. Reference (https://docs.openstack.org/api-ref/network/v2/#list-subnets, subnets.inc): 'Default policy settings return only subnets owned by the project of the user submitting the request, unless the user has administrative role.' (no 'shared' clause, unlike networks). network_id filter is documented (subnet-network_id-query). Fields check: all fields UI schema reads (id,name,cidr,ip_version,gateway_ip,enable_dhcp) are in the list, consistent. Pagination: no limit/marker/next as in the networks list (https://docs.openstack.org/api-ref/network/v2/#pagination)."
+  }
+ ]
+}

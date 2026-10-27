@@ -1,0 +1,70 @@
+{
+ "scores": [
+  {
+   "id": "C8",
+   "score": 75,
+   "severity": "Low",
+   "category": "UI/UX",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkTableRow.tsx:43",
+   "reason": "Line 43 renders `<DataGridCell>{network.status}</DataGridCell>` as plain text, and NetworkDetailsView.tsx:116 does the same. copilot-instructions B.1 says status indicators use `Badge`, so this is a verified standards violation with cosmetic impact.",
+   "same_as": null
+  },
+  {
+   "id": "C9",
+   "score": 75,
+   "severity": "Low",
+   "category": "UI/UX",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkTableRow.tsx:46",
+   "reason": "Line 46 renders t`UP` / t`DOWN` (same at NetworkDetailsView.tsx:117). The Quick Reject checklist lists a 'String using ... all-caps' item, and the UX writing rules say 'Never all-caps (ever)'. This is a different problem from C8 (wording, not component choice); Low per the precedent table.",
+   "same_as": null
+  },
+  {
+   "id": "C10",
+   "score": 50,
+   "severity": "Low",
+   "category": "UI/UX",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkDetailsView.tsx:132",
+   "reason": "Lines 132-133 use t`Created At` and t`Updated At`. The title-case rule keeps short prepositions such as 'at' lowercase, so this is verified. It is only a wording nit, so 50 and Low.",
+   "same_as": null
+  },
+  {
+   "id": "C11",
+   "score": 75,
+   "severity": "Low",
+   "category": "Code Quality",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkListContainer.tsx:36",
+   "reason": "Lines 36-38 use a useEffect to copy the currentPage prop into inputPage state. This is the prop-to-state sync that copilot-instructions A.1 ('Minimize useEffect') says to flag. The only cost is an extra render, so Low.",
+   "same_as": null
+  },
+  {
+   "id": "C12",
+   "score": 25,
+   "reason": "The effect at NetworksList.tsx:97-99 triggers a URL navigation (onPageChange(1)) as a side effect, which cannot be done during render. The render already clamps with safePage, so this is not derived state. The A.1 quote does not clearly apply.",
+   "same_as": null
+  },
+  {
+   "id": "C13",
+   "score": 75,
+   "severity": "Moderate",
+   "category": "Conflict",
+   "location": "PR files",
+   "reason": "context.json overlapping_prs lists open draft PR #1385 sharing the same networks routes, components, networkHelpers.ts and nav files. Work duplicated in another open PR is the Moderate 'Conflict' precedent. It is a different problem from C22 and C24.",
+   "same_as": null
+  },
+  {
+   "id": "C22",
+   "score": 0,
+   "reason": "MTU, admin state and shared are visible, and the PR body limits this PR to the read-only part, so the 'manageable' half is out of scope. This is not a different finding worth reporting.",
+   "same_as": null
+  },
+  {
+   "id": "C24",
+   "score": 50,
+   "severity": "Low",
+   "category": "Test coverage",
+   "location": "PR files",
+   "reason": "Issue #1019 lists 'Complete testing coverage' as an acceptance criterion and a QA task, so the standards of the epic require tests. The PR adds no tests for the router, helpers or components, and the PR body does not limit the scope for tests. Low per the precedent table.",
+   "same_as": null
+  }
+ ]
+}

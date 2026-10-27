@@ -1,0 +1,1630 @@
+diff --git a/.changeset/neutron-ports-management.md b/.changeset/neutron-ports-management.md
+index f940f161..52f44dae 100644
+--- a/.changeset/neutron-ports-management.md
++++ b/.changeset/neutron-ports-management.md
+@@ -10,3 +10,4 @@ Add Neutron Ports management (BFF and read-only UI)
+ - Add a "Ports" entry under Network in the side navigation and a "Ports" card on the project overview; both require `ports` in `enabledServices`
+ - Add a Ports list view (Name / ID, Description, Network, Fixed IPs / Subnet, Device Owner / ID, Status) with search, sorting and pagination; the list can be reused for a single network, which hides the Network column
+ - Add a port details view with copy-to-clipboard for IDs, IP addresses and the MAC address
++- Keep the active tab of the router details view in the URL (`?tab=`), so it is preserved on reload and when sharing a link
+diff --git a/packages/aurora/docs/0010_routers_bff.md b/packages/aurora/docs/0010_routers_bff.md
+index 4a935ea7..e2d9d612 100644
+--- a/packages/aurora/docs/0010_routers_bff.md
++++ b/packages/aurora/docs/0010_routers_bff.md
+@@ -68,6 +68,8 @@ Applied BFF-side (not sent to Neutron):
+ 
+ Returns `RouterListItem[]`: routers from the Neutron envelope `{ routers: [...] }` with the external gateway enriched with names.
+ 
++The BFF follows Neutron's pagination: it requests pages via the `next` link in `routers_links` until there is none, so the returned list is complete even on deployments with a `pagination_max_limit`. The BFF-side search and filters therefore see every router, not just the first page.
++
+ #### Private Networks and Name Enrichment
+ 
+ The router object only references the external network and subnets by ID, and contains no information about the internal (private) networks it is attached to. After BFF-side filtering, the BFF enriches the remaining routers with **batched requests for the whole list** (not per router):
+@@ -77,7 +79,7 @@ The router object only references the external network and subnets by ID, and co
+    - `device_owner` is restricted to interface ports (`network:router_interface`, `network:router_interface_distributed`, `network:ha_router_replicated_interface`), so gateway and SNAT ports are not returned.
+    - Network IDs are grouped per router and deduplicated into `private_networks`.
+ 2. **Names** - in parallel:
+-   - `GET /v2.0/networks?id=...&fields=id&fields=name` - one request for external **and** private networks; sets `external_gateway_info.network_name` and `private_networks[].network_name`
++   - `GET /v2.0/networks?id=...&fields=id&fields=name` - external **and** private networks in one lookup (chunked into requests of at most 50 IDs); sets `external_gateway_info.network_name` and `private_networks[].network_name`
+    - `GET /v2.0/subnets?id=...&fields=id&fields=name` - sets `external_gateway_info.external_fixed_ips[].subnet_name`
+ 
+ No request is made when there is nothing to look up. All lookups are best-effort, so the list is always returned:
+@@ -116,7 +118,7 @@ Retrieves a single router.
+ 
+ #### Response
+ 
+-Returns `RouterDetails`: the `Router` with the external gateway enriched with `network_name` and `external_fixed_ips[].subnet_name`, using the same best-effort networks/subnets lookup as `list` (two requests; none when the router has no gateway).
++Returns `RouterDetails`: the `Router` with the external gateway enriched with `network_name` and `external_fixed_ips[].subnet_name`, using the same best-effort networks/subnets lookup as `list` (two lookups, each chunked into requests of at most 50 IDs; none when the router has no gateway).
+ 
+ #### Error Handling
+ 
+diff --git a/packages/aurora/docs/0017_ports_bff.md b/packages/aurora/docs/0017_ports_bff.md
+index 5da36f9f..435d1fad 100644
+--- a/packages/aurora/docs/0017_ports_bff.md
++++ b/packages/aurora/docs/0017_ports_bff.md
+@@ -78,6 +78,8 @@ Applied BFF-side (not sent to Neutron):
+ 
+ Returns `PortListItem[]`: ports from the Neutron envelope `{ ports: [...] }`, enriched with the network name and, for every fixed IP, the IP version and subnet name.
+ 
++The BFF follows Neutron's pagination: it requests pages via the `next` link in `ports_links` until there is none, so the returned list is complete even on deployments with a `pagination_max_limit`. The BFF-side search and the client-side pagination therefore see every port, not just the first page.
++
+ #### Name Enrichment
+ 
+ A port only references its network and subnets by ID. The BFF resolves the names with **batched requests for the whole list** (not per port), in parallel:
+@@ -98,12 +100,12 @@ All lookups are best-effort, so the list is always returned:
+ 
+ #### Error Handling
+ 
+-| HTTP Status | tRPC Code               | Message                       |
+-| ----------- | ----------------------- | ----------------------------- |
+-| 400         | `BAD_REQUEST`           | Invalid request data for Port |
+-| 401         | `UNAUTHORIZED`          | Unauthorized access to Port   |
+-| 403         | `FORBIDDEN`             | Access forbidden to Port      |
+-| default     | `INTERNAL_SERVER_ERROR` | Failed to process Port        |
++| HTTP Status | tRPC Code               | Message                                          |
++| ----------- | ----------------------- | ------------------------------------------------ |
++| 400         | `BAD_REQUEST`           | Invalid request data for Port: {Neutron message} |
++| 401         | `UNAUTHORIZED`          | Unauthorized access to Port: {Neutron message}   |
++| 403         | `FORBIDDEN`             | Access forbidden to Port: {Neutron message}      |
++| default     | `INTERNAL_SERVER_ERROR` | Failed to process Port: {Neutron message}        |
+ 
+ ---
+ 
+@@ -127,12 +129,12 @@ Returns `PortDetails`: the port with the same network/subnet enrichment as `list
+ 
+ #### Error Handling
+ 
+-| HTTP Status | tRPC Code               | Message                       |
+-| ----------- | ----------------------- | ----------------------------- |
+-| 401         | `UNAUTHORIZED`          | Unauthorized access to {id}   |
+-| 403         | `FORBIDDEN`             | Access forbidden to {id}      |
+-| 404         | `NOT_FOUND`             | Port {port_id} was not found. |
+-| default     | `INTERNAL_SERVER_ERROR` | Failed to process {id}        |
++| HTTP Status | tRPC Code               | Message                                        |
++| ----------- | ----------------------- | ---------------------------------------------- |
++| 401         | `UNAUTHORIZED`          | Unauthorized access to {id}: {Neutron message} |
++| 403         | `FORBIDDEN`             | Access forbidden to {id}: {Neutron message}    |
++| 404         | `NOT_FOUND`             | Port {port_id} was not found.                  |
++| default     | `INTERNAL_SERVER_ERROR` | Failed to process {id}: {Neutron message}      |
+ 
+ ---
+ 
+@@ -193,12 +195,12 @@ Returns the created `Port`.
+ | HTTP Status | tRPC Code               | Message                                                                                         |
+ | ----------- | ----------------------- | ----------------------------------------------------------------------------------------------- |
+ | 400         | `BAD_REQUEST`           | Invalid request data for Port: {Neutron message}                                                |
+-| 401         | `UNAUTHORIZED`          | Unauthorized access to Port                                                                     |
+-| 403         | `FORBIDDEN`             | Access forbidden to Port                                                                        |
++| 401         | `UNAUTHORIZED`          | Unauthorized access to Port: {Neutron message}                                                  |
++| 403         | `FORBIDDEN`             | Access forbidden to Port: {Neutron message}                                                     |
+ | 404         | `NOT_FOUND`             | The selected network, subnet or security group was not found.                                   |
+ | 409         | `CONFLICT`              | The requested IP or MAC address is already in use, or the subnet has no free IP addresses left. |
+ | 409 (quota) | `CONFLICT`              | Port quota exceeded. Delete unused resources or contact an administrator to increase the quota. |
+-| default     | `INTERNAL_SERVER_ERROR` | Failed to process Port                                                                          |
++| default     | `INTERNAL_SERVER_ERROR` | Failed to process Port: {Neutron message}                                                       |
+ 
+ ---
+ 
+@@ -242,13 +244,13 @@ Returns the updated `Port`.
+ | HTTP Status | tRPC Code               | Message                                                                                         |
+ | ----------- | ----------------------- | ----------------------------------------------------------------------------------------------- |
+ | 400         | `BAD_REQUEST`           | Invalid request data for {port_id}: {Neutron message}                                           |
+-| 401         | `UNAUTHORIZED`          | Unauthorized access to {port_id}                                                                |
+-| 403         | `FORBIDDEN`             | Access forbidden to {port_id}                                                                   |
++| 401         | `UNAUTHORIZED`          | Unauthorized access to {port_id}: {Neutron message}                                             |
++| 403         | `FORBIDDEN`             | Access forbidden to {port_id}: {Neutron message}                                                |
+ | 404         | `NOT_FOUND`             | Port {port_id} or a referenced subnet or security group was not found.                          |
+ | 409         | `CONFLICT`              | The requested IP or MAC address is already in use, or the subnet has no free IP addresses left. |
+ | 409 (quota) | `CONFLICT`              | Port quota exceeded. Delete unused resources or contact an administrator to increase the quota. |
+-| 412         | `PRECONDITION_FAILED`   | Precondition failed - revision number mismatch in {port_id}                                     |
+-| default     | `INTERNAL_SERVER_ERROR` | Failed to process {port_id}                                                                     |
++| 412         | `PRECONDITION_FAILED`   | Precondition failed - revision number mismatch in {port_id}: {Neutron message}                  |
++| default     | `INTERNAL_SERVER_ERROR` | Failed to process {port_id}: {Neutron message}                                                  |
+ 
+ ---
+ 
+@@ -279,12 +281,12 @@ Returns `true` on success (OpenStack returns `204 No Content`).
+ 
+ | HTTP Status | tRPC Code               | Message                                                                                                                |
+ | ----------- | ----------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+-| 401         | `UNAUTHORIZED`          | Unauthorized access to {port_id}                                                                                       |
+-| 403         | `FORBIDDEN`             | Access forbidden to {port_id}                                                                                          |
++| 401         | `UNAUTHORIZED`          | Unauthorized access to {port_id}: {Neutron message}                                                                    |
++| 403         | `FORBIDDEN`             | Access forbidden to {port_id}: {Neutron message}                                                                       |
+ | 404         | `NOT_FOUND`             | Port {port_id} was not found.                                                                                          |
+ | 409         | `CONFLICT`              | The port is still in use by another resource (e.g. a router interface) and can't be deleted directly. Detach it first. |
+-| 412         | `PRECONDITION_FAILED`   | Precondition failed - revision number mismatch in {port_id}                                                            |
+-| default     | `INTERNAL_SERVER_ERROR` | Failed to process {port_id}                                                                                            |
++| 412         | `PRECONDITION_FAILED`   | Precondition failed - revision number mismatch in {port_id}: {Neutron message}                                         |
++| default     | `INTERNAL_SERVER_ERROR` | Failed to process {port_id}: {Neutron message}                                                                         |
+ 
+ ## Data Types
+ 
+diff --git a/packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/$portId.tsx b/packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/$portId.tsx
+index 557f65fb..f3adb757 100644
+--- a/packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/$portId.tsx
++++ b/packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/$portId.tsx
+@@ -1,7 +1,7 @@
+ import { createFileRoute, useNavigate, useParams, useRouter, type ErrorComponentProps } from "@tanstack/react-router"
+ import { Trans, useLingui } from "@lingui/react/macro"
+ import { trpcReact } from "@/client/trpcClient"
+-import { Button, ButtonRow, Status } from "@cloudoperators/juno-ui-components"
++import { Button, ButtonRow, Message, Stack, Status } from "@cloudoperators/juno-ui-components"
+ import type { RouteInfo } from "@/client/routes/routeInfo"
+ import { useSetBreadcrumb } from "@/client/hooks/useSetBreadcrumb"
+ import { ContentHeader } from "@/client/components/ContentHeader/ContentHeader"
+@@ -61,17 +61,47 @@ function PortLoadError({ error, onRetry }: PortLoadErrorProps) {
+   const statusCode: number | undefined = HTTP_STATUS_BY_TRPC_CODE[errorCode]
+   const canRetry = RETRYABLE_TRPC_CODES.has(errorCode)
+ 
++  const backToPorts = () => navigate({ to: "/projects/$projectId/network/ports", params: { projectId } })
++  const goHome = () => navigate({ to: "/projects/$projectId", params: { projectId } })
++
++  // 401: the session is gone. Send the user to sign in again (B.6) instead of showing the error inline.
++  if (errorCode === "UNAUTHORIZED") {
++    return (
++      <RouteIdLevelDefaultError
++        code={401}
++        errorTitle={t`Session Expired`}
++        errorDescription={t`Your session has expired. Sign in again to continue.`}
++        action={
++          <Button variant="primary" onClick={() => navigate({ to: "/" })}>
++            <Trans>Sign in</Trans>
++          </Button>
++        }
++      />
++    )
++  }
++
++  // 403: authenticated but not allowed. Explain it with a page-level info Message (B.6), not a red error.
++  if (errorCode === "FORBIDDEN") {
++    return (
++      <Stack direction="vertical" gap="4" className="mt-6">
++        <Message variant="info" title={t`Insufficient Permissions`}>
++          <Trans>You do not have the required permissions to access this port.</Trans>
++        </Message>
++        <ButtonRow>
++          <Button variant="primary" onClick={backToPorts}>
++            <Trans>Back to Ports</Trans>
++          </Button>
++          <Button onClick={goHome}>
++            <Trans>Home</Trans>
++          </Button>
++        </ButtonRow>
++      </Stack>
++    )
++  }
++
+   const getErrorDescription = (): string => {
+-    switch (errorCode) {
+-      case "NOT_FOUND":
+-        return t`This port does not exist or has been deleted.`
+-      case "FORBIDDEN":
+-        return t`Access to this port is not permitted.`
+-      case "UNAUTHORIZED":
+-        return t`The session has expired. Log in again to continue.`
+-      default:
+-        return canRetry ? t`The port could not be loaded. Try again.` : t`The port could not be loaded.`
+-    }
++    if (errorCode === "NOT_FOUND") return t`This port does not exist or has been deleted.`
++    return canRetry ? t`The port could not be loaded. Try again.` : t`The port could not be loaded.`
+   }
+ 
+   return (
+@@ -82,13 +112,10 @@ function PortLoadError({ error, onRetry }: PortLoadErrorProps) {
+       errorDescription={getErrorDescription()}
+       action={
+         <ButtonRow>
+-          <Button
+-            variant="primary"
+-            onClick={() => navigate({ to: "/projects/$projectId/network/ports", params: { projectId } })}
+-          >
++          <Button variant="primary" onClick={backToPorts}>
+             <Trans>Back to Ports</Trans>
+           </Button>
+-          <Button onClick={() => navigate({ to: "/projects/$projectId", params: { projectId } })}>
++          <Button onClick={goHome}>
+             <Trans>Home</Trans>
+           </Button>
+           {canRetry && (
+@@ -122,21 +149,11 @@ export const Route = createFileRoute("/_auth/projects/$projectId/network/ports/$
+       name: "network.ports.detail",
+     },
+   } satisfies RouteInfo,
+-  // Only resolves the page title. Failures are rendered by the component's query,
+-  // which knows the actual tRPC error code and supports retry.
+-  loader: async ({ context, params }) => {
+-    try {
+-      const port = await context.trpcClient?.network.ports.getById.query({
+-        project_id: params.projectId,
+-        port_id: params.portId,
+-      })
+-      return { portName: port?.name || null }
+-    } catch {
+-      return { portName: null }
+-    }
+-  },
+-  head: ({ loaderData }) => ({
+-    meta: [{ title: loaderData?.portName ?? "Port Details" }],
++  // No loader fetch: the component's query is the single source for the port, and the breadcrumb and
++  // ContentHeader already show its name. A loader query would double every request (loader uses the
++  // vanilla client, the component uses React Query — the two don't share a cache).
++  head: () => ({
++    meta: [{ title: "Port Details" }],
+   }),
+   component: RouteComponent,
+   errorComponent: PortErrorComponent,
+diff --git a/packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortDetailsView.tsx b/packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortDetailsView.tsx
+index bb770fe5..a969b358 100644
+--- a/packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortDetailsView.tsx
++++ b/packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortDetailsView.tsx
+@@ -48,7 +48,7 @@ export function PortDetailsView({ port }: PortDetailsViewProps) {
+           <Stack direction="vertical" gap="2" data-testid="port-fixed-ips">
+             {port.fixed_ips.map((fixedIp) => (
+               <Stack key={`${fixedIp.subnet_id}-${fixedIp.ip_address}`} direction="vertical" gap="0.5">
+-                <Stack alignment="center" gap="1">
++                <Stack alignment="center" gap="2">
+                   <ClipboardText text={fixedIp.ip_address} className="font-bold" />
+                   {fixedIp.ip_version && <span className="text-theme-light">{`IPv${fixedIp.ip_version}`}</span>}
+                 </Stack>
+diff --git a/packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortListContainer.tsx b/packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortListContainer.tsx
+index ee8f4c91..6808502d 100644
+--- a/packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortListContainer.tsx
++++ b/packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortListContainer.tsx
+@@ -1,4 +1,4 @@
+-import { useEffect, useState } from "react"
++import { useState } from "react"
+ import { Trans, useLingui } from "@lingui/react/macro"
+ import {
+   DataGrid,
+@@ -32,18 +32,6 @@ export const PortListContainer = ({
+   onPageChange,
+ }: PortListContainerProps) => {
+   const { t } = useLingui()
+-  const [inputPage, setInputPage] = useState<string>(currentPage.toString())
+-
+-  useEffect(() => {
+-    setInputPage(currentPage.toString())
+-  }, [currentPage])
+-
+-  const updateCurrentPage = (newPage: number) => {
+-    if (newPage >= 1 && newPage <= totalPages) {
+-      onPageChange?.(newPage)
+-      setInputPage(newPage.toString())
+-    }
+-  }
+ 
+   const columns = isNetworkScoped ? 6 : 7
+ 
+@@ -66,6 +54,9 @@ export const PortListContainer = ({
+           <DataGridHeadCell>
+             <Trans>Name / ID</Trans>
+           </DataGridHeadCell>
++          <DataGridHeadCell>
++            <Trans>Status</Trans>
++          </DataGridHeadCell>
+           <DataGridHeadCell>
+             <Trans>Description</Trans>
+           </DataGridHeadCell>
+@@ -80,9 +71,6 @@ export const PortListContainer = ({
+           <DataGridHeadCell>
+             <Trans>Device Owner / ID</Trans>
+           </DataGridHeadCell>
+-          <DataGridHeadCell>
+-            <Trans>Status</Trans>
+-          </DataGridHeadCell>
+           <DataGridHeadCell></DataGridHeadCell>
+         </DataGridRow>
+ 
+@@ -98,29 +86,50 @@ export const PortListContainer = ({
+       </DataGrid>
+       {totalPages > 1 && (
+         <Stack distribution="center" className="py-4">
+-          <Pagination
+-            variant="input"
+-            currentPage={currentPage}
+-            pages={totalPages}
+-            onPressPrevious={() => updateCurrentPage(Math.max(currentPage - 1, 1))}
+-            onPressNext={() => updateCurrentPage(Math.min(currentPage + 1, totalPages))}
+-            onSelectChange={(selectedPage: number) => {
+-              updateCurrentPage(selectedPage)
+-            }}
+-            onInputChange={(newInputPage?: number) => {
+-              setInputPage(newInputPage === undefined ? "" : String(newInputPage))
+-            }}
+-            onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+-              if (e.key === "Enter" && inputPage !== "") {
+-                const newPage = parseInt(inputPage, 10)
+-                if (!isNaN(newPage) && newPage >= 1 && newPage <= totalPages) {
+-                  updateCurrentPage(newPage)
+-                }
+-              }
+-            }}
+-          />
++          {/* Keyed on currentPage: an external page change (e.g. back/forward) remounts the input with
++              the new value, so no effect is needed to mirror the prop into the typed text. */}
++          <PageInput key={currentPage} currentPage={currentPage} totalPages={totalPages} onPageChange={onPageChange} />
+         </Stack>
+       )}
+     </>
+   )
+ }
++
++/** Page-number input for the list pagination. Holds the free-typed value locally; the parent remounts it
++ *  (keyed on currentPage) when the page changes externally, so no prop-to-state effect is needed. */
++function PageInput({
++  currentPage,
++  totalPages,
++  onPageChange,
++}: {
++  currentPage: number
++  totalPages: number
++  onPageChange?: (page: number) => void
++}) {
++  const [inputPage, setInputPage] = useState<string>(currentPage.toString())
++
++  const commitPage = (newPage: number) => {
++    if (newPage >= 1 && newPage <= totalPages) {
++      onPageChange?.(newPage)
++      setInputPage(newPage.toString())
++    }
++  }
++
++  return (
++    <Pagination
++      variant="input"
++      currentPage={currentPage}
++      pages={totalPages}
++      onPressPrevious={() => commitPage(Math.max(currentPage - 1, 1))}
++      onPressNext={() => commitPage(Math.min(currentPage + 1, totalPages))}
++      onSelectChange={(selectedPage: number) => commitPage(selectedPage)}
++      onInputChange={(newInputPage?: number) => setInputPage(newInputPage === undefined ? "" : String(newInputPage))}
++      onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
++        if (e.key === "Enter" && inputPage !== "") {
++          const newPage = parseInt(inputPage, 10)
++          if (!isNaN(newPage) && newPage >= 1 && newPage <= totalPages) commitPage(newPage)
++        }
++      }}
++    />
++  )
++}
+diff --git a/packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortTableRow.tsx b/packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortTableRow.tsx
+index 433cb512..e982d196 100644
+--- a/packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortTableRow.tsx
++++ b/packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortTableRow.tsx
+@@ -1,11 +1,13 @@
+ import { useNavigate } from "@tanstack/react-router"
+ import { useLingui } from "@lingui/react/macro"
+ import {
++  Button,
+   DataGridCell,
+   DataGridRow,
+   PopupMenu,
+   PopupMenuItem,
+   PopupMenuOptions,
++  PopupMenuToggle,
+   Stack,
+ } from "@cloudoperators/juno-ui-components"
+ import type { PortListItem } from "@/server/Network/types/port"
+@@ -46,6 +48,7 @@ export const PortTableRow = ({ port, showNetwork = true }: PortTableRowProps) =>
+       <DataGridCell>
+         <TwoLineCell primary={port.name || port.id} secondary={port.name ? port.id : undefined} />
+       </DataGridCell>
++      <DataGridCell>{port.status}</DataGridCell>
+       <DataGridCell>{port.description ? <span className="break-all">{port.description}</span> : "–"}</DataGridCell>
+       {showNetwork && (
+         <DataGridCell>
+@@ -54,7 +57,7 @@ export const PortTableRow = ({ port, showNetwork = true }: PortTableRowProps) =>
+       )}
+       <DataGridCell>
+         {port.fixed_ips.length > 0 ? (
+-          <Stack direction="vertical" gap="1">
++          <Stack direction="vertical" gap="2">
+             {port.fixed_ips.map((fixedIp) => (
+               <TwoLineCell
+                 key={`${fixedIp.subnet_id}-${fixedIp.ip_address}`}
+@@ -74,9 +77,11 @@ export const PortTableRow = ({ port, showNetwork = true }: PortTableRowProps) =>
+           "–"
+         )}
+       </DataGridCell>
+-      <DataGridCell>{port.status}</DataGridCell>
+       <DataGridCell onClick={(e) => e.stopPropagation()}>
+         <PopupMenu>
++          <PopupMenuToggle as="div">
++            <Button icon="moreVert" title={t`Port actions`} aria-label={t`Port actions`} className="!bg-transparent" />
++          </PopupMenuToggle>
+           <PopupMenuOptions>
+             <PopupMenuItem label={t`Show Details`} onClick={navigateToDetailsPage} />
+           </PopupMenuOptions>
+diff --git a/packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.test.tsx b/packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.test.tsx
+index 3ebaab33..12b29d3b 100644
+--- a/packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.test.tsx
++++ b/packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.test.tsx
+@@ -9,7 +9,7 @@ import type { TrpcClient } from "@/client/trpcClient"
+ import type { PortListItem } from "@/server/Network/types/port"
+ import { Ports } from "./PortsList"
+ 
+-// Mocked URL search params as a small external store, so navigate() re-renders like the real port
++// Mocked URL search params as a small external store, so navigate() re-renders like the real route
+ const { searchStore } = vi.hoisted(() => {
+   const listeners = new Set<() => void>()
+   return {
+@@ -119,6 +119,10 @@ const lastNavigateSearch = () => {
+   return opts.search({})
+ }
+ 
++/** Testids of the rendered port rows, in DOM order (to assert client-side sorting). */
++const renderedPortIds = () =>
++  Array.from(document.querySelectorAll('[data-testid^="port-port-"]')).map((el) => el.getAttribute("data-testid"))
++
+ describe("Ports", () => {
+   beforeEach(() => {
+     i18n.activate("en")
+@@ -145,32 +149,27 @@ describe("Ports", () => {
+       expect(screen.getByTestId("port-port-2")).toHaveTextContent("internal-port")
+     })
+ 
+-    it("queries ports for the project with default sorting", async () => {
++    it("fetches the full list for the project once, without sort or search params", async () => {
+       const { query } = await renderList()
+ 
+       await screen.findByTestId("port-list-container")
+ 
+-      expect(query).toHaveBeenCalledWith({
+-        project_id: "proj-1",
+-        sort_key: "name",
+-        sort_dir: "asc",
+-        searchTerm: undefined,
+-      })
++      expect(query).toHaveBeenCalledTimes(1)
++      expect(query).toHaveBeenCalledWith({ project_id: "proj-1", network_id: undefined })
+     })
+ 
+-    it("uses search, sort and direction from the URL for the initial query", async () => {
++    it("applies the search and sort from the URL client-side, not via the query", async () => {
+       searchStore.params = { search: "edge", sortBy: "status", sortDirection: "desc" }
+       const { query } = await renderList()
+ 
+       await screen.findByTestId("port-list-container")
+ 
+-      expect(query).toHaveBeenCalledWith({
+-        project_id: "proj-1",
+-        sort_key: "status",
+-        sort_dir: "desc",
+-        searchTerm: "edge",
+-      })
++      // The fetch is unaffected by sort/search; they are applied in memory
++      expect(query).toHaveBeenCalledWith({ project_id: "proj-1", network_id: undefined })
+       expect(screen.getByRole("searchbox")).toHaveValue("edge")
++      // "edge" matches only port-1
++      expect(screen.getByTestId("port-port-1")).toBeInTheDocument()
++      expect(screen.queryByTestId("port-port-2")).not.toBeInTheDocument()
+     })
+ 
+     it("does not render a create action (read-only)", async () => {
+@@ -183,18 +182,12 @@ describe("Ports", () => {
+   })
+ 
+   describe("Network scope", () => {
+-    it("queries only the ports of the given network", async () => {
++    it("fetches only the ports of the given network", async () => {
+       const { query } = await renderList(undefined, "net-1")
+ 
+       await screen.findByTestId("port-list-container")
+ 
+-      expect(query).toHaveBeenCalledWith({
+-        project_id: "proj-1",
+-        network_id: "net-1",
+-        sort_key: "name",
+-        sort_dir: "asc",
+-        searchTerm: undefined,
+-      })
++      expect(query).toHaveBeenCalledWith({ project_id: "proj-1", network_id: "net-1" })
+     })
+ 
+     it("tells the container that the list is scoped to a network", async () => {
+@@ -212,18 +205,26 @@ describe("Ports", () => {
+   })
+ 
+   describe("Sorting", () => {
+-    it("sorts by device owner from the URL", async () => {
+-      searchStore.params = { sortBy: "device_owner" }
+-      const { query } = await renderList()
+-
++    it("sorts client-side when the URL sort changes, without refetching", async () => {
++      const ports = [makePort("port-a", "beta"), makePort("port-b", "alpha")]
++      const { query } = await renderList(vi.fn().mockResolvedValue(ports))
+       await screen.findByTestId("port-list-container")
+ 
+-      expect(query).toHaveBeenCalledWith(expect.objectContaining({ sort_key: "device_owner" }))
++      // Default: name ascending → alpha (port-b) before beta (port-a)
++      expect(renderedPortIds()).toEqual(["port-port-b", "port-port-a"])
++
++      await act(async () => {
++        setUrlSearch({ sortBy: "name", sortDirection: "desc" })
++      })
++
++      expect(renderedPortIds()).toEqual(["port-port-a", "port-port-b"])
++      // Sorting is client-side: the list was fetched only once
++      expect(query).toHaveBeenCalledTimes(1)
+     })
+   })
+ 
+   describe("Errors", () => {
+-    it("shows an inline error when listing is forbidden", async () => {
++    it("shows a page-level info message when listing is forbidden", async () => {
+       const forbidden = new TRPCClientError("You are not allowed to list ports", {
+         result: {
+           error: {
+@@ -235,8 +236,13 @@ describe("Ports", () => {
+       } as never)
+       await renderList(vi.fn().mockRejectedValue(forbidden))
+ 
+-      expect(await screen.findByText("You are not allowed to list ports")).toBeInTheDocument()
+-      expect(screen.getByText("Failed to Load Ports")).toBeInTheDocument()
++      expect(await screen.findByText("Insufficient Permissions")).toBeInTheDocument()
++      expect(
++        screen.getByText("You do not have the required permissions to view ports in this project.")
++      ).toBeInTheDocument()
++      // The raw BFF message is not surfaced, and it is not shown as a red error state
++      expect(screen.queryByText("You are not allowed to list ports")).not.toBeInTheDocument()
++      expect(screen.queryByText("Failed to Load Ports")).not.toBeInTheDocument()
+       expect(screen.queryByTestId("port-list-container")).not.toBeInTheDocument()
+     })
+ 
+@@ -252,7 +258,7 @@ describe("Ports", () => {
+   })
+ 
+   describe("Retry", () => {
+-    it("loads the ports again when Try Again is clicked", async () => {
++    it("fetches again when Try Again is clicked", async () => {
+       const user = userEvent.setup()
+       const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined)
+       const query = vi.fn().mockRejectedValueOnce(new Error("Neutron is unavailable")).mockResolvedValue(mockPorts)
+@@ -263,28 +269,7 @@ describe("Ports", () => {
+       expect(await screen.findByTestId("port-port-1")).toBeInTheDocument()
+       expect(screen.queryByText("Failed to Load Ports")).not.toBeInTheDocument()
+       expect(query).toHaveBeenCalledTimes(2)
+-      expect(query).toHaveBeenLastCalledWith({
+-        project_id: "proj-1",
+-        sort_key: "name",
+-        sort_dir: "asc",
+-        searchTerm: undefined,
+-      })
+-
+-      consoleError.mockRestore()
+-    })
+-
+-    it("recovers when the URL changes after a failure", async () => {
+-      const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined)
+-      const query = vi.fn().mockRejectedValueOnce(new Error("Neutron is unavailable")).mockResolvedValue(mockPorts)
+-      await renderList(query)
+-      await screen.findByText("Failed to Load Ports")
+-
+-      await act(async () => {
+-        setUrlSearch({ search: "edge" })
+-      })
+-
+-      expect(await screen.findByTestId("port-list-container")).toBeInTheDocument()
+-      expect(query).toHaveBeenLastCalledWith(expect.objectContaining({ searchTerm: "edge" }))
++      expect(query).toHaveBeenLastCalledWith({ project_id: "proj-1", network_id: undefined })
+ 
+       consoleError.mockRestore()
+     })
+@@ -301,22 +286,27 @@ describe("Ports", () => {
+       } as never)
+       await renderList(vi.fn().mockRejectedValue(forbidden))
+ 
+-      await screen.findByText("You are not allowed to list ports")
++      await screen.findByText("Insufficient Permissions")
+       expect(screen.queryByRole("button", { name: "Try Again" })).not.toBeInTheDocument()
+     })
+   })
+ 
+   describe("Search", () => {
+-    it("refetches with the search term and updates the URL on submit", async () => {
++    it("filters client-side and updates the URL on submit, without refetching", async () => {
+       const user = userEvent.setup()
+       const { query } = await renderList()
+ 
+       await screen.findByTestId("port-list-container")
+       await user.type(screen.getByRole("searchbox"), "edge{enter}")
+ 
++      // "edge" matches only port-1; filtering is in memory
+       await waitFor(() => {
+-        expect(query).toHaveBeenLastCalledWith(expect.objectContaining({ searchTerm: "edge" }))
++        expect(screen.queryByTestId("port-port-2")).not.toBeInTheDocument()
+       })
++      expect(screen.getByTestId("port-port-1")).toBeInTheDocument()
++      // The list was fetched once; typing does not refetch
++      expect(query).toHaveBeenCalledTimes(1)
++      // The URL still reflects the search for shareable links / back-forward
+       expect(mockNavigate).toHaveBeenLastCalledWith(expect.objectContaining({ replace: true }))
+       expect(lastNavigateSearch()).toEqual({ search: "edge", page: undefined })
+     })
+@@ -338,23 +328,21 @@ describe("Ports", () => {
+   })
+ 
+   describe("URL changes", () => {
+-    it("refetches and updates the search input when the URL search params change (e.g. back/forward)", async () => {
++    it("updates the search input and filters when the URL changes (e.g. back/forward), without refetching", async () => {
+       const { query } = await renderList()
+       await screen.findByTestId("port-list-container")
+ 
+       await act(async () => {
+-        setUrlSearch({ search: "backend", sortBy: "status", sortDirection: "desc" })
++        setUrlSearch({ search: "internal" })
+       })
+ 
+       await waitFor(() => {
+-        expect(query).toHaveBeenLastCalledWith({
+-          project_id: "proj-1",
+-          sort_key: "status",
+-          sort_dir: "desc",
+-          searchTerm: "backend",
+-        })
++        expect(screen.getByRole("searchbox")).toHaveValue("internal")
+       })
+-      expect(screen.getByRole("searchbox")).toHaveValue("backend")
++      // "internal" matches only port-2
++      expect(screen.getByTestId("port-port-2")).toBeInTheDocument()
++      expect(screen.queryByTestId("port-port-1")).not.toBeInTheDocument()
++      expect(query).toHaveBeenCalledTimes(1)
+     })
+ 
+     it("clears the search input when the search is removed from the URL", async () => {
+@@ -381,32 +369,6 @@ describe("Ports", () => {
+ 
+       expect(query).toHaveBeenCalledTimes(1)
+     })
+-
+-    it("keeps the list visible while the next query loads", async () => {
+-      let resolveNext: (ports: PortListItem[]) => void = () => undefined
+-      const query = vi
+-        .fn()
+-        .mockResolvedValueOnce(mockPorts)
+-        .mockImplementationOnce(() => new Promise((resolve) => (resolveNext = resolve)))
+-      await renderList(query)
+-      await screen.findByTestId("port-list-container")
+-
+-      await act(async () => {
+-        setUrlSearch({ search: "internal" })
+-      })
+-
+-      expect(screen.getByTestId("port-port-1")).toBeInTheDocument()
+-      expect(screen.queryByText("Loading Ports...")).not.toBeInTheDocument()
+-
+-      await act(async () => {
+-        resolveNext([mockPorts[1]])
+-      })
+-
+-      await waitFor(() => {
+-        expect(screen.queryByTestId("port-port-1")).not.toBeInTheDocument()
+-      })
+-      expect(screen.getByTestId("port-port-2")).toBeInTheDocument()
+-    })
+   })
+ 
+   describe("Pagination", () => {
+@@ -447,34 +409,6 @@ describe("Ports", () => {
+       expect(container).toHaveAttribute("data-current-page", "2")
+     })
+ 
+-    it("keeps a valid page while the next query loads (e.g. back from a filtered list)", async () => {
+-      let resolveNext: (ports: PortListItem[]) => void = () => undefined
+-      const manyPorts = Array.from({ length: 200 }, (_, i) => makePort(`port-${i}`))
+-      const query = vi
+-        .fn()
+-        .mockResolvedValueOnce([makePort("port-1")])
+-        .mockImplementationOnce(() => new Promise((resolve) => (resolveNext = resolve)))
+-      searchStore.params = { search: "edge" }
+-      await renderList(query)
+-      await screen.findByTestId("port-list-container")
+-
+-      // Back to the unfiltered list on page 4: the filtered result (1 page) is still shown
+-      await act(async () => {
+-        setUrlSearch({ page: 4 })
+-      })
+-      expect(mockNavigate).not.toHaveBeenCalled()
+-
+-      await act(async () => {
+-        resolveNext(manyPorts)
+-      })
+-
+-      const container = await screen.findByTestId("port-list-container")
+-      await waitFor(() => {
+-        expect(container).toHaveAttribute("data-current-page", "4")
+-      })
+-      expect(mockNavigate).not.toHaveBeenCalled()
+-    })
+-
+     it("resets to the first page when the page in the URL is out of range", async () => {
+       searchStore.params = { page: 5 }
+       await renderList()
+diff --git a/packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.tsx b/packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.tsx
+index a9b772a9..81c55cae 100644
+--- a/packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.tsx
++++ b/packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.tsx
+@@ -1,11 +1,11 @@
+-import { use, Suspense, useState, useRef, useEffect, useCallback, useMemo, useDeferredValue } from "react"
++import { use, Suspense, useState, useRef, useEffect, useCallback, useMemo } from "react"
+ import { useSearch, useNavigate } from "@tanstack/react-router"
+ import { ErrorBoundary } from "react-error-boundary"
+ import { Trans, useLingui } from "@lingui/react/macro"
+ import { TRPCClientError } from "@trpc/client"
+ import { TrpcClient } from "@/client/trpcClient"
+-import { Button, Stack, DataGridToolbar, SearchInput, Status } from "@cloudoperators/juno-ui-components"
+-import type { PortListItem, PortQueryParameters } from "@/server/Network/types/port"
++import { Button, Stack, DataGridToolbar, SearchInput, Message, Status } from "@cloudoperators/juno-ui-components"
++import type { PortListItem } from "@/server/Network/types/port"
+ import { SortInput } from "@/client/components/ListToolbar/SortInput"
+ import { SortSettings } from "@/client/components/ListToolbar/types"
+ import type { PortsSearchParams } from "@/client/routes/_auth/projects/$projectId/network/ports/index"
+@@ -13,7 +13,8 @@ import { PortListContainer } from "./PortListContainer"
+ 
+ const PAGE_SIZE = 50
+ 
+-type PortSortKey = NonNullable<PortQueryParameters["sort_key"]>
++/** The sort keys the list offers; all map to string fields on PortListItem. */
++type PortSortKey = "name" | "status" | "device_owner"
+ 
+ interface PortsProps {
+   client: TrpcClient
+@@ -31,72 +32,100 @@ type RequiredSortSettings = {
+   sortDirection: "asc" | "desc"
+ }
+ 
+-type PortsResult = { ports: PortListItem[]; listError?: string }
++type PortsResult = { ports: PortListItem[]; forbidden?: boolean }
+ 
++/**
++ * Fetches the full port list once per (project, network). Sorting, search and pagination are done
++ * client-side over this list, so changing any of them never triggers another request.
++ */
+ const createPortsPromise = (
+   client: TrpcClient,
+   project: string,
+-  networkId: string | undefined,
+-  sortBy: PortSortKey,
+-  sortDirection: "asc" | "desc",
+-  searchTerm: string
++  networkId: string | undefined
+ ): Promise<PortsResult> => {
+   return client.network.ports.list
+-    .query({
+-      project_id: project,
+-      network_id: networkId,
+-      sort_key: sortBy,
+-      sort_dir: sortDirection,
+-      searchTerm: searchTerm || undefined,
+-    })
+-    .then((ports) => ({ ports, listError: undefined }))
++    .query({ project_id: project, network_id: networkId })
++    .then((ports) => ({ ports, forbidden: false }))
+     .catch((err: unknown) => {
++      // 403 is an expected "no access" state, not a failure: render it as a page-level info message
++      // (B.6) rather than letting it reach the error boundary.
+       if (err instanceof TRPCClientError && err.data?.code === "FORBIDDEN") {
+-        return { ports: [], listError: err.message }
++        return { ports: [], forbidden: true }
+       }
+       throw err
+     })
+ }
+ 
++/** Fields the search matches, mirroring the BFF's `filterPortsBySearchTerm`. */
++const searchableValues = (port: PortListItem): Array<string | undefined> => [
++  port.id,
++  port.name,
++  port.description,
++  port.network_id,
++  port.network_name,
++  port.mac_address,
++  port.device_id,
++  port.device_owner,
++  ...port.fixed_ips.flatMap((fixedIp) => [fixedIp.ip_address, fixedIp.subnet_id, fixedIp.subnet_name]),
++]
++
++/** Case-insensitive substring search across everything the list shows. */
++const filterPorts = (ports: PortListItem[], searchTerm: string): PortListItem[] => {
++  const term = searchTerm.trim().toLowerCase()
++  if (!term) return ports
++  return ports.filter((port) => searchableValues(port).some((value) => value?.toLowerCase().includes(term)))
++}
++
++const sortValue = (port: PortListItem, key: PortSortKey): string => {
++  switch (key) {
++    case "status":
++      return port.status
++    case "device_owner":
++      return port.device_owner
++    case "name":
++      return port.name
++  }
++}
++
++/** Stable client-side sort on the selected key and direction (natural order for embedded numbers). */
++const sortPorts = (ports: PortListItem[], sortBy: PortSortKey, sortDirection: "asc" | "desc"): PortListItem[] => {
++  const factor = sortDirection === "desc" ? -1 : 1
++  return [...ports].sort(
++    (a, b) =>
++      factor *
++      sortValue(a, sortBy).localeCompare(sortValue(b, sortBy), undefined, { numeric: true, sensitivity: "base" })
++  )
++}
++
+ function PortsContent({
+   portsPromise,
+   searchTerm,
+-  setSearchTerm,
++  onSearchChange,
+   sortSettings,
+-  handleSortChange,
++  onSortChange,
+   currentPage,
+   onPageChange,
+-  isStale,
+   isNetworkScoped,
+ }: {
+   portsPromise: Promise<PortsResult>
+   searchTerm: string
+-  setSearchTerm: (term: string) => void
++  onSearchChange: (term: string) => void
+   sortSettings: RequiredSortSettings
+-  handleSortChange: (settings: SortSettings) => void
++  onSortChange: (settings: SortSettings) => void
+   currentPage: number
+   onPageChange: (page: number) => void
+-  /** True while the shown ports are from the previous query and the next one is still loading */
+-  isStale: boolean
+   isNetworkScoped: boolean
+ }) {
+   const { t } = useLingui()
+-  const { ports, listError } = use(portsPromise)
++  const { ports, forbidden } = use(portsPromise)
++
++  // Local input value for instant typing. The URL (searchTerm) stays the source of truth and is updated
++  // debounced for shareable links; filtering uses the local value so results update on every keystroke.
+   const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm)
+   const debounceTimer = useRef<number | undefined>(undefined)
+   // Last term this input sent to the URL, so only external URL changes (back/forward, links) overwrite the input
+   const submittedSearchTerm = useRef(searchTerm)
+ 
+-  const submitSearchTerm = (term: string) => {
+-    clearTimeout(debounceTimer.current)
+-    submittedSearchTerm.current = term
+-    setSearchTerm(term)
+-  }
+-
+-  const totalPages = Math.max(1, Math.ceil(ports.length / PAGE_SIZE))
+-  const safePage = Math.min(currentPage, totalPages)
+-  const paginatedPorts = ports.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
+-
+   useEffect(() => () => clearTimeout(debounceTimer.current), [])
+ 
+   useEffect(() => {
+@@ -106,14 +135,32 @@ function PortsContent({
+     setLocalSearchTerm(searchTerm)
+   }, [searchTerm])
+ 
+-  // Validate the page only against the current query's result: while the previous result is still shown,
+-  // its page count says nothing about the URL's page (e.g. back/forward from a filtered to an unfiltered list).
++  const submitSearchTerm = (term: string) => {
++    clearTimeout(debounceTimer.current)
++    submittedSearchTerm.current = term
++    onSearchChange(term)
++  }
++
++  const visiblePorts = useMemo(
++    () => sortPorts(filterPorts(ports, localSearchTerm), sortSettings.sortBy, sortSettings.sortDirection),
++    [ports, localSearchTerm, sortSettings.sortBy, sortSettings.sortDirection]
++  )
++
++  const totalPages = Math.max(1, Math.ceil(visiblePorts.length / PAGE_SIZE))
++  const safePage = Math.min(currentPage, totalPages)
++  const paginatedPorts = visiblePorts.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
++
++  // Reset to page 1 when the URL's page is past the end of the current (filtered) result
+   useEffect(() => {
+-    if (!isStale && currentPage > totalPages) onPageChange(1)
+-  }, [isStale, totalPages, currentPage, onPageChange])
++    if (currentPage > totalPages) onPageChange(1)
++  }, [currentPage, totalPages, onPageChange])
+ 
+-  if (listError) {
+-    return <Status status="error" title={t`Failed to Load Ports`} body={listError} />
++  if (forbidden) {
++    return (
++      <Message variant="info" title={t`Insufficient Permissions`}>
++        <Trans>You do not have the required permissions to view ports in this project.</Trans>
++      </Message>
++    )
+   }
+ 
+   return (
+@@ -126,8 +173,8 @@ function PortsContent({
+           sortDirection={sortSettings.sortDirection}
+           selectClassName="min-w-45"
+           selectWidth="auto"
+-          onSortByChange={(v) => handleSortChange({ ...sortSettings, sortBy: v })}
+-          onSortDirectionChange={(dir) => handleSortChange({ ...sortSettings, sortDirection: dir })}
++          onSortByChange={(v) => onSortChange({ ...sortSettings, sortBy: v })}
++          onSortDirectionChange={(dir) => onSortChange({ ...sortSettings, sortDirection: dir })}
+         />
+       </Stack>
+ 
+@@ -155,7 +202,7 @@ function PortsContent({
+ 
+       <PortListContainer
+         ports={paginatedPorts}
+-        hasSearch={Boolean(searchTerm.trim())}
++        hasSearch={Boolean(localSearchTerm.trim())}
+         isNetworkScoped={isNetworkScoped}
+         currentPage={safePage}
+         totalPages={totalPages}
+@@ -170,8 +217,8 @@ export const Ports = ({ client, project, networkId }: PortsProps) => {
+   const navigate = useNavigate()
+   const searchParams = useSearch({ strict: false }) as PortsSearchParams
+ 
+-  // The URL is the single source of truth for search, sort and page, so back/forward navigation
+-  // and links with different search params update the controls and the query.
++  // The URL is the single source of truth for search, sort and page. They drive client-side transforms
++  // of the already-fetched list, so back/forward navigation and shared links stay in sync without refetching.
+   const searchTerm = searchParams.search ?? ""
+   const sortBy: PortSortKey = searchParams.sortBy || "name"
+   const sortDirection = searchParams.sortDirection || "asc"
+@@ -187,18 +234,14 @@ export const Ports = ({ client, project, networkId }: PortsProps) => {
+     sortDirection,
+   }
+ 
+-  // Bumped by "Try Again" to create a fresh query with the same parameters
++  // Bumped by "Try Again" to create a fresh promise (the only thing that re-fetches besides a scope change)
+   const [retryCount, setRetryCount] = useState(0)
+ 
+   const portsPromise = useMemo(
+-    () => createPortsPromise(client, project, networkId, sortBy, sortDirection, searchTerm),
++    () => createPortsPromise(client, project, networkId),
+     // retryCount is not used in the factory, it only forces a new promise on "Try Again"
+-    [client, project, networkId, sortBy, sortDirection, searchTerm, retryCount]
++    [client, project, networkId, retryCount]
+   )
+-  // Keeps the current list (and the search input) on screen while the next query loads,
+-  // instead of falling back to the Suspense loading state on every search or sort change
+-  const deferredPortsPromise = useDeferredValue(portsPromise)
+-  const isStale = deferredPortsPromise !== portsPromise
+ 
+   const handleSortChange = (newSortSettings: SortSettings) => {
+     navigate({
+@@ -238,10 +281,8 @@ export const Ports = ({ client, project, networkId }: PortsProps) => {
+   return (
+     <div className="relative">
+       <ErrorBoundary
+-        // Resets the boundary whenever the query changes: on "Try Again" and when the URL
+-        // (project, network, search, sort) changes. Keyed on the deferred promise, so the reset happens
+-        // together with the render that uses the new query instead of re-throwing the failed one.
+-        resetKeys={[deferredPortsPromise]}
++        // Resets the boundary when the fetch changes: on "Try Again" and on a project/network change.
++        resetKeys={[portsPromise]}
+         fallbackRender={({ error }) => (
+           <Status
+             status="error"
+@@ -257,14 +298,13 @@ export const Ports = ({ client, project, networkId }: PortsProps) => {
+       >
+         <Suspense fallback={<Status status="progress" title={t`Loading Ports...`} />}>
+           <PortsContent
+-            portsPromise={deferredPortsPromise}
++            portsPromise={portsPromise}
+             searchTerm={searchTerm}
+-            setSearchTerm={handleSearchChange}
++            onSearchChange={handleSearchChange}
+             sortSettings={sortSettings}
+-            handleSortChange={handleSortChange}
++            onSortChange={handleSortChange}
+             currentPage={currentPage}
+             onPageChange={handlePageChange}
+-            isStale={isStale}
+             isNetworkScoped={Boolean(networkId)}
+           />
+         </Suspense>
+diff --git a/packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/index.tsx b/packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/index.tsx
+index 9f712863..f6645f82 100644
+--- a/packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/index.tsx
++++ b/packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/index.tsx
+@@ -1,7 +1,7 @@
+ import { createFileRoute } from "@tanstack/react-router"
++import { z } from "zod"
+ import { t } from "@lingui/core/macro"
+ import { useLingui } from "@lingui/react/macro"
+-import { z } from "zod"
+ import type { RouteInfo } from "@/client/routes/routeInfo"
+ import { ContentHeader } from "@/client/components/ContentHeader/ContentHeader"
+ import { Ports } from "./-components/PortsList"
+diff --git a/packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/-components/RouterListContainer.tsx b/packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/-components/RouterListContainer.tsx
+index ae109b98..d2f6e5ff 100644
+--- a/packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/-components/RouterListContainer.tsx
++++ b/packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/-components/RouterListContainer.tsx
+@@ -56,6 +56,9 @@ export const RouterListContainer = ({
+           <DataGridHeadCell>
+             <Trans>Name</Trans>
+           </DataGridHeadCell>
++          <DataGridHeadCell>
++            <Trans>Status</Trans>
++          </DataGridHeadCell>
+           <DataGridHeadCell>
+             <Trans>External Network</Trans>
+           </DataGridHeadCell>
+@@ -65,9 +68,6 @@ export const RouterListContainer = ({
+           <DataGridHeadCell>
+             <Trans>Private Network</Trans>
+           </DataGridHeadCell>
+-          <DataGridHeadCell>
+-            <Trans>Status</Trans>
+-          </DataGridHeadCell>
+           <DataGridHeadCell></DataGridHeadCell>
+         </DataGridRow>
+ 
+diff --git a/packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/-components/RouterTableRow.tsx b/packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/-components/RouterTableRow.tsx
+index 99bb5440..f4f99f02 100644
+--- a/packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/-components/RouterTableRow.tsx
++++ b/packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/-components/RouterTableRow.tsx
+@@ -1,11 +1,13 @@
+ import { useNavigate } from "@tanstack/react-router"
+ import { useLingui } from "@lingui/react/macro"
+ import {
++  Button,
+   DataGridCell,
+   DataGridRow,
+   PopupMenu,
+   PopupMenuItem,
+   PopupMenuOptions,
++  PopupMenuToggle,
+   Stack,
+ } from "@cloudoperators/juno-ui-components"
+ import type { RouterListItem } from "@/server/Network/types/router"
+@@ -46,6 +48,7 @@ export const RouterTableRow = ({ router }: RouterTableRowProps) => {
+       <DataGridCell>
+         <TwoLineCell primary={router.name || router.id} secondary={router.name ? router.id : undefined} />
+       </DataGridCell>
++      <DataGridCell>{router.status}</DataGridCell>
+       <DataGridCell>
+         {gateway ? <span className="break-all">{gateway.network_name || gateway.network_id}</span> : "–"}
+       </DataGridCell>
+@@ -77,9 +80,16 @@ export const RouterTableRow = ({ router }: RouterTableRowProps) => {
+           "–"
+         )}
+       </DataGridCell>
+-      <DataGridCell>{router.status}</DataGridCell>
+       <DataGridCell onClick={(e) => e.stopPropagation()}>
+         <PopupMenu>
++          <PopupMenuToggle as="div">
++            <Button
++              icon="moreVert"
++              title={t`Router actions`}
++              aria-label={t`Router actions`}
++              className="!bg-transparent"
++            />
++          </PopupMenuToggle>
+           <PopupMenuOptions>
+             <PopupMenuItem label={t`Show Details`} onClick={navigateToDetailsPage} />
+           </PopupMenuOptions>
+diff --git a/packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/-components/RoutersList.test.tsx b/packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/-components/RoutersList.test.tsx
+index a4c36925..cf9b0ca0 100644
+--- a/packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/-components/RoutersList.test.tsx
++++ b/packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/-components/RoutersList.test.tsx
+@@ -188,8 +188,10 @@ describe("Routers", () => {
+       } as never)
+       await renderList(vi.fn().mockRejectedValue(forbidden))
+ 
+-      expect(await screen.findByText("You are not allowed to list routers")).toBeInTheDocument()
+-      expect(screen.getByText("Failed to Load Routers")).toBeInTheDocument()
++      expect(
++        await screen.findByText("You do not have the required permissions to view routers in this project.")
++      ).toBeInTheDocument()
++      expect(screen.getByText("Insufficient Permissions")).toBeInTheDocument()
+       expect(screen.queryByTestId("router-list-container")).not.toBeInTheDocument()
+     })
+ 
+@@ -254,7 +256,7 @@ describe("Routers", () => {
+       } as never)
+       await renderList(vi.fn().mockRejectedValue(forbidden))
+ 
+-      await screen.findByText("You are not allowed to list routers")
++      await screen.findByText("You do not have the required permissions to view routers in this project.")
+       expect(screen.queryByRole("button", { name: "Try Again" })).not.toBeInTheDocument()
+     })
+   })
+diff --git a/packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/-components/RoutersList.tsx b/packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/-components/RoutersList.tsx
+index 242c78d2..8ea3a2fb 100644
+--- a/packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/-components/RoutersList.tsx
++++ b/packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/-components/RoutersList.tsx
+@@ -4,7 +4,7 @@ import { ErrorBoundary } from "react-error-boundary"
+ import { Trans, useLingui } from "@lingui/react/macro"
+ import { TRPCClientError } from "@trpc/client"
+ import { TrpcClient } from "@/client/trpcClient"
+-import { Button, Stack, DataGridToolbar, SearchInput, Status } from "@cloudoperators/juno-ui-components"
++import { Button, Message, Stack, DataGridToolbar, SearchInput, Status } from "@cloudoperators/juno-ui-components"
+ import type { RouterListItem, RouterQueryParameters } from "@/server/Network/types/router"
+ import { SortInput } from "@/client/components/ListToolbar/SortInput"
+ import { SortSettings } from "@/client/components/ListToolbar/types"
+@@ -26,7 +26,7 @@ type RequiredSortSettings = {
+   sortDirection: "asc" | "desc"
+ }
+ 
+-type RoutersResult = { routers: RouterListItem[]; listError?: string }
++type RoutersResult = { routers: RouterListItem[]; forbidden?: boolean }
+ 
+ const createRoutersPromise = (
+   client: TrpcClient,
+@@ -37,10 +37,12 @@ const createRoutersPromise = (
+ ): Promise<RoutersResult> => {
+   return client.network.routers.list
+     .query({ project_id: project, sort_key: sortBy, sort_dir: sortDirection, searchTerm: searchTerm || undefined })
+-    .then((routers) => ({ routers, listError: undefined }))
++    .then((routers) => ({ routers, forbidden: false }))
+     .catch((err: unknown) => {
++      // 403 is an expected "no access" state, not a failure: render it as a page-level info message
++      // (B.6) rather than letting it reach the error boundary.
+       if (err instanceof TRPCClientError && err.data?.code === "FORBIDDEN") {
+-        return { routers: [], listError: err.message }
++        return { routers: [], forbidden: true }
+       }
+       throw err
+     })
+@@ -67,7 +69,7 @@ function RoutersContent({
+   isStale: boolean
+ }) {
+   const { t } = useLingui()
+-  const { routers, listError } = use(routersPromise)
++  const { routers, forbidden } = use(routersPromise)
+   const [localSearchTerm, setLocalSearchTerm] = useState(searchTerm)
+   const debounceTimer = useRef<number | undefined>(undefined)
+   // Last term this input sent to the URL, so only external URL changes (back/forward, links) overwrite the input
+@@ -98,8 +100,12 @@ function RoutersContent({
+     if (!isStale && currentPage > totalPages) onPageChange(1)
+   }, [isStale, totalPages, currentPage, onPageChange])
+ 
+-  if (listError) {
+-    return <Status status="error" title={t`Failed to Load Routers`} body={listError} />
++  if (forbidden) {
++    return (
++      <Message variant="info" title={t`Insufficient Permissions`}>
++        <Trans>You do not have the required permissions to view routers in this project.</Trans>
++      </Message>
++    )
+   }
+ 
+   return (
+diff --git a/packages/aurora/src/server/Network/helpers/requestHelpers.test.ts b/packages/aurora/src/server/Network/helpers/requestHelpers.test.ts
+index 2ec5f93c..6d2037c3 100644
+--- a/packages/aurora/src/server/Network/helpers/requestHelpers.test.ts
++++ b/packages/aurora/src/server/Network/helpers/requestHelpers.test.ts
+@@ -1,7 +1,7 @@
+ import { describe, it, expect, vi } from "vitest"
+ import { TRPCError } from "@trpc/server"
+ import { SignalOpenstackApiError } from "@cobaltcore-dev/signal-openstack"
+-import { requestOrThrow, pickDefined, chunk, withQuery } from "./requestHelpers"
++import { requestOrThrow, pickDefined, chunk, withQuery, nextPageUrl } from "./requestHelpers"
+ import { RouterErrorHandlers } from "./routerHelpers"
+ import { DEFAULT_ERROR_NAME, HTTP_STATUS_ERROR_MAP } from "./index"
+ 
+@@ -93,3 +93,22 @@ describe("withQuery", () => {
+     expect(withQuery("v2.0/ports", new URLSearchParams())).toBe("v2.0/ports")
+   })
+ })
++
++describe("nextPageUrl", () => {
++  it("returns the base URL plus the `next` link's query", () => {
++    const links = [{ rel: "next", href: "http://neutron:9696/v2.0/ports?marker=port-9&limit=100" }]
++    expect(nextPageUrl("v2.0/ports", links)).toBe("v2.0/ports?marker=port-9&limit=100")
++  })
++
++  it("returns undefined when there is no `next` link", () => {
++    expect(
++      nextPageUrl("v2.0/ports", [{ rel: "previous", href: "http://neutron/v2.0/ports?marker=port-1" }])
++    ).toBeUndefined()
++    expect(nextPageUrl("v2.0/ports", [])).toBeUndefined()
++    expect(nextPageUrl("v2.0/ports", undefined)).toBeUndefined()
++  })
++
++  it("returns the base URL when the `next` href has no query string", () => {
++    expect(nextPageUrl("v2.0/ports", [{ rel: "next", href: "http://neutron/v2.0/ports" }])).toBe("v2.0/ports")
++  })
++})
+diff --git a/packages/aurora/src/server/Network/helpers/requestHelpers.ts b/packages/aurora/src/server/Network/helpers/requestHelpers.ts
+index 9c868211..75a222f5 100644
+--- a/packages/aurora/src/server/Network/helpers/requestHelpers.ts
++++ b/packages/aurora/src/server/Network/helpers/requestHelpers.ts
+@@ -54,3 +54,15 @@ export const withQuery = (baseUrl: string, params: URLSearchParams): string => {
+   const queryString = params.toString()
+   return queryString ? `${baseUrl}?${queryString}` : baseUrl
+ }
++
++/**
++ * The relative `<baseUrl>?...` URL for the next page of a Neutron collection (from its `*_links`), or
++ * undefined when there is no `next` link. Neutron's `next` href is absolute; only its query string is
++ * reused, against the known base path, so the request stays on the BFF's own route.
++ */
++export const nextPageUrl = (baseUrl: string, links?: Array<{ rel: string; href: string }>): string | undefined => {
++  const href = links?.find((link) => link.rel === "next")?.href
++  if (!href) return undefined
++  const queryIndex = href.indexOf("?")
++  return queryIndex === -1 ? baseUrl : `${baseUrl}${href.slice(queryIndex)}`
++}
+diff --git a/packages/aurora/src/server/Network/routers/portsRouter.test.ts b/packages/aurora/src/server/Network/routers/portsRouter.test.ts
+index 07019d46..fd4490cb 100644
+--- a/packages/aurora/src/server/Network/routers/portsRouter.test.ts
++++ b/packages/aurora/src/server/Network/routers/portsRouter.test.ts
+@@ -255,6 +255,65 @@ describe("portsRouter.list", () => {
+     expect(params.has("searchTerm")).toBe(false)
+   })
+ 
++  describe("pagination", () => {
++    it("follows ports_links to fetch every page before resolving names and searching", async () => {
++      const page1 = [{ ...defaultPorts[0], id: "port-1" }]
++      const page2 = [{ ...defaultPorts[1], id: "port-2" }]
++      const ctx = createMockContext()
++
++      const okJson = (body: unknown) =>
++        Promise.resolve({ ok: true, status: 200, statusText: "OK", json: vi.fn().mockResolvedValue(body) })
++
++      ctx.__networkGetMock.mockImplementation((url: string) => {
++        if (url.startsWith("v2.0/networks")) return okJson({ networks: defaultNetworks })
++        if (url.startsWith("v2.0/subnets")) return okJson({ subnets: defaultSubnets })
++        // First page carries a `next` link; the page it points to has none, which ends the loop.
++        const marker = new URLSearchParams(url.split("?")[1]).get("marker")
++        return marker
++          ? okJson({ ports: page2 })
++          : okJson({
++              ports: page1,
++              ports_links: [{ rel: "next", href: "http://neutron/v2.0/ports?marker=port-1&limit=1" }],
++            })
++      })
++
++      const caller = createCaller(ctx)
++      const result = await caller.ports.list({ project_id: TEST_PROJECT_ID })
++
++      // Ports from both pages are returned, not just the first page
++      expect(result.map((port) => port.id)).toEqual(["port-1", "port-2"])
++
++      const portsRequests = requestedUrls(ctx).filter((url) => url.startsWith("v2.0/ports"))
++      expect(portsRequests).toHaveLength(2)
++      // The second request reuses the `next` link's query against the known base path
++      expect(portsRequests[1]).toBe("v2.0/ports?marker=port-1&limit=1")
++    })
++
++    it("includes ports from later pages in the BFF-side search", async () => {
++      const ctx = createMockContext()
++      const okJson = (body: unknown) =>
++        Promise.resolve({ ok: true, status: 200, statusText: "OK", json: vi.fn().mockResolvedValue(body) })
++
++      ctx.__networkGetMock.mockImplementation((url: string) => {
++        if (url.startsWith("v2.0/networks")) return okJson({ networks: defaultNetworks })
++        if (url.startsWith("v2.0/subnets")) return okJson({ subnets: defaultSubnets })
++        const marker = new URLSearchParams(url.split("?")[1]).get("marker")
++        return marker
++          ? okJson({ ports: [{ ...defaultPorts[1], id: "port-2", name: "reserved-ip" }] })
++          : okJson({
++              ports: [{ ...defaultPorts[0], id: "port-1", name: "db-port" }],
++              ports_links: [{ rel: "next", href: "http://neutron/v2.0/ports?marker=port-1" }],
++            })
++      })
++
++      const caller = createCaller(ctx)
++      const result = await caller.ports.list({ project_id: TEST_PROJECT_ID, searchTerm: "reserved" })
++
++      // The matching port lives on the second page; without pagination it would be missing
++      expect(result.map((port) => port.id)).toEqual(["port-2"])
++    })
++  })
++
+   describe("name enrichment", () => {
+     it("adds the network name and the IP version and subnet name of each fixed IP", async () => {
+       const caller = createCaller(createMockContext())
+diff --git a/packages/aurora/src/server/Network/routers/portsRouter.ts b/packages/aurora/src/server/Network/routers/portsRouter.ts
+index 9873709d..5738499c 100644
+--- a/packages/aurora/src/server/Network/routers/portsRouter.ts
++++ b/packages/aurora/src/server/Network/routers/portsRouter.ts
+@@ -24,7 +24,7 @@ import {
+   filterPortsBySearchTerm,
+ } from "../helpers/portHelpers"
+ import { getNetworkService, parseOrThrow } from "../helpers/index"
+-import { requestOrThrow, withQuery } from "../helpers/requestHelpers"
++import { requestOrThrow, withQuery, nextPageUrl } from "../helpers/requestHelpers"
+ import { fetchNetworkSummaries, fetchSecurityGroupSummaries, fetchSubnetSummaries } from "../helpers/lookupHelpers"
+ 
+ const PORTS_BASE_URL = "v2.0/ports"
+@@ -62,13 +62,26 @@ export const portsRouter = {
+ 
+         // project_id is forwarded as a filter, so admin roles also only see the current project's ports here
+         const queryParams = appendQueryParamsFromObject(openstackFilters, { keyMap: LIST_PORTS_QUERY_KEY_MAP })
+-        const response = await requestOrThrow(
+-          () => network.get(withQuery(PORTS_BASE_URL, queryParams)),
+-          PortErrorHandlers.list
+-        )
+ 
+-        const data = await response.json()
+-        const { ports } = parseOrThrow(PortListResponseSchema, data, "portsRouter.list")
++        // Neutron caps a list at `pagination_max_limit` and exposes the rest through the `next` link in
++        // `ports_links`. Follow it so the BFF returns the complete list; otherwise the client-side search
++        // and pagination would silently operate on the first page only. `visited` guards against a
++        // non-advancing `next` (a server bug) looping forever; healthy data ends when there is no `next`.
++        const ports: Port[] = []
++        const visited = new Set<string>()
++        let nextUrl: string | undefined = withQuery(PORTS_BASE_URL, queryParams)
++        while (nextUrl && !visited.has(nextUrl)) {
++          visited.add(nextUrl)
++          const url = nextUrl
++          const response = await requestOrThrow(() => network.get(url), PortErrorHandlers.list)
++          const { ports: pagePorts, ports_links } = parseOrThrow(
++            PortListResponseSchema,
++            await response.json(),
++            "portsRouter.list"
++          )
++          ports.push(...pagePorts)
++          nextUrl = nextPageUrl(PORTS_BASE_URL, ports_links)
++        }
+ 
+         // Names are resolved before searching, so the search also matches network and subnet names.
+         // Lookups are batched for the whole list (not per port) and best-effort.
+diff --git a/packages/aurora/src/server/Network/routers/routersRouter.test.ts b/packages/aurora/src/server/Network/routers/routersRouter.test.ts
+index 8ceec050..b3761b43 100644
+--- a/packages/aurora/src/server/Network/routers/routersRouter.test.ts
++++ b/packages/aurora/src/server/Network/routers/routersRouter.test.ts
+@@ -273,6 +273,45 @@ describe("routersRouter.list", () => {
+     expect(params.has("has_gateway")).toBe(false)
+   })
+ 
++  describe("pagination", () => {
++    it("follows routers_links to fetch every page before filtering and enrichment", async () => {
++      const page1 = [{ ...defaultRouters[1], id: "router-1" }]
++      const page2 = [{ ...defaultRouters[1], id: "router-2" }]
++      const ctx = createMockContext()
++
++      const okJson = (body: unknown) =>
++        Promise.resolve({ ok: true, status: 200, statusText: "OK", json: vi.fn().mockResolvedValue(body) })
++
++      ctx.__networkGetMock.mockImplementation((url: string) => {
++        if (url.startsWith("v2.0/networks")) return okJson({ networks: [] })
++        if (url.startsWith("v2.0/subnets")) return okJson({ subnets: [] })
++        if (url.startsWith("v2.0/ports")) return okJson({ ports: [] })
++        if (url.startsWith("v2.0/extensions")) return okJson({ extensions: [] })
++        // First page carries a `next` link; the page it points to has none, which ends the loop.
++        const marker = new URLSearchParams(url.split("?")[1]).get("marker")
++        return marker
++          ? okJson({ routers: page2 })
++          : okJson({
++              routers: page1,
++              routers_links: [{ rel: "next", href: "http://neutron/v2.0/routers?marker=router-1" }],
++            })
++      })
++
++      const caller = createCaller(ctx)
++      const result = await caller.routers.list({ project_id: TEST_PROJECT_ID })
++
++      // Routers from both pages are returned, not just the first page
++      expect(result.map((router) => router.id)).toEqual(["router-1", "router-2"])
++
++      const routerRequests = ctx.__networkGetMock.mock.calls
++        .map((call: unknown[]) => call[0] as string)
++        .filter((url: string) => url.startsWith("v2.0/routers"))
++      expect(routerRequests).toHaveLength(2)
++      // The second request reuses the `next` link's query against the known base path
++      expect(routerRequests[1]).toBe("v2.0/routers?marker=router-1")
++    })
++  })
++
+   describe("external gateway name enrichment", () => {
+     it("adds external network and subnet names to the gateway", async () => {
+       const caller = createCaller(createMockContext())
+diff --git a/packages/aurora/src/server/Network/routers/routersRouter.ts b/packages/aurora/src/server/Network/routers/routersRouter.ts
+index 39cc38c3..8d85b13a 100644
+--- a/packages/aurora/src/server/Network/routers/routersRouter.ts
++++ b/packages/aurora/src/server/Network/routers/routersRouter.ts
+@@ -41,7 +41,7 @@ import {
+   getRouterExtensionFlags,
+ } from "../helpers/routerHelpers"
+ import { getNetworkService, parseOrThrow } from "../helpers/index"
+-import { chunk, pickDefined, requestOrThrow, withQuery } from "../helpers/requestHelpers"
++import { chunk, pickDefined, requestOrThrow, withQuery, nextPageUrl } from "../helpers/requestHelpers"
+ import { fetchNetworkSummaries, fetchSubnetSummaries } from "../helpers/lookupHelpers"
+ 
+ const ROUTERS_BASE_URL = "v2.0/routers"
+@@ -126,13 +126,26 @@ export const routersRouter = {
+         const network = getNetworkService(ctx)
+ 
+         const queryParams = appendQueryParamsFromObject(openstackFilters, { keyMap: LIST_ROUTERS_QUERY_KEY_MAP })
+-        const response = await requestOrThrow(
+-          () => network.get(withQuery(ROUTERS_BASE_URL, queryParams)),
+-          RouterErrorHandlers.list
+-        )
+ 
+-        const data = await response.json()
+-        const { routers } = parseOrThrow(RouterListResponseSchema, data, "routersRouter.list")
++        // Neutron caps a list at `pagination_max_limit` and exposes the rest through the `next` link in
++        // `routers_links`. Follow it so the BFF returns the complete list; otherwise the BFF-side search
++        // and filters would silently operate on the first page only. `visited` guards against a
++        // non-advancing `next` (a server bug) looping forever; healthy data ends when there is no `next`.
++        const routers: Router[] = []
++        const visited = new Set<string>()
++        let nextUrl: string | undefined = withQuery(ROUTERS_BASE_URL, queryParams)
++        while (nextUrl && !visited.has(nextUrl)) {
++          visited.add(nextUrl)
++          const url = nextUrl
++          const response = await requestOrThrow(() => network.get(url), RouterErrorHandlers.list)
++          const { routers: pageRouters, routers_links } = parseOrThrow(
++            RouterListResponseSchema,
++            await response.json(),
++            "routersRouter.list"
++          )
++          routers.push(...pageRouters)
++          nextUrl = nextPageUrl(ROUTERS_BASE_URL, routers_links)
++        }
+ 
+         const filteredRouters = filterBySearchParams(
+           filterRoutersByBffParams(routers, { status, has_gateway }),
+diff --git a/packages/aurora/src/server/Network/types/port.ts b/packages/aurora/src/server/Network/types/port.ts
+index 5354355e..9c93d707 100644
+--- a/packages/aurora/src/server/Network/types/port.ts
++++ b/packages/aurora/src/server/Network/types/port.ts
+@@ -76,6 +76,8 @@ export const PortSchema = z.object({
+ 
+ export const PortListResponseSchema = z.object({
+   ports: z.array(PortSchema),
++  // Present when Neutron paginates the result; the `next` link drives the BFF's full-list fetch
++  ports_links: z.array(z.object({ rel: z.string(), href: z.string() })).optional(),
+ })
+ 
+ export const PortResponseSchema = z.object({
+diff --git a/packages/aurora/src/server/Network/types/router.ts b/packages/aurora/src/server/Network/types/router.ts
+index 5b88a03a..0c849788 100644
+--- a/packages/aurora/src/server/Network/types/router.ts
++++ b/packages/aurora/src/server/Network/types/router.ts
+@@ -79,6 +79,8 @@ export const RouterSchema = z.object({
+ 
+ export const RouterListResponseSchema = z.object({
+   routers: z.array(RouterSchema),
++  // Present when Neutron paginates the result; the `next` link drives the BFF's full-list fetch
++  routers_links: z.array(z.object({ rel: z.string(), href: z.string() })).optional(),
+ })
+ 
+ export const RouterResponseSchema = z.object({
+diff --git a/packages/aurora/src/locales/de/messages.po b/packages/aurora/src/locales/de/messages.po
+index 8d978755..16587e30 100644
+--- a/packages/aurora/src/locales/de/messages.po
++++ b/packages/aurora/src/locales/de/messages.po
+@@ -380,9 +388,6 @@ msgstr "Zugriffsstatus:"
+ msgid "Access to S3 Object Storage requires an access key (access key ID + secret access key)."
+ msgstr ""
+ 
+-msgid "Access to this port is not permitted."
+-msgstr ""
+-
+ msgid "Access to this router is not permitted."
+ msgstr ""
+ 
+@@ -3020,6 +3040,9 @@ msgstr "Port (von)"
+ msgid "Port (to)"
+ msgstr "Port (bis)"
+ 
++msgid "Port actions"
++msgstr ""
++
+ msgid "Port Forwarding"
+ msgstr "Port Forwarding"
+ 
+@@ -3251,6 +3277,9 @@ msgstr "Root Disk (GiB)"
+ msgid "Root Disk must be an integer ≥ 0."
+ msgstr "Root Disk muss eine ganze Zahl ≥ 0 sein."
+ 
++msgid "Router actions"
++msgstr ""
++
+ msgid "Router ID"
+ msgstr "Router-ID"
+ 
+@@ -3521,6 +3550,9 @@ msgstr "Services"
+ msgid "Session Changed"
+ msgstr ""
+ 
++msgid "Session Expired"
++msgstr ""
++
+ msgid "Session expires in"
+ msgstr "Sitzung läuft ab in"
+ 
+@@ -4433,6 +4486,15 @@ msgstr "Sie können das Objekt umbenennen, indem Sie den Namen hier ändern."
+ msgid "You do not have permission to view security groups"
+ msgstr ""
+ 
++msgid "You do not have the required permissions to access this port."
++msgstr ""
++
++msgid "You do not have the required permissions to view ports in this project."
++msgstr ""
++
++msgid "You do not have the required permissions to view routers in this project."
++msgstr ""
++
+ msgid "You don't have permission to access flavor access information for this flavor."
+ msgstr "Sie haben keine Berechtigung, auf die Zugriffsinformationen für diesen Flavor zuzugreifen."
+ 
+@@ -4487,6 +4549,9 @@ msgstr ""
+ msgid "Your session has expired. Please log in again."
+ msgstr "Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an."
+ 
++msgid "Your session has expired. Sign in again to continue."
++msgstr ""
++
+ msgid "Your session was changed or ended in another browser tab. This can happen if you logged out or switched to a different account or domain elsewhere. Log in again to continue."
+ msgstr ""
+ 
+diff --git a/packages/aurora/src/locales/en/messages.po b/packages/aurora/src/locales/en/messages.po
+index 11a8cfb5..21fa82f3 100644
+--- a/packages/aurora/src/locales/en/messages.po
++++ b/packages/aurora/src/locales/en/messages.po
+@@ -380,9 +388,6 @@ msgstr "Access Status:"
+ msgid "Access to S3 Object Storage requires an access key (access key ID + secret access key)."
+ msgstr "Access to S3 Object Storage requires an access key (access key ID + secret access key)."
+ 
+-msgid "Access to this port is not permitted."
+-msgstr "Access to this port is not permitted."
+-
+ msgid "Access to this router is not permitted."
+ msgstr "Access to this router is not permitted."
+ 
+@@ -3020,6 +3040,9 @@ msgstr "Port (from)"
+ msgid "Port (to)"
+ msgstr "Port (to)"
+ 
++msgid "Port actions"
++msgstr "Port actions"
++
+ msgid "Port Forwarding"
+ msgstr "Port Forwarding"
+ 
+@@ -3251,6 +3277,9 @@ msgstr "Root Disk (GiB)"
+ msgid "Root Disk must be an integer ≥ 0."
+ msgstr "Root Disk must be an integer ≥ 0."
+ 
++msgid "Router actions"
++msgstr "Router actions"
++
+ msgid "Router ID"
+ msgstr "Router ID"
+ 
+@@ -3521,6 +3550,9 @@ msgstr "Services"
+ msgid "Session Changed"
+ msgstr "Session Changed"
+ 
++msgid "Session Expired"
++msgstr "Session Expired"
++
+ msgid "Session expires in"
+ msgstr "Session expires in"
+ 
+@@ -4433,6 +4486,15 @@ msgstr "You can rename the object by changing the name here."
+ msgid "You do not have permission to view security groups"
+ msgstr "You do not have permission to view security groups"
+ 
++msgid "You do not have the required permissions to access this port."
++msgstr "You do not have the required permissions to access this port."
++
++msgid "You do not have the required permissions to view ports in this project."
++msgstr "You do not have the required permissions to view ports in this project."
++
++msgid "You do not have the required permissions to view routers in this project."
++msgstr "You do not have the required permissions to view routers in this project."
++
+ msgid "You don't have permission to access flavor access information for this flavor."
+ msgstr "You don't have permission to access flavor access information for this flavor."
+ 
+@@ -4487,6 +4549,9 @@ msgstr "Your credentials are valid but you don't have permission to perform this
+ msgid "Your session has expired. Please log in again."
+ msgstr "Your session has expired. Please log in again."
+ 
++msgid "Your session has expired. Sign in again to continue."
++msgstr "Your session has expired. Sign in again to continue."
++
+ msgid "Your session was changed or ended in another browser tab. This can happen if you logged out or switched to a different account or domain elsewhere. Log in again to continue."
+ msgstr "Your session was changed or ended in another browser tab. This can happen if you logged out or switched to a different account or domain elsewhere. Log in again to continue."
+ 

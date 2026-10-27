@@ -1,0 +1,10 @@
+{
+ "candidates": [
+  {
+   "claim": "The new payload gating (key-manager:secrets:payload via canUser) is client-only. The getSecretPayload procedure is a plain projectScopedProcedure with no server-side canUser/policy check, so anyone calling the tRPC endpoint directly skips the UI gate; only Barbican's own policy then decides. Same holds for the delete/create procedures whose buttons are now hidden by canUser.",
+   "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:93",
+   "evidence": "keyManagerRouter.ts:93-111 getSecretPayload: projectScopedProcedure, input schema, then a km.get of the payload path with no canUser/policy evaluation. The delta (SecretDetailsView.tsx) hides the Reveal Payload UI behind useKeyManagerPermissions only. The policy rule key-manager:secrets:payload exists in apps/dashboard/src/policies/key-manager.json:12 (rule:context_is_keymanager_viewer) and packages/aurora/src/server/KeyManager/routers/permissionRouter.ts:6, but is used only by the canUser query. Barbican enforces its own RBAC with the rescoped token, so this is defense-in-depth rather than a direct bypass. The handler code predates the delta; the delta adds only the client gate and debug:false.",
+   "precedent": "Other domains (Compute/Network/Storage) also gate mainly in the UI via canUser; not checked whether any enforces it server-side in mutations."
+  }
+ ]
+}

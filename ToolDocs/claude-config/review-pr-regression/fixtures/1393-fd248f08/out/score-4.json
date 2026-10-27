@@ -1,0 +1,66 @@
+{
+ "scores": [
+  {
+   "id": "C16",
+   "score": 75,
+   "severity": "Low",
+   "category": "Code Quality",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/-components/usePermissions.ts:21",
+   "reason": "Verified at head: `export function usePermissions(projectId, permissions)` is a generic name where B.8 asks for `use<Feature>Permissions(projectId)` (useKeyManagerPermissions); SecretModals.tsx/ContainerModals.tsx/OrderModals.tsx bundle several modals while B.12 wants `<Verb><Resource>Modal.tsx`; `utils.ts`/`constants.ts` are generic. Naming rule violation with no user-facing effect, so Low.",
+   "same_as": null,
+   "precedent": null
+  },
+  {
+   "id": "C38",
+   "score": 0,
+   "reason": "Same problem as C16 (hook named usePermissions); C16 covers it and more.",
+   "same_as": "C16"
+  },
+  {
+   "id": "C17",
+   "score": 75,
+   "severity": "Trivial",
+   "category": "Code Quality",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx | import { usePermissions } from \"../../-components/usePermissions\"",
+   "reason": "B.13 and Quick Reject name import order: SecretsList.tsx puts `@/client/trpcClient` after the Juno import block (tRPC must come before Juno), and uses `../../-components/usePermissions` although B.13 says all imports must use `@/` aliases with no `../../` traversal. Verified; no runtime effect.",
+   "same_as": null,
+   "precedent": null
+  },
+  {
+   "id": "C18",
+   "score": 25,
+   "reason": "Strings such as `Create Secret`, `Sort by`, `Search by name...` and the column arrays are plain English in packages/aurora, but the review standards (B.14, What NOT to Review) say hardcoded strings there are lint-enforced and not a finding; that scope wins.",
+   "same_as": null
+  },
+  {
+   "id": "C55",
+   "score": 50,
+   "severity": "Low",
+   "category": "UI/UX",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/constants.ts:1",
+   "reason": "Issue #1133 spec lists Orders columns Name / ID, Type, Status; head has `ORDERS_COLUMNS = [\"ID\", \"Status\", \"Type\", \"\"]` and the row renders no order name/reference. Secrets and Containers match the spec (column order aside, deliberate). A criterion partly delivered, so Low.",
+   "same_as": null,
+   "precedent": null
+  },
+  {
+   "id": "C19",
+   "score": 75,
+   "severity": "Low",
+   "category": "UI/UX",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretListContainer.tsx:59",
+   "reason": "B.6 says to distinguish empty reasons (no data suggests creating, no filter results suggests clearing filters). SecretListContainer has one empty state, `No Secrets Found` / `Create one to get started.`, and SecretsList passes it no search value, so a search with no hits gets the create hint. Wording only, so Low.",
+   "same_as": null,
+   "precedent": null
+  },
+  {
+   "id": "C20",
+   "score": 50,
+   "severity": "Low",
+   "category": "UI/UX",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretListContainer.tsx:33",
+   "reason": "Verified: `<Status status=\"error\" title={error?.message ?? t`Failed to Load Secrets`} />` with no body or retry, same in DetailsViews. B.6 asks for a course of action only 'where feasible' and the message does give some explanation, so this is a nitpick, not a clear Reject.",
+   "same_as": null,
+   "precedent": null
+  }
+ ]
+}

@@ -1,0 +1,9 @@
+{
+ "base_changes_removed": [
+  "packages/aurora/src/locales/de/messages.po",
+  "packages/aurora/src/locales/en/messages.po"
+ ],
+ "plain": [
+  "packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/$routerId.tsx"
+ ]
+}

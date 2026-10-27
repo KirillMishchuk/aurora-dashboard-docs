@@ -31,7 +31,8 @@ MAX_ISSUE_CANDIDATES = 10
 SLUG_STOPWORDS = {"add", "and", "the", "a", "an", "for", "to", "of", "in", "on", "with"}
 SLUG_MAX_WORDS = 8
 BOT_HINTS = ("[bot]", "copilot", "github-actions", "cobaltcore-bot", "dependabot", "renovate")
-OWN_REPORT_MARK = "PR Review Report by [review-and-comment-pr]"
+# this skill's published comments: the report (also the older header without "by [...]") and Update blocks
+OWN_REPORT = re.compile(r"^\s*## (?:PR Review Report\b|Update — \d{4}-\d{2}-\d{2}, head `[0-9a-f]{7,40}`)")
 # Generated files: listed in context.json, left out of pr.diff (the compiled
 # Lingui catalogs alone can be >80% of a diff). Catalog sources (.po) stay in
 # the diff — UI strings are reviewed there.
@@ -273,13 +274,113 @@ def changed_files(base, head, cwd):
     return files
 
 
-def delta_diff(old, head, files, cwd):
-    """The PR's own change between two heads: `old..head` limited to the PR's files (base...head), so a
-    merge of the base branch in between doesn't bring the base's other files in. Generated files left out."""
-    paths = [":(literal)" + f["path"] for f in files if not f["generated"]]
+def _blob(rev, path, cwd):
+    """File text at rev, "" if it doesn't exist there, None if it isn't text."""
+    p = subprocess.run(["git", "cat-file", "-p", f"{rev}:{path}"], cwd=cwd, capture_output=True)
+    if p.returncode != 0:
+        return ""
+    try:
+        return p.stdout.decode("utf-8")
+    except UnicodeDecodeError:
+        return None
+
+
+def _unified(path, a, b):
+    import difflib
+    if a == b:
+        return ""
+    lines = list(difflib.unified_diff(a.splitlines(keepends=True), b.splitlines(keepends=True),
+                                      f"a/{path}" if a else "/dev/null", f"b/{path}" if b else "/dev/null"))
+    body = "".join(l if l.endswith("\n") else l + "\n\\ No newline at end of file\n" for l in lines)
+    return f"diff --git a/{path} b/{path}\n" + body
+
+
+def _hunks(diff_text):
+    """A one-file unified diff -> (header lines, [hunk lines])."""
+    head, hunks = [], []
+    for line in diff_text.splitlines(keepends=True):
+        if line.startswith("@@"):
+            hunks.append([line])
+        elif hunks:
+            hunks[-1].append(line)
+        else:
+            head.append(line)
+    return head, hunks
+
+
+def _change(hunk):
+    return (tuple(l[1:] for l in hunk[1:] if l.startswith("-")), tuple(l[1:] for l in hunk[1:] if l.startswith("+")))
+
+
+def _drop_base_hunks(file_diff, base_diff):
+    """Leave out of a file's delta every hunk that is exactly a change the base made between the merge-bases
+    (same lines removed and added) — the fallback when merge-file can't bring the old head up to the new base."""
+    _, base_hunks = _hunks(base_diff)
+    base_changes = {_change(h) for h in base_hunks}
+    head, hunks = _hunks(file_diff)
+    keep = [h for h in hunks if _change(h) not in base_changes]
+    if len(keep) == len(hunks):
+        return file_diff, 0
+    return ("".join(head) + "".join("".join(h) for h in keep) if keep else ""), len(hunks) - len(keep)
+
+
+def delta_diff(old, head, files, cwd, base=None, note=None):
+    """The PR's own change between two heads, limited to the PR's files (generated files left out).
+
+    A merge of the base branch in between also changes the PR's own files (locale catalogs, a shared file
+    main touched). Those lines aren't the author's work: for a file the base changed between the two
+    merge-bases, the old head's version is first brought up to the new base (a 3-way `git merge-file`), and
+    the delta is taken against that — so only what the author changed is left. Where that merge conflicts,
+    the plain `old..head` diff of the file loses the hunks that are exactly a base change. `note` (a dict)
+    gets the files of each kind."""
+    paths = [f["path"] for f in files if not f["generated"]]
     if not paths:
         return ""
-    return git(["diff", f"{old}..{head}", "--"] + paths, cwd).stdout
+    plain = lambda ps: git(["diff", f"{old}..{head}", "--"] + [":(literal)" + p for p in ps], cwd).stdout  # noqa: E731
+    if not base:
+        return plain(paths)
+    old_mb = git(["merge-base", old, base], cwd, ok=(0, 1)).stdout.strip()
+    new_mb = git(["merge-base", head, base], cwd, ok=(0, 1)).stdout.strip()
+    if not old_mb or not new_mb or old_mb == new_mb:
+        return plain(paths)
+    moved = set(git(["diff", "--name-only", "--no-renames", f"{old_mb}..{new_mb}", "--"]
+                    + [":(literal)" + p for p in paths], cwd).stdout.split("\n")) - {""}
+    import tempfile
+    out, kept, cleaned = [], [], []
+    with tempfile.TemporaryDirectory(prefix="delta-") as t:
+        for p in paths:
+            if p not in moved:
+                kept.append(p)
+                continue
+            ours, b_old, b_new, theirs = (_blob(r, p, cwd) for r in (old, old_mb, new_mb, head))
+            if None in (ours, b_old, b_new, theirs):
+                kept.append(p)
+                continue
+            fs = []
+            for name, text in (("ours", ours), ("base", b_old), ("theirs", b_new)):
+                fp = Path(t) / name
+                fp.write_text(text, encoding="utf-8")
+                fs.append(str(fp))
+            m = subprocess.run(["git", "merge-file", "-p", *fs], cwd=cwd, capture_output=True)
+            if m.returncode != 0:  # conflicts (>0) or an error (<0): keep the plain diff for this file
+                kept.append(p)
+                continue
+            cleaned.append(p)
+            out.append((p, _unified(p, m.stdout.decode("utf-8"), theirs)))
+    hunked = []
+    for p in [p for p in kept if p in moved]:  # merge-file couldn't: drop the hunks that are base changes
+        d, n = _drop_base_hunks(plain([p]), git(["diff", f"{old_mb}..{new_mb}", "--", ":(literal)" + p], cwd).stdout)
+        if n:
+            kept.remove(p)
+            hunked.append(p)
+            out.append((p, d))
+    if note is not None:
+        note.update({"base_changes_removed": sorted(cleaned + hunked),
+                     "plain": [p for p in kept if p in moved]})
+    text = {p: d for p, d in out}
+    plain_text = plain(kept) if kept else ""
+    # plain diff for the untouched files, then the cleaned ones in path order
+    return plain_text + "".join(text[p] for p in sorted(text) if text[p])
 
 
 def supplied_issue_from_footer(footer):
@@ -407,8 +508,9 @@ def collect_discussion(number, nwo, cwd):
         inline_read = False
     for item in comments + reviews:
         item["bot"] = is_bot(item["author"])
-        item["own_report"] = OWN_REPORT_MARK in (item["body"] or "")
+        item["own_report"] = bool(OWN_REPORT.match(item["body"] or ""))
         if item["own_report"]:  # don't anchor finder d on our own earlier verdicts
+            item["own_kind"] = "update" if item["body"].lstrip().startswith("## Update") else "review"
             item["body"] = "(earlier review-and-comment-pr report — omitted; see the url)"
     roots, by_id = [], {}
     for c in inline:
@@ -565,7 +667,10 @@ def main(argv):
             ctx["report"]["old_head_reachable"] = reachable
             if reachable:
                 ctx["report"]["delta"] = f"{full_old}..{head}"
-                (run_dir / "delta.diff").write_text(delta_diff(full_old, head, pr["files"], cwd), encoding="utf-8")
+                dnote = {}
+                (run_dir / "delta.diff").write_text(delta_diff(full_old, head, pr["files"], cwd, base, dnote),
+                                                    encoding="utf-8")
+                ctx["report"]["delta_base_changes_removed"] = dnote.get("base_changes_removed", [])
             else:
                 ctx["report"]["delta"] = "whole-pr"
             ctx["report"]["footer_new"] = footer_with(rep["footer"], f" · updated for `{head_short}` on {today}")
@@ -630,7 +735,8 @@ def summary(c):
         L.append(f"Context: {c['run_dir']}/context.json")
         return "\n".join(L)
     if c["mode"] == "update":
-        L.append(f"Delta: {c['report']['delta']}" + ("" if c["report"]["old_head_reachable"]
+        rm = c["report"].get("delta_base_changes_removed") or []
+        L.append(f"Delta: {c['report']['delta']}" + (f" · base-branch changes left out of {len(rm)} file(s)" if rm else "") + ("" if c["report"]["old_head_reachable"]
                                                     else " — old head unreachable (force-push?)"))
     L.append(f"Release PR: {'yes (' + '; '.join(f['release']['matched']) + ')' if f['release']['is_release'] else 'no'}"
              f" · Finder f: {'yes (' + str(len(f['finder_f']['files'])) + ' files)' if f['finder_f']['needed'] else 'no'}"

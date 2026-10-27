@@ -1,0 +1,28 @@
+{
+ "scores": [
+  {
+   "id": "C57",
+   "score": 75,
+   "severity": "Low",
+   "category": "Bug",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretDetailsView.tsx:89",
+   "reason": "Verified: the Reveal Payload button (SecretDetailsView.tsx:89) calls getSecretPayload with no canUser check, although key-manager:secrets:payload is defined and mapped; epic #1133 requires all action-triggering elements gated. Create/Delete and list queries are gated, so the criterion is only partly delivered (precedent table: Low).",
+   "same_as": null,
+   "precedent": null
+  },
+  {
+   "id": "C61",
+   "score": 25,
+   "reason": "updateSecret/addContainerSecret/deleteContainerSecret exist in the router with no client caller, but the PR body lists them as server procedures and unused API surface is not a defect; whether missing Edit/Manage UI is in scope is unclear.",
+   "same_as": null,
+   "precedent": null
+  },
+  {
+   "id": "C62",
+   "score": 25,
+   "reason": "usePermissions.ts:6 defines secrets:update/containers:update/payload keys never checked; unused update keys follow from there being no update UI, and the payload-gating part is already covered by C57.",
+   "same_as": null,
+   "precedent": null
+  }
+ ]
+}

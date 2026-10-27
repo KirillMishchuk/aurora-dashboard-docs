@@ -1,0 +1,65 @@
+{
+ "overview": {
+  "what": "This update covers `fd248f083f89fbe9caca6ad536106ffd08860159..64c47a995507e7e7f9bf4ba02c0cd8ba6d3f3fd7`. The PR is not a draft. On the head commit 13 checks passed, none failed, 4 were skipped and 5 are still pending (build, test, type-check, check-i18n, preview).\n\n**Container secret association.** The server procedure `addContainerSecret` (`POST /v1/containers/{id}/secrets`) was removed together with its unit test. This endpoint is documented by Barbican and is listed in the linked issue's Phase 2 (\"Manage Container Secrets\" / `containers.updateSecrets`). With it gone, the PR has no server procedure for adding or removing secret references on an existing container.\n\n**Translation catalogs.** The English and German `messages.po` files also changed for strings unrelated to Key Manager: the image-service rejection messages, \"No Project Access\", \"Project not found.\", \"This property is reserved and cannot be modified.\" and a removed \"Unnamed\" entry. These look like a catalog re-extract after merging the base branch, not part of the Key Manager work.",
+  "how": "",
+  "affects": "The PR description still lists \"add/remove secret refs\" among the container procedures, which no longer exists on the server. The linked issue's Phase 2 items for container secret association (`containers.updateSecrets` and the \"Manage Container Secrets\" flow) now have no server-side basis. Nothing else in the repository referenced `addContainerSecret` or `deleteContainerSecret` at the head commit."
+ },
+ "qa": {
+  "core_path": [],
+  "edge_cases": []
+ },
+ "acceptance": [
+  {
+   "criterion": "tRPC BFF is implemented with complete Zod schema validation for Secrets, Containers, and Orders.",
+   "status": "partly met",
+   "evidence": "`packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:64` to `:277` cover list/get/create/delete for all three resources plus `updateSecret` (`:138`) and the payload query (`:93`), all with Zod schemas. Container secret association (`containers.updateSecrets`, Phase 2) is no longer implemented after `addContainerSecret` was removed in this update."
+  },
+  {
+   "criterion": "A single \"Key Manager\" entry is added to the Side Navigation under the Authorization group.",
+   "status": "met",
+   "evidence": "`packages/aurora/src/client/routes/_auth/projects/-components/buildNavSections.ts:154` adds one `key-manager` entry in the `authorization` section, now also gated by `isEnabled(\"key-manager\")`."
+  },
+  {
+   "criterion": "The Key Manager page exposes three tabs: Secrets, Containers, Orders.",
+   "status": "met",
+   "evidence": "`packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager.tsx:100` to `:102` render the three tab items, with Secrets as the default (`:82`)."
+  },
+  {
+   "criterion": "Each tab renders its own overview list with the columns specified in the UI Specification.",
+   "status": "partly met",
+   "evidence": "Secrets and Containers have Name / ID, Status, Type (and Content Types for secrets) in `secrets/-components/constants.ts:1` and `containers/-components/constants.ts:1`. Orders show `ID` instead of a name / reference column (`orders/-components/constants.ts:1`)."
+  },
+  {
+   "criterion": "Users can list, view, create, update, and delete Secrets, Containers, and Orders (P1, P2 & P3).",
+   "status": "partly met",
+   "evidence": "List, view, create and delete work for all three. Secret update exists only as the `updateSecret` procedure (`keyManagerRouter.ts:138`) with no UI. Container secret association has no server procedure any more."
+  },
+  {
+   "criterion": "Detail views are provided for each resource type (slide-out panel or sub-route).",
+   "status": "met",
+   "evidence": "Sub-routes for secrets, containers and orders are registered in `key-manager.tsx:65` to `:77`; the secret view is `secrets/-components/SecretDetailsView.tsx`."
+  },
+  {
+   "criterion": "All action-triggering UI elements (Create, Edit, Delete, etc.) are gated using canUser(...) against the corresponding key-manager:* policy rules and are hidden/disabled for unauthorized users.",
+   "status": "partly met",
+   "evidence": "Create and Delete are gated in the three `*List.tsx` files through `useKeyManagerPermissions` (`key-manager/-components/useKeyManagerPermissions.ts:25`), and Reveal Payload now depends on `key-manager:secrets:payload` in `SecretDetailsView.tsx`. There is no Edit action or UI, so that gate does not exist."
+  },
+  {
+   "criterion": "Comprehensive error handling provides user-friendly feedback for Barbican errors.",
+   "status": "partly met",
+   "evidence": "`keyManagerRouter.ts` maps errors through `mapKmError` (`:52`), which still drops the Barbican error body, so users see generic messages."
+  },
+  {
+   "criterion": "All UI components follow the Aurora design system.",
+   "status": "partly met",
+   "evidence": "Row menus now have a labelled toggle and a separator before Delete (`secrets/-components/SecretTableRow.tsx:39`), but earlier findings on sort input, spacing classes and raw HTML elements are not all addressed in this update."
+  },
+  {
+   "criterion": "Complete testing coverage (unit, integration, E2E) is achieved.",
+   "status": "unmet",
+   "evidence": "Unit tests exist for the router, schemas and list/row components (for example `keyManagerRouter.test.ts`). No tests were added for modals, detail views, navigation or the layout guard, and there are no E2E tests."
+  }
+ ],
+ "stale_callers": [],
+ "scope": null
+}

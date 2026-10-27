@@ -1,0 +1,63 @@
+{
+ "scores": [
+  {
+   "id": "C1",
+   "score": 75,
+   "severity": "Moderate",
+   "category": "Performance",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/$networkId.tsx:124",
+   "reason": "Loader calls network.networks.getById.query (l.124) only for the title, and RouteComponent calls trpcReact getById.useQuery with the same input (l.149), so each detail visit fetches the same network twice. Matches the precedent row 'same data fetched twice (loader + useQuery)'.",
+   "same_as": null
+  },
+  {
+   "id": "C2",
+   "score": 50,
+   "severity": "Low",
+   "category": "UI/UX",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/$networkId.tsx:65",
+   "reason": "UNAUTHORIZED and FORBIDDEN are mapped to inline error descriptions (l.63-66) rendered by NetworkLoadError, with no redirect to Sign-in or page-level info Message. Matches the precedent row '401/403 handled inline instead of redirect / page-level message' (Low). The parent _auth route may also handle sessions, so impact is limited. This is a different problem from the C3 copy wording.",
+   "same_as": null
+  },
+  {
+   "id": "C3",
+   "score": 75,
+   "severity": "Low",
+   "category": "UI/UX",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/$networkId.tsx:66",
+   "reason": "l.66 reads 'The session has expired. Log in again to continue.' Quick Reject lists strings using 'Log in' (use 'Sign in'), so this is a verified checklist violation scoring at least 75. It is only wording, so Low. It is a different problem from C2's inline-vs-redirect handling.",
+   "same_as": null
+  },
+  {
+   "id": "C4",
+   "score": 75,
+   "severity": "Low",
+   "category": "Code Quality",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkDetailsView.tsx:69",
+   "reason": "l.69 uses a raw <button onClick={() => refetch()}> as the Status action, while Juno Button is available (and used in $networkId.tsx). This violates the Quick Reject item 'Raw HTML element (<div>, <table>, <button>) where a Juno component exists'. Severity Low per precedent.",
+   "same_as": null
+  },
+  {
+   "id": "C5",
+   "score": 25,
+   "reason": "The <div className=\"relative\"> (NetworksList.tsx:223) and <div className=\"break-all\"> (NetworkDetailsView.tsx:38) are plain styling or positioning wrappers. Juno Stack or Container would change the layout semantics rather than replace them, so I can't tell the Quick Reject was meant to cover this. Pedantic and not clearly a violation."
+  },
+  {
+   "id": "C6",
+   "score": 75,
+   "severity": "Low",
+   "category": "Code Quality",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkDetailsView.tsx:109",
+   "reason": "l.109 `const [activeTab, setActiveTab] = useState<NetworkDetailsTab>(\"overview\")` keeps the active tab in useState, so it is lost on refresh and can't be shared. This violates the Quick Reject item 'URL-worthy state held in useState instead of search params' and B.9 lists 'Active tab'. Severity Low per precedent.",
+   "same_as": null
+  },
+  {
+   "id": "C7",
+   "score": 75,
+   "severity": "Low",
+   "category": "Accessibility",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkTableRow.tsx:56",
+   "reason": "l.56-60 render <PopupMenu><PopupMenuOptions> with no PopupMenuToggle (not imported). This violates the Quick Reject item '`PopupMenu` without `PopupMenuToggle` as trigger' and B.14. The default toggle works visually, so Low.",
+   "same_as": null
+  }
+ ]
+}

@@ -1,0 +1,10 @@
+exit 0
+Launch these 8 agents in ONE message, in the foreground, each with the prompt "Read your brief: <path>" and the subagent type shown:
+describer  pr-reviewer           <RUN>/briefs/describer.md
+finder-a   pr-reviewer           <RUN>/briefs/finder-a.md
+finder-b   pr-reviewer           <RUN>/briefs/finder-b.md
+finder-c   pr-reviewer           <RUN>/briefs/finder-c.md
+finder-d   pr-reviewer           <RUN>/briefs/finder-d.md
+finder-e   pr-reviewer           <RUN>/briefs/finder-e.md
+finder-f   external-api-checker  <RUN>/briefs/finder-f.md
+finder-g   security-reviewer     <RUN>/briefs/finder-g.md

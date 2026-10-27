@@ -1,0 +1,260 @@
+{
+ "candidates": [
+  {
+   "claim": "The new row-action toggles are icon-only Buttons with only a title and no aria-label. Screen readers may announce nothing reliable for the control in every key-manager list row.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretTableRow.tsx:40",
+   "evidence": "B.14 / Quick Reject: \"Icon-only button without `aria-label`\". Code: <Button icon=\"moreVert\" title={t`Secret actions`} /> (same in ContainerTableRow.tsx:39, OrderTableRow.tsx:38). example: packages/aurora/src/client/routes/_auth/projects/$projectId/storage/-components/Ceph/Buckets/BucketHeaderActions.tsx:67",
+   "precedent": "FloatingIpDetailsView.tsx:66 also uses title only; Ceph and flavors pair title with aria-label."
+  },
+  {
+   "claim": "Accessible names/tooltips \"Secret actions\", \"Container actions\", \"Order actions\" are not title case, unlike sibling labels \"Bucket actions\"-style/\"More Actions\" in the reference modules.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretTableRow.tsx:40",
+   "evidence": "B.19: \"Title case for ... button labels\". example: packages/aurora/src/client/routes/_auth/projects/$projectId/compute/flavors/$flavorId.tsx:227 (\"More Actions\")",
+   "precedent": "Ceph BucketHeaderActions.tsx:67 uses lowercase \"Bucket actions\" too."
+  },
+  {
+   "claim": "CreateOrderModal shows validation errors as the user types, derived on every render, instead of on blur / submit. Clearing the Algorithm field immediately paints an error before the field is left, and the Create button is disabled with no submit-time revalidation.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderModals.tsx:43",
+   "evidence": "B.11: \"Validate **on blur** by default; always re-validate all fields **on submit**. Validate **as-you-type** only for strict-format fields\"; Algorithm and Bit Length are not strict-format fields. Errors are computed from state at lines 43-46 and passed to errortext (94-107) with no touched/blur tracking. example: packages/aurora/src/client/routes/_auth/projects/$projectId/compute/flavors/-components/CreateFlavorModal.tsx:225",
+   "precedent": "Not a Reject-line violation by itself (initial defaults are valid, so nothing shows before interaction)."
+  },
+  {
+   "claim": "Each list adds a useEffect that calls onPageChange when the current page becomes empty. This is event-driven state sync that could be done in the delete handler or by clamping the page, and it runs in three components.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx:71",
+   "evidence": "A.1: \"Critically evaluate every `useEffect` ... Flag synchronizations, computed states, or event-driven triggers ... that can be handled during rendering or inside event handlers\". Effect: if (!isLoading && !isError && page > 1 && (data?.secrets.length ?? 0) === 0) onPageChange(page - 1). Same in OrdersList.tsx:53 and ContainersList.tsx:48. The trigger is the delete mutation's onSuccess in the Delete*Modal."
+  },
+  {
+   "claim": "The new useKeyManagerPermissions import uses a two-level relative path (`../../`) in the changed lines instead of the `@/` alias.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx:14",
+   "evidence": "Quick Reject: \"Import using `../../` traversal beyond one level instead of `@/`\"; B.13: \"No relative `../../` traversal beyond one level\". Lines: import { useKeyManagerPermissions } from \"../../-components/useKeyManagerPermissions\" (also ContainersList.tsx:4, OrdersList.tsx:12, SecretDetailsView.tsx:8). example: packages/aurora/src/client/routes/_auth/projects/$projectId/compute/flavors/-components/CreateFlavorModal.tsx:17",
+   "precedent": "The old usePermissions import used the same ../../ path; the PR renamed it but kept it."
+  }
+ ],
+ "checklist": [
+  {
+   "item": "Raw HTML element where a Juno component exists",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "Hardcoded Tailwind color class instead of text-theme-* token",
+   "result": "not violated",
+   "where": "delta adds none"
+  },
+  {
+   "item": "error variant used for destructive action / vice versa",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "Ad-hoc spacing value not in approved list (B.3)",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "Permission prop not named can<Verb><Noun>",
+   "result": "not violated",
+   "where": "canDeleteContainer/Order/Secret"
+  },
+  {
+   "item": "UI control shown before permissions are resolved (not fail-closed)",
+   "result": "not violated",
+   "where": "useKeyManagerPermissions defaults false; payload gated"
+  },
+  {
+   "item": "Bulk-action controls or Create button rendered without permission check",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "Nested interactive element in clickable row without stopPropagation",
+   "result": "not violated",
+   "where": "action cell has stopPropagation"
+  },
+  {
+   "item": "toast with inline string",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "toast.error for persistent/actionable error",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "Message variant conflicting with modal primary button",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "Modal without disableCancelButton/disableCloseButton during async",
+   "result": "not violated",
+   "where": "built-in footer syncs; disableCancelButton set"
+  },
+  {
+   "item": "Custom modalFooter without explicit disableCloseButton",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "Destructive modal without primary-danger",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "Destructive modal with alarmist/vague title",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "PopupMenu without PopupMenuToggle as trigger",
+   "result": "not violated",
+   "where": "toggle added in delta"
+  },
+  {
+   "item": "Delete not last / single-entity menu missing divider before it",
+   "result": "not violated",
+   "where": "PopupMenuSectionSeparator added before Delete"
+  },
+  {
+   "item": "URL-worthy state held in useState instead of search params",
+   "result": "not violated",
+   "where": "page stays in props"
+  },
+  {
+   "item": "User-facing string not wrapped in Trans/t (skip in packages/aurora)",
+   "result": "not violated",
+   "where": "lint-enforced"
+  },
+  {
+   "item": "Error element without role=alert and aria-live=assertive",
+   "result": "not violated",
+   "where": "errortext via Juno API"
+  },
+  {
+   "item": "Icon-only button without aria-label",
+   "result": "violated",
+   "where": "SecretTableRow.tsx:40, ContainerTableRow.tsx:39, OrderTableRow.tsx:38"
+  },
+  {
+   "item": "outline-none suppressing focus ring",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "File named with lowercase-dash or generic name",
+   "result": "not violated",
+   "where": "useKeyManagerPermissions.ts"
+  },
+  {
+   "item": "Import using ../../ traversal beyond one level instead of @/",
+   "result": "violated",
+   "where": "SecretsList.tsx:14, OrdersList.tsx:12, ContainersList.tsx:4, SecretDetailsView.tsx:8"
+  },
+  {
+   "item": "Re-implementation of a utility hook from B.17",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "String using Please/Thanks/We/exclamation/all-caps/Sign In",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "B.1 Reject plain table/input/select/button",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "B.2 Reject mixed zones",
+   "result": "not violated",
+   "where": "unchanged"
+  },
+  {
+   "item": "B.4 Reject raw color class / error-danger misuse",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "B.5 Reject modal rules",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "B.6 Reject error without ARIA, dismissible Message without onDismiss, empty state without title/body, inline 401/403",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "B.8 Reject permission naming / hidden vs disabled",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "B.9 Reject useState for URL-worthy state",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "B.11 Reject form without validation / errors on untouched fields / placeholder label",
+   "result": "violated",
+   "where": "OrderModals.tsx:43 (as-you-type validation, not on blur/submit; soft)"
+  },
+  {
+   "item": "B.12 Reject file naming",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "B.14 Reject hardcoded string / ARIA / icon-only aria-label",
+   "result": "violated",
+   "where": "same as icon-only item"
+  },
+  {
+   "item": "B.15 Reject bulk/create without permission, stopPropagation, tri-state",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "B.16 Reject toast.error persistent / Message conflict",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "B.17 Reject re-implemented hook",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "B.18 Reject Delete ordering/divider",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "B.19 Reject all-caps/!/personal voice/inconsistent terms (title case labels)",
+   "result": "violated",
+   "where": "SecretTableRow.tsx:40 etc. (Secret actions, lowercase a)"
+  },
+  {
+   "item": "A.1 minimize useEffect",
+   "result": "violated",
+   "where": "SecretsList.tsx:71, OrdersList.tsx:53, ContainersList.tsx:48"
+  },
+  {
+   "item": "A.2 tRPC type-safe, procedures correct",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "A.3 route loader data not refetched in component",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "A.4 Juno components preferred",
+   "result": "not violated",
+   "where": ""
+  }
+ ]
+}

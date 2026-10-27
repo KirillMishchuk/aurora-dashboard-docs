@@ -1,0 +1,326 @@
+{
+ "candidates": [
+  {
+   "claim": "The detail route's loader already fetches the network via getById, and RouteComponent then fetches the same network again with trpcReact getById.useQuery. The loader only uses the result for the page title, so every detail visit makes two identical requests.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/$networkId.tsx:124",
+   "evidence": "A.3: 'Data critical for rendering a page must be fetched via the route's loader function rather than loading it inside the component body.' Loader line 124 calls context.trpcClient?.network.networks.getById.query; line 149 calls trpcReact.network.networks.getById.useQuery with the same input."
+  },
+  {
+   "claim": "A 401 is handled inline: NetworkLoadError renders an error message ('The session has expired...') in the page instead of redirecting to Sign-in. 403 also renders a plain error page without the page-level info Message explaining the lack of access.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/$networkId.tsx:65",
+   "evidence": "B.6 Reject: 'a 401/403 handled inline instead of via redirect / page-level info Message'. Lines 63-66 map FORBIDDEN and UNAUTHORIZED to error descriptions in RouteIdLevelDefaultError."
+  },
+  {
+   "claim": "The UNAUTHORIZED copy says 'Log in again to continue.' The UX writing rule requires 'Sign in', and the recommended 401 copy is 'Authentication failed. Verify your credentials and try again.'",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/$networkId.tsx:66",
+   "evidence": "Quick Reject: 'String using ... \"Sign In\"/\"Log in\" (use \"Sign in\")'. B.19: '\"Sign in\", not \"Sign In\" or \"Log in\"'."
+  },
+  {
+   "claim": "A raw <button> is used for the 'Try Again' action in the subnets error state, where Juno's Button exists. It has no Juno styling or variant.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkDetailsView.tsx:69",
+   "evidence": "B.1 Reject: 'any PR that introduces a plain <table>, <input>, <select>, or <button> where a Juno equivalent exists.' Line 69: action={<button onClick={() => refetch()}>{t`Try Again`}</button>}. Quick Reject: 'Raw HTML element (<div>, <table>, <button>) where a Juno component exists'."
+  },
+  {
+   "claim": "Raw <div> elements are used as layout wrappers (break-all wrapper in DetailsList, relative wrapper around ErrorBoundary in Networks) where Juno Stack/Container are the primary layout primitive.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworksList.tsx:223",
+   "evidence": "B.1: 'Primary layout primitive | Stack'; Quick Reject: 'Raw HTML element (<div>...) where a Juno component exists'. NetworksList.tsx:223 <div className=\"relative\">; NetworkDetailsView.tsx:38 <div className=\"break-all\">{value}</div>."
+  },
+  {
+   "claim": "The active detail tab is held in useState instead of the URL search params, so the Subnets tab is not shareable and is lost on refresh.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkDetailsView.tsx:109",
+   "evidence": "B.9: 'All persistent UI state must live in URL search params' with 'Active tab | tab'; 'Reject any useState for state that should survive a page refresh or be shareable via URL.' Line 109: const [activeTab, setActiveTab] = useState<NetworkDetailsTab>(\"overview\"). Quick Reject: 'URL-worthy state held in useState instead of search params'."
+  },
+  {
+   "claim": "The row action menu uses <PopupMenu> without a PopupMenuToggle trigger (default toggle), contrary to the required pattern <PopupMenuToggle as=\"div\"><Button icon=\"moreVert\" /></PopupMenuToggle>.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkTableRow.tsx:56",
+   "evidence": "Quick Reject: 'PopupMenu without PopupMenuToggle as trigger'; B.14: 'Context menus must use <PopupMenuToggle as=\"div\"><Button icon=\"moreVert\" /></PopupMenuToggle> as the trigger.' Lines 56-60 render <PopupMenu><PopupMenuOptions>...</PopupMenuOptions></PopupMenu> with no PopupMenuToggle; PopupMenuToggle is not imported."
+  },
+  {
+   "claim": "Network status is rendered as plain text in the list (and detail Overview) instead of a Badge status indicator.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkTableRow.tsx:43",
+   "evidence": "B.1: 'Status indicators | Badge'. Line 43: <DataGridCell>{network.status}</DataGridCell>; NetworkDetailsView.tsx:116 value: network.status."
+  },
+  {
+   "claim": "Admin state is shown as 'UP' / 'DOWN', all-caps strings, which the UX writing rule forbids.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkTableRow.tsx:46",
+   "evidence": "Quick Reject: 'String using ... all-caps'; B.19: 'Never all-caps (ever)'. Line 46: network.admin_state_up ? t`UP` : t`DOWN`; same in NetworkDetailsView.tsx:117."
+  },
+  {
+   "claim": "The label 'Created At' and 'Updated At' capitalise the short preposition 'At', which title-case rules require lowercase.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkDetailsView.tsx:132",
+   "evidence": "B.19: 'Lowercase ... short prepositions (max 5 letters: at, by, for, in, of, on, to, up...)'. Lines 132-133: t`Created At`, t`Updated At`."
+  },
+  {
+   "claim": "NetworkListContainer mirrors the currentPage prop into inputPage state through a useEffect. This synchronisation can be handled during render or by keying, and costs an extra render on every page change.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkListContainer.tsx:36",
+   "evidence": "A.1: 'Critically evaluate every useEffect hook. Flag synchronizations, computed states ... that can be handled during rendering'. Lines 36-38: useEffect(() => { setInputPage(currentPage.toString()) }, [currentPage])."
+  },
+  {
+   "claim": "A useEffect corrects an out-of-range page by calling onPageChange(1). This is derived state: safePage is already clamped during render, so the effect only exists to rewrite the URL.",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworksList.tsx:97",
+   "evidence": "A.1: 'Flag synchronizations, computed states, or event-driven triggers ... that can be handled during rendering or inside event handlers'. Lines 97-99: useEffect(() => { if (!isStale && currentPage > totalPages) onPageChange(1) }, ...)."
+  }
+ ],
+ "checklist": [
+  {
+   "item": "Raw HTML element (<div>, <table>, <button>) where a Juno component exists",
+   "result": "violated",
+   "where": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkDetailsView.tsx:69"
+  },
+  {
+   "item": "Hardcoded Tailwind color class instead of text-theme-* token",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "error variant used for a destructive action (should be danger), or vice versa",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "Ad-hoc spacing value not in the approved list (B.3)",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "Permission prop not named can<Verb><Noun>",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "UI control shown before permissions are resolved (not fail-closed)",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "Bulk-action controls or Create button rendered without permission check",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "Nested interactive element in a clickable row without event.stopPropagation()",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "toast.success/error with inline string instead of *ToastNotifications",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "toast.error used for a persistent/actionable error",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "<Message> variant conflicting with the modal's primary button variant",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "Modal without disableCancelButton / disableCloseButton during async operations",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "Custom modalFooter without explicit disableCloseButton",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "Destructive modal without confirmButtonVariant=primary-danger",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "Destructive modal with alarmist/vague title",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "PopupMenu without PopupMenuToggle as trigger",
+   "result": "violated",
+   "where": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkTableRow.tsx:56"
+  },
+  {
+   "item": "\"Delete\" action not last / missing divider",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "URL-worthy state held in useState instead of search params",
+   "result": "violated",
+   "where": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkDetailsView.tsx:109"
+  },
+  {
+   "item": "User-facing string not wrapped in Trans or t (skipped in packages/aurora)",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "Error element without role=alert and aria-live=assertive",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "Icon-only button without aria-label",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "outline-none suppressing focus ring without replacement",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "File named with lowercase-dash convention or generic name",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "Import using ../../ traversal beyond one level instead of @/",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "Re-implementation of a utility hook from B.17",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "String using \"Please\", \"Thanks\", \"We\", exclamation marks, all-caps, or \"Sign In\"/\"Log in\"",
+   "result": "violated",
+   "where": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/$networkId.tsx:66"
+  },
+  {
+   "item": "B.1 Reject: plain table/input/select/button where Juno equivalent exists",
+   "result": "violated",
+   "where": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkDetailsView.tsx:69"
+  },
+  {
+   "item": "B.1 Status indicators use Badge",
+   "result": "violated",
+   "where": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkTableRow.tsx:43"
+  },
+  {
+   "item": "B.2 Reject: structure that mixes zones or skips Zone 2 when search is available",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "B.3 Reject: ad-hoc mt-3, mb-5, px-6",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "B.4 Reject: raw Tailwind color class / error-danger misuse",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "B.5 modal Reject clauses",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "B.6 Reject: error element without role/aria; dismissible Message without onDismiss; empty state without title/body; blank full-page error",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "B.6 Reject: 401/403 handled inline instead of redirect / page-level info Message",
+   "result": "violated",
+   "where": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/$networkId.tsx:65"
+  },
+  {
+   "item": "B.7 Reject: UI controls before permissions confirmed",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "B.8 Reject: permission prop naming / hidden vs disabled",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "B.9 Reject: useState for URL-worthy state",
+   "result": "violated",
+   "where": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkDetailsView.tsx:109"
+  },
+  {
+   "item": "B.10 Reject: inline toast",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "B.11 Reject: form without validation",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "B.12 Reject: file naming",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "B.13 import order / @/ aliases",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "B.14 Reject: hardcoded English string, ARIA, icon-only aria-label",
+   "result": "violated",
+   "where": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkTableRow.tsx:56"
+  },
+  {
+   "item": "B.15 Reject: bulk/create UI without permissions, stopPropagation, tri-state",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "B.16 Reject: toast.error for persistent error; Message variant conflict",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "B.17 Reject: re-implementation of utility hooks",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "B.18 Reject: PopupMenu ordering",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "B.19 Reject: all-caps, exclamation, personal voice, Sign In/Log in, inconsistent terms",
+   "result": "violated",
+   "where": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkTableRow.tsx:46"
+  },
+  {
+   "item": "B.19 title case (Created At / Updated At)",
+   "result": "violated",
+   "where": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkDetailsView.tsx:132"
+  },
+  {
+   "item": "A.1 minimize useEffect",
+   "result": "violated",
+   "where": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkListContainer.tsx:36"
+  },
+  {
+   "item": "A.2 tRPC: type-safe, projectScopedProcedure, no manual fetch",
+   "result": "not violated",
+   "where": ""
+  },
+  {
+   "item": "A.3 loader-fetched data not fetched again in component",
+   "result": "violated",
+   "where": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/$networkId.tsx:149"
+  },
+  {
+   "item": "A.4 Juno components / layout",
+   "result": "violated",
+   "where": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworksList.tsx:223"
+  }
+ ]
+}

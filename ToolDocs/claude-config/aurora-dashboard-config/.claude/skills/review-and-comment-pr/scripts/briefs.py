@@ -79,7 +79,7 @@ def variables(ctx, run):
     scope = ""
     if ctx["mode"] == "update":
         scope = ("- **Scope: this is an Update.** Analyze only the new commits — "
-                 + ("`delta.diff`: the range `" + rep["delta"] + "` limited to the PR's own files, so code that "
+                 + ("`delta.diff`: the range `" + rep["delta"] + "` limited to the PR's own files, with what a merge of the base branch changed in them taken out, so code that "
                     "came in with a merge of the base branch is left out — don't diff the range yourself."
                     if rep.get("delta") not in (None, "whole-pr")
                     else "the old head is unreachable (force-push), so the whole PR diff.") + "\n")
@@ -97,6 +97,7 @@ def variables(ctx, run):
         "claude_md": (ctx.get("standards") or {}).get("claude_md", "CLAUDE.md"),
         "finder_f_files": bullets(f"`{x}`" for x in f["finder_f"]["files"]),
     }
+
 
 
 def fill(text, vals):
@@ -132,7 +133,9 @@ def find(ctx, run_dir):
         v["candidates"] = part["candidates"]
         if name == "finder-g":
             v["hard_rules"] = hard_rules()
-        brief = fill((TEMPLATES / f"{name}.md").read_text(encoding="utf-8"), v)
+        # on an Update the describer gets its own brief: only what the earlier findings don't cover
+        tpl = "describer-update" if name == "describer" and ctx["mode"] == "update" else name
+        brief = fill((TEMPLATES / f"{tpl}.md").read_text(encoding="utf-8"), v)
         brief = re.sub(r"\n{3,}", "\n\n", brief)
         path = run_dir / "briefs" / f"{name}.md"
         path.write_text(brief, encoding="utf-8")

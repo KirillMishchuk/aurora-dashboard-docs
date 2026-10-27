@@ -1,0 +1,72 @@
+{
+ "scores": [
+  {
+   "id": "C11",
+   "score": 75,
+   "severity": "Moderate",
+   "category": "Security",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretDetailsView.tsx | <Button variant=\"subdued\" onClick={handleRevealPayload} disabled={payloadFetching}>",
+   "reason": "SecretDetailsView.tsx:89 renders the Reveal Payload button unconditionally; the file never imports usePermissions, and key-manager:secrets:payload is defined but unused (only the three List components call usePermissions). Quick Reject: 'UI control shown before permissions are resolved (not fail-closed)'. Moderate rather than Major because Barbican ACLs still reject the fetch server-side.",
+   "same_as": null,
+   "precedent": null
+  },
+  {
+   "id": "C29",
+   "same_as": "C11",
+   "score": 0,
+   "reason": "Same problem as C11 (ungated Reveal Payload button); scored there."
+  },
+  {
+   "id": "C49",
+   "same_as": "C11",
+   "score": 0,
+   "reason": "Same problem as C11 (ungated Reveal Payload button); scored there."
+  },
+  {
+   "id": "C12",
+   "score": 50,
+   "severity": "Low",
+   "category": "Code Quality",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/$containerId.tsx | const { data: container } = trpcReact.keyManager.getContainer.useQuery({ project_id: projectId, containerId })",
+   "reason": "Route has no loader; $containerId.tsx:19 and ContainerDetailsView both call the same getContainer.useQuery (same for secret/order), contrary to A.3. Same query key means React Query dedupes to one request, so no duplicate network call; hence Low, not the Moderate duplicate-fetch precedent.",
+   "same_as": null,
+   "precedent": null
+  },
+  {
+   "id": "C13",
+   "score": 75,
+   "severity": "Moderate",
+   "category": "Performance",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx | onInput={(e) => onSearchChange((e.target as HTMLInputElement).value)}",
+   "reason": "SecretsList.tsx:109 and ContainersList.tsx:74 call onSearchChange on every input event, and handleSearch navigates and so refetches per keystroke, with no local mirror state or debounce (B.9 violation). The flavors List at base debounces 500ms with local state, showing the expected pattern.",
+   "same_as": null,
+   "precedent": null
+  },
+  {
+   "id": "C14",
+   "score": 50,
+   "severity": "Low",
+   "category": "UI/UX",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretDetailsView.tsx | <Stack direction=\"vertical\" gap=\"6\" className=\"my-6\">",
+   "reason": "Verified: className=\"my-6\" at SecretDetailsView.tsx:79, opacity-60 at :97 (instead of text-theme-light), and key-manager.tsx:104 mt-4, all outside the B.3/B.4 approved lists. Cosmetic, so Low.",
+   "same_as": null,
+   "precedent": {
+    "kind": "existing",
+    "ref": "packages/aurora/src/client/routes/_auth/projects/$projectId/compute/images/-components/ActivateImagesModal.tsx:52"
+   }
+  },
+  {
+   "id": "C15",
+   "score": 75,
+   "severity": "Low",
+   "category": "Code Quality",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager.tsx | <div className=\"mt-4\">",
+   "reason": "key-manager.tsx:91/104 and SecretDetailsView.tsx:88 use raw <div> wrappers, plus <pre>/<p> for payload; Quick Reject 'Raw HTML element where a Juno component exists' (Stack available) scores at least 75. Low per the Quick Reject UI precedent.",
+   "same_as": null,
+   "precedent": {
+    "kind": "existing",
+    "ref": "packages/aurora/src/client/routes/_auth/projects/$projectId/compute/images/-components/ActivateImagesModal.tsx:52"
+   }
+  }
+ ]
+}

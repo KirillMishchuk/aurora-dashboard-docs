@@ -1,0 +1,64 @@
+{
+ "scores": [
+  {
+   "id": "C1",
+   "score": 50,
+   "severity": "Low",
+   "category": "UI/UX",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/$portId.tsx | <Button variant=\"primary\" onClick={() => navigate({ to: \"/\" })}>",
+   "reason": "CR2 asked for 401 to go to sign-in; the head commit still renders the 401 inline (RouteIdLevelDefaultError) with a button to \"/\", and the comment above it says it sends the user to sign in 'instead of showing the error inline'. B.6 requires redirect with the target remembered and redirect back after auth, which this does not do, so CR2 is only half fixed. Low per the 401/403 inline precedent.",
+   "same_as": null,
+   "precedent": null
+  },
+  {
+   "id": "C2",
+   "score": 0,
+   "reason": "Removing the loader is the fix CR3 asked for (details route fetched the port twice); not a new problem. The remaining hardcoded head title is a nit.",
+   "same_as": null
+  },
+  {
+   "id": "C3",
+   "score": 50,
+   "severity": "Low",
+   "category": "UI/UX",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortTableRow.tsx | <DataGridCell>{port.status}</DataGridCell>",
+   "reason": "B.1 table lists 'Status indicators | Badge'; PortTableRow.tsx:51 and RouterTableRow.tsx:51 render the raw status string in a DataGridCell. Verified, but cosmetic and consistent with the details views, so Low.",
+   "same_as": null,
+   "precedent": null
+  },
+  {
+   "id": "C4",
+   "score": 25,
+   "reason": "B.3 lists mb-4 for Message banners, and the Messages in PortsList/RoutersList have no className. But the Message is the only content on the page (and in $portId.tsx it sits in a Stack with gap 4), so there is no visible spacing effect; pedantic.",
+   "same_as": null
+  },
+  {
+   "id": "C5",
+   "score": 25,
+   "reason": "fetchRouterInterfacePorts (routersRouter.ts:85) and the id-batch lookups do read one Neutron page, but this code already exists at the base commit and the delta does not touch it; the PR's pagination fix and its docs sentence concern the router/port lists. Real, but pre-existing and I can't confirm the PR claims more than that.",
+   "same_as": null
+  },
+  {
+   "id": "C9",
+   "same_as": "C5",
+   "score": 0,
+   "reason": "Same problem as C5."
+  },
+  {
+   "id": "C6",
+   "score": 50,
+   "severity": "Low",
+   "category": "UI/UX",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.tsx | body={error instanceof Error ? error.message : t`An unexpected error occurred.`}",
+   "reason": "createPortsPromise converts only FORBIDDEN (PortsList.tsx:52); a 401 and other errors reach the ErrorBoundary, which prints the raw BFF error.message with no Sign in action. CR2 covered the list error too, and the fix handles it on the details page only. Low per the 401/403 precedent.",
+   "same_as": null,
+   "precedent": null
+  },
+  {
+   "id": "C7",
+   "score": 25,
+   "reason": "PortsList.tsx:59 duplicates the BFF search field list, and the BFF params are unused by the UI. It is a deliberate perf decision the author raised as an open question, and a code-quality opinion with no concrete defect.",
+   "same_as": null
+  }
+ ]
+}

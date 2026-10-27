@@ -1,0 +1,18 @@
+{
+ "wrong": [
+  {
+   "claim": "The Authorization section is always emitted, but with an empty `services` list when Barbican is absent.",
+   "field": "overview.how",
+   "old": "The Authorization section is always emitted, but with an empty `services` list when Barbican is absent.",
+   "new": "The Authorization section is seeded in the section map with an empty `services` list when Barbican is absent, but `buildNavSections` ends with `.filter((s) => s.services.length > 0)`, so the empty section is dropped from the returned nav model.",
+   "evidence": "git show fd248f08:packages/aurora/src/client/routes/_auth/projects/-components/buildNavSections.ts | tail -3 -> `return [...sectionMap.values()].filter((s) => s.services.length > 0)`"
+  },
+  {
+   "claim": "The Authorization section is now always present in the nav model, even when empty. Check that an empty section does not render as an empty header.",
+   "field": "overview.affects",
+   "old": "**Nav.** The Authorization section is now always present in the nav model, even when empty. Check that an empty section does not render as an empty header.",
+   "new": "**Nav.** The Authorization section is seeded in the section map, but the existing final `.filter((s) => s.services.length > 0)` removes it when it has no services, so without Barbican the nav is unchanged. With Barbican present, a new Authorization section appears.",
+   "evidence": "git show fd248f08:packages/aurora/src/client/routes/_auth/projects/-components/buildNavSections.ts | tail -3 -> `return [...sectionMap.values()].filter((s) => s.services.length > 0)` (pre-existing line, unchanged by the PR)"
+  }
+ ]
+}

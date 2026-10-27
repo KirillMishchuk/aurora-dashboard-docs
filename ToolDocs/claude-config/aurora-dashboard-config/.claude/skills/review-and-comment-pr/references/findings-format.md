@@ -11,9 +11,9 @@ The template is at the end of `compose.md`:
 - `edge_cases`: extra QA edge cases, e.g. the scenario behind each Bug;
 - `merge`: `{"<drop id>": "<keep id>"}` for a look-alike pair that is one
   problem;
-- on an Update only: `earlier` instead of `summary`, `confidence`,
+- on an Update only: `earlier` (plus `confidence`) instead of `summary`,
   `index_affected` and `edge_cases` — one entry per finding of the
-  existing report, `{"CR2": {"status": "fixed" | "partly" | "open",
+  existing report, `{"CR2": {"status": "fixed" | "partly" | "open" | "dropped",
   "note": "one line: what changed or what's left"}}`. The template in
   `compose.md` comes filled from the `earlier` agent, which checked each at
   the new head; render.py refuses a list with one left out or one that
@@ -40,8 +40,10 @@ you write in `texts.json`.
 turns it into the report, the index row and the footer. Layout,
 numbering, verdict, header, footer, tables, Process defaults and the
 index are code: don't write them. `dismissed` (the candidates scored
-below 50, for the report's "Checked and dismissed" section) is written by
-assemble.py too; leave it out on a release PR.
+below 50, for the report's "Checked and dismissed" section; those whose
+`discussion` cites a review comment also go into the posted "Review
+comments not taken up") is written by assemble.py too; leave it out on a
+release PR.
 
 ## Shape
 
@@ -92,11 +94,16 @@ assemble.py too; leave it out on a release PR.
     pattern in merged code) or `{"kind": "deferred", "ref": "<GitHub
     URL>"}` (a maintainer accepted or postponed it). render.py shows it as
     the Precedent column and a `_Precedent:_` line; optional on a release PR.
-  - `explanation`: what's wrong, where, what it leads to (the precedent
-    is rendered from `precedent` — don't repeat it); if the review discussion raised
-    it, who, where and what happened. Fold "no test covers this" in here
-    instead of a separate finding.
-  - `fix`: one or two sentences.
+  - `explanation`: start with what the user or the system gets from it —
+    a concrete case and when it happens (the candidate's claim has it);
+    then where in the code; the rule (B.<n>, an API reference with its
+    link) comes last, as support, not as the reason. If the review
+    discussion raised it, who, where and what happened. A code block only
+    when it shows the problem itself; a single line goes inline as code.
+    The precedent is rendered from `precedent` — don't repeat it. Fold "no
+    test covers this" in here instead of a separate finding.
+  - `fix`: one or two sentences: what to change, and the code to copy —
+    the `example:` from the evidence (`path:line`) when there is one.
   - `id` (optional): a short slug (`a-z`, `0-9`, `-`), needed only when
     another text refers to this finding.
 - **`process`** — Process items you add yourself (e.g. the description
