@@ -167,7 +167,8 @@ def run(argv):
     print(f"run {label}: claude \"{command}\" in {REPO} (collected when you quit Claude Code)", flush=True)
     t0 = time.time() - 1
     try:
-        subprocess.run(["claude", "--add-dir", str(DOCS), *extra, command], cwd=REPO)
+        # Split command into separate args: claude expects [command] [prompt] as separate elements
+        subprocess.run(["claude", "--add-dir", str(DOCS), *extra, f"/{SKILL}", argv[0]], cwd=REPO)
     except FileNotFoundError:
         sys.exit("`claude` not found on PATH")
     logs = logs_since(t0)
