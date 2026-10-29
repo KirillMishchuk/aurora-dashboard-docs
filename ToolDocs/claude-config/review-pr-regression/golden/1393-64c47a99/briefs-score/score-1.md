@@ -24,7 +24,9 @@ These candidates point at the same place. For each, set `same_as` (see the resul
 
 ## Earlier findings of this report
 
-This is an Update: the report it extends already raised the findings below. A candidate that objects to the PR doing what one of them asked (it moved a column, renamed a string, restructured code as an earlier finding requested) is not a new problem: score it 0 and name the earlier finding in the reason. If the change was made badly — it breaks something or does only half of it — score that as usual.
+This is an Update: the report it extends already raised the findings below. A candidate that objects to the PR doing what one of them asked (it moved a column, renamed a string, restructured code as an earlier finding requested) is not a new problem: score it 0 and name the earlier finding in the reason. If the change was made badly — it breaks something or does only half of it — score that as usual. Exception: when a reviewer other than the PR's author (not a bot) asked for it in the review discussion — the candidate's `discussion` quotes them — score it as usual: their call outranks this report's earlier finding. Name the earlier finding it reverses in the reason.
+
+A candidate raised in the review discussion (it has a `discussion`) about a file the new commits don't touch (not in `delta.diff`) is outside this Update: score it 0 and say so in the reason — "Outside this update's changes" plus what happened to it in the thread (e.g. the author deferred it to a follow-up, with the url). It is then answered under "Review comments not taken up". `save.py` refuses 50 or more for it.
 
 - CR1 🟠 Major — `getSecretPayload` sends the default `Accept: application/json`, so Barbican answers 406 for most secrets — `packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:98`
 - CR2 🟡 Moderate — Create modals mutate without validation; Bit Length is sent as `NaN` when empty — `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderModals.tsx:52`
@@ -63,7 +65,7 @@ This is an Update: the report it extends already raised the findings below. A ca
 
 The evidence is as the finders reported it, unchanged.
 
-### C1 — from finder-a
+### C1 — from find-standards
 - **Claim:** The new row-action toggles are icon-only Buttons with only a title and no aria-label. Screen readers may announce nothing reliable for the control in every key-manager list row.
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretTableRow.tsx:40`
 - **Evidence:**
@@ -71,7 +73,7 @@ The evidence is as the finders reported it, unchanged.
 B.14 / Quick Reject: "Icon-only button without `aria-label`". Code: <Button icon="moreVert" title={t`Secret actions`} /> (same in ContainerTableRow.tsx:39, OrderTableRow.tsx:38). example: packages/aurora/src/client/routes/_auth/projects/$projectId/storage/-components/Ceph/Buckets/BucketHeaderActions.tsx:67
 - **Precedent:** FloatingIpDetailsView.tsx:66 also uses title only; Ceph and flavors pair title with aria-label.
 
-### C2 — from finder-a
+### C2 — from find-standards
 - **Claim:** Accessible names/tooltips "Secret actions", "Container actions", "Order actions" are not title case, unlike sibling labels "Bucket actions"-style/"More Actions" in the reference modules.
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretTableRow.tsx:40`
 - **Evidence:**
@@ -86,7 +88,7 @@ B.19: "Title case for ... button labels". example: packages/aurora/src/client/ro
 
 Row menus now have a labelled toggle and a separator before Delete (`secrets/-components/SecretTableRow.tsx:39`), but earlier findings on sort input, spacing classes and raw HTML elements are not all addressed in this update.
 
-### C3 — from finder-a
+### C3 — from find-standards
 - **Claim:** CreateOrderModal shows validation errors as the user types, derived on every render, instead of on blur / submit. Clearing the Algorithm field immediately paints an error before the field is left, and the Create button is disabled with no submit-time revalidation.
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderModals.tsx:43`
 - **Evidence:**
@@ -94,14 +96,14 @@ Row menus now have a labelled toggle and a separator before Delete (`secrets/-co
 B.11: "Validate **on blur** by default; always re-validate all fields **on submit**. Validate **as-you-type** only for strict-format fields"; Algorithm and Bit Length are not strict-format fields. Errors are computed from state at lines 43-46 and passed to errortext (94-107) with no touched/blur tracking. example: packages/aurora/src/client/routes/_auth/projects/$projectId/compute/flavors/-components/CreateFlavorModal.tsx:225
 - **Precedent:** Not a Reject-line violation by itself (initial defaults are valid, so nothing shows before interaction).
 
-### C4 — from finder-a
+### C4 — from find-standards
 - **Claim:** Each list adds a useEffect that calls onPageChange when the current page becomes empty. This is event-driven state sync that could be done in the delete handler or by clamping the page, and it runs in three components.
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx:71`
 - **Evidence:**
 
 A.1: "Critically evaluate every `useEffect` ... Flag synchronizations, computed states, or event-driven triggers ... that can be handled during rendering or inside event handlers". Effect: if (!isLoading && !isError && page > 1 && (data?.secrets.length ?? 0) === 0) onPageChange(page - 1). Same in OrdersList.tsx:53 and ContainersList.tsx:48. The trigger is the delete mutation's onSuccess in the Delete*Modal.
 
-### C5 — from finder-a
+### C5 — from find-standards
 - **Claim:** The new useKeyManagerPermissions import uses a two-level relative path (`../../`) in the changed lines instead of the `@/` alias.
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx:14`
 - **Evidence:**
@@ -109,7 +111,7 @@ A.1: "Critically evaluate every `useEffect` ... Flag synchronizations, computed 
 Quick Reject: "Import using `../../` traversal beyond one level instead of `@/`"; B.13: "No relative `../../` traversal beyond one level". Lines: import { useKeyManagerPermissions } from "../../-components/useKeyManagerPermissions" (also ContainersList.tsx:4, OrdersList.tsx:12, SecretDetailsView.tsx:8). example: packages/aurora/src/client/routes/_auth/projects/$projectId/compute/flavors/-components/CreateFlavorModal.tsx:17
 - **Precedent:** The old usePermissions import used the same ../../ path; the PR renamed it but kept it.
 
-### C6 — from finder-b
+### C6 — from find-diff-bugs
 - **Claim:** After switching Accept to application/octet-stream, getSecretPayload still reads the body with res.text(). For binary secrets (e.g. application/octet-stream keys, PKCS12 certificates) the bytes are decoded as UTF-8, so Reveal Payload and Copy show corrupted data (replacement characters). Text payloads are unaffected.
 - **Location:** `packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:110`
 - **Evidence:**
@@ -117,7 +119,7 @@ Quick Reject: "Import using `../../` traversal beyond one level instead of `@/`"
 keyManagerRouter.ts lines 100-111 at 64c47a9: request with Accept: application/octet-stream, then `const text = await res.text()` and `return { payload: text, contentType }`. The delta does not touch the read path or base64-encode non-text content types.
 - **Precedent:** The raw-text read was already there before this commit; the Accept change is what makes binary bodies reachable.
 
-### C7 — from finder-d
+### C7 — from find-discussion
 - **Claim:** The Key Manager canUser router only reports policy decisions. None of the tRPC procedures (getSecretPayload, deleteSecret, deleteContainer, deleteOrder, create*, update*) checks the policy before calling Barbican. A caller can use the tRPC API directly to run an action the UI hides and Aurora's policy denies, whenever Barbican itself allows it. This includes revealing secret payloads, since the hidden control is only a client-side gate.
 - **Location:** `packages/aurora/src/server/KeyManager/routers/index.ts:8`
 - **Evidence:**
@@ -148,7 +150,7 @@ At the head commit, keyManagerRouter.ts procedures use projectScopedProcedure an
 - One entry per candidate, every candidate exactly once.
 - `score`: 0, 25, 50, 75 or 100. For 50 and up, `severity` (Critical, Major, Moderate, Low, Trivial), `category` (Bug, Security, Accessibility, UI/UX, Code Quality, Performance, Docs, Test coverage) and a `location` that exists at headRefOid (`path:line`, `path | text on that line`, or `PR body` / `PR state` / `PR files` / `CI`). Below 50, leave them out.
 - `precedent`: required for 50 and up — the reader's tag, it never changes the score. `{"kind": "existing", "ref": "path:line"}` when merged code already has the same problem — `ref` is a line that itself breaks the same rule. Sibling code that does it right (e.g. a list that already debounces) is not a precedent: it's evidence for the finding, put it in `reason`. Find that line at baseRefOid (`git grep -n '<pattern>' <baseRefOid> -- <pathspec>`). `{"kind": "deferred", "ref": "<URL>"}` when a maintainer accepted or postponed the same point, on another PR or in `discussion.json`: open the thread, `ref` is the comment's GitHub URL. Both apply → `deferred`. Neither, or you couldn't confirm the candidate's `precedent` → `null`.
-- `same_as`: required for a candidate in a group above — the id of the candidate in the same group that describes the same problem (score that one; this one is then dropped — `score` and `reason` may be left out for it), or `null` if it is a different problem. Elsewhere leave it out.
+- `same_as`: required for a candidate in a group above — the id of the candidate in the same group that describes the same problem (score that one, and leave its own `same_as` null — never point at another duplicate; this one is then dropped — `score` and `reason` may be left out for it), or `null` if it is a different problem. Elsewhere leave it out.
 
 ## Saving your result
 

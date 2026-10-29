@@ -20,6 +20,7 @@ a temp copy and compares the results with golden/<fixture>/:
 Exit 0 = every output equals golden; 1 = differences (listed, with a unified diff per file).
 Run it before and after every change to the skill; an unexpected difference is a regression.
 """
+import datetime
 import difflib
 import json
 import os
@@ -144,6 +145,7 @@ def normalize(text, run, skill, repo, sap):
     for a, b in ((str(run), "<RUN>"), (str(skill), "<SKILL>"), (str(repo), "<REPO>"), (str(sap), "<SAP>")):
         text = text.replace(a, b)
     text = re.sub(r"/tmp[^\s'\"`)]*?/rpr-[^/\s]+", "<TMP>", text)
+    text = text.replace(datetime.date.today().isoformat(), "<TODAY>")  # dates = the day the set runs
     text = re.sub(r"[ \t]+\(agent missing — [^\n]*", "", text)  # a skill copy without agents/ next to it
     return re.sub(r"(?m)^_Reviewed at head (.*) · (\d{4}-\d{2}-\d{2} \d{2}:\d{2} UTC)_$", r"_Reviewed at head \1 · <TIME>_", text)
 

@@ -1,0 +1,76 @@
+{
+ "today": "2026-10-28",
+ "steps": [
+  {
+   "args": [
+    "collect",
+    "--text",
+    "--label",
+    "rejects"
+   ],
+   "stdin": "task.txt"
+  },
+  {
+   "args": [
+    "write",
+    "--run",
+    "{RUNS}/rejects",
+    "--title",
+    "x",
+    "--slug",
+    "x",
+    "--task",
+    "x"
+   ]
+  },
+  {
+   "args": [
+    "save",
+    "--run",
+    "{RUNS}/rejects"
+   ],
+   "stdin": "decisions.md"
+  },
+  {
+   "args": [
+    "save",
+    "--run",
+    "{RUNS}/rejects"
+   ],
+   "stdin": "plan-1388-absolute-paths.md"
+  },
+  {
+   "args": [
+    "save",
+    "--run",
+    "{RUNS}/rejects"
+   ],
+   "stdin": "plan-1388-tail.md"
+  },
+  {
+   "args": [
+    "save",
+    "--run",
+    "{RUNS}/rejects"
+   ],
+   "stdin": "plan-bad-structure.md"
+  },
+  {
+   "args": [
+    "save",
+    "--run",
+    "{RUNS}/nope"
+   ],
+   "stdin": "plan-bad-structure.md"
+  },
+  {
+   "args": [
+    "followups",
+    "--run",
+    "{RUNS}/rejects",
+    "--skip",
+    "1"
+   ]
+  }
+ ]
+}

@@ -1,11 +1,13 @@
 exit 0
-Launch these 9 agents in ONE message, in the foreground, each with the prompt "Read your brief: <path>" and the subagent type shown:
-describer  pr-reviewer           <RUN>/briefs/describer.md
-finder-a   pr-reviewer           <RUN>/briefs/finder-a.md
-finder-b   pr-reviewer           <RUN>/briefs/finder-b.md
-finder-c   pr-reviewer           <RUN>/briefs/finder-c.md
-finder-d   pr-reviewer           <RUN>/briefs/finder-d.md
-finder-e   pr-reviewer           <RUN>/briefs/finder-e.md
-finder-f   external-api-checker  <RUN>/briefs/finder-f.md
-finder-g   security-reviewer     <RUN>/briefs/finder-g.md
-earlier    pr-reviewer           <RUN>/briefs/earlier.md
+Launch these 11 agents in ONE message, in the foreground, each with the prompt "Read your brief: <path>" and the subagent type shown:
+describer           pr-reviewer           <RUN>/briefs/describer.md
+find-standards      pr-reviewer           <RUN>/briefs/find-standards.md
+find-diff-bugs      pr-reviewer           <RUN>/briefs/find-diff-bugs.md
+find-history        pr-reviewer           <RUN>/briefs/find-history.md
+find-discussion     pr-reviewer           <RUN>/briefs/find-discussion.md
+find-code-comments  pr-reviewer           <RUN>/briefs/find-code-comments.md
+find-api-contract   external-api-checker  <RUN>/briefs/find-api-contract.md
+find-security       security-reviewer     <RUN>/briefs/find-security.md
+find-cross-boundary pr-reviewer           <RUN>/briefs/find-cross-boundary.md
+pr-description      pr-reviewer           <RUN>/briefs/pr-description.md
+earlier-findings    pr-reviewer           <RUN>/briefs/earlier-findings.md

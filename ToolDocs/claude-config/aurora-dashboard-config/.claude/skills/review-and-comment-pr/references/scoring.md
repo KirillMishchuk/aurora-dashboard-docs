@@ -1,5 +1,15 @@
 # Scoring rules — review-and-comment-pr
 
+## Contents
+
+- Verify first
+- Score
+- Rules that adjust the score
+- Severity — for every issue scored 50 or more (and Severity precedents)
+- Category — for every issue scored 50 or more
+- On an Update
+- What to return
+
 Read all of this before scoring. The issues you get were found by other
 agents; you didn't find them and must not take the finders' word for them.
 
@@ -118,12 +128,24 @@ Exactly one kind: `Bug`, `Security`, `Accessibility`, `UI/UX`,
 `Code Quality`, `Performance`, `Docs`, or `Test coverage`. Merge
 conflicts — with `main` or other open PRs — are not findings: GitHub and
 CI show them. (Process items —
-draft, description-vs-code mismatch, missing changeset, unlinked issue —
-are tagged `Process`; they come from Steps 1–2, not the scorer.)
+description-vs-code mismatch, missing changeset, unlinked issue —
+are tagged `Process`; they come from Step 1 and the `pr-description` agent,
+not the scorer.)
+
+## On an Update
+
+A candidate raised in the review discussion (it has a `discussion`) about a
+file the new commits don't touch is outside the Update: score it 0, and say
+"Outside this update's changes" and what happened to it in the thread. The
+report answers it under "Review comments not taken up". The earlier report
+already covered the rest of the PR; a point a reviewer raised there again is
+not a new finding of this Update.
 
 ## What to return
 
 For each issue: the score, the severity (score ≥50), the category, and a
 one- or two-sentence reason naming what it checked and what it found
-(file:line, quote, behaviour) and why that severity — the report shows
-this reason in the finding's "Explanation & Fix".
+(file:line, quote, behaviour) and why that severity. At 50 and up the finding's "Explanation & Fix"
+is written from it; below 50 it is shown as is — in "Checked and
+dismissed" and, for a candidate raised in a review comment, in the
+published "Review comments not taken up".

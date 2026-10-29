@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Code quotes and line citations for review-and-comment-pr reports (Phase 3).
 
-Used by render.py on findings.json, and on its own for an Update block
-(render.py doesn't handle that mode yet):
+Used by render.py on findings.json (the full report and the Update block),
+by save.py / briefs.py / assemble.py, and on its own:
 
   quotes.py --run <run-dir> --report <file.md> [--update]
                                                  check a hand-written Markdown file;
@@ -43,7 +43,7 @@ MAX_BLOCK = 30
 INTERNAL = re.compile(r"\b(headRefOid|baseRefOid|headRefName|baseRefName)\b|(?<![\w/.-])(context|discussion|candidates|findings|texts|describer)\.json\b"
                       r"|(?<![\w/.-])(pr-body\.md|compose\.md|pr\.diff|delta\.diff|issue-\d+\.md)(?![\w/])"
                       # this review's own steps — the reader doesn't know them
-                      r"|(?i:\bfinders?[ -][a-g](?:(?:,\s*|\s+and\s+)[a-g])*\b|\bscorers?\b|\bdescriber\b|\bfact-?check(?:er)?\b)")
+                      r"|(?i:\bfinders?[ -][a-h](?:(?:,\s*|\s+and\s+)[a-h])*\b|\bfind-(?:standards|diff-bugs|history|discussion|code-comments|api-contract|security|cross-boundary)\b|\bpr-description\b|\bearlier-findings\b|\bscorers?\b|\bdescriber\b|\bfact-?check(?:er)?\b)")
 
 
 class Repo:
@@ -332,44 +332,6 @@ def describer_md(run_dir):
     return 1 if errors else 0
 
 
-def main(argv):
-    if len(argv) == 3 and argv[0] == "--run" and argv[2] == "--describer":
-        return describer_md(Path(argv[1]))
-    update = argv[4:] == ["--update"]
-    if len(argv) != (5 if update else 4) or argv[0] != "--run" or argv[2] != "--report":
-        print(__doc__)
-        return 2
-    ctx = json.loads((Path(argv[1]) / "context.json").read_text(encoding="utf-8"))
-    text = Path(argv[3]).read_text(encoding="utf-8")
-    text = text.split("<!-- related:auto", 1)[0]
-    if update:  # the older sections quote older heads — check only the new block
-        starts = [m.start() for m in re.finditer(r"^## Update — ", text, re.M)]
-        if not starts:
-            print(f"{argv[3]}: no '## Update — …' block found")
-            return 1
-        text = text[starts[-1]:]
-        end = re.search(r"^---\n\n_Analyzed|^## (?!Update — )", text[1:], re.M)
-        if end:
-            text = text[:end.start() + 1]
-    repo, errors = Repo(ctx), []
-    check_hand_blocks(repo, text, argv[3], errors)
-    check_cites(repo, text, argv[3], errors, repo.warnings)
-    internal = sorted({m.group(0) for m in INTERNAL.finditer(FENCE.sub("", text))})
-    if internal:
-        errors.append(f"{argv[3]}: names run-folder files or fields ({', '.join(internal)}) — write for the PR's readers")
-    if PLACEHOLDER_START.search(text):
-        errors.append(f"{argv[3]}: unresolved [[code:…]]/[[at:…]] placeholders — render.py resolves them; "
-                      "for an Update, copy resolved text from quotes.py --describer")
-    print("\n".join(errors) if errors else "Quotes and citations: OK")
-    if repo.warnings:
-        print("Warnings:\n  " + "\n  ".join(repo.warnings))
-    return 1 if errors else 0
-
-
-if __name__ == "__main__":
-    sys.exit(main(sys.argv[1:]))
-
-
 PRECEDENT_KINDS = ("existing", "deferred")
 PRECEDENT_URL = re.compile(r"^https://github\.com/[^/\s]+/[^/\s]+/(pull|issues)/\d+\S*$")
 
@@ -426,3 +388,41 @@ def earlier_rows(report_path, head_short, detail=False):
             rows.append((cells[0], cells[1], cells[-2], cells[-1])
                         + (((cells[3] if len(cells) >= 6 else ""), cells[2]) if detail else ()))
     return rows
+
+
+def main(argv):
+    if len(argv) == 3 and argv[0] == "--run" and argv[2] == "--describer":
+        return describer_md(Path(argv[1]))
+    update = argv[4:] == ["--update"]
+    if len(argv) != (5 if update else 4) or argv[0] != "--run" or argv[2] != "--report":
+        print(__doc__)
+        return 2
+    ctx = json.loads((Path(argv[1]) / "context.json").read_text(encoding="utf-8"))
+    text = Path(argv[3]).read_text(encoding="utf-8")
+    text = text.split("<!-- related:auto", 1)[0]
+    if update:  # the older sections quote older heads — check only the new block
+        starts = [m.start() for m in re.finditer(r"^## Update — ", text, re.M)]
+        if not starts:
+            print(f"{argv[3]}: no '## Update — …' block found")
+            return 1
+        text = text[starts[-1]:]
+        end = re.search(r"^---\n\n_Analyzed|^## (?!Update — )", text[1:], re.M)
+        if end:
+            text = text[:end.start() + 1]
+    repo, errors = Repo(ctx), []
+    check_hand_blocks(repo, text, argv[3], errors)
+    check_cites(repo, text, argv[3], errors, repo.warnings)
+    internal = sorted({m.group(0) for m in INTERNAL.finditer(FENCE.sub("", text))})
+    if internal:
+        errors.append(f"{argv[3]}: names run-folder files or fields ({', '.join(internal)}) — write for the PR's readers")
+    if PLACEHOLDER_START.search(text):
+        errors.append(f"{argv[3]}: unresolved [[code:…]]/[[at:…]] placeholders — render.py resolves them; "
+                      "for an Update, copy resolved text from quotes.py --describer")
+    print("\n".join(errors) if errors else "Quotes and citations: OK")
+    if repo.warnings:
+        print("Warnings:\n  " + "\n  ".join(repo.warnings))
+    return 1 if errors else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

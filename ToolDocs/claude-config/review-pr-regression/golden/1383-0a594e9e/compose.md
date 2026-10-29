@@ -15,7 +15,7 @@ If a pair below is one problem, put `"merge": {"<drop id>": "<keep id>"}` in tex
 ## Findings
 
 ### `c15` — Major · Bug · `packages/aurora/src/server/Network/routers/networksRouter.ts:42` · score 75
-- **Claim** (finder-f): networks.list forwards project_id (from projectScopedInputSchema) to Neutron as a filter, so networks the user may see but does not own (shared networks, external/provider networks owned by another project) are hidden from the list.
+- **Claim** (find-api-contract): networks.list forwards project_id (from projectScopedInputSchema) to Neutron as a filter, so networks the user may see but does not own (shared networks, external/provider networks owned by another project) are hidden from the list.
 - **Scorer:** list destructures only searchTerm/status, so project_id from projectScopedInputSchema stays in openstackFilters and is sent to Neutron as a filter at line 42. The API reference says the default policy also returns networks shared with the project, so the filter hides shared and external networks that the default policy lets the user see (precedent: list filter hides visible resources = Major).
 - **Precedent:** securityGroupRouter.ts:80-87 fetches own (project_id, shared=false) plus shared (shared=true) and merges; floatingIpRouter lists external networks via router:external=true.
 - **Evidence:**
@@ -25,7 +25,7 @@ Code: `const { searchTerm, status, ...openstackFilters } = input` then `const qu
 - Bug: add its scenario to `edge_cases` in texts.json.
 
 ### `c1` — Moderate · Performance · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/$networkId.tsx:124` · score 75
-- **Claim** (finder-a): The detail route's loader already fetches the network via getById, and RouteComponent then fetches the same network again with trpcReact getById.useQuery. The loader only uses the result for the page title, so every detail visit makes two identical requests.
+- **Claim** (find-standards): The detail route's loader already fetches the network via getById, and RouteComponent then fetches the same network again with trpcReact getById.useQuery. The loader only uses the result for the page title, so every detail visit makes two identical requests.
 - **Scorer:** Loader calls network.networks.getById.query (l.124) only for the title, and RouteComponent calls trpcReact getById.useQuery with the same input (l.149), so each detail visit fetches the same network twice. Matches the precedent row 'same data fetched twice (loader + useQuery)'.
 - **Evidence:**
 
@@ -33,7 +33,7 @@ A.3: 'Data critical for rendering a page must be fetched via the route's loader 
 
 
 ### `c13` — Moderate · Conflict · `PR files` · score 75
-- **Claim** (finder-c): Same work as open draft PR #1385 (Neutron Networks BFF + read-only Networks list/details). Both add the same networks.tsx, networks/index.tsx, $networkId.tsx, -components/*, networksRouter.ts, networkHelpers.ts, types/network.ts and the nav entry. Whichever merges second hits real conflicts in 9 non-generated files, so one of them is wasted effort.
+- **Claim** (find-history): Same work as open draft PR #1385 (Neutron Networks BFF + read-only Networks list/details). Both add the same networks.tsx, networks/index.tsx, $networkId.tsx, -components/*, networksRouter.ts, networkHelpers.ts, types/network.ts and the nav entry. Whichever merges second hits real conflicts in 9 non-generated files, so one of them is wasted effort.
 - **Scorer:** context.json overlapping_prs lists open draft PR #1385 sharing the same networks routes, components, networkHelpers.ts and nav files. Work duplicated in another open PR is the Moderate 'Conflict' precedent. It is a different problem from C22 and C24.
 - **Review discussion:** Nothing in the discussion mentions #1385.
 - **Evidence:**
@@ -42,7 +42,7 @@ context.json overlapping_prs: #1385 shares 18 files, merge conflicts in 9 non-ge
 
 
 ### `c2` — Low · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/$networkId.tsx:65` · score 50
-- **Claim** (finder-a): A 401 is handled inline: NetworkLoadError renders an error message ('The session has expired...') in the page instead of redirecting to Sign-in. 403 also renders a plain error page without the page-level info Message explaining the lack of access.
+- **Claim** (find-standards): A 401 is handled inline: NetworkLoadError renders an error message ('The session has expired...') in the page instead of redirecting to Sign-in. 403 also renders a plain error page without the page-level info Message explaining the lack of access.
 - **Scorer:** UNAUTHORIZED and FORBIDDEN are mapped to inline error descriptions (l.63-66) rendered by NetworkLoadError, with no redirect to Sign-in or page-level info Message. Matches the precedent row '401/403 handled inline instead of redirect / page-level message' (Low). The parent _auth route may also handle sessions, so impact is limited. This is a different problem from the C3 copy wording.
 - **Evidence:**
 
@@ -50,7 +50,7 @@ B.6 Reject: 'a 401/403 handled inline instead of via redirect / page-level info 
 
 
 ### `c3` — Low · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/$networkId.tsx:66` · score 75
-- **Claim** (finder-a): The UNAUTHORIZED copy says 'Log in again to continue.' The UX writing rule requires 'Sign in', and the recommended 401 copy is 'Authentication failed. Verify your credentials and try again.'
+- **Claim** (find-standards): The UNAUTHORIZED copy says 'Log in again to continue.' The UX writing rule requires 'Sign in', and the recommended 401 copy is 'Authentication failed. Verify your credentials and try again.'
 - **Scorer:** l.66 reads 'The session has expired. Log in again to continue.' Quick Reject lists strings using 'Log in' (use 'Sign in'), so this is a verified checklist violation scoring at least 75. It is only wording, so Low. It is a different problem from C2's inline-vs-redirect handling.
 - **Evidence:**
 
@@ -58,7 +58,7 @@ Quick Reject: 'String using ... "Sign In"/"Log in" (use "Sign in")'. B.19: '"Sig
 
 
 ### `c4` — Low · Code Quality · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkDetailsView.tsx:69` · score 75
-- **Claim** (finder-a): A raw <button> is used for the 'Try Again' action in the subnets error state, where Juno's Button exists. It has no Juno styling or variant.
+- **Claim** (find-standards): A raw <button> is used for the 'Try Again' action in the subnets error state, where Juno's Button exists. It has no Juno styling or variant.
 - **Scorer:** l.69 uses a raw <button onClick={() => refetch()}> as the Status action, while Juno Button is available (and used in $networkId.tsx). This violates the Quick Reject item 'Raw HTML element (<div>, <table>, <button>) where a Juno component exists'. Severity Low per precedent.
 - **Evidence:**
 
@@ -66,7 +66,7 @@ B.1 Reject: 'any PR that introduces a plain <table>, <input>, <select>, or <butt
 
 
 ### `c6` — Low · Code Quality · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkDetailsView.tsx:109` · score 75
-- **Claim** (finder-a): The active detail tab is held in useState instead of the URL search params, so the Subnets tab is not shareable and is lost on refresh.
+- **Claim** (find-standards): The active detail tab is held in useState instead of the URL search params, so the Subnets tab is not shareable and is lost on refresh.
 - **Scorer:** l.109 `const [activeTab, setActiveTab] = useState<NetworkDetailsTab>("overview")` keeps the active tab in useState, so it is lost on refresh and can't be shared. This violates the Quick Reject item 'URL-worthy state held in useState instead of search params' and B.9 lists 'Active tab'. Severity Low per precedent.
 - **Evidence:**
 
@@ -74,7 +74,7 @@ B.9: 'All persistent UI state must live in URL search params' with 'Active tab |
 
 
 ### `c7` — Low · Accessibility · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkTableRow.tsx:56` · score 75
-- **Claim** (finder-a): The row action menu uses <PopupMenu> without a PopupMenuToggle trigger (default toggle), contrary to the required pattern <PopupMenuToggle as="div"><Button icon="moreVert" /></PopupMenuToggle>.
+- **Claim** (find-standards): The row action menu uses <PopupMenu> without a PopupMenuToggle trigger (default toggle), contrary to the required pattern <PopupMenuToggle as="div"><Button icon="moreVert" /></PopupMenuToggle>.
 - **Scorer:** l.56-60 render <PopupMenu><PopupMenuOptions> with no PopupMenuToggle (not imported). This violates the Quick Reject item '`PopupMenu` without `PopupMenuToggle` as trigger' and B.14. The default toggle works visually, so Low.
 - **Evidence:**
 
@@ -82,7 +82,7 @@ Quick Reject: 'PopupMenu without PopupMenuToggle as trigger'; B.14: 'Context men
 
 
 ### `c8` — Low · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkTableRow.tsx:43` · score 75
-- **Claim** (finder-a): Network status is rendered as plain text in the list (and detail Overview) instead of a Badge status indicator.
+- **Claim** (find-standards): Network status is rendered as plain text in the list (and detail Overview) instead of a Badge status indicator.
 - **Scorer:** Line 43 renders `<DataGridCell>{network.status}</DataGridCell>` as plain text, and NetworkDetailsView.tsx:116 does the same. copilot-instructions B.1 says status indicators use `Badge`, so this is a verified standards violation with cosmetic impact.
 - **Evidence:**
 
@@ -90,7 +90,7 @@ B.1: 'Status indicators | Badge'. Line 43: <DataGridCell>{network.status}</DataG
 
 
 ### `c9` — Low · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkTableRow.tsx:46` · score 75
-- **Claim** (finder-a): Admin state is shown as 'UP' / 'DOWN', all-caps strings, which the UX writing rule forbids.
+- **Claim** (find-standards): Admin state is shown as 'UP' / 'DOWN', all-caps strings, which the UX writing rule forbids.
 - **Scorer:** Line 46 renders t`UP` / t`DOWN` (same at NetworkDetailsView.tsx:117). The Quick Reject checklist lists a 'String using ... all-caps' item, and the UX writing rules say 'Never all-caps (ever)'. This is a different problem from C8 (wording, not component choice); Low per the precedent table.
 - **Evidence:**
 
@@ -98,7 +98,7 @@ Quick Reject: 'String using ... all-caps'; B.19: 'Never all-caps (ever)'. Line 4
 
 
 ### `c10` — Low · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkDetailsView.tsx:132` · score 50
-- **Claim** (finder-a): The label 'Created At' and 'Updated At' capitalise the short preposition 'At', which title-case rules require lowercase.
+- **Claim** (find-standards): The label 'Created At' and 'Updated At' capitalise the short preposition 'At', which title-case rules require lowercase.
 - **Scorer:** Lines 132-133 use t`Created At` and t`Updated At`. The title-case rule keeps short prepositions such as 'at' lowercase, so this is verified. It is only a wording nit, so 50 and Low.
 - **Evidence:**
 
@@ -106,7 +106,7 @@ B.19: 'Lowercase ... short prepositions (max 5 letters: at, by, for, in, of, on,
 
 
 ### `c11` — Low · Code Quality · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkListContainer.tsx:36` · score 75
-- **Claim** (finder-a): NetworkListContainer mirrors the currentPage prop into inputPage state through a useEffect. This synchronisation can be handled during render or by keying, and costs an extra render on every page change.
+- **Claim** (find-standards): NetworkListContainer mirrors the currentPage prop into inputPage state through a useEffect. This synchronisation can be handled during render or by keying, and costs an extra render on every page change.
 - **Scorer:** Lines 36-38 use a useEffect to copy the currentPage prop into inputPage state. This is the prop-to-state sync that copilot-instructions A.1 ('Minimize useEffect') says to flag. The only cost is an extra render, so Low.
 - **Evidence:**
 
@@ -114,7 +114,7 @@ A.1: 'Critically evaluate every useEffect hook. Flag synchronizations, computed 
 
 
 ### `c14` — Low · Docs · `apps/dashboard/.env.example:11` · score 50
-- **Claim** (finder-e): The PR adds a new `networks` service key to buildNavSections (gated by isEnabled("networks")), but the comment listing the available enabledServices keys was not updated, so operators reading it do not learn that `networks` can be whitelisted. A deployment that sets VITE_ENABLED_SERVICES per the documented list will silently hide the new Networks nav entry.
+- **Claim** (find-code-comments): The PR adds a new `networks` service key to buildNavSections (gated by isEnabled("networks")), but the comment listing the available enabledServices keys was not updated, so operators reading it do not learn that `networks` can be whitelisted. A deployment that sets VITE_ENABLED_SERVICES per the documented list will silently hide the new Networks nav entry.
 - **Scorer:** Line 11 still reads '# Available keys: images, flavors, securitygroups, floatingips, containers, ceph-containers, pca'; the PR adds isEnabled("networks") but not the key here, so an operator following the list would hide the Networks nav. Rare and cosmetic; routers was already missing.
 - **Precedent:** Existing keys (securitygroups, floatingips) are all listed there; routers is also missing, so the list was already incomplete.
 - **Evidence:**
@@ -123,7 +123,7 @@ At the head commit, apps/dashboard/.env.example:11 reads '# Available keys: imag
 
 
 ### `c16` — Low · Performance · `packages/aurora/src/server/Network/routers/networksRouter.ts:44` · score 50
-- **Claim** (finder-f): The list call sends no limit/marker and does not follow next links, so if Neutron pagination is enabled with a max page size, only the first page is shown with no indication of truncation.
+- **Claim** (find-api-contract): The list call sends no limit/marker and does not follow next links, so if Neutron pagination is enabled with a max page size, only the first page is shown with no indication of truncation.
 - **Scorer:** The list call sends no limit/marker and ignores next links. The quoted reference says pagination is optional and gives no finite default, so Neutron returns everything by default and only a deployment-configured cap truncates silently (precedent: API returns everything by default = Low). It is a different problem from C15 (page size vs owner filter).
 - **Evidence:**
 
@@ -131,7 +131,7 @@ Code: `network.get(withQuery(NETWORKS_BASE_URL, queryParams))`, then `const { ne
 
 
 ### `c17` — Low · Bug · `packages/aurora/src/server/Network/types/network.ts:61` · score 50
-- **Claim** (finder-f): NetworkSortKeySchema accepts `shared`, which Neutron's documented network sort keys do not include.
+- **Claim** (find-api-contract): NetworkSortKeySchema accepts `shared`, which Neutron's documented network sort keys do not include.
 - **Scorer:** NetworkSortKeySchema allows 'shared' (line 61) with the comment 'supported by Neutron', while the reference limits sort keys to admin_state_up, availability_zone_hints, id, mtu, name, status, tenant_id, project_id. sort_key=shared would be forwarded and be rejected or ignored; it only matters if the UI offers that sort, so Low.
 - **Evidence:**
 
@@ -184,6 +184,10 @@ The README service-key list (also at line 210) does not include the new `network
 - partly met: Comprehensive error handling provides user-friendly feedback for Neutron errors (e.g., preventing deletion of networks with active ports).
 - met: All UI components follow the Aurora design system.
 - unmet: Complete testing coverage (unit, integration, E2E) is achieved.
+
+## PR description vs code (Process items)
+
+No result (`out/pr-description.json` is missing — the PR description is empty, or re-launch the `pr-description` agent as in Step 4).
 
 ## texts.json shape
 

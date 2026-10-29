@@ -25,21 +25,21 @@ These candidates point at the same place. For each, set `same_as` (see the resul
 
 The evidence is as the finders reported it, unchanged.
 
-### C51 — from finder-g
+### C51 — from find-security
 - **Claim:** Decrypted secret payload is fetched via a TanStack Query useQuery (enabled:false + refetch) and so stays in the client query cache after 'Hide' (default gcTime 5 min, also refetchable/shared across components), and is returned as `res.text()` which corrupts binary payloads. Plaintext secrets remaining in cache longer than needed is a data-protection concern; consider a mutation or gcTime:0 and clear on hide/unmount.
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretDetailsView.tsx:34`
 - **Evidence:**
 
 setShowPayload(false) on Hide only toggles UI state; no cache removal or gcTime option on the query.
 
-### C52 — from finder-g
+### C52 — from find-security
 - **Claim:** ID/ref inputs interpolated into outbound Barbican paths are unvalidated `z.string()`; encodeURIComponent does not encode `.`, so `secretId`/`containerId`/`orderId`/`secretName` of `..` yields `v1/secrets/..` style paths that a URL normaliser collapses (e.g. DELETE v1/containers/.. -> v1/). Also secret_ref/secret_refs entries are arbitrary strings forwarded to Barbican, and `sort` is free text split into sort_key/sort_dir. Low impact (same project token, same service) but should be constrained with uuid()/regex.
 - **Location:** `packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:37`
 - **Evidence:**
 
 `const resourceIdInput = z.object({ secretId: z.string() })`, containerIdInput/orderIdInput the same; deleteContainerSecret uses `secretName: z.string()` in the path; addContainerSecret `secret_ref: z.string()`; pagination `offset`/`limit` are unbounded z.number() (no int/min/max).
 
-### C53 — from finder-g
+### C53 — from find-security
 - **Claim:** mapKmError attaches the raw upstream error as `cause` for every failure; if the tRPC error formatter or logger serialises causes this can expose OpenStack internals, and the secret payload in createSecret/updateSecret bodies could flow into logged errors. Worth confirming the error formatter strips `cause`.
 - **Location:** `packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:50`
 - **Evidence:**
@@ -103,7 +103,7 @@ Unit tests are added for the router (`keyManagerRouter.test.ts`), the schemas (`
 - One entry per candidate, every candidate exactly once.
 - `score`: 0, 25, 50, 75 or 100. For 50 and up, `severity` (Critical, Major, Moderate, Low, Trivial), `category` (Bug, Security, Accessibility, UI/UX, Code Quality, Performance, Docs, Test coverage) and a `location` that exists at headRefOid (`path:line`, `path | text on that line`, or `PR body` / `PR state` / `PR files` / `CI`). Below 50, leave them out.
 - `precedent`: required for 50 and up — the reader's tag, it never changes the score. `{"kind": "existing", "ref": "path:line"}` when merged code already has the same problem — `ref` is a line that itself breaks the same rule. Sibling code that does it right (e.g. a list that already debounces) is not a precedent: it's evidence for the finding, put it in `reason`. Find that line at baseRefOid (`git grep -n '<pattern>' <baseRefOid> -- <pathspec>`). `{"kind": "deferred", "ref": "<URL>"}` when a maintainer accepted or postponed the same point, on another PR or in `discussion.json`: open the thread, `ref` is the comment's GitHub URL. Both apply → `deferred`. Neither, or you couldn't confirm the candidate's `precedent` → `null`.
-- `same_as`: required for a candidate in a group above — the id of the candidate in the same group that describes the same problem (score that one; this one is then dropped — `score` and `reason` may be left out for it), or `null` if it is a different problem. Elsewhere leave it out.
+- `same_as`: required for a candidate in a group above — the id of the candidate in the same group that describes the same problem (score that one, and leave its own `same_as` null — never point at another duplicate; this one is then dropped — `score` and `reason` may be left out for it), or `null` if it is a different problem. Elsewhere leave it out.
 
 ## Saving your result
 

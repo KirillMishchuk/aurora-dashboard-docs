@@ -1,0 +1,15 @@
+{
+ "mode": "A",
+ "issue": [
+  1208
+ ],
+ "pr": [],
+ "kind": "issue",
+ "number": 1208,
+ "title": "[Feature](ceph): integrate CLI setup help",
+ "run": "<SAP>/aurora-dashboard/.claude/runs/create-plan/1208",
+ "fetch_ok": true,
+ "behind": 2,
+ "kb_pin": "5b7bea1e",
+ "kb_lag": 7
+}

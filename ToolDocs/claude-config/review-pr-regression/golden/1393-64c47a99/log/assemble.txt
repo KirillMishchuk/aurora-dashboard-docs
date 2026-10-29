@@ -1,3 +1,3 @@
 exit 0
-4 findings to write (1 Bug), 13 candidates dropped (below 50 or same_as), 0 look-alike pair(s).
+4 findings to write (1 Bug), 13 candidates dropped (below 50 or same_as), 0 look-alike pair(s), 1 Process item(s) from the PR description check.
 Read <RUN>/compose.md, write <RUN>/texts.json, then run with --texts.

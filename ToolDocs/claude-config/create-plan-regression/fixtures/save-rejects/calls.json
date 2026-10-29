@@ -1,0 +1,32 @@
+{
+ "git fetch origin main": {
+  "err": "From https://github.com/cobaltcore-dev/aurora-dashboard\n * branch              main       -> FETCH_HEAD",
+  "out": "",
+  "rc": 0
+ },
+ "git rev-list --count 5b7bea1e..origin/main -- packages/ apps/": {
+  "err": "",
+  "out": "7",
+  "rc": 0
+ },
+ "git rev-list --count HEAD..origin/main": {
+  "err": "",
+  "out": "0",
+  "rc": 0
+ },
+ "git rev-parse --abbrev-ref HEAD": {
+  "err": "",
+  "out": "main",
+  "rc": 0
+ },
+ "git rev-parse --path-format=absolute --git-common-dir": {
+  "err": "",
+  "out": "{{MAIN}}/.git",
+  "rc": 0
+ },
+ "git rev-parse --short HEAD": {
+  "err": "",
+  "out": "8cd09bfa",
+  "rc": 0
+ }
+}

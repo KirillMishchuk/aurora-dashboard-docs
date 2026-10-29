@@ -1,0 +1,13 @@
+{
+ "candidates": [],
+ "boundaries": [
+  {
+   "change": "A 401 on the port details page shows a Sign in button that navigates to `/`.",
+   "receiver": "packages/aurora/src/client/routes/index.tsx:32"
+  },
+  {
+   "change": "The Sign in button relies on the landing route to restart sign-in; AuthProvider has its own redirect helper.",
+   "receiver": "packages/aurora/src/client/store/AuthProvider.tsx:26"
+  }
+ ]
+}

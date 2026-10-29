@@ -1,0 +1,91 @@
+{
+ "today": "2026-10-28",
+ "steps": [
+  {
+   "args": [
+    "collect",
+    "1393",
+    "--mine"
+   ]
+  },
+  {
+   "args": [
+    "save",
+    "--run",
+    "{RUNS}/pr-1393"
+   ],
+   "stdin": "plan-1387.md"
+  },
+  {
+   "args": [
+    "write",
+    "--run",
+    "{RUNS}/pr-1393",
+    "--task",
+    "fix the review findings",
+    "--top-risk",
+    "x",
+    "--sources",
+    "review-and-comment-pr report, Copilot"
+   ]
+  },
+  {
+   "args": [
+    "write",
+    "--run",
+    "{RUNS}/pr-1393",
+    "--task",
+    "fix the review findings",
+    "--top-risk",
+    "x",
+    "--sources",
+    "review-and-comment-pr report, Copilot",
+    "--original-plan",
+    "2026-10-27-security-group-empty-state-copy.md"
+   ]
+  },
+  {
+   "args": [
+    "followups",
+    "--run",
+    "{RUNS}/pr-1393",
+    "--skip",
+    "1",
+    "--file",
+    "2=new:Key Manager"
+   ]
+  },
+  {
+   "args": [
+    "save",
+    "--run",
+    "{RUNS}/pr-1393"
+   ],
+   "stdin": "plan-1387.md"
+  },
+  {
+   "args": [
+    "write",
+    "--run",
+    "{RUNS}/pr-1393",
+    "--task",
+    "second round",
+    "--sources",
+    "triple-review",
+    "--reviewed",
+    "2/2"
+   ]
+  },
+  {
+   "args": [
+    "followups",
+    "--run",
+    "{RUNS}/pr-1393",
+    "--file",
+    "1=K",
+    "--skip",
+    "2"
+   ]
+  }
+ ]
+}

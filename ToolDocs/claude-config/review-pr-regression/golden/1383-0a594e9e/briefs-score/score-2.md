@@ -26,42 +26,42 @@ These candidates point at the same place. For each, set `same_as` (see the resul
 
 The evidence is as the finders reported it, unchanged.
 
-### C8 — from finder-a
+### C8 — from find-standards
 - **Claim:** Network status is rendered as plain text in the list (and detail Overview) instead of a Badge status indicator.
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkTableRow.tsx:43`
 - **Evidence:**
 
 B.1: 'Status indicators | Badge'. Line 43: <DataGridCell>{network.status}</DataGridCell>; NetworkDetailsView.tsx:116 value: network.status.
 
-### C9 — from finder-a
+### C9 — from find-standards
 - **Claim:** Admin state is shown as 'UP' / 'DOWN', all-caps strings, which the UX writing rule forbids.
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkTableRow.tsx:46`
 - **Evidence:**
 
 Quick Reject: 'String using ... all-caps'; B.19: 'Never all-caps (ever)'. Line 46: network.admin_state_up ? t`UP` : t`DOWN`; same in NetworkDetailsView.tsx:117.
 
-### C10 — from finder-a
+### C10 — from find-standards
 - **Claim:** The label 'Created At' and 'Updated At' capitalise the short preposition 'At', which title-case rules require lowercase.
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkDetailsView.tsx:132`
 - **Evidence:**
 
 B.19: 'Lowercase ... short prepositions (max 5 letters: at, by, for, in, of, on, to, up...)'. Lines 132-133: t`Created At`, t`Updated At`.
 
-### C11 — from finder-a
+### C11 — from find-standards
 - **Claim:** NetworkListContainer mirrors the currentPage prop into inputPage state through a useEffect. This synchronisation can be handled during render or by keying, and costs an extra render on every page change.
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkListContainer.tsx:36`
 - **Evidence:**
 
 A.1: 'Critically evaluate every useEffect hook. Flag synchronizations, computed states ... that can be handled during rendering'. Lines 36-38: useEffect(() => { setInputPage(currentPage.toString()) }, [currentPage]).
 
-### C12 — from finder-a
+### C12 — from find-standards
 - **Claim:** A useEffect corrects an out-of-range page by calling onPageChange(1). This is derived state: safePage is already clamped during render, so the effect only exists to rewrite the URL.
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworksList.tsx:97`
 - **Evidence:**
 
 A.1: 'Flag synchronizations, computed states, or event-driven triggers ... that can be handled during rendering or inside event handlers'. Lines 97-99: useEffect(() => { if (!isStale && currentPage > totalPages) onPageChange(1) }, ...).
 
-### C13 — from finder-c
+### C13 — from find-history
 - **Claim:** Same work as open draft PR #1385 (Neutron Networks BFF + read-only Networks list/details). Both add the same networks.tsx, networks/index.tsx, $networkId.tsx, -components/*, networksRouter.ts, networkHelpers.ts, types/network.ts and the nav entry. Whichever merges second hits real conflicts in 9 non-generated files, so one of them is wasted effort.
 - **Location:** PR files
 - **Evidence:**
@@ -105,7 +105,7 @@ The diff has no tests for `networksRouter.ts`, `networkHelpers.ts` or any new co
 - One entry per candidate, every candidate exactly once.
 - `score`: 0, 25, 50, 75 or 100. For 50 and up, `severity` (Critical, Major, Moderate, Low, Trivial), `category` (Bug, Security, Accessibility, UI/UX, Code Quality, Performance, Docs, Test coverage) and a `location` that exists at headRefOid (`path:line`, `path | text on that line`, or `PR body` / `PR state` / `PR files` / `CI`). Below 50, leave them out.
 - `precedent`: required for 50 and up — the reader's tag, it never changes the score. `{"kind": "existing", "ref": "path:line"}` when merged code already has the same problem — `ref` is a line that itself breaks the same rule. Sibling code that does it right (e.g. a list that already debounces) is not a precedent: it's evidence for the finding, put it in `reason`. Find that line at baseRefOid (`git grep -n '<pattern>' <baseRefOid> -- <pathspec>`). `{"kind": "deferred", "ref": "<URL>"}` when a maintainer accepted or postponed the same point, on another PR or in `discussion.json`: open the thread, `ref` is the comment's GitHub URL. Both apply → `deferred`. Neither, or you couldn't confirm the candidate's `precedent` → `null`.
-- `same_as`: required for a candidate in a group above — the id of the candidate in the same group that describes the same problem (score that one; this one is then dropped — `score` and `reason` may be left out for it), or `null` if it is a different problem. Elsewhere leave it out.
+- `same_as`: required for a candidate in a group above — the id of the candidate in the same group that describes the same problem (score that one, and leave its own `same_as` null — never point at another duplicate; this one is then dropped — `score` and `reason` may be left out for it), or `null` if it is a different problem. Elsewhere leave it out.
 
 ## Saving your result
 

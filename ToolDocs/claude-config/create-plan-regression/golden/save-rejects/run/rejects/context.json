@@ -1,0 +1,12 @@
+{
+ "mode": "A",
+ "issue": [],
+ "pr": [],
+ "kind": "text",
+ "title": "",
+ "run": "<SAP>/aurora-dashboard/.claude/runs/create-plan/rejects",
+ "fetch_ok": true,
+ "behind": 0,
+ "kb_pin": "5b7bea1e",
+ "kb_lag": 7
+}

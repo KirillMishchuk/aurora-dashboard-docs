@@ -26,7 +26,7 @@ These candidates point at the same place. For each, set `same_as` (see the resul
 
 The evidence is as the finders reported it, unchanged.
 
-### C1 — from finder-a
+### C1 — from find-standards
 - **Claim:** Permission props are named `canDelete` instead of `can<Verb><Noun>` (canDeleteSecret / canDeleteContainer / canDeleteOrder), in the row and list-container props of all three resources.
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretTableRow.tsx:15`
 - **Evidence:**
@@ -35,7 +35,7 @@ Quick Reject: "Permission prop not named `can<Verb><Noun>`"; B.8: "Boolean permi
 - **Precedent:** Network plugin uses `canDeleteRule` (SecurityGroupRulesTable).
 - **Review discussion:** Copilot raised it on all six files (threads r4360388743, r4360388949, r4360389203, r4360389452, r4360389872, r4360389932).
 
-### C36 — from finder-d
+### C36 — from find-discussion
 - **Claim:** Boolean permission props are named canDelete instead of can<Verb><Noun> (canDeleteContainer/canDeleteSecret/canDeleteOrder), violating B.8.
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretTableRow.tsx:15`
 - **Evidence:**
@@ -43,7 +43,7 @@ Quick Reject: "Permission prop not named `can<Verb><Noun>`"; B.8: "Boolean permi
 canDelete in Secret/Container/Order TableRow (line 15), ListContainer (line 12) and passed from Lists; copilot-instructions line 329 requires can<Verb><Noun>.
 - **Review discussion:** Copilot inline threads r4360388743, r4360388949, r4360389203, r4360389452, r4360389872, r4360389932; no replies, unchanged.
 
-### C2 — from finder-a
+### C2 — from find-standards
 - **Claim:** Row action menus use `<PopupMenu>` without a `PopupMenuToggle` trigger, so the default toggle is used with no `<Button icon="moreVert" aria-label>`; the icon-only trigger has no accessible label.
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretTableRow.tsx:35`
 - **Evidence:**
@@ -52,7 +52,7 @@ Quick Reject: "`PopupMenu` without `PopupMenuToggle` as trigger"; B.14: "Context
 - **Precedent:** Network floating IP / security group views import PopupMenuToggle.
 - **Review discussion:** Copilot thread r4360388832 (OrderTableRow).
 
-### C3 — from finder-a
+### C3 — from find-standards
 - **Claim:** Delete menu item is neither labelled with the entity nor separated by a divider from the other item (single-entity menu): labels are `Delete` / `Show Details` rather than `Delete Secret` / `Show Secret Details`, and there is no `PopupMenuSectionSeparator` before Delete.
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretTableRow.tsx:38`
 - **Evidence:**
@@ -60,7 +60,7 @@ Quick Reject: "`PopupMenu` without `PopupMenuToggle` as trigger"; B.14: "Context
 B.18: "Single-entity menus  etc: separate the Delete action from the rest with a divider." and "Include the referenced entity in labels". Code: `{canDelete && <PopupMenuItem label={t`Delete`}  etc/>}` directly after `Show Details`. Same in Container/Order rows (line 37/36).
 - **Review discussion:** Copilot r4360388832 mentions the separator.
 
-### C37 — from finder-d
+### C37 — from find-discussion
 - **Claim:** Row action PopupMenu has no PopupMenuToggle trigger (labelled more-actions button) and no PopupMenuSectionSeparator before destructive Delete, in the secret, container and order rows.
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretTableRow.tsx:35`
 - **Evidence:**
@@ -68,14 +68,14 @@ B.18: "Single-entity menus  etc: separate the Delete action from the rest with a
 SecretTableRow.tsx:35-40 <PopupMenu><PopupMenuOptions> with Show Details and Delete only; imports lack PopupMenuToggle. copilot-instructions line 457 requires PopupMenuToggle as trigger.
 - **Review discussion:** Copilot inline r4360388832 on OrderTableRow; same pattern in other rows.
 
-### C4 — from finder-a
+### C4 — from find-standards
 - **Claim:** Delete modals put the object name/ID in the title (`Delete Secret "${secretName}"`, `Delete Order "${orderId}"`) and the confirm label is a bare `Delete` / `Deleting...`; the standard says the object goes in the body and the confirm label should be verb + object type. The body doesn't name the entity at all (container/secret), and the order modal title shows a raw UUID.
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretModals.tsx:129`
 - **Evidence:**
 
 B.5: "Put the object name in the body, not the title.  etc Reference the affected entity by name/identifier in the body"; "Confirm labels: prefer verb + object type: Delete Image". Code: title={t`Delete Secret "${secretName}"`}, body `This action cannot be undone. The secret will be permanently deleted.` Same at ContainerModals.tsx:109, OrderModals.tsx:125.
 
-### C5 — from finder-a
+### C5 — from find-standards
 - **Claim:** None of the six modals pass `disableCloseButton` while the mutation is pending, so the close-X stays active and the user can dismiss the modal mid-request, while Cancel is disabled (they must be disabled together).
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretModals.tsx:136`
 - **Evidence:**
@@ -104,7 +104,7 @@ Quick Reject: "Modal without `disableCancelButton` / `disableCloseButton` during
 - One entry per candidate, every candidate exactly once.
 - `score`: 0, 25, 50, 75 or 100. For 50 and up, `severity` (Critical, Major, Moderate, Low, Trivial), `category` (Bug, Security, Accessibility, UI/UX, Code Quality, Performance, Docs, Test coverage) and a `location` that exists at headRefOid (`path:line`, `path | text on that line`, or `PR body` / `PR state` / `PR files` / `CI`). Below 50, leave them out.
 - `precedent`: required for 50 and up — the reader's tag, it never changes the score. `{"kind": "existing", "ref": "path:line"}` when merged code already has the same problem — `ref` is a line that itself breaks the same rule. Sibling code that does it right (e.g. a list that already debounces) is not a precedent: it's evidence for the finding, put it in `reason`. Find that line at baseRefOid (`git grep -n '<pattern>' <baseRefOid> -- <pathspec>`). `{"kind": "deferred", "ref": "<URL>"}` when a maintainer accepted or postponed the same point, on another PR or in `discussion.json`: open the thread, `ref` is the comment's GitHub URL. Both apply → `deferred`. Neither, or you couldn't confirm the candidate's `precedent` → `null`.
-- `same_as`: required for a candidate in a group above — the id of the candidate in the same group that describes the same problem (score that one; this one is then dropped — `score` and `reason` may be left out for it), or `null` if it is a different problem. Elsewhere leave it out.
+- `same_as`: required for a candidate in a group above — the id of the candidate in the same group that describes the same problem (score that one, and leave its own `same_as` null — never point at another duplicate; this one is then dropped — `score` and `reason` may be left out for it), or `null` if it is a different problem. Elsewhere leave it out.
 
 ## Saving your result
 

@@ -1,4 +1,4 @@
-## Update — 2026-10-26, head `64c47a99`
+## Update — <TODAY>, head `64c47a99`
 
 _Reviewed at head [`64c47a99`](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1393/commits/64c47a995507e7e7f9bf4ba02c0cd8ba6d3f3fd7) · base `main` at `cd8e674e` · <TIME>_
 
@@ -8,6 +8,7 @@ Recommendation: **🔴 Request Changes** &nbsp;&nbsp;&nbsp;&nbsp; Confidence to 
 
 - **Must fix before merge**: CR11
 - **Still open from the earlier review:** CR3, CR4 (partly), CR5, CR9 (partly), CR10 · P1
+- **Process:** P2
 
 ### Fixed since last analysis
 
@@ -55,6 +56,7 @@ Recommendation: **🔴 Request Changes** &nbsp;&nbsp;&nbsp;&nbsp; Confidence to 
 | #    | Severity | Category | Precedent | Issue                                                                                                            | Location                                                                |
 | ---- | -------- | -------- | --------- | ---------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
 | CR11 | 🟠 Major | Bug      | —         | `getSecretPayload` hardcodes `Accept: application/octet-stream`, so non-octet-stream secrets still fail with 406 | `packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:102` |
+| P2   | —        | Process  | —         | The description lists add/remove secret refs for containers; no procedure implements them                        | PR body                                                                 |
 
 <details><summary><strong>Explanation &amp; Fix</strong></summary>
 
@@ -67,6 +69,10 @@ headers: { Accept: "application/octet-stream" },
 
 Barbican only serves the payload in one of the secret's `content_types`; anything else is answered with `406 Not Acceptable`, which `mapKmError` turns into an `INTERNAL_SERVER_ERROR`. Only opaque (octet-stream) secrets work. No test covers a non-octet-stream secret. Reference: [Barbican secrets API — GET /v1/secrets/{uuid}/payload](https://docs.openstack.org/barbican/latest/api/reference/secrets.html#get-secrets-uuid-payload): "you must set the accept header to one of the values listed in the `content_types` attribute of a secret's metadata".
 _Fix:_ Fetch the secret's metadata first (or accept its content type as input from the client, which already reads `secret.content_types` in `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretDetailsView.tsx:51`) and send `content_types.default` as the Accept header; add a router test for a `text/plain` secret.
+
+**P2 — The description claims what the code doesn't do** · Process · PR body
+The description says the containers API covers adding and removing secret refs, but `keyManagerRouter` has only `listContainers`, `getContainer`, `createContainer` and `deleteContainer` for containers.
+_Fix:_ Drop "add/remove secret refs" from the description, or add the two procedures if they belong in this PR.
 
 </details>
 
@@ -99,9 +105,9 @@ _Fix:_ Either reimplement association with the documented `POST /v1/containers/{
 
 Raised in the review discussion, checked at this head and not counted as findings:
 
-| Raised by                                                                                                  | Claim                                                                                                                                                                                                                                                                                                    | Why not a finding                                                                                                                                                                                                                                                                                                                                   |
-| ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Copilot [r4360389025](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1393#discussion_r4360389025) | The Key Manager canUser router only reports policy decisions. None of the tRPC procedures (getSecretPayload, deleteSecret, deleteContainer, deleteOrder, create*, update*) checks the policy before calling Barbican. A caller can use the tRPC API directly to run an action the UI hides and Aurora's… | Verified that keyManagerRouter procedures go straight to Barbican without a policy check. The Compute, Network and Storage routers do the same, and Barbican enforces its own policy server-side, so this is generic hardening with no concrete exploit in this PR. Copilot's thread is unanswered, so it may still be worth a maintainer decision. |
+| Raised by                                                                                                  | Claim                                                                                                                                                                                                                                                                                                                                                                                                                                                    | Why not a finding                                                                                                                                                                                                                                                                                                                                   |
+| ---------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Copilot [r4360389025](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1393#discussion_r4360389025) | The Key Manager canUser router only reports policy decisions. None of the tRPC procedures (getSecretPayload, deleteSecret, deleteContainer, deleteOrder, create*, update*) checks the policy before calling Barbican. A caller can use the tRPC API directly to run an action the UI hides and Aurora's policy denies, whenever Barbican itself allows it. This includes revealing secret payloads, since the hidden control is only a client-side gate. | Verified that keyManagerRouter procedures go straight to Barbican without a policy check. The Compute, Network and Storage routers do the same, and Barbican enforces its own policy server-side, so this is generic hardening with no concrete exploit in this PR. Copilot's thread is unanswered, so it may still be worth a maintainer decision. |
 
 ### What changed
 

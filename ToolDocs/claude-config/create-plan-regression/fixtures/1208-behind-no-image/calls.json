@@ -1,0 +1,145 @@
+{
+ "api repos/cobaltcore-dev/aurora-dashboard/issues/1208": {
+  "err": "",
+  "json": {
+   "active_lock_reason": null,
+   "assignee": null,
+   "assignees": [],
+   "author_association": "NONE",
+   "body": "**Description**\n\nKeppel has a really nice setup guide on how to configure your local cli to this account/repo.\n\n<img width=\"2356\" height=\"904\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/52cadb93-1f4a-4a82-b2bd-9453e82d6146\" />\n\nIt would be really nice if Ceph had this, too. I think https://documentation.global.cloud.sap/docs/customer/storage/obj-v2-ceph/ceph-cli/ can be a good groundwork.\n",
+   "closed_at": null,
+   "closed_by": null,
+   "comments": 0,
+   "comments_url": "https://api.github.com/repos/cobaltcore-dev/aurora-dashboard/issues/1208/comments",
+   "created_at": "2026-08-26T12:50:23Z",
+   "events_url": "https://api.github.com/repos/cobaltcore-dev/aurora-dashboard/issues/1208/events",
+   "html_url": "https://github.com/cobaltcore-dev/aurora-dashboard/issues/1208",
+   "id": 5257199280,
+   "issue_dependencies_summary": {
+    "blocked_by": 0,
+    "blocking": 0,
+    "total_blocked_by": 0,
+    "total_blocking": 0
+   },
+   "issue_field_values": [],
+   "labels": [],
+   "labels_url": "https://api.github.com/repos/cobaltcore-dev/aurora-dashboard/issues/1208/labels{/name}",
+   "locked": false,
+   "milestone": null,
+   "node_id": "I_kwDONBE09M8AAAABOVp-sA",
+   "number": 1208,
+   "performed_via_github_app": null,
+   "pinned_comment": null,
+   "reactions": {
+    "+1": 0,
+    "-1": 0,
+    "confused": 0,
+    "eyes": 0,
+    "heart": 0,
+    "hooray": 0,
+    "laugh": 0,
+    "rocket": 0,
+    "total_count": 0,
+    "url": "https://api.github.com/repos/cobaltcore-dev/aurora-dashboard/issues/1208/reactions"
+   },
+   "repository_url": "https://api.github.com/repos/cobaltcore-dev/aurora-dashboard",
+   "state": "open",
+   "state_reason": null,
+   "sub_issues_summary": {
+    "completed": 0,
+    "percent_completed": 0,
+    "total": 0
+   },
+   "timeline_url": "https://api.github.com/repos/cobaltcore-dev/aurora-dashboard/issues/1208/timeline",
+   "title": "[Feature](ceph): integrate CLI setup help",
+   "type": {
+    "color": "blue",
+    "created_at": "2024-04-18T17:05:11Z",
+    "description": "A request, idea, or new functionality",
+    "id": 22020563,
+    "is_enabled": true,
+    "name": "Feature",
+    "node_id": "IT_kwDOCfs_GM4BUAHT",
+    "updated_at": "2024-10-08T23:10:56Z"
+   },
+   "updated_at": "2026-08-26T12:50:23Z",
+   "url": "https://api.github.com/repos/cobaltcore-dev/aurora-dashboard/issues/1208",
+   "user": {
+    "avatar_url": "https://avatars.githubusercontent.com/u/7258858?v=4",
+    "events_url": "https://api.github.com/users/SuperSandro2000/events{/privacy}",
+    "followers_url": "https://api.github.com/users/SuperSandro2000/followers",
+    "following_url": "https://api.github.com/users/SuperSandro2000/following{/other_user}",
+    "gists_url": "https://api.github.com/users/SuperSandro2000/gists{/gist_id}",
+    "gravatar_id": "",
+    "html_url": "https://github.com/SuperSandro2000",
+    "id": 7258858,
+    "login": "SuperSandro2000",
+    "node_id": "MDQ6VXNlcjcyNTg4NTg=",
+    "organizations_url": "https://api.github.com/users/SuperSandro2000/orgs",
+    "received_events_url": "https://api.github.com/users/SuperSandro2000/received_events",
+    "repos_url": "https://api.github.com/users/SuperSandro2000/repos",
+    "site_admin": false,
+    "starred_url": "https://api.github.com/users/SuperSandro2000/starred{/owner}{/repo}",
+    "subscriptions_url": "https://api.github.com/users/SuperSandro2000/subscriptions",
+    "type": "User",
+    "url": "https://api.github.com/users/SuperSandro2000",
+    "user_view_type": "public"
+   }
+  },
+  "status": 200
+ },
+ "api repos/cobaltcore-dev/aurora-dashboard/issues/1208/comments?per_page=100&page=1": {
+  "err": "",
+  "json": [],
+  "status": 200
+ },
+ "api repos/cobaltcore-dev/aurora-dashboard/issues/1208/parent": {
+  "err": "{\n  \"message\": \"No parent issue found\",\n  \"documentation_url\": \"https://docs.github.com/rest/issues/sub-issues#get-parent-issue\",\n  \"status\": \"404\"\n}\n",
+  "json": null,
+  "status": 404
+ },
+ "download https://github.com/user-attachments/assets/52cadb93-1f4a-4a82-b2bd-9453e82d6146": {
+  "status": 0,
+  "type": "text/html; charset=utf-8"
+ },
+ "git fetch origin main": {
+  "err": "From https://github.com/cobaltcore-dev/aurora-dashboard\n * branch              main       -> FETCH_HEAD",
+  "out": "",
+  "rc": 0
+ },
+ "git log --oneline HEAD..origin/main -- packages/ apps/": {
+  "err": "",
+  "out": "8cd09bfa fix(deps): resolve zod, undici, fast-uri, vite and fastify security advisories (#1396)\ncd8e674e chore(version): update versions with Changesets (#1384)",
+  "rc": 0
+ },
+ "git rev-list --count 5b7bea1e..origin/main -- packages/ apps/": {
+  "err": "",
+  "out": "7",
+  "rc": 0
+ },
+ "git rev-list --count HEAD..origin/main": {
+  "err": "",
+  "out": "2",
+  "rc": 0
+ },
+ "git rev-parse --abbrev-ref HEAD": {
+  "err": "",
+  "out": "c3-test",
+  "rc": 0
+ },
+ "git rev-parse --path-format=absolute --git-common-dir": {
+  "err": "",
+  "out": "{{MAIN}}/.git",
+  "rc": 0
+ },
+ "git rev-parse --short HEAD": {
+  "err": "",
+  "out": "af14a6a0",
+  "rc": 0
+ },
+ "git status --porcelain": {
+  "err": "",
+  "out": "M packages/aurora/package.json",
+  "rc": 0
+ }
+}

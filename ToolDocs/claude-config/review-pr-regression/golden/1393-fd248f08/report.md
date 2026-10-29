@@ -1,6 +1,6 @@
 ---
 type: pr-report
-date: 2026-10-26
+date: <TODAY>
 status: open
 pr: [1393]
 issue: [1133]
@@ -25,7 +25,7 @@ Recommendation: **🔴 Request Changes** &nbsp;&nbsp;&nbsp;&nbsp; Confidence to 
 
 - **Must fix before merge**: CR1, CR4, CR6, CR7, CR8, CR9, CR10
 - **Team call** (convention, existing pattern or deferred by a maintainer): CR2, CR3, CR5
-- **Process:** P1
+- **Process:** P1, P2
 
 The PR adds a full Key Manager (Barbican) area — BFF router with Zod schemas, a permission router, nav entry and Secrets/Containers/Orders tabs with list, detail, create and delete — and CI is green. What matters most is the Barbican contract: Reveal Payload sends no `Accept` matching the secret's content type, so typical secrets fail with 406, and removing a secret from a container and sorting orders use endpoints/params the reference does not document. On the client, the Reveal Payload action is not permission-gated, the nav entry ignores `enabledServices`/`deniedServices`, create forms mutate without validation, search navigates on every keystroke and CRUD success shows no toast. Against epic #1133 most criteria are only partly met (no update/manage-secrets UI, Orders columns, error text, tests), and a changeset is missing.
 
@@ -44,6 +44,7 @@ The PR adds a full Key Manager (Barbican) area — BFF router with Zod schemas, 
 | CR9  | 🟡 Moderate | Bug         | —         | Key Manager nav entry and route ignore `enabledServices` / `deniedServices`                               | `packages/aurora/src/client/routes/_auth/projects/-components/buildNavSections.ts:154`                                               |
 | CR10 | 🟡 Moderate | Bug         | —         | `listOrders` sends undocumented `sort_key`/`sort_dir`; the Orders sort control does nothing               | `packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:271`                                                              |
 | P1   | —           | Process     | —         | Published package code changed without a `.changeset/*.md`                                                | PR files                                                                                                                             |
+| P2   | —           | Process     | —         | The description lists add/remove secret refs for containers; no procedure implements them                 | PR body                                                                                                                              |
 
 <details><summary><strong>Explanation &amp; Fix</strong></summary>
 
@@ -144,6 +145,10 @@ _Fix:_ Remove the sort control from the Orders tab (or sort client-side within t
 **P1 — No changeset** · Process · PR files
 The PR changes published code under `packages/aurora/src` but adds no changeset, so the change gets no version bump or changelog entry.
 _Fix:_ Run `pnpm changeset`, pick the bump type and commit the generated `.changeset/*.md`.
+
+**P2 — The description claims what the code doesn't do** · Process · PR body
+The description says the containers API covers adding and removing secret refs, but `keyManagerRouter` has only `listContainers`, `getContainer`, `createContainer` and `deleteContainer` for containers.
+_Fix:_ Drop "add/remove secret refs" from the description, or add the two procedures if they belong in this PR.
 
 </details>
 
@@ -451,4 +456,4 @@ export const SECRETS_COLUMNS = ["Name / ID", "Status", "Type", "Content Types", 
 
 ---
 
-_Analyzed 2026-10-26 · commit `fd248f08` · read-only · skill: review-and-comment-pr_
+_Analyzed <TODAY> · commit `fd248f08` · read-only · skill: review-and-comment-pr_

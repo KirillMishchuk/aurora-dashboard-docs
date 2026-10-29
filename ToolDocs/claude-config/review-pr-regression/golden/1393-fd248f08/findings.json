@@ -382,7 +382,16 @@
    "fix": "Reorder imports and switch to `@/` aliases."
   }
  ],
- "process": [],
+ "process": [
+  {
+   "id": "desc-1",
+   "title": "The description claims what the code doesn't do",
+   "issue": "The description lists add/remove secret refs for containers; no procedure implements them",
+   "location": "PR body",
+   "explanation": "The description says the containers API covers adding and removing secret refs, but `keyManagerRouter` has only `listContainers`, `getContainer`, `createContainer` and `deleteContainer` for containers.",
+   "fix": "Drop \"add/remove secret refs\" from the description, or add the two procedures if they belong in this PR."
+  }
+ ],
  "process_overrides": {},
  "overview": {
   "what": "Adds an in-core Key Manager (OpenStack Barbican) plugin: 48 files, about 4.4k added lines, almost all new. CI on the head commit: 17 pass, 0 fail, 0 pending, 4 skipped, 1 cancelled. The PR body checklist leaves the test and tests-pass boxes unticked, and its testing steps are only `pnpm i` and `pnpm run test`.\n\n**Server.** A new `packages/aurora/src/server/KeyManager/` domain has a `keyManagerRouter` (secrets: list/get/getPayload/create/update/delete; containers: list/get/create/delete/addSecret/deleteSecret; orders: list/get/create/delete), Zod schemas, and a `canUser` permission router built with `createPermissionRouter`. It is mounted as `keyManager` in `server/routers.ts`. A policy file `apps/dashboard/src/policies/key-manager.json` is added.\n\n**Client.** A `key-manager` layout route under `authorization/` has a tab bar (Secrets / Containers / Orders). Each tab is its own sub-route with an index list route and a `$id` detail route. Lists use the Juno DataGrid three-zone pattern (sort, search, pagination, with state in URL search params). There are Create and Delete modals for all three resources. `buildNavSections` gets a new Authorization section with one Key Manager entry, shown only if the catalog has `key-manager`/`barbican`.\n\n**Generated / i18n.** `routeTree.gen.ts` and the `en`/`de` locale catalogs are regenerated.\n\n**Gaps against the issue.** The server exposes `updateSecret`, `addContainerSecret` and `deleteContainerSecret`, but no client code calls them. There is no Edit Secret modal, no Manage Container Secrets flow, no bulk delete, and no tab hiding by permission. The Create Container modal always sends `secret_refs: []`.",

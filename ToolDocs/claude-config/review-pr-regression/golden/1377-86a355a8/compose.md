@@ -9,7 +9,7 @@ A finding's precedent (existing pattern / deferred) is the scorer's tag — rend
 ## Findings
 
 ### `c1` — Low · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/$portId.tsx | <Button variant="primary" onClick={() => navigate({ to: "/" })}>` · score 50
-- **Claim** (finder-a): The 401 case in the port details error view is handled inline (an error page with a Sign in button that navigates to "/") instead of redirecting to Sign-in with the target remembered. The code comment claims this follows B.6, but B.6 requires a redirect and redirect-back after auth.
+- **Claim** (find-standards): The 401 case in the port details error view is handled inline (an error page with a Sign in button that navigates to "/") instead of redirecting to Sign-in with the target remembered. The code comment claims this follows B.6, but B.6 requires a redirect and redirect-back after auth.
 - **Scorer:** CR2 asked for 401 to go to sign-in; the head commit still renders the 401 inline (RouteIdLevelDefaultError) with a button to "/", and the comment above it says it sends the user to sign in 'instead of showing the error inline'. B.6 requires redirect with the target remembered and redirect back after auth, which this does not do, so CR2 is only half fixed. Low per the 401/403 inline precedent.
 - **Evidence:**
 
@@ -17,7 +17,7 @@ B.6 Reject: "a 401/403 handled inline instead of via redirect / page-level info 
 
 
 ### `c3` — Low · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortTableRow.tsx | <DataGridCell>{port.status}</DataGridCell>` · score 50
-- **Claim** (finder-a): The Status column renders the raw status string (`{port.status}` / `{router.status}`) in a DataGridCell instead of a Badge. The delta moves this cell, so it touches the line.
+- **Claim** (find-standards): The Status column renders the raw status string (`{port.status}` / `{router.status}`) in a DataGridCell instead of a Badge. The delta moves this cell, so it touches the line.
 - **Scorer:** B.1 table lists 'Status indicators | Badge'; PortTableRow.tsx:51 and RouterTableRow.tsx:51 render the raw status string in a DataGridCell. Verified, but cosmetic and consistent with the details views, so Low.
 - **Precedent:** Both lists already used plain text before this delta, and the details views also use plain text.
 - **Evidence:**
@@ -26,7 +26,7 @@ B.1 table: "Status indicators | `Badge`". Same in routers/-components/RouterTabl
 
 
 ### `c6` — Low · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.tsx | body={error instanceof Error ? error.message : t`An unexpected error occurred.`}` · score 50
-- **Claim** (finder-d): On the ports list page only 403 is turned into a friendly state. A 401 (expired session) and every other error reach the ErrorBoundary, which prints the raw error.message (the BFF text) as the body. Details page got a 'Sign in' action for 401 but the list did not, so the CR2 fix is only half applied there.
+- **Claim** (find-discussion): On the ports list page only 403 is turned into a friendly state. A 401 (expired session) and every other error reach the ErrorBoundary, which prints the raw error.message (the BFF text) as the body. Details page got a 'Sign in' action for 401 but the list did not, so the CR2 fix is only half applied there.
 - **Scorer:** createPortsPromise converts only FORBIDDEN (PortsList.tsx:52); a 401 and other errors reach the ErrorBoundary, which prints the raw BFF error.message with no Sign in action. CR2 covered the list error too, and the fix handles it on the details page only. Low per the 401/403 precedent.
 - **Precedent:** routers/$routerId.tsx:75 handles UNAUTHORIZED the same detail-page-only way.
 - **Review discussion:** CR2 of the earlier review (list shows raw BFF message, 401/403 handled in-page); mark-karnaukh-extern-sap confirmed it in https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#issuecomment-6293554974 and listed it as fixed in https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#issuecomment-6295356006, but the list-page 401 / raw message path still applies.
@@ -72,7 +72,7 @@ At 86a355a8, createPortsPromise rethrows everything except FORBIDDEN (lines 50-5
 
 ## Earlier findings (for `earlier`)
 
-The `earlier` agent checked each of them at the new head; its status, note and evidence are below and already in the template. Keep the statuses — change one only if another agent's result shows it wrong, and say why in the note — and reword a note only for the reader. Don't open the code yourself. In a note, name earlier findings by number (`CR2`), this Update's own by `[[ref:<id>]]`. render.py refuses a list with one left out.
+The `earlier-findings` agent checked each of them at the new head; its status, note and evidence are below and already in the template. Keep the statuses — change one only if another agent's result shows it wrong, and say why in the note — and reword a note only for the reader. Don't open the code yourself. In a note, name earlier findings by number (`CR2`), this Update's own by `[[ref:<id>]]`. render.py refuses a list with one left out.
 
 - CR1 🟡 Moderate — Ports list reads one Neutron page only; ports and search hits beyond it silently disappear — `packages/aurora/src/server/Network/routers/portsRouter.ts:65`
   - **fixed** — portsRouter.list now follows ports_links next pages (visited-guarded loop) and returns the full list. _(evidence: git grep portsRouter.ts at 86a355a8: 'while (nextUrl && !visited.has(nextUrl))' ... 'nextUrl = nextPageUrl(PORTS_BASE_URL, ports_links)')_
@@ -102,6 +102,14 @@ The `earlier` agent checked each of them at the new head; its status, note and e
   - **fixed** — The useEffect is gone; PageInput is keyed on currentPage instead. _(evidence: PortListContainer.tsx: '<PageInput key={currentPage} ...' ; no useEffect match)_
 - I8 ⚪ Trivial — `zod` imported after the Lingui imports (B.13 order) — `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/index.tsx:4`
   - **fixed** — zod is now imported right after the router import, before the Lingui imports. _(evidence: ports/index.tsx lines 1-4: createFileRoute, zod, @lingui/core/macro, @lingui/react/macro)_
+
+## PR description vs code (Process items)
+
+These go into the report as Process items as written — you can't drop one. To reword one for the reader, put `"process_overrides": {"<id>": {"issue": "…", "explanation": "…", "fix": "…"}}` in texts.json; name one in a text as `[[ref:<id>]]`.
+
+- `desc-1` — A change the description doesn't mention · packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/-components/RoutersList.tsx:105: The Routers list UI changes (403 message, row menu toggle, Status column order) are not in the description
+  - The description mentions Routers only for the shared BFF helpers and the details tab, but the Routers list now shows a 403 as an "Insufficient Permissions" info message (`packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/-components/RoutersList.tsx:105`), has a visible `PopupMenuToggle` on the row menu (`packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/-components/RouterTableRow.tsx:85`) and moves Status to the second column.
+  - _Fix:_ Add a short UI bullet for the Routers list changes (403 message, row menu toggle, Status column order).
 
 ## texts.json shape
 

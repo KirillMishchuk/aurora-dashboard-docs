@@ -1,4 +1,4 @@
-## Update — 2026-10-26, head `86a355a8`
+## Update — <TODAY>, head `86a355a8`
 
 _Reviewed at head [`86a355a8`](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377/commits/86a355a8d6da94478e77c0869d9720efe6823e2a) · base `main` at `af14a6a0` · <TIME>_
 
@@ -7,6 +7,7 @@ _Reviewed at head [`86a355a8`](https://github.com/cobaltcore-dev/aurora-dashboar
 Recommendation: **🟡 Approve with process to-dos** &nbsp;&nbsp;&nbsp;&nbsp; Confidence to Merge: **Medium**
 
 - **Still open from the earlier review:** P1
+- **Process:** P3
 
 ### Fixed since last analysis
 
@@ -36,7 +37,17 @@ Recommendation: **🟡 Approve with process to-dos** &nbsp;&nbsp;&nbsp;&nbsp; Co
 
 ### 🔧 &nbsp; Required Changes
 
-None.
+| #   | Severity | Category | Precedent | Issue                                                                                                      | Location                                                                                                      |
+| --- | -------- | -------- | --------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| P3  | —        | Process  | —         | The Routers list UI changes (403 message, row menu toggle, Status column order) are not in the description | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/-components/RoutersList.tsx:105` |
+
+<details><summary><strong>Explanation &amp; Fix</strong></summary>
+
+**P3 — A change the description doesn't mention** · Process · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/-components/RoutersList.tsx:105`
+The description mentions Routers only for the shared BFF helpers and the details tab, but the Routers list now shows a 403 as an "Insufficient Permissions" info message (`packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/-components/RoutersList.tsx:105`), has a visible `PopupMenuToggle` on the row menu (`packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/-components/RouterTableRow.tsx:85`) and moves Status to the second column.
+_Fix:_ Add a short UI bullet for the Routers list changes (403 message, row menu toggle, Status column order).
+
+</details>
 
 ### 💡 &nbsp; Improvements
 

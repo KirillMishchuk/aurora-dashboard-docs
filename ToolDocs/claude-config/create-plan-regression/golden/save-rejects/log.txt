@@ -1,0 +1,61 @@
+$ plan.py collect --text --label rejects < task.txt
+exit 0
+Mode: A — a task in words
+Run folder: <SAP>/aurora-dashboard/.claude/runs/create-plan/rejects
+Paths: MAIN_ROOT=<SAP>/aurora-dashboard SAP_DIR=<SAP> DOCS_DIR=<SAP>/DOCS
+Task file: <SAP>/aurora-dashboard/.claude/runs/create-plan/rejects/task.md — give the planner this path; don't paste or read it
+Images: none
+git fetch origin main: ok
+Code: main @ 8cd09bfa, 0 commit(s) behind origin/main
+KB: pinned 5b7bea1e, 7 commit(s) behind origin/main in packages/ and apps/
+Planner saves its plan with (put this into its launch prompt):
+  python3 <SCRIPT> save --run <SAP>/aurora-dashboard/.claude/runs/create-plan/rejects <<'PLAN'
+  <the plan>
+  PLAN
+Ask the user: nothing
+
+$ plan.py write --run {RUNS}/rejects --title x --slug x --task x
+exit 1
+<SAP>/aurora-dashboard/.claude/runs/create-plan/rejects/plan.md doesn't exist — the planner hasn't saved its plan (plan.py save)
+
+$ plan.py save --run {RUNS}/rejects < decisions.md
+exit 1
+NOT saved — 1 problem(s). Fix them and run the same command again:
+- this is a `## Decisions needed` block — don't save it; return it as your reply
+
+$ plan.py save --run {RUNS}/rejects < plan-1388-absolute-paths.md
+exit 1
+NOT saved — 9 problem(s). Fix them and run the same command again:
+- line 188: absolute path `/Users/kirylmishchuk/projects/SAP/local-mock-backend/` — write it relative to the repo root (outside the repo: `../local-mock-backend/...`, `../DOCS/...`)
+- line 230: absolute path `/Users/kirylmishchuk/projects/SAP/aurora-dashboard/packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/$securityGroupId/-components/-details/SecurityGroupRBACPolicies.tsx` — write it relative to the repo root (outside the repo: `../local-mock-backend/...`, `../DOCS/...`)
+- line 231: absolute path `/Users/kirylmishchuk/projects/SAP/aurora-dashboard/packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/$securityGroupId/-components/-details/SecurityGroupRBACPolicies.test.tsx` — write it relative to the repo root (outside the repo: `../local-mock-backend/...`, `../DOCS/...`)
+- line 232: absolute path `/Users/kirylmishchuk/projects/SAP/aurora-dashboard/packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/$securityGroupId/-components/-details/SecurityGroupRulesTable.tsx` — write it relative to the repo root (outside the repo: `../local-mock-backend/...`, `../DOCS/...`)
+- line 233: absolute path `/Users/kirylmishchuk/projects/SAP/aurora-dashboard/packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/$securityGroupId/-components/-details/SecurityGroupRulesTable.test.tsx` — write it relative to the repo root (outside the repo: `../local-mock-backend/...`, `../DOCS/...`)
+- line 234: absolute path `/Users/kirylmishchuk/projects/SAP/aurora-dashboard/packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/$securityGroupId/-components/SecurityGroupDetailsView.test.tsx` — write it relative to the repo root (outside the repo: `../local-mock-backend/...`, `../DOCS/...`)
+- line 235: absolute path `/Users/kirylmishchuk/projects/SAP/aurora-dashboard/packages/aurora/src/locales/{en,de}/messages.{po,ts}` — write it relative to the repo root (outside the repo: `../local-mock-backend/...`, `../DOCS/...`)
+- line 236: absolute path `/Users/kirylmishchuk/projects/SAP/aurora-dashboard/.changeset/` — write it relative to the repo root (outside the repo: `../local-mock-backend/...`, `../DOCS/...`)
+- follow-up `Sentence-case empty-state titles elsewhere in the portal`: text after its fields (`Relevant files (absolute):`) — nothing goes after the plan's last section: no file lists, summaries or notes
+
+$ plan.py save --run {RUNS}/rejects < plan-1388-tail.md
+exit 1
+NOT saved — 1 problem(s). Fix them and run the same command again:
+- follow-up `Sentence-case empty-state titles elsewhere in the portal`: text after its fields (`Relevant files (absolute):`) — nothing goes after the plan's last section: no file lists, summaries or notes
+
+$ plan.py save --run {RUNS}/rejects < plan-bad-structure.md
+exit 1
+NOT saved — 7 problem(s). Fix them and run the same command again:
+- remove the `# ` title — the caller adds the plan's title
+- the plan must start with `## Overview` (nothing before it)
+- `## Notes`: not a plan section. Allowed, in this order: Overview, Decisions, Architecture Analysis, Potential Problems & Mitigations, Prerequisites, Implementation Steps, Testing Plan, Acceptance Criteria, Open Questions, Proposed follow-ups. Nothing goes after the last section — no file lists or summaries
+- `## Testing Plan` is missing
+- steps must be `### Step 1: …`, `### Step 2: …` in order (found [1, 3])
+- risk table: severity `Critical` — start it with High, Medium or Low
+- follow-up `Thing`: missing `- **Why not in this plan:**`
+
+$ plan.py save --run {RUNS}/nope < plan-bad-structure.md
+exit 1
+run folder <SAP>/aurora-dashboard/.claude/runs/create-plan/nope doesn't exist — use the path from your launch prompt
+
+$ plan.py followups --run {RUNS}/rejects --skip 1
+exit 1
+run `plan.py write` first

@@ -35,7 +35,7 @@ The report's findings:
 
 **2. Write only pile (b).** Pile (a) never appears in your result: not retold, not listed, not named by number.
 
-- `what` — first one sentence on the update itself: the commit range in short SHAs (`1a2b3c4d..5e6f7a8b`), whether the PR is a draft, and CI on the head commit (merge conflicts are not part of this review — leave them out) (`context.json` → `ci`; say so if anything failed or is pending). Then one short paragraph per area of pile (b). If pile (b) is empty, add only: "Every other change carries out an earlier finding."
+- `what` — first one sentence on the update itself: the commit range in short SHAs (`1a2b3c4d..5e6f7a8b`) and CI on the head commit (merge conflicts are not part of this review — leave them out) (`context.json` → `ci`; say so if anything failed or is pending). Then one short paragraph per area of pile (b). If pile (b) is empty, add only: "Every other change carries out an earlier finding."
 - `how` — only for a pile (b) change whose mechanism isn't obvious from `what`: a short excerpt (3–15 lines) and what it does. Don't copy code: put a placeholder on its own line — `[[code:<path>:<from>-<to>]]`, or `[[code:<path> | <text from its first line> | <number of lines>]]` — and cite lines as `[[at:<path> | <text on that line>]]` or `` `<path>:<line>` ``; the code is inserted and every citation checked later. Otherwise `""`.
 - `affects` — for pile (b) only: consumers outside the PR's own files (`git grep -n '<symbol>' 86a355a8d6da94478e77c0869d9720efe6823e2a -- . ':!pnpm-lock.yaml' ':!**/CHANGELOG.md' ':!**/locales/**'`), callers left stale, docs that now disagree, contract changes. Otherwise `""`.
 - `qa` — `core_path` and `edge_cases` are empty lists; an Update shows no QA plan.

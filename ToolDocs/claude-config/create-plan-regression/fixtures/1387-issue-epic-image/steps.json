@@ -1,0 +1,78 @@
+{
+ "today": "2026-10-28",
+ "steps": [
+  {
+   "args": [
+    "collect",
+    "1387"
+   ]
+  },
+  {
+   "args": [
+    "save",
+    "--run",
+    "{RUNS}/1387"
+   ],
+   "stdin": "plan-1387.md"
+  },
+  {
+   "args": [
+    "write",
+    "--run",
+    "{RUNS}/1387",
+    "--title",
+    "Security Group detail tabs on Juno `TabBar`/`TabBarItem`",
+    "--slug",
+    "security-groups-tabbar",
+    "--task",
+    "Swap deprecated Juno `TabNavigation` for `TabBar`/`TabBarItem` on the Security Group detail tabs (issue #1387), plus aria label and Copilot rule",
+    "--top-risk",
+    "new Lingui string needs `check-i18n`"
+   ]
+  },
+  {
+   "args": [
+    "write",
+    "--run",
+    "{RUNS}/1387",
+    "--title",
+    "x",
+    "--slug",
+    "security-groups-tabbar",
+    "--task",
+    "again"
+   ]
+  },
+  {
+   "args": [
+    "followups",
+    "--run",
+    "{RUNS}/1387",
+    "--file",
+    "1=K"
+   ]
+  },
+  {
+   "args": [
+    "followups",
+    "--run",
+    "{RUNS}/1387",
+    "--file",
+    "1=K",
+    "--topic",
+    "1=Remaining `TabNavigation` users → `TabBar`",
+    "--ref",
+    "2=43"
+   ]
+  },
+  {
+   "args": [
+    "followups",
+    "--run",
+    "{RUNS}/1387",
+    "--skip",
+    "1"
+   ]
+  }
+ ]
+}

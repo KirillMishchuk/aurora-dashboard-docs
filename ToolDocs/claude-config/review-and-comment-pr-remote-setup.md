@@ -2,9 +2,11 @@
 
 Handover for a Claude Code agent on a machine that has `DOCS` but not the
 local `aurora-dashboard/.claude/` (it is git-ignored in the repo, so the
-only versioned copy is the backup in this folder). Last synced: 2026-10-23.
+only versioned copy is the backup in this folder). Last synced: 2026-10-28.
 
 ## What the skill is
+
+Documentation (not part of the skill folder): `review-and-comment-pr-docs/SPEC.md` (English: principles, roles and their contracts, invariants, decision log) and `review-and-comment-pr-docs/README.md` (Russian, detailed walkthrough). Copy only `aurora-dashboard-config/.claude/` into the app repo.
 
 `/review-and-comment-pr <pr>` reviews an open aurora-dashboard PR, writes a
 report to `DOCS/aurora-dashboard-kb/prs/<n>-<slug>.md` (+ index row), and
@@ -69,11 +71,16 @@ All commands below run from there; DOCS is `../DOCS`.
          "Bash(python3 .claude/skills/review-and-comment-pr/scripts/assemble.py *)",
          "Bash(python3 .claude/skills/review-and-comment-pr/scripts/render.py *)",
          "Bash(python3 .claude/skills/review-and-comment-pr/scripts/quotes.py *)",
+         "Bash(python3 .claude/skills/review-and-comment-pr/scripts/prepare_comment.py *)",
          "Bash(git show *)", "Bash(git grep *)", "Bash(git blame *)",
          "Bash(git fetch *)", "Bash(git rev-parse *)",
          "Bash(gh pr view *)", "Bash(gh pr diff *)", "Bash(gh pr checks *)",
          "Bash(gh pr list *)", "Bash(gh issue view *)", "Bash(gh api --method GET *)",
+         "Bash(gh pr comment *)",
          "Bash(npm view *)", "Edit(//tmp/pr-*-comment.md)",
+         "Bash(curl -s https://raw.githubusercontent.com/openstack/*)", "Bash(grep *)",
+         "WebFetch(domain:docs.openstack.org)", "WebFetch(domain:docs.ceph.com)",
+         "WebFetch(domain:docs.aws.amazon.com)",
          "Read(/<parent>/**)"
        ],
        "deny": ["SendFeedback", "ScheduleWakeup", "ShareOnboardingGuide"]
@@ -90,9 +97,8 @@ All commands below run from there; DOCS is `../DOCS`.
    ```
 
    On macOS `/tmp` resolves to `/private/tmp`: add
-   `"Edit(//private/tmp/pr-*-comment.md)"` as well. `prepare_comment.py`
-   and `gh pr comment` are left out on purpose: the user approves those
-   per run. Show the user the merged file before saving it.
+   `"Edit(//private/tmp/pr-*-comment.md)"` as well. Posting needs no extra
+   permission prompt: the user's "yes" in the chat (Step 8) is the approval. Show the user the merged file before saving it.
 
 ## Check
 

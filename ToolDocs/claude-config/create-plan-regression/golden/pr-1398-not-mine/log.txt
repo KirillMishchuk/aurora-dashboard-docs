@@ -1,0 +1,21 @@
+$ plan.py collect 1398
+exit 3
+PR #1398 is by andypf. Can't tell who you are (no gh). Ask the user whether it's their PR, then re-run with --mine or --not-mine.
+
+$ plan.py collect https://github.com/cobaltcore-dev/aurora-dashboard/pull/1398 --not-mine
+exit 0
+Mode: A — PR #1398: fix(deps): restore @fastify/static override to patch route/auth bypass (by andypf, not yours)
+Run folder: <SAP>/aurora-dashboard/.claude/runs/create-plan/pr-1398
+Paths: MAIN_ROOT=<SAP>/aurora-dashboard SAP_DIR=<SAP> DOCS_DIR=<SAP>/DOCS
+Task file: <SAP>/aurora-dashboard/.claude/runs/create-plan/pr-1398/task.md — give the planner this path; don't paste or read it
+Links for write: issue —, pr [1398]
+Images: none
+git fetch origin main: ok
+Code: main @ 8cd09bfa, 0 commit(s) behind origin/main
+KB: pinned 5b7bea1e, 7 commit(s) behind origin/main in packages/ and apps/
+Note: closing issues read from the PR body (no gh)
+Planner saves its plan with (put this into its launch prompt):
+  python3 <SCRIPT> save --run <SAP>/aurora-dashboard/.claude/runs/create-plan/pr-1398 <<'PLAN'
+  <the plan>
+  PLAN
+Ask the user: nothing

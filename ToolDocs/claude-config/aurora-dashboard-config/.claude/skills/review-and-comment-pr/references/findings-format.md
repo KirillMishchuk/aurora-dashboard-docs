@@ -1,5 +1,15 @@
 # texts.json and findings.json — review-and-comment-pr
 
+## Contents
+
+- texts.json — what you write (top of this file)
+- findings.json — what assemble.py builds
+- Shape
+- Fields
+- Code and line citations
+- Text rules
+- Running it
+
 Read this at Step 6. You write `<run folder>/texts.json` — the wording.
 `assemble.py --texts` combines it with the scorers' and the describer's
 results into `findings.json`, and `render.py` turns that into the report.
@@ -12,10 +22,11 @@ The template is at the end of `compose.md`:
 - `merge`: `{"<drop id>": "<keep id>"}` for a look-alike pair that is one
   problem;
 - on an Update only: `earlier` (plus `confidence`) instead of `summary`,
-  `index_affected` and `edge_cases` — one entry per finding of the
+  `index_affected` and `edge_cases` (the Update block has no QA plan:
+  `edge_cases` given there are dropped) — one entry per finding of the
   existing report, `{"CR2": {"status": "fixed" | "partly" | "open" | "dropped",
   "note": "one line: what changed or what's left"}}`. The template in
-  `compose.md` comes filled from the `earlier` agent, which checked each at
+  `compose.md` comes filled from the `earlier-findings` agent, which checked each at
   the new head; render.py refuses a list with one left out or one that
   isn't in the report.
 - `fixes`: exact replacements after the fact-check, copied from
@@ -106,18 +117,21 @@ release PR.
     the `example:` from the evidence (`path:line`) when there is one.
   - `id` (optional): a short slug (`a-z`, `0-9`, `-`), needed only when
     another text refers to this finding.
-- **`process`** — Process items you add yourself (e.g. the description
-  claims a change not in the diff): `issue`, `location`, `title`,
-  `explanation`, `fix`, optional `id`. No score, severity or category.
-  Draft, unlinked issue and missing changeset come from `context.json`
+- **`process`** — Process items you add yourself (rare): `issue`,
+  `location`, `title`, `explanation`, `fix`, optional `id`. No score,
+  severity or category. Mismatches between the PR description and the
+  code come from the `pr-description` agent as `desc-1`, `desc-2` … —
+  assemble.py puts them in as written.
+  Unlinked issue and missing changeset come from `context.json`
   `process` with a standard text — don't repeat them here.
 - **`process_overrides`** (optional) — replace any of `title`, `issue`,
   `location`, `explanation`, `fix` of a Process item from `context.json`,
-  keyed by its id (`draft`, `no-linked-issue`, `missing-changeset`).
+  keyed by its id (`no-linked-issue`, `missing-changeset`, and `desc-<n>`
+  from the `pr-description` agent — assemble.py applies those itself).
 - **`confidence`** — `High`, `Medium` or `Low`: how sure you are the PR is
   sound once the Required Changes are cleared. Lower it for anything you
-  could not verify (CI unreadable, acceptance not checkable, draft,
-  security-reviewer fallback used).
+  could not verify (CI unreadable, acceptance not checkable,
+  security-reviewer fallback used). Draft state doesn't count.
 - **`acceptance`** from `describer.json` doesn't go into findings.json: unmet criteria become findings, and the grading is mentioned in `summary`.
 - **`overview`** — the three Solution Overview folds, Markdown: `what`
   (the story of the change by area; a failing CI goes here), `how`
@@ -168,7 +182,7 @@ release PR.
 - **Refer to findings by id, never by number.** Numbers are assigned after
   sorting, so write `[[ref:<id>]]` — render.py replaces it with `CR2`,
   `I5`, `P1`…; Process items from `context.json` are referenced by their id
-  (`[[ref:draft]]`). A hard-coded `CR1` / `I3` / `P2` outside code is
+  (`[[ref:no-linked-issue]]`). A hard-coded `CR1` / `I3` / `P2` outside code is
   rejected. On an Update, the report's earlier findings are named by
   their number as plain text (`CR2 is fixed`), e.g. in an `earlier` note;
   the Update's own findings still go by `[[ref:<id>]]`, and

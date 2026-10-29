@@ -9,7 +9,7 @@ A finding's precedent (existing pattern / deferred) is the scorer's tag — rend
 ## Findings
 
 ### `c8` — Major · Bug · `packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts | headers: { Accept: "application/octet-stream" },` · score 75
-- **Claim** (finder-f): getSecretPayload hardcodes Accept: application/octet-stream. Barbican requires the Accept header on /payload to be one of the values in the secret's content_types, so a secret stored with another type (for example text/plain) can get 406 Not Acceptable. mapKmError turns that into INTERNAL_SERVER_ERROR, and the user sees 'Key Manager get secret payload failed' when revealing the payload. It works only for secrets whose content type is application/octet-stream.
+- **Claim** (find-api-contract): getSecretPayload hardcodes Accept: application/octet-stream. Barbican requires the Accept header on /payload to be one of the values in the secret's content_types, so a secret stored with another type (for example text/plain) can get 406 Not Acceptable. mapKmError turns that into INTERNAL_SERVER_ERROR, and the user sees 'Key Manager get secret payload failed' when revealing the payload. It works only for secrets whose content type is application/octet-stream.
 - **Scorer:** The update fixes CR1 by hardcoding `Accept: application/octet-stream` (line 102), but the Barbican secrets reference says the Accept header on /payload must be one of the secret's `content_types`, and lists 406 Not Acceptable. A secret stored as text/plain therefore still gets 406, which `mapKmError` turns into a generic failure. Reveal Payload only works for octet-stream secrets. The fix is half done, so this is scored as a new problem and not dropped as a repeat of CR1. Use the secret's `content_types.default`, or fetch the secret first.
 - **Precedent:** Other KM calls (getSecret, listSecrets) send no Accept header; the docs show Accept: application/json on those metadata calls.
 - **Evidence:**
@@ -19,7 +19,7 @@ Code at 64c47a99, keyManagerRouter.ts:100-104: `.get(`v1/secrets/${encodeURIComp
 - Bug: add its scenario to `edge_cases` in texts.json.
 
 ### `c1` — Low · Accessibility · `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretTableRow.tsx:40` · score 75 · precedent: existing (packages/aurora/src/client/routes/_auth/projects/$projectId/network/floatingips/$floatingIpId/-components/-details/FloatingIpDetailsView.tsx:66)
-- **Claim** (finder-a): The new row-action toggles are icon-only Buttons with only a title and no aria-label. Screen readers may announce nothing reliable for the control in every key-manager list row.
+- **Claim** (find-standards): The new row-action toggles are icon-only Buttons with only a title and no aria-label. Screen readers may announce nothing reliable for the control in every key-manager list row.
 - **Scorer:** The row toggle is `<Button icon="moreVert" title={t`Secret actions`} />` with no `aria-label` (same in ContainerTableRow.tsx:39 and OrderTableRow.tsx:38). The Quick Reject Checklist says: "Icon-only button without `aria-label`". Severity is Low because `title` still gives most screen readers a fallback name, and Ceph and flavors pair `title` with `aria-label`.
 - **Precedent:** FloatingIpDetailsView.tsx:66 also uses title only; Ceph and flavors pair title with aria-label.
 - **Evidence:**
@@ -28,7 +28,7 @@ B.14 / Quick Reject: "Icon-only button without `aria-label`". Code: <Button icon
 
 
 ### `c3` — Low · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderModals.tsx:43` · score 50
-- **Claim** (finder-a): CreateOrderModal shows validation errors as the user types, derived on every render, instead of on blur / submit. Clearing the Algorithm field immediately paints an error before the field is left, and the Create button is disabled with no submit-time revalidation.
+- **Claim** (find-standards): CreateOrderModal shows validation errors as the user types, derived on every render, instead of on blur / submit. Clearing the Algorithm field immediately paints an error before the field is left, and the Create button is disabled with no submit-time revalidation.
 - **Scorer:** OrderModals.tsx:43-46 derives `algorithmError`/`bitLengthError` from state on every render and passes them to `errortext`, with no blur or touched tracking. B.11 says "Validate on blur by default", and Algorithm and Bit Length are not strict-format fields. Initial defaults are valid, so the effect is small. The update does what CR2 asked, so this is about when the errors show, not whether.
 - **Precedent:** Not a Reject-line violation by itself (initial defaults are valid, so nothing shows before interaction).
 - **Evidence:**
@@ -75,7 +75,7 @@ B.11: "Validate **on blur** by default; always re-validate all fields **on submi
 
 ## Earlier findings (for `earlier`)
 
-The `earlier` agent checked each of them at the new head; its status, note and evidence are below and already in the template. Keep the statuses — change one only if another agent's result shows it wrong, and say why in the note — and reword a note only for the reader. Don't open the code yourself. In a note, name earlier findings by number (`CR2`), this Update's own by `[[ref:<id>]]`. render.py refuses a list with one left out.
+The `earlier-findings` agent checked each of them at the new head; its status, note and evidence are below and already in the template. Keep the statuses — change one only if another agent's result shows it wrong, and say why in the note — and reword a note only for the reader. Don't open the code yourself. In a note, name earlier findings by number (`CR2`), this Update's own by `[[ref:<id>]]`. render.py refuses a list with one left out.
 
 - CR1 🟠 Major — `getSecretPayload` sends the default `Accept: application/json`, so Barbican answers 406 for most secrets — `packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:98`
   - **fixed** — getSecretPayload now sends Accept: application/octet-stream. _(evidence: git show 64c47a99:keyManagerRouter.ts lines 98-104: headers: { Accept: "application/octet-stream" }, debug: false)_
@@ -141,6 +141,15 @@ The `earlier` agent checked each of them at the new head; its status, note and e
   - **partly** — Tests were added for secret/container/order list containers, table rows, router and schemas; no tests for modals, detail views, nav entry or layout guard, and no E2E. _(evidence: delta adds *ListContainer.test.tsx and *TableRow.test.tsx; no Modals/DetailsView tests; git grep -c key-manager in buildNavSections.test.ts and e2e: no matches)_
 - I21 ⚪ Trivial — Import order and `../../` relative imports break B.13 — `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx:14`
   - **open** — Import order and ../../ relative imports unchanged. _(evidence: SecretsList.tsx 13-17: @/ import, then ../../-components/..., ./..., then type import; SecretTableRow.tsx 12 ../../-components/utils)_
+
+## PR description vs code (Process items)
+
+These go into the report as Process items as written — you can't drop one. To reword one for the reader, put `"process_overrides": {"<id>": {"issue": "…", "explanation": "…", "fix": "…"}}` in texts.json; name one in a text as `[[ref:<id>]]`.
+
+- `desc-1` — The description claims what the code doesn't do · PR body: The description lists add/remove secret refs for containers; no procedure implements them
+  - Quote: "(list/get/create/delete, add/remove secret refs)"
+  - The description says the containers API covers adding and removing secret refs, but `keyManagerRouter` has only `listContainers`, `getContainer`, `createContainer` and `deleteContainer` for containers.
+  - _Fix:_ Drop "add/remove secret refs" from the description, or add the two procedures if they belong in this PR.
 
 ## texts.json shape
 

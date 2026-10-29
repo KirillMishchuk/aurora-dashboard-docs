@@ -49,9 +49,10 @@ them out literally in every later command.
 - **Agents** — `pr-reviewer`, `external-api-checker` and
   `security-reviewer` in `.claude/agents/`. Optional: each has a fallback
   (a general Sonnet agent with the same brief from `briefs.py`).
-- **Network for the API references** — `curl` to
-  `raw.githubusercontent.com` (OpenStack reference sources) and
-  `docs.ceph.com` / AWS docs, for finder f and the scorers.
+- **Network for the API references** — `curl -s` to
+  `raw.githubusercontent.com/openstack/` (OpenStack reference sources) and
+  WebFetch to `docs.openstack.org` / `docs.ceph.com` / AWS docs, for find-api-contract
+  and the scorers; all allowed in `settings.local.json`.
 - **Optional:** the Markdown hook `.claude/hooks/check_report_md.py`
   (also used by render.py and prepare_comment.py) and the project
   settings that make the run cheaper (agents waited for in one turn,
@@ -157,13 +158,14 @@ JSON).
   existing text (reports are historical records). Steps 4–6 run as for
   `full`, but the agents analyze only the delta (`delta.diff`;
   `Delta: whole-pr` means a force-push made the old head unreachable —
-  tell the user), and one more agent, `earlier`, checks every finding of
+  tell the user), and one more agent, `earlier-findings`, checks every finding of
   the existing report at the new head. The describer gets its own brief
   (`describer-update.md`): the same list, and it describes only what no
   earlier finding covers (no QA plan on an Update). In `texts.json` write `earlier` —
   the template in `compose.md` comes filled with that agent's status
-  (`fixed`, `partly`, `open`; `dropped` for an old merge-conflict finding,
-  which this review no longer covers; a `partly`/`open` note that names a
+  (`fixed`, `partly`, `open`; `dropped` for an old merge-conflict or draft
+  finding, which this review no longer covers, or one a maintainer asked to
+  do differently; a `partly`/`open` note that names a
   new finding with `[[ref:<id>]]` hands what is left over to it — the
   verdict counts that new finding, not the earlier one) and one-line note per earlier finding — and
   `confidence` (for the PR at the new head), instead of `summary`,
@@ -220,8 +222,10 @@ python3 .claude/skills/review-and-comment-pr/scripts/briefs.py --run <run folder
 ```
 
 It writes one brief per agent into `<run folder>/briefs/` — the describer
-and finders a–g (f only when the PR changes server code; none on a
-release PR; on an Update also `earlier`) — and prints each agent with its
+and the finders `find-*` (`find-api-contract` only when the PR changes
+server code), `pr-description` (PR description vs code; not when the
+description is empty) — none on a release PR; on an Update also
+`earlier-findings` — and prints each agent with its
 subagent type. Launch
 exactly those agents in **one** message, in the foreground
 (`run_in_background: false`), each with the prompt
@@ -251,7 +255,7 @@ posting from here: the only GitHub write is Step 8.
    python3 .claude/skills/review-and-comment-pr/scripts/briefs.py --run <run folder> score
    ```
 
-   It collects the candidates (finders a–g, plus the describer's unmet
+   It collects the candidates (the `find-*` finders, plus the describer's unmet
    acceptance criteria and stale callers), groups those at the same
    place, packs them into batches and writes one scorer brief per batch,
    with the evidence exactly as the finders reported it. Launch the
@@ -281,9 +285,8 @@ posting from here: the only GitHub write is Step 8.
    You choose only **Confidence to
    Merge** (High / Medium / Low): how sure you are the PR is sound once the
    Required Changes are cleared — lower it for anything you could not
-   verify (CI unreadable, acceptance not checkable, draft,
-   security-reviewer fallback used). A draft is never High — assemble.py
-   refuses it.
+   verify (CI unreadable, acceptance not checkable, security-reviewer fallback
+   used). Draft state doesn't count: a draft can't be merged anyway.
 
 Don't run builds yourself. A failing or missing CI run on `<headRefOid>`
 is reported as such, not as findings re-derived from the build errors.
@@ -293,7 +296,7 @@ is reported as such, not as findings re-derived from the build errors.
 Read `.claude/skills/review-and-comment-pr/references/findings-format.md`
 now. From `compose.md` write `<run folder>/texts.json` — the wording
 only; scores, severity, category, location, the overview and the QA plan
-come from the agents. On an Update, `earlier` comes from the `earlier`
+come from the agents. On an Update, `earlier` comes from the `earlier-findings`
 agent through `compose.md` — keep its statuses; don't open code or run
 diffs yourself (a range diff also carries what a merge of `main` brought
 in):
@@ -311,9 +314,10 @@ in):
   not into its own finding;
 - `edge_cases` — the scenario behind every Bug finding;
 - `merge` — a look-alike pair from `compose.md` that is one problem;
-- `process` — only a Process item you add yourself (the description
-  claims a change that isn't in the diff); draft, unlinked issue and
-  missing changeset come from `collect.py`.
+- `process` — rarely needed: mismatches between the PR description and
+  the code come from the `pr-description` agent (listed in `compose.md`,
+  reworded only through `process_overrides`), unlinked issue and missing
+  changeset from `collect.py`. Draft state is never an item.
 
 The report shows only what to act on: a check that passed (CI, security,
 changeset, API contract) gets no finding. Don't open the old report or

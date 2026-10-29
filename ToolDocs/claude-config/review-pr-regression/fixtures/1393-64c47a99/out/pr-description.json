@@ -1,0 +1,12 @@
+{
+ "mismatches": [
+  {
+   "kind": "not in code",
+   "quote": "(list/get/create/delete, add/remove secret refs)",
+   "issue": "The description lists add/remove secret refs for containers; no procedure implements them",
+   "explanation": "The description says the containers API covers adding and removing secret refs, but `keyManagerRouter` has only `listContainers`, `getContainer`, `createContainer` and `deleteContainer` for containers.",
+   "fix": "Drop \"add/remove secret refs\" from the description, or add the two procedures if they belong in this PR.",
+   "evidence": "git show <head>:packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts | grep -n Procedure -> no secret-ref procedures"
+  }
+ ]
+}

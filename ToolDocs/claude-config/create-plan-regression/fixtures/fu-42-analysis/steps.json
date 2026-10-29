@@ -1,0 +1,46 @@
+{
+ "today": "2026-10-28",
+ "steps": [
+  {
+   "args": [
+    "collect",
+    "follow-up",
+    "42"
+   ]
+  },
+  {
+   "args": [
+    "save",
+    "--run",
+    "{RUNS}/fu-42"
+   ],
+   "stdin": "plan-analysis.md"
+  },
+  {
+   "args": [
+    "write",
+    "--run",
+    "{RUNS}/fu-42",
+    "--title",
+    "TabNavigation content style everywhere",
+    "--slug",
+    "tabnavigation-content-style",
+    "--task",
+    "Follow-up 42 examined: nothing to change",
+    "--top-risk",
+    "none"
+   ]
+  },
+  {
+   "args": [
+    "followups",
+    "--run",
+    "{RUNS}/fu-42",
+    "--skip",
+    "1",
+    "--skip",
+    "2"
+   ]
+  }
+ ]
+}

@@ -10,7 +10,7 @@ branch: mark-manage-ports-interface
 
 # PR #1377: feat(aurora): add Neutron Ports BFF and read-only Ports page (list & details)
 
-**Author:** mark-karnaukh-extern-sap · **Status:** draft · **Base:** `main` ← `mark-manage-ports-interface`
+**Author:** mark-karnaukh-extern-sap · **Status:** open · **Base:** `main` ← `mark-manage-ports-interface`
 **Size:** 42 files, +5094 / −247 · **Created:** 2026-10-09 · [View on GitHub](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377)
 
 ---
@@ -460,6 +460,330 @@ const visiblePorts = useMemo(
 
 </details>
 
+## Update — 2026-10-28, head `25282829`
+
+_Reviewed at head [`25282829`](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377/commits/252828297c698da514d05366d0bab472f828480b) · base `main` at `8cd09bfa` · 2026-10-28 08:16 UTC_
+
+### ⚖️ &nbsp; Verdict
+
+Recommendation: **🔴 Request Changes** &nbsp;&nbsp;&nbsp;&nbsp; Confidence to Merge: **Medium**
+
+- **Must fix before merge** (#816 — read-only Ports UI; create/edit/delete UI and the Network "Ports" tab are follow-ups): CR5
+
+### Fixed since last analysis
+
+- CR1 — portsRouter.list now follows Neutron's next link in a loop and returns the full list.
+- CR2 — 401 now redirects to sign-in (details page and list); 403 renders as an info Message, not an error.
+- CR3 — Loader fetch removed; the component's useQuery is the only fetch.
+- P2 — PR body now describes the Router details tab kept in the URL as `?tab=`.
+- I1 — The 'Log in again' text is gone; 401 redirects with no wording shown.
+- I2 — PopupMenu now has a PopupMenuToggle trigger.
+- I3 — gap="1" is gone; only 0.5, 2, 4, 6 remain in PortDetailsView.
+- I4 — Status is now the 2nd column, right after Name / ID.
+- I5 — Routers doc now says lookups are chunked into requests of at most 50 IDs.
+- I6 — Ports doc error tables now include the `: {Neutron message}` suffix.
+- I7 — The effect is gone; PageInput is keyed on currentPage so it remounts on external change.
+- I8 — zod import now comes right after the router import, before the Lingui imports.
+- I9 — 401 on the details page now does a full redirect to sign-in instead of an inline Sign in button.
+- I10 — Status cell now renders a Badge with a variant. The maintainer has since asked for plain-text status instead, see I17.
+- I11 — List handles 401 (redirect) and 403; other errors show a generic message, not the raw BFF text.
+
+**No longer reviewed**
+
+- CR4 — Merge conflicts are no longer part of this review; GitHub shows them.
+- P1 — Draft state is no longer part of this review; a draft can't be merged anyway.
+
+### 🔧 &nbsp; Required Changes
+
+| #   | Severity    | Category | Precedent | Issue                                                                                             | Location                                                                                                  |
+| --- | ----------- | -------- | --------- | ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| CR5 | 🟡 Moderate | Bug      | —         | 401 handler redirects to `/?redirect=` with the session still in place — can loop on a blank page | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.tsx:118` |
+
+<details><summary><strong>Explanation &amp; Fix</strong></summary>
+
+**CR5 — 401 redirect can loop when only the OpenStack call is unauthorized** · Bug · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.tsx:118`
+When a list or details query returns 401 while the app still holds a session — e.g. the OpenStack token was revoked, or a project rescope failed — the page reloads to `/?redirect=<current page>` and renders nothing. After the reload `getCurrentUserSession` returns the stored token without asking Keystone (`packages/aurora/src/server/Authentication/routers/sessionRouter.ts:13`), so the landing route treats the user as signed in and sends them straight back to the target (`packages/aurora/src/client/routes/index.tsx:32`), which 401s again: a blank page reloading in a loop instead of the old "Session Expired" message. A token that simply expired is not affected — the expiry handler in `AuthProvider` ends the session first.
+
+The redirect is in `UnauthorizedRedirect` at `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.tsx:118` and `packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/-components/RoutersList.tsx:72`, and in effects at `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/$portId.tsx:74` and `packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/$routerId.tsx:76`; none of them ends the session or stops a second redirect. Not reproduced at runtime; no test covers the 401 path.
+_Fix:_ End the session before redirecting — `trpcClient.auth.terminateUserSession`, as the expiry handler at `packages/aurora/src/client/store/AuthProvider.tsx:66` does — or stop after one redirect and show the "Session Expired" message; put it in one shared helper for the four places.
+
+</details>
+
+### 💡 &nbsp; Improvements
+
+| #   | Severity | Category | Precedent | Issue                                                                                                                 | Location                                                                                                       |
+| --- | -------- | -------- | --------- | --------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| I12 | 🟢 Low   | Docs     | —         | Ports and Routers docs say the status Badge is `danger` for DOWN/ERROR; the code uses `error`                         | `packages/aurora/docs/0017_ports_bff.md:405`                                                                   |
+| I13 | 🟢 Low   | UI/UX    | —         | Status is a Badge in the Ports/Routers lists but plain text in their details views                                    | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortDetailsView.tsx:70` |
+| I14 | 🟢 Low   | UI/UX    | —         | Router details answers 403 with an error page, no info Message (B.6); Ports details uses the info Message             | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/$routerId.tsx:88`                 |
+| I15 | 🟢 Low   | UI/UX    | —         | Port details uses Juno `DescriptionList` instead of the shared `TwoColumnDescriptionList` the maintainer asked for    | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortDetailsView.tsx:17` |
+| I16 | 🟢 Low   | UI/UX    | —         | Empty-value placeholder: em dash in Port details, en dash in the list; maintainer asked for the guideline one         | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortDetailsView.tsx:63` |
+| I17 | 🟢 Low   | UI/UX    | —         | List layout differs from the maintainer's request: status as Badge in 2nd column, IPv4/IPv6 labels, ID in Name column | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortTableRow.tsx:61`    |
+| I18 | 🟢 Low   | Docs     | —         | Routers doc contradicts itself on 403 in the details view (error page vs info message)                                | `packages/aurora/docs/0010_routers_bff.md:668`                                                                 |
+
+<details><summary><strong>Explanation &amp; Fix</strong></summary>
+
+**I12 — Docs name the wrong Badge variant for DOWN/ERROR** · Docs · `packages/aurora/docs/0017_ports_bff.md:405`
+A reader of the new docs expects `variant="danger"` for DOWN/ERROR ports and routers, but the rows render `variant="error"` (`packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortTableRow.tsx:34`, and the same in `RouterTableRow.tsx`). The same wording is in `packages/aurora/docs/0010_routers_bff.md:606`. The code is the right one: B.4 treats `error` (system/operation failure) and `danger` as different intents. No runtime effect.
+_Fix:_ Change "danger for DOWN/ERROR" to "error for DOWN/ERROR" in both `0017_ports_bff.md` and `0010_routers_bff.md` (or drop the paragraph if I17 turns the status into plain text).
+
+**I13 — Status looks different in the list and the details view** · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortDetailsView.tsx:70`
+A user who sees a red `DOWN` Badge in the Ports list opens the port and finds plain `DOWN` text: the details views still render the raw status (`packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortDetailsView.tsx:70`, and `RouterDetailsView.tsx:72` for routers), while the list rows got a Badge in this update. B.1 lists Badge as the status indicator. Cosmetic only. Which way to align depends on I17: the maintainer asked for plain-text status in the list.
+_Fix:_ Once I17 is settled, use the same rendering in both places — either `<Badge variant={portStatusVariant(port.status)}>` in the details views, or plain text in the rows. Example of a Badge in a details header: `packages/aurora/src/client/routes/_auth/projects/$projectId/storage/-components/Ceph/Buckets/BucketHeader.tsx:47`.
+
+**I14 — Router details 403 goes to the error page instead of an info Message** · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/$routerId.tsx:88`
+A user without access to a router opens its details and gets the generic error page ("Access to this router is not permitted." via `RouteIdLevelDefaultError`, `packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/$routerId.tsx:88`), while the Ports details page in the same PR shows an info Message for the same case. B.6 asks for a page-level info Message on 403. The routers doc added in this update records the difference on purpose, so it's a known gap rather than an oversight.
+_Fix:_ Render the 403 on `$routerId.tsx` the same way as `ports/$portId.tsx` (`` <Message variant="info" title={t`Insufficient Permissions`}> ``), then drop the "the two differ here" note from `0010_routers_bff.md`; or leave it for a routers follow-up.
+
+**I15 — Port details doesn't use the shared `TwoColumnDescriptionList`** · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortDetailsView.tsx:17`
+The port details page is laid out as one right-aligned list (`packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortDetailsView.tsx:17` renders Juno's `<DescriptionList alignTerms="right">`), so it doesn't get the two-column layout other details pages get from `packages/aurora/src/client/components/TwoColumnDescriptionList.tsx`. TilmanHaupt asked for the shared component in the CHANGES_REQUESTED review https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#pullrequestreview-5670107878 (2026-10-27); no reply or fix commit yet.
+_Fix:_ Build `PortDetailsView` from `TwoColumnDescriptionList` (`packages/aurora/src/client/components/TwoColumnDescriptionList.tsx`) instead of the Juno `DescriptionList`.
+
+**I16 — Inconsistent empty-field placeholder in the Ports views** · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortDetailsView.tsx:63`
+A port without a name or device owner shows `—` (em dash) on the details page (`packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortDetailsView.tsx:63` and lines 60–81) but `–` (en dash) in the list row (`PortTableRow.tsx:63`, 81, 86, 88), so the same empty field looks different on the two pages. TilmanHaupt asked for the project's empty-field placeholder in both views in https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#pullrequestreview-5670107878; not addressed at head. The repo doesn't document the exact character and merged code mixes both, so confirm which one with the maintainer.
+_Fix:_ Ask TilmanHaupt which character the guideline means, then use that single placeholder in `PortDetailsView.tsx` and `PortTableRow.tsx` (ideally from one shared constant).
+
+**I17 — Ports list layout doesn't follow the maintainer's requested layout** · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortTableRow.tsx:61`
+The list shows status as a coloured Badge in the second column (`packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortTableRow.tsx:61`), the ID under the name in the first column, and an `IPv4`/`IPv6` label next to each fixed IP (`PortDetailsView.tsx:53`). In https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#pullrequestreview-5670107878 TilmanHaupt asked for status as plain text in the first column, found the IP-version labels unhelpful and suggested moving the ID to the last column; no reply yet. The Badge came from the earlier report's I10 (B.1); the maintainer's preference takes precedence over it.
+_Fix:_ Follow the maintainer's layout (plain-text status first, ID last, drop the `IPv${fixedIp.ip_version}` labels), or reply on the review explaining the B.1 Badge choice so the two can be reconciled.
+
+**I18 — Routers doc gives two different 403 behaviours for the details view** · Docs · `packages/aurora/docs/0010_routers_bff.md:668`
+The error-handling section, corrected in this update after Copilot's comment https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#discussion_r4389368754, says the router details view shows an error page, not an info message (`packages/aurora/docs/0010_routers_bff.md:613`); the Implementation Status list still says "401 redirect to sign-in and 403 info message on both the list and details views" (`packages/aurora/docs/0010_routers_bff.md:668`). The code follows line 613.
+_Fix:_ Change the Implementation Status line to "403 info message on the list view; error page on the details view" — or, if I14 is fixed, keep it and update line 613 instead.
+
+</details>
+
+### 🗨️ &nbsp; Review comments not taken up
+
+Raised in the review discussion, checked at this head and not counted as findings:
+
+| Raised by                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Claim                                                                                                                                                                                                                                                                                          | Why not a finding                                                                                                                                                                                                                                 |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Copilot [r4389368122](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#discussion_r4389368122), Copilot [r4389368214](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#discussion_r4389368214), Copilot [r4389368277](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#discussion_r4389368277), mark-karnaukh-extern-sap [r4389970447](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#discussion_r4389970447) | Ports by-ID procedures (getById, update, delete) do not check the port's project_id against input.project_id, so a caller with cross-project Neutron admin rights scoped to project A can read, modify or delete project B's port through project A's endpoint, while list filters by project. | portsRouter.ts is not touched by the new commits, so this is outside the Update scope. It is also already deferred by the author to a follow-up for Ports and Routers, and only reachable by callers who already hold cross-project admin policy. |
+
+### What changed
+
+<details>
+<summary><strong>What was done</strong></summary>
+
+Update `86a355a8..25282829`; CI on the head commit: 18 checks pass, 4 skipped, none failed or pending.
+
+**Status filter on Ports and Routers lists.** Both lists get a single-value Status dropdown, kept in the URL as `?status=` and shown as a removable pill. Setting it resets `page`. Ports filters in memory (statuses ACTIVE/DOWN/BUILD/ERROR, no refetch); Routers passes `status` to the BFF list query (ACTIVE/DOWN/ERROR) and refetches. Both list containers get a new empty-state text when only a status filter is active ("No ports/routers match the selected status. Clear the status filter..."). Both `index.tsx` routes add `status` to their search schema.
+
+**Routers aligned with the Ports session/error handling.** The Routers list now treats 401 as a full-page redirect to sign-in, and the Routers details page does the same: its inline "session expired" error text is removed and the component renders nothing while redirecting. The Routers list error boundary now shows a fixed message ("An unexpected error occurred. Try again.") instead of the raw BFF text. The router status in the list is rendered as a colored `Badge`.
+
+**Smaller changes.** Port details labels "Created at"/"Updated at" became "Created At"/"Updated At" (test updated); `port.ts` imports `projectScopedInputSchema` via the `@/server/trpc` alias; the ports/routers docs, the changeset and the en/de locale catalogs are updated for the above.
+
+Every other change carries out an earlier finding.
+
+</details>
+
+<details>
+<summary><strong>How it is implemented</strong></summary>
+
+The 401 handling is a full-document redirect rather than a router navigation, added as a small component on both lists (and as an effect on the details pages):
+
+```tsx
+function UnauthorizedRedirect() {
+  useEffect(() => {
+    const { pathname, search, hash } = window.location
+    window.location.replace(`/?redirect=${encodeURIComponent(pathname + search + hash)}`)
+  }, [])
+  return null
+}
+```
+
+The query promise resolves with `unauthorized: true` on a tRPC `UNAUTHORIZED` error and `RoutersContent` renders this component instead of the list.
+
+</details>
+
+<details>
+<summary><strong>What it affects (blast radius)</strong></summary>
+
+The `status` search param on the Routers list is a new URL contract; the BFF `status` input already existed, so no server change. The docs (ports and routers) describe the Badge as success/danger/warning, while the code uses the Badge variants `success`/`error`/`warning`. The Routers details page no longer has a 401 message, so its 401 path depends entirely on the redirect effect. The full-reload redirect is duplicated in four places (two lists, two details pages) instead of one shared helper.
+
+</details>
+
+## Update — 2026-10-28, head `1d4d4c3c`
+
+_Reviewed at head [`1d4d4c3c`](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377/commits/1d4d4c3c6aaa102d821cc3185030421d32b56bd2) · base `main` at `8cd09bfa` · 2026-10-28 12:28 UTC_
+
+### ⚖️ &nbsp; Verdict
+
+Recommendation: **🟢 Approve with nits** &nbsp;&nbsp;&nbsp;&nbsp; Confidence to Merge: **Medium**
+
+### Fixed since last analysis
+
+- CR1 — list now follows ports_links next in a visited-guarded loop.
+- CR2 — 403 is an info Message on details and list; 401 terminates the session and redirects to sign-in on both (see CR5, I9, I11).
+- CR3 — Loader fetch removed; only the component useQuery fetches the port.
+- CR5 — The redirect now calls auth.terminateUserSession first, then replaces the location, so the session no longer bounces back; the missing catch on that call is I19.
+- P2 — PR body now describes the ?tab= search param on the router details route.
+- I1 — The 'Log in again' copy is gone; 401 redirects instead of rendering text.
+- I2 — PopupMenuToggle wraps the icon Button.
+- I3 — gap="1" is gone; PortDetailsView uses 0.5, 2, 6 and PortTableRow uses 2.
+- I4 — Status is now the first column.
+- I5 — Routers doc now says lookups are chunked into requests of at most 50 IDs.
+- I6 — Error tables carry the ': {Neutron message}' suffix again.
+- I7 — The prop-to-state useEffect is gone; PageInput is keyed on currentPage.
+- I8 — zod is imported before the Lingui imports.
+- I9 — 401 on details no longer renders an inline page; it terminates the session and does a full redirect to sign-in with the current URL as the return target.
+- I11 — List maps 401 to a sign-in redirect; other errors show a generic translated message, not error.message.
+- I12 — Neither doc mentions a Badge or danger variant any more; status is plain text in the Ports list.
+- I13 — Status is plain text in the Ports list and details, and no Badge exists in the routers code, so the lists and details no longer differ.
+- I15 — PortDetailsView now uses the shared TwoColumnDescriptionList.
+- I16 — Details (via the shared component) and the list both use the same '- -' placeholder now.
+- I17 — Status is plain text in column 1, no IPv4/IPv6 labels, details use the shared list; ID is shown only as a fallback in the Name / ID column, which the maintainer only suggested ('maybe').
+- I18 — Routers doc now says the same twice: error page for 403 on the details view.
+
+**No longer reviewed**
+
+- CR4 — Merge conflicts are no longer part of this review; GitHub shows them.
+- P1 — Draft state is no longer part of this review; a draft can't be merged anyway.
+- I10 — Reversed by TilmanHaupt in https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#pullrequestreview-5670107878: status as plain text in the first column.
+- I14 — Kept as is by mark-karnaukh-extern-sap: the different 403 handling on Router details is intentional and documented (https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#issuecomment-6468925018).
+
+### 🔧 &nbsp; Required Changes
+
+None.
+
+### 💡 &nbsp; Improvements
+
+| #   | Severity | Category     | Precedent | Issue                                                                                                 | Location                                                                                                  |
+| --- | -------- | ------------ | --------- | ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------- |
+| I19 | 🟢 Low   | Code Quality | —         | 401 handlers call `terminateUserSession.mutate().finally(...)` without `.catch` — unhandled rejection | `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.tsx:121` |
+
+<details><summary><strong>Explanation &amp; Fix</strong></summary>
+
+**I19 — Session termination before the sign-in redirect has no `catch`** · Code Quality · `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.tsx:121`
+When the session has already expired — the usual reason for a 401 — `terminateUserSession` (a `protectedProcedure`) itself rejects with `UNAUTHORIZED`. `.finally` passes that rejection on, so every expired-session redirect logs an unhandled promise rejection (and trips any global error reporting). The redirect itself still runs.
+
+```tsx
+trpcClient.auth.terminateUserSession.mutate().finally(() => {
+  window.location.replace(`/?redirect=${redirect}`)
+})
+```
+
+The same pattern is in `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/$portId.tsx:75`, `packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/-components/RoutersList.tsx:75` and `packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/$routerId.tsx:77`. `AuthProvider`, which the PR says it mirrors, wraps the same call in `try/catch/finally` (`packages/aurora/src/client/store/AuthProvider.tsx:66`).
+_Fix:_ Swallow the rejection before redirecting, e.g. `.mutate().catch(() => {}).finally(() => window.location.replace(...))`, or move the four copies into one shared helper that does so.
+
+</details>
+
+### 🗨️ &nbsp; Review comments not taken up
+
+Raised in the review discussion, checked at this head and not counted as findings:
+
+| Raised by                                                                                                                                                                                                                                                                                                                                                                                                                                                       | Claim                                                                                                                                                                                                                                                                                                     | Why not a finding                                                                                                                                                                                                                                                                                                 |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Copilot [r4389368122](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#discussion_r4389368122), Copilot [r4389368214](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#discussion_r4389368214), Copilot [r4389368277](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#discussion_r4389368277), mark-karnaukh-extern-sap [r4389970447](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#discussion_r4389970447) | Ports by-ID procedures (getById, update, delete) never compare the port's project_id with input.project_id, so a caller holding cross-project Neutron admin rights, scoped to project A, can read, change or delete project B's port through project A's endpoint; `list` does filter by project. Normal… | Outside this update's changes: portsRouter.ts is not touched by the new commits. The author deferred the project_id check to a follow-up as defence-in-depth (Neutron policy already keeps normal users to their project) in https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#discussion_r4389970447. |
+| Copilot [r4389368413](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#discussion_r4389368413)                                                                                                                                                                                                                                                                                                                                                      | Ports doc lists the details label as 'Created at, Updated at', but the code and tests now use 'Created At' / 'Updated At' (changed to match existing German translations after Copilot's comment). A reader of the doc sees different labels than the UI.                                                 | The doc line says 'Created at, Updated at' while PortDetailsView.tsx:48-49 uses 'Created At'/'Updated At'. Verified, but it is a letter-case difference in a doc and the issue itself spells it 'Created at'; a nitpick.                                                                                          |
+| TilmanHaupt [review](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#pullrequestreview-5670107878), mark-karnaukh-extern-sap [comment](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#issuecomment-6468883398), mark-karnaukh-extern-sap [comment](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#issuecomment-6468925018)                                                                                             | The maintainer's change request on the Ports list is only partly done: status is now plain text in the first column and IPv4/IPv6 labels are gone, but the 'ID in the last column' suggestion was not taken up. A port with a name now never shows its ID in the list (the Name cell is…                  | The ID-in-last-column point is already raised in earlier finding I17 (list layout differs from the maintainer's request, ID in Name column); it was phrased as 'maybe', and the delta adds nothing new.                                                                                                           |
+
+### What changed
+
+<details>
+<summary><strong>What was done</strong></summary>
+
+The update covers `25282829..1d4d4c3c`. CI on the head commit: 17 of 22 checks pass, 4 are skipped and one fails (the `test` job, https://github.com/cobaltcore-dev/aurora-dashboard/actions/runs/40686795606/job/122811366399).
+
+**Routers list and details: more than the status move.** The Routers list drops the subnet name and subnet ID under each external IP, and the column header changes from "External Subnet" to "External IPs". The Routers list also drops the ID shown under the router name. The Routers details view now renders its basic-info block with the shared two-column list, while the External Network tab keeps a local single-column list that prints `- -` for empty values.
+
+**Status shown as plain text, not as a Badge, everywhere.** The Ports and Routers lists now print the raw status string in the first column and the `Badge` and its status-to-variant mapping are deleted. The changeset and both docs are rewritten to say "plain text" (the PR description already did). This removes the coloured status that the previous version had in the lists.
+
+**Ports details drops the IP version and the subnet ID.** Fixed IPs now show the address and the subnet name only, and the subnet ID is shown (and copyable) only when the name can't be resolved. The IPv4/IPv6 label is gone, and a subnet ID next to a known subnet name is no longer shown or copyable. The Ports list also loses the device ID under the device owner and the ID under the port name.
+
+**Tests and locales** are updated to match the new markup; the German and English catalogs are regenerated.
+
+Every other change carries out an earlier finding.
+
+</details>
+
+<details>
+<summary><strong>What it affects (blast radius)</strong></summary>
+
+- The linked issue for the Ports views asks for "IPs (with IP version and subnet)", "Device Owner / ID" and "Fixed IPs / Subnet" columns, and the epic shows IP version and subnet IDs; the UI now shows none of them in the list and no IP version in the details. The BFF still computes `ip_version` for every fixed IP and the Ports doc (`packages/aurora/docs/0017_ports_bff.md`, "Returns `PortListItem[]` ... the IP version and subnet name") still describes it, so the field is returned but nothing displays it.
+- The Ports list search still matches subnet IDs, subnet names and device IDs (doc line on `searchTerm`), but those values are no longer visible in the row, so a search hit can't be explained by what the row shows.
+- The Routers doc keeps saying external subnet names are resolved for `list` ("External network/subnet names and private networks in `list` via batched lookups"), but the list no longer displays them.
+- Status now has no colour cue in the lists; the guidelines' Badge rule for status (B.1) is not met by this choice.
+
+</details>
+
+## Update — 2026-10-28, head `44eb88a0`
+
+_Reviewed at head [`44eb88a0`](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377/commits/44eb88a040e1fbc598faa72215933d4a704870d4) · base `main` at `8cd09bfa` · 2026-10-28 14:24 UTC_
+
+### ⚖️ &nbsp; Verdict
+
+Recommendation: **🟢 Approve** &nbsp;&nbsp;&nbsp;&nbsp; Confidence to Merge: **High**
+
+### Fixed since last analysis
+
+- CR1 — list now follows Neutron ports_links next until exhausted, with a visited guard.
+- CR2 — Details 403 is an info Message, 401 redirects to sign-in (renders null); list 403 is an info Message.
+- CR3 — Route loader removed; the component query is the only fetch of the port.
+- CR5 — Both handlers terminate the server session first, then redirect, so no loop on a still-valid session.
+- P2 — PR body now describes the ?tab= search param for the Router details tab.
+- I1 — The 'Log in again' text is gone; 401 now redirects with no inline copy.
+- I2 — PopupMenu now has a PopupMenuToggle with a Button trigger.
+- I3 — No gap="1" remains in the Ports components; only 0.5, 2 and 6 are used, all in the approved table.
+- I4 — Status is now the first column.
+- I5 — Routers doc now says lookups are chunked into requests of at most 50 IDs.
+- I6 — Ports doc error tables now carry the ': {Neutron message}' suffix.
+- I7 — The effect is gone; PageInput is keyed on currentPage and holds its own state.
+- I8 — zod is now imported right after @tanstack/react-router, before the Lingui imports.
+- I9 — 401 on details no longer renders inline; it terminates the session and replaces location with the sign-in redirect.
+- I10 — Status is plain text now (no Badge), as the maintainer asked.
+- I11 — List handles 401 (redirect) and 403 (info Message); other errors show a generic localized Failed to Load Ports state, not the raw message.
+- I12 — Badge is gone, and no 'danger' wording remains in the Ports or Routers docs.
+- I13 — Status is plain text in both lists and details views, Ports and Routers.
+- I15 — Port details uses the shared TwoColumnDescriptionList.
+- I16 — Empty values go through the shared TwoColumnDescriptionList (undefined) and the list uses the '- -' placeholder, matching what the maintainer asked.
+- I17 — Status is the first column, IPs are plain addresses without IPv4/IPv6 labels or subnet, and the ID is only a fallback in Name.
+- I18 — Routers doc now says 403 on the details view is an error page consistently, and notes the Ports difference.
+- I19 — All 401 handlers (ports list, ports details, routers list, router details) now add .catch before .finally.
+
+**No longer reviewed**
+
+- CR4 — Merge conflicts are no longer part of this review; GitHub shows them.
+- P1 — Draft state is no longer part of this review; a draft can't be merged anyway.
+- I14 — Kept as is by mark-karnaukh-extern-sap: intentional and documented difference between Ports and Routers (https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#issuecomment-6468925018)
+
+### 🔧 &nbsp; Required Changes
+
+None.
+
+### 💡 &nbsp; Improvements
+
+None.
+
+### 🗨️ &nbsp; Review comments not taken up
+
+Raised in the review discussion, checked at this head and not counted as findings:
+
+| Raised by                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 | Claim                                                                                                                                                                                                                                                                                                                                                                                                                       | Why not a finding                                                                                                                                                                                                                              |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Copilot [r4389368122](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#discussion_r4389368122), Copilot [r4389368214](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#discussion_r4389368214), Copilot [r4389368277](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#discussion_r4389368277), mark-karnaukh-extern-sap [r4389970447](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#discussion_r4389970447), mark-karnaukh-extern-sap [r4389983013](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#discussion_r4389983013), mark-karnaukh-extern-sap [r4389974314](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#discussion_r4389974314) | portsRouter getById, update and delete fetch/modify a port by ID without checking that the port's project_id equals input.project_id, while list filters by project. A caller holding cross-project Neutron admin rights (e.g. cloud_network_admin) who is scoped to project A can read, change or delete a port of project B through project A's BFF endpoint. Normal project-scoped tokens are blocked by Neutron itself. | Outside this update's changes: portsRouter.ts is not touched by the new commits. The maintainer deferred the project_id check on by-ID procedures to a follow-up for Ports and Routers (discussion_r4389970447); not fixed at the head commit. |
+
+### What changed
+
+<details>
+<summary><strong>What was done</strong></summary>
+
+The update is `1d4d4c3c..44eb88a0`; CI on the head commit: 18 checks passed, 4 skipped, none failed or pending.
+
+Details views are now split into titled sections. Port details shows two sections, "General" (port ID, MAC, network, IPs, description, name, device owner, device ID) and "Status & Security" (created/updated at, project ID and the rest of the list), each with a `ContentHeading` above its own two-column description list. Router details wraps its existing basic-info list in a "Basic Info" section with the same heading. The new strings "General" and "Status & Security" were added to the en and de catalogs; the de entries have empty translations.
+
+Every other change carries out an earlier finding.
+
+</details>
+
+<details>
+<summary><strong>What it affects (blast radius)</strong></summary>
+
+The sectioned layout is not described in the PR description, which still says port details is "a two-column description list". The de catalog has empty `msgstr` for "General" and "Status & Security", so German users see untranslated or fallback text until they are filled. The details-view component tests were not touched in the update, so nothing asserts the new section headings.
+
+</details>
+
 ---
 
-_Analyzed 2026-10-17 · commit `512f01b1` · read-only · CI from PR API · updated for `86a355a8` on 2026-10-26 · skill: review-and-comment-pr_
+_Analyzed 2026-10-17 · commit `512f01b1` · read-only · CI from PR API · updated for `86a355a8` on 2026-10-26 · updated for `25282829` on 2026-10-28 · updated for `1d4d4c3c` on 2026-10-28 · updated for `44eb88a0` on 2026-10-28 · skill: review-and-comment-pr_

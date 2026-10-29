@@ -6,7 +6,9 @@ Usage (by the agent, as its brief says):
   { … }
   JSON
 
-<name>: describer | finder-a … finder-g | score-<n> | factcheck. Checks the JSON shape, every
+<name>: describer | find-* (see briefs.FINDERS) | pr-description | earlier-findings (Update only) |
+score-<n> |
+factcheck. Checks the JSON shape, every
 location (the file and line exist at the PR head) and, for the describer,
 every [[code:…]] / [[at:…]] placeholder and `path:line` citation. On success
 writes <run-dir>/out/<name>.json and prints one line; on errors writes
@@ -24,6 +26,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import quotes  # noqa: E402
 
 LABELS = {"PR body", "PR state", "PR files", "CI"}
+FINDER_NAMES = ("find-standards", "find-diff-bugs", "find-history", "find-discussion", "find-code-comments",
+                "find-api-contract", "find-security", "find-cross-boundary")  # as briefs.FINDERS
 SCORES = {0, 25, 50, 75, 100}
 SEVERITIES = ["Critical", "Major", "Moderate", "Low", "Trivial"]
 CATEGORIES = ["Bug", "Security", "Accessibility", "UI/UX", "Code Quality", "Performance", "Docs",
@@ -112,9 +116,47 @@ def example(repo, c, where, errors):
         errors.append(f"{where}.evidence: example {path}:{line} is out of range")
 
 
+CITE_ANY = re.compile(r"([\w.$@/\[\]()+-]+\.[A-Za-z0-9]+):(\d+)")
+
+
+def outside(repo, text):
+    """`path:line` citations in text that point outside the PR's changed files and exist at the head."""
+    hits = []
+    for m in CITE_ANY.finditer(text or ""):
+        path = repo.resolve_name(m.group(1)) or m.group(1)
+        ls = repo.lines(path)
+        if path not in repo.changed and ls and 1 <= int(m.group(2)) <= len(ls):
+            hits.append(f"{path}:{m.group(2)}")
+    return hits
+
+
+def check_boundaries(data, cands, repo):
+    """find-cross-boundary follows changes out of the diff: every candidate cites the receiving code outside the PR, and
+    `boundaries` lists each hand-off point it followed with that receiving line."""
+    errors = []
+    b = data.get("boundaries")
+    if not isinstance(b, list):
+        return ["boundaries: a list of the hand-off points you followed (empty only if the diff has none)"]
+    for i, it in enumerate(b):
+        w = f"boundaries[{i}]"
+        if keys(errors, it, {"change", "receiver"}, w):
+            text(errors, it, "change", w)
+            r = text(errors, it, "receiver", w)
+            if r and not outside(repo, r):
+                errors.append(f"{w}.receiver: {r!r} — a path:line outside the PR's changed files that exists at the head")
+    for i, c in enumerate(cands):
+        if isinstance(c, dict) and isinstance(c.get("evidence"), str) and not outside(repo, c["evidence"]):
+            errors.append(f"candidates[{i}].evidence: names no path:line outside the PR's changed files — cite the "
+                          "receiving code you read")
+    if cands and not b:
+        errors.append("boundaries: empty, but there are candidates — list the hand-off points you followed")
+    return errors
+
+
 def check_finder(name, data, repo):
     errors = []
-    allowed = {"candidates", "checklist"} if name == "finder-a" else {"candidates"}
+    allowed = {"candidates", "checklist"} if name == "find-standards" else \
+        {"candidates", "boundaries"} if name == "find-cross-boundary" else {"candidates"}
     if not keys(errors, data, allowed, name):
         return errors, 0
     cands = data.get("candidates")
@@ -134,7 +176,9 @@ def check_finder(name, data, repo):
         loc = text(errors, c, "location", w)
         if loc:
             location(repo, loc, f"{w}.location", errors)
-    if name == "finder-a":
+    if name == "find-cross-boundary":
+        errors += check_boundaries(data, cands, repo)
+    if name == "find-standards":
         cl = data.get("checklist")
         if not isinstance(cl, list) or not cl:
             errors.append("checklist: one entry per checklist item / Reject line is required")
@@ -148,8 +192,21 @@ def check_finder(name, data, repo):
     return errors, len(cands)
 
 
+def delta_files(run_dir):
+    """Files the new commits touch on an Update (delta.diff), or None outside an Update / without a delta."""
+    try:
+        ctx = json.loads((run_dir / "context.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    f = run_dir / "delta.diff"
+    if ctx.get("mode") != "update" or not f.exists():
+        return None
+    return set(re.findall(r"(?m)^diff --git a/(\S+) b/", f.read_text(encoding="utf-8", errors="replace")))
+
+
 def check_scores(name, data, repo, run_dir):
     errors = []
+    delta = delta_files(run_dir)
     try:
         cands = json.loads((run_dir / "candidates.json").read_text(encoding="utf-8"))["candidates"]
     except (OSError, ValueError, KeyError):
@@ -192,6 +249,19 @@ def check_scores(name, data, repo, run_dir):
                 errors.append(f"{w}.same_as: {s['same_as']!r} — must be another id of its group ({', '.join(group)}) or null")
         elif s.get("same_as") is not None:
             errors.append(f"{w}.same_as: {cid} is in no group — leave same_as out")
+        target = next((t for t in data["scores"] if isinstance(t, dict) and t.get("id") == s.get("same_as")), None)
+        if target is not None and target.get("same_as"):
+            errors.append(f"{w}.same_as: {s['same_as']} is itself marked same_as {target['same_as']} — point "
+                          f"{cid} at the candidate you score (same_as must name one with no same_as of its own)")
+        if delta is not None and isinstance(s.get("score"), int) and s["score"] >= 50 and not s.get("same_as") \
+                and (mine[cid].get("discussion") or "").strip():
+            loc = str(mine[cid].get("location") or "")
+            path = loc.split(" | ")[0].split(":")[0].strip()
+            path = repo.resolve_name(path) or path
+            if loc.strip() not in LABELS and path not in delta:
+                errors.append(f"{w}.score: {cid} comes from the review discussion and points at {path}, which this "
+                              "Update's commits don't touch — score it 0 and say \"Outside this update's changes\" "
+                              "and what happened to it in the thread; it is answered under Review comments not taken up")
         if isinstance(s.get("score"), int) and s["score"] >= 50 and not s.get("same_as"):
             if s.get("severity") not in SEVERITIES:
                 errors.append(f"{w}.severity: {s.get('severity')!r} not one of {SEVERITIES}")
@@ -254,8 +324,57 @@ def check_factcheck(data, ctx, run_dir):
     return errors, len(data["wrong"])
 
 
+MISMATCH_KINDS = ("not in code", "not described")
+ISSUE_MAX_CHARS = 120  # as render.py
+
+
+def plain(s):
+    """For matching a quote against the PR description: no Markdown emphasis or code ticks, one space, any case."""
+    return re.sub(r"\s+", " ", re.sub(r"[`*_]", "", s)).strip().lower()
+
+
+def check_description(data, repo, run_dir):
+    """The `pr-description` agent: mismatches between the PR description and the code. Each becomes a Process item
+    as written (assemble.py), so the checks here are what keeps a made-up one out: a `not in code` quote must be
+    in the description word for word, a `not described` location must exist at the head."""
+    errors = []
+    if not keys(errors, data, {"mismatches"}, "description") or not isinstance(data.get("mismatches"), list):
+        return errors or ["mismatches: must be a list (empty if none)"], 0
+    body_f = run_dir / "pr-body.md"
+    body = plain(body_f.read_text(encoding="utf-8")) if body_f.exists() else ""
+    for i, m in enumerate(data["mismatches"]):
+        w = f"mismatches[{i}]"
+        if not keys(errors, m, {"kind", "quote", "location", "issue", "explanation", "fix", "evidence"}, w):
+            continue
+        kind = m.get("kind")
+        if kind not in MISMATCH_KINDS:
+            errors.append(f"{w}.kind: {kind!r} — one of {', '.join(MISMATCH_KINDS)}")
+        for k in ("issue", "explanation", "fix"):
+            text(errors, m, k, w)
+            public(errors, m, k, w)
+        issue = m.get("issue")
+        if isinstance(issue, str) and ("\n" in issue.strip() or len(issue) > ISSUE_MAX_CHARS):
+            errors.append(f"{w}.issue: one line, at most {ISSUE_MAX_CHARS} characters")
+        text(errors, m, "evidence", w)
+        if kind == "not in code":
+            q = text(errors, m, "quote", w)
+            if q and plain(q) not in body:
+                errors.append(f"{w}.quote: not found in the PR description — copy the claim word for word")
+            if m.get("location") not in (None, "", "PR body"):
+                errors.append(f"{w}.location: leave it out for `not in code` (the claim is in the PR description)")
+        elif kind == "not described":
+            if m.get("quote"):
+                errors.append(f"{w}.quote: only for `not in code` — the description doesn't mention this")
+            loc = text(errors, m, "location", w)
+            if loc in LABELS:
+                errors.append(f"{w}.location: a path:line of the change at the head commit, not {loc!r}")
+            elif loc:
+                location(repo, loc, f"{w}.location", errors)
+    return errors, len(data["mismatches"])
+
+
 def check_earlier(data, ctx):
-    """The `earlier` agent: a status, a note and evidence for every finding of the existing report — no gaps."""
+    """The `earlier-findings` agent: a status, a note and evidence for every finding of the existing report — no gaps."""
     errors = []
     if not keys(errors, data, {"earlier"}, "earlier") or not isinstance(data.get("earlier"), dict):
         return errors or ["earlier: must be an object keyed by the earlier findings' numbers"], 0
@@ -272,9 +391,14 @@ def check_earlier(data, ctx):
         if not keys(errors, v, {"status", "note", "evidence"}, w):
             continue
         if v.get("status") not in ("fixed", "partly", "open", "dropped"):
-            errors.append(f"{w}.status: {v.get('status')!r} — fixed, partly, open, or dropped (merge conflicts only)")
+            errors.append(f"{w}.status: {v.get('status')!r} — fixed, partly, open, or dropped (merge conflicts, draft, reversed by a maintainer, or an I/P item kept as is)")
         note = text(errors, v, "note", w)
         public(errors, v, "note", w)
+        if v.get("status") == "dropped" and k.startswith("CR") and note and not re.match(
+                r"(Merge conflicts|Draft state|Reversed by )", note.strip()):
+            errors.append(f"{w}.status: a Required Change is dropped only for merge conflicts, draft, or when a "
+                          "maintainer reversed it (\"Reversed by <login> in <url>.\") — the author keeping it as is "
+                          "leaves it open; say their position in the note")
         if note and "\n" in note.strip():
             errors.append(f"{w}.note: one line")
         text(errors, v, "evidence", w)
@@ -338,8 +462,10 @@ def main(argv):
         print(__doc__)
         return 2
     run_dir, name = Path(argv[1]), argv[3]
-    if name not in ("describer", "factcheck", "earlier") and not re.match(r"^(finder-[a-g]|score-\d+)$", name):
-        print(f"ERROR: unknown result name {name!r} (describer, finder-a … finder-g, earlier, score-<n>, factcheck)")
+    if name not in ("describer", "factcheck", "earlier-findings", "pr-description") + FINDER_NAMES \
+            and not re.match(r"^score-\d+$", name):
+        print(f"ERROR: unknown result name {name!r} (describer, {', '.join(FINDER_NAMES)}, pr-description, "
+              "earlier-findings, score-<n>, factcheck)")
         return 2
     try:
         ctx = json.loads((run_dir / "context.json").read_text(encoding="utf-8"))
@@ -358,9 +484,12 @@ def main(argv):
     elif name == "factcheck":
         errors, n = check_factcheck(data, ctx, run_dir)
         what = f"{n} wrong claim(s)"
-    elif name == "earlier":
+    elif name == "pr-description":
+        errors, n = check_description(data, repo, run_dir)
+        what = f"{n} mismatch(es)"
+    elif name == "earlier-findings":
         if ctx["mode"] != "update":
-            print("ERROR: `earlier` runs only on an Update")
+            print("ERROR: `earlier-findings` runs only on an Update")
             return 2
         errors, n = check_earlier(data, ctx)
         what = f"{n} earlier finding status(es)"

@@ -1,6 +1,6 @@
 ---
 name: external-api-checker
-description: Read-only checker of aurora-dashboard code against the official OpenStack, Ceph RGW and AWS S3 API references. Reads the references verbatim and returns findings with exact quotes and URLs. Used by review-and-comment-pr (finder f).
+description: Read-only checker of aurora-dashboard code against the official OpenStack, Ceph RGW and AWS S3 API references. Reads the references verbatim and returns findings with exact quotes and URLs. Used by review-and-comment-pr (find-api-contract).
 model: sonnet
 tools:
   - Read
@@ -45,7 +45,9 @@ calls the same endpoint.
 
 Run all four for every changed call that lists resources (`GET` on a
 collection) and report each one — a finding or one line "checked,
-consistent" — so a gap can't hide behind a check that wasn't made:
+consistent" — so a gap can't hide behind a check that wasn't made (when the brief that
+launched you asks for problems only, as review-and-comment-pr does, the
+checks stay mandatory but passed ones are left out of the result):
 
 1. **Pagination.** Does the code send `limit`/`marker` or follow the
    `*_links` / `next` link? Quote what the reference says about the
@@ -111,4 +113,4 @@ One entry per issue:
 - what the code does differently.
 
 Then one line per call you checked and found consistent, so the reader
-sees what was covered.
+sees what was covered — unless your brief asks for problems only.

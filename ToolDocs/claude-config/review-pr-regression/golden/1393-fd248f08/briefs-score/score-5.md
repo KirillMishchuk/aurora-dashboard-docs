@@ -26,7 +26,7 @@ These candidates point at the same place. For each, set `same_as` (see the resul
 
 The evidence is as the finders reported it, unchanged.
 
-### C21 — from finder-a
+### C21 — from find-standards
 - **Claim:** The Authorization nav entry does not honour service-visibility configuration (`isEnabled` / enabledServices / deniedServices) like the other in-core entries.
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/-components/buildNavSections.ts:153`
 - **Evidence:**
@@ -35,7 +35,7 @@ Code: ` etc(serviceIndex["key-manager"]?.["barbican"] ? [{ etc}] : [])` with no 
 - **Precedent:** Other in-core entries use isEnabled in the same file.
 - **Review discussion:** Copilot thread r4360389607.
 
-### C27 — from finder-c
+### C27 — from find-history
 - **Claim:** The new Authorization > Key Manager nav entry is gated only on the catalog (serviceIndex["key-manager"]["barbican"]) and skips isEnabled(...). Since #1370, every built-in item and every extension is filtered by enabledServices/deniedServices, so a consumer cannot hide Key Manager via appConfig deny list or enabledServices allowlist (the allowlist would still show it).
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/-components/buildNavSections.ts:154`
 - **Evidence:**
@@ -43,7 +43,7 @@ Code: ` etc(serviceIndex["key-manager"]?.["barbican"] ? [{ etc}] : [])` with no 
 At base c65b36d0, buildNavSections.ts lines 29-33 define isEnabled with the comment 'Deny always wins and applies even without an allow/enabled list'; images, flavors, securitygroups, floatingips, routers, containers and ceph-containers all use `&& isEnabled("<key>")`, and extensions check enabledServices/deniedServices (lines 154-155, added in b4b47df6 #1370). The PR diff for this file adds the key-manager item with no isEnabled call. The PR does not touch README 'Service key reference' either.
 - **Precedent:** routers/securitygroups/floatingips entries in the same file use isEnabled.
 
-### C35 — from finder-d
+### C35 — from find-discussion
 - **Claim:** Key Manager nav entry ignores isEnabled, so enabledServices/deniedServices cannot hide it, unlike the other entries.
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/-components/buildNavSections.ts:154`
 - **Evidence:**
@@ -51,7 +51,7 @@ At base c65b36d0, buildNavSections.ts lines 29-33 define isEnabled with the comm
 Line 154: serviceIndex["key-manager"]?.["barbican"] ? ... with no && isEnabled(...); other entries at lines 36,46,60,71,82,97,119 use isEnabled.
 - **Review discussion:** Copilot inline r4360389607, no replies, still applies.
 
-### C41 — from finder-e
+### C41 — from find-code-comments
 - **Claim:** The new Key Manager nav item is gated only on the service catalog and skips isEnabled("key-manager"). The comment above isEnabled says deny always wins and a service can be hidden by deniedServices alone, but enabledServices/deniedServices have no effect on Key Manager, so an operator cannot hide it or exclude it from an allowlist.
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/-components/buildNavSections.ts:154`
 - **Evidence:**
@@ -59,7 +59,7 @@ Line 154: serviceIndex["key-manager"]?.["barbican"] ? ... with no && isEnabled(.
 Comment at lines 29-31 at fd248f08: "Deny always wins and applies even without an allow/enabled list, so a service can be hidden by deniedServices alone ... see resolveServiceVisibility." Every other built-in item uses `&& isEnabled(...)` (images, flavors, securitygroups, floatingips, routers, containers, ceph-containers). The new entry uses only `serviceIndex["key-manager"]?.["barbican"]`. The route beforeLoad in key-manager.tsx also checks only the catalog, so a denied service stays reachable by URL.
 - **Precedent:** Extensions at lines 176-178 check both enabledServices and deniedServices.
 
-### C22 — from finder-a
+### C22 — from find-standards
 - **Claim:** Page-state recovery after deletion: list URL `page` is not clamped when the last row of the last page is deleted, leaving an empty table with no pagination.
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx:126`
 - **Evidence:**
@@ -67,7 +67,7 @@ Comment at lines 29-31 at fd248f08: "Deny always wins and applies even without a
 B.9 (URL state must stay consistent) ; Code: `{totalPages > 1 && (<Pagination  etc/>)}` with `page` coming from the URL and no clamp after invalidate.
 - **Review discussion:** Copilot threads r4360389254, r4360389387, r4360389532.
 
-### C39 — from finder-d
+### C39 — from find-discussion
 - **Claim:** After deleting the last item on the final page the URL page stays beyond the new total; pagination is hidden (totalPages <= 1) and the table is empty with no way back. Same in Secrets, Containers and Orders lists.
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx:126`
 - **Evidence:**
@@ -75,14 +75,14 @@ B.9 (URL state must stay consistent) ; Code: `{totalPages > 1 && (<Pagination  e
 SecretsList.tsx:62 offset=(page-1)*PAGE_SIZE, line 75 totalPages from data.total, line 126 {totalPages > 1 && Pagination}; no clamp/reset of page on delete or total shrink.
 - **Review discussion:** Copilot inline r4360389532, r4360389254 (ContainersList:91), r4360389387 (OrdersList:97); no replies.
 
-### C23 — from finder-a
+### C23 — from find-standards
 - **Claim:** The PR body checklist leaves the tests, docs, warnings and 'commented my code' items unchecked even though tests are added, and the Testing Instructions are only generic commands. No changeset is mentioned (memory: house style says no changesets in descriptions).
 - **Location:** PR body
 - **Evidence:**
 
 pr-body.md Checklist: `- [ ] I have added tests that prove my fix is effective or that my feature works.` and `- [ ] New and existing unit tests pass locally with my changes.` while the PR adds *.test.ts(x) files.
 
-### C24 — from finder-b
+### C24 — from find-diff-bugs
 - **Claim:** SearchInput wires both onSearch and onInput to onSearchChange, and onSearchChange navigates, so every keystroke changes the URL, resets page and fires a new listSecrets request (and likely adds a history entry per character). Typing a name causes request churn and a polluted back-history.
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx:109`
 - **Evidence:**
@@ -111,7 +111,7 @@ SecretsList.tsx: SearchInput has onSearch, onClear and onInput all calling onSea
 - One entry per candidate, every candidate exactly once.
 - `score`: 0, 25, 50, 75 or 100. For 50 and up, `severity` (Critical, Major, Moderate, Low, Trivial), `category` (Bug, Security, Accessibility, UI/UX, Code Quality, Performance, Docs, Test coverage) and a `location` that exists at headRefOid (`path:line`, `path | text on that line`, or `PR body` / `PR state` / `PR files` / `CI`). Below 50, leave them out.
 - `precedent`: required for 50 and up — the reader's tag, it never changes the score. `{"kind": "existing", "ref": "path:line"}` when merged code already has the same problem — `ref` is a line that itself breaks the same rule. Sibling code that does it right (e.g. a list that already debounces) is not a precedent: it's evidence for the finding, put it in `reason`. Find that line at baseRefOid (`git grep -n '<pattern>' <baseRefOid> -- <pathspec>`). `{"kind": "deferred", "ref": "<URL>"}` when a maintainer accepted or postponed the same point, on another PR or in `discussion.json`: open the thread, `ref` is the comment's GitHub URL. Both apply → `deferred`. Neither, or you couldn't confirm the candidate's `precedent` → `null`.
-- `same_as`: required for a candidate in a group above — the id of the candidate in the same group that describes the same problem (score that one; this one is then dropped — `score` and `reason` may be left out for it), or `null` if it is a different problem. Elsewhere leave it out.
+- `same_as`: required for a candidate in a group above — the id of the candidate in the same group that describes the same problem (score that one, and leave its own `same_as` null — never point at another duplicate; this one is then dropped — `score` and `reason` may be left out for it), or `null` if it is a different problem. Elsewhere leave it out.
 
 ## Saving your result
 

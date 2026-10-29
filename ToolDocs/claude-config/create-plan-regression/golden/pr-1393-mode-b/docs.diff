@@ -1,0 +1,589 @@
+--- base/FOLLOW-UPS.md
++++ now/FOLLOW-UPS.md
+@@ -67,4 +67,5 @@
+ | 42 | `TabNavigation` tabs: `tabStyle="content"` and controlled `activeItem` everywhere | Juno | open |
+ | 53 | Remaining `TabNavigation` users → `TabBar`/`TabBarItem` | Juno | open |
++| 55 | Migrate remaining `TabNavigation` users to `TabBar` | Juno | open |
+ | 43 | SG details page state (tab, search, sorting, rule filters) in the URL | Client (SG) | open |
+ | 51 | SG Rules tab has no separate "no search/filter results" state | Client (SG) | open |
+@@ -75,4 +76,5 @@
+ | 49 | "Attached Volumes" section on Instance Details | Volumes | open |
+ | 50 | Availability-zone selection when creating a volume | Volumes | open |
++| 54 | Sync the Security Group detail tab to the URL | Key Manager | open |
+ 
+ ---
+@@ -1113,4 +1115,25 @@
+ 
+ **Source:** plan [2026-10-27-security-groups-tabbar.md](./plans/2026-10-27-security-groups-tabbar.md)
++
++**Status:** open.
++
++---
++
++### 55. Migrate remaining `TabNavigation` users to `TabBar`
++
++**Where:**
++- `packages/aurora/src/client/components/ListToolbar/index.tsx:7-8,163-167`
++- `packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/-components/RouterDetailsView.tsx:10-11,113-120`
++- `packages/aurora/src/client/routes/_auth/projects/$projectId/storage/-components/Ceph/Buckets/BucketDetailTabs.tsx:2,21-58`
++- `packages/aurora/src/client/routes/_auth/projects/$projectId/storage/-components/Ceph/Objects/ObjectBrowserView.tsx:11-12,655-686`
++- `packages/aurora/src/client/routes/_auth/projects/$projectId/compute/images/-components/List.tsx:20-21,228-232`
++
++**What:** These files still use the deprecated Juno `TabNavigation`/`TabNavigationItem`. Each one logs a deprecation `console.warn` on mount and will break when Juno removes the component in a future major release. They now also contradict the updated Copilot rule.
++
++**How to fix:** Rename the components one-for-one. The props are identical in 9.7.1, and the default `"tabs"` appearance looks the same as `"main"`. Add `ariaLabel` where a page has more than one nav landmark.
++
++**Why not done right away:** Issue #1387 is limited to Security Groups. The issue says the other scopes "will be updated at some point soon".
++
++**Source:** plan [2026-10-28-pr-1393-fixes.md](./plans/2026-10-28-pr-1393-fixes.md)
+ 
+ **Status:** open.
+@@ -1303,3 +1326,21 @@
+ 
+ ---
+-Updated: 2026-10-27
++
++## N. Key Manager
++
++### 54. Sync the Security Group detail tab to the URL
++
++**Where:** `packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/$securityGroupId/-components/SecurityGroupDetailsView.tsx` (`useState<TabType>("rules")`) and `.../$securityGroupId/index.tsx` (no `validateSearch`)
++
++**What:** The active tab is local state, so refresh, back/forward and deep links always open "Rules". This contradicts `.github/copilot-instructions.md:345-353`, which requires the active tab in a `tab` search param.
++
++**How to fix:** Add `validateSearch` with an optional `tab: "rules" | "rbac"` on the detail route and drive `activeTab`/`onTabChange` from `Route.useSearch()`/`navigate({ search: (prev) => ({ ...prev, tab }) })`, following `BucketDetailTabs.tsx`'s `view` param. Keep the fallback to Rules when the RBAC tab is hidden, and keep the rules toolbar's params from `urlHelpers.ts`.
++
++**Why not done right away:** The user chose D2 = A: #1387 is a pure component swap.
++
++**Source:** plan [2026-10-28-pr-1393-fixes.md](./plans/2026-10-28-pr-1393-fixes.md)
++
++**Status:** open.
++
++---
++Updated: 2026-10-28
+--- base/aurora-dashboard-kb/prs/1393-key-manager-core-plugin.md
++++ now/aurora-dashboard-kb/prs/1393-key-manager-core-plugin.md
+@@ -577,2 +577,8 @@
+ 
+ _Analyzed 2026-10-25 · commit `fd248f08` · read-only · updated for `64c47a99` on 2026-10-26 · skill: review-and-comment-pr_
++
++<!-- related:auto — generated from pr/issue properties by tools/update-related.py; do not edit by hand -->
++## Related
++
++- plan · 2026-10-27 · [2026-10-27-security-group-empty-state-copy](../../plans/2026-10-27-security-group-empty-state-copy.md)
++- plan · 2026-10-28 · [2026-10-28-pr-1393-fixes](../../plans/2026-10-28-pr-1393-fixes.md)
+--- base/plans/2026-10-27-security-group-empty-state-copy.md
++++ now/plans/2026-10-27-security-group-empty-state-copy.md
+@@ -3,4 +3,5 @@
+ date: 2026-10-27
+ status: not-implemented
++pr: [1393]
+ issue: [1388]
+ ---
+@@ -226,2 +227,8 @@
+ - [FOLLOW-UPS.md → item 51](../FOLLOW-UPS.md) — SG Rules tab has no separate "no search/filter results" state
+ - [FOLLOW-UPS.md → item 52](../FOLLOW-UPS.md) — Sentence-case and trailing-period empty-state titles elsewhere in the client
++
++<!-- related:auto — generated from pr/issue properties by tools/update-related.py; do not edit by hand -->
++## Related
++
++- pr-report · 2026-10-25 · [1393-key-manager-core-plugin](../aurora-dashboard-kb/prs/1393-key-manager-core-plugin.md)
++- plan · 2026-10-28 · [2026-10-28-pr-1393-fixes](2026-10-28-pr-1393-fixes.md)
+--- base/plans/2026-10-28-pr-1393-fixes.md
++++ now/plans/2026-10-28-pr-1393-fixes.md
+@@ -0,0 +1,487 @@
++---
++type: plan
++date: 2026-10-28
++status: not-implemented
++pr: [1393]
++---
++# Fixes: PR #1393 — feat(aurora): add Key Manager (Barbican) in-core plugin
++
++**Original plan:** [2026-10-27-security-group-empty-state-copy.md](./2026-10-27-security-group-empty-state-copy.md)
++**Status:** round 2 not implemented
++
++## Round 1 — 2026-10-28 · review-and-comment-pr report, Copilot
++
++**Base:** `origin/pr/1393` @ `8763f93b`
++
++### Overview
++
++Issue #1387 asks for the Security Group detail page's "Rules" and "RBAC Policies" tabs to use Juno's `TabBar`/`TabBarItem`. Those components replace the deprecated `TabNavigation`/`TabNavigationItem`. The screenshot in the issue is out of date: it shows the hand-rolled `<button>` tabs that PR #1375 already replaced with `TabNavigation`. So the work left is replacing the deprecated `TabNavigation` with `TabBar`, plus three small additions: a landmark `ariaLabel` on the tab bar, an update to the Copilot review rule that still requires `TabNavigation`, and a patch changeset. Behavior does not change: the tab state stays local, and the look, keyboard handling and `aria-current` semantics stay the same.
++
++### Decisions
++
++- **D1.** Should `.github/copilot-instructions.md:130`, which still names `TabNavigation`, be updated in this change? → **A: yes.** The "Tab navigation" row becomes `TabBar`, `TabBarItem`.
++- **D2.** Should the active tab move into a URL search param? → **A: no.** It stays in local `useState` in `SecurityGroupDetailsView.tsx`. URL sync is proposed as a follow-up.
++- **Small choices (accepted):**
++  - use `TabBar`'s default appearance (`"tabs"`)
++  - add `ariaLabel={t\`Security group sections\`}` and regenerate the catalogs with `check-i18n`
++  - keep the component's public API and existing tests
++  - add a patch changeset
++  - list the other five `TabNavigation` users as one proposed follow-up
++
++### Architecture Analysis
++
++**Current state:**
++
++- `packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/$securityGroupId/-components/-details/SecurityGroupTabs.tsx` renders the tabs with `TabNavigation` (`className="mt-4"`, `activeItem={activeTab}`, `onActiveItemChange` narrowed through `isTabType`). It has two `TabNavigationItem`s:
++  - `value="rules"`, `label={t\`Rules\`}`
++  - `value="rbac"`, `label={t\`RBAC Policies\`}`, rendered only when `showRBACTab`
++
++  Each item also gets `active={activeTab === "<value>"}`. Exports: `SecurityGroupTabs` and `TabType = "rules" | "rbac"`, re-exported from `-details/index.ts`.
++- `.../$securityGroupId/-components/SecurityGroupDetailsView.tsx` owns the state:
++  - `useState<TabType>("rules")`
++  - `showRBACTab = isOwner && permissions.canViewRBAC`
++  - `currentTab` falls back to `"rules"` when the RBAC tab is hidden
++
++  It renders `<SecurityGroupTabs activeTab={currentTab} onTabChange={setActiveTab} showRBACTab={showRBACTab} />`. This file needs no change.
++- Tests:
++  - `SecurityGroupTabs.test.tsx` already asserts `getByRole("button", { name })`, `aria-current="true"`, that the component follows `activeTab` after a click, `onTabChange("rbac")`, and that the RBAC tab is hidden when `showRBACTab={false}`.
++  - `SecurityGroupDetailsView.test.tsx:176-198` covers the fallback to Rules when the RBAC tab disappears.
++- **Juno at the installed 9.7.1** (`packages/aurora/package.json`; checked in `node_modules/.../build/index.d.ts:86-89` and the `@cloudoperators/juno-ui-components@9.7.1` tag sources):
++  - `TabBar` and `TabBarItem` are exported, and their props are a superset of what we pass (`activeItem`, `ariaLabel`, `className`, `onActiveItemChange: (activeItem: ReactNode) => void`, `appearance`; item: `value`, `label`, `active`, `onClick`, ...).
++  - `TabNavigation` is `withDeprecationWarning(TabNavigationBackwardsCompat)`, i.e. `<TabBar appearance="main" className="juno-tabnavigation ...">`. Mounting it calls `console.warn("TabNavigation is deprecated ...")`.
++  - Both wrap the same `Navigation`/`NavigationItem`: `<nav role="navigation">` → `<li>` → `<button aria-current>`, and `activeItem` is synced through a `useEffect` on `activeItem`. The DOM, the a11y semantics and the activeItem-sync quirk documented in the current code comment are therefore unchanged.
++  - Item styles for `"main"` and `"tabs"` are identical (`tabBarItemStyles`). No CSS targets the `juno-tabbar-*`/`juno-tabnavigation-*` class names, so the default `"tabs"` appearance looks the same as today.
++  - The ui-components skills (`node_modules/@cloudoperators/juno-ui-components/skills/`, consumed since c65b36d0) cover only DataGrid. They have no TabBar guidance.
++- Other `TabNavigation` users (out of scope; see Proposed follow-ups): `client/components/ListToolbar/index.tsx`, `network/routers/-components/RouterDetailsView.tsx`, `storage/-components/Ceph/Buckets/BucketDetailTabs.tsx`, `storage/-components/Ceph/Objects/ObjectBrowserView.tsx`, `compute/images/-components/List.tsx`.
++- `.github/copilot-instructions.md` B.1 table, line 130: `| Tab navigation | \`TabNavigation\`, \`TabNavigationItem\` |`.
++- i18n:
++  - `check-i18n` = `lingui extract --clean && lingui compile --typescript`.
++  - Catalogs are committed in `packages/aurora/src/locales/{en,de}/messages.{po,ts}`.
++  - The German catalog has hundreds of untranslated `msgstr ""` entries, so an untranslated new string is normal.
++
++**Proposed changes:**
++
++- Swap the imports and JSX in `SecurityGroupTabs.tsx` to `TabBar`/`TabBarItem` and add `ariaLabel`. Keep the props, the `TabType` export and the `isTabType` guard.
++- Extend the colocated test with an aria-label check and a no-deprecation-warning guard.
++- Update the Copilot rule row, regenerate the Lingui catalogs, and add a changeset.
++- No server, route, state or data-flow changes, which fits the "Juno components for UI primitives" rule (copilot-instructions B.1).
++
++### Potential Problems & Mitigations
++
++| Risk | Severity | Mitigation |
++| --- | --- | --- |
++| Visual difference between the old default `appearance="main"` and the new default `"tabs"` | Low | Verified in the 9.7.1 sources: same item styles, and no CSS keyed on the class names. Confirm visually on the mock (Testing Plan). |
++| `activeItem` stops re-syncing after a click (the quirk the existing comment describes) | Low | Same `Navigation` underneath. The existing test "follows activeTab after a tab has been clicked" and the details-view fallback test guard it. Keep both `activeItem` and per-item `active`. |
++| New Lingui string not extracted, so CI `check-i18n` fails or the catalog diff is stale | Medium | Run `pnpm --filter @cobaltcore-dev/aurora check-i18n` and keep the regenerated `locales/{en,de}/messages.{po,ts}`. |
++| Copilot rule now names `TabBar` while five files still use `TabNavigation` | Low | Accepted under D1. Copilot reviews only changed lines, and the migration of the other scopes is a follow-up. |
++| Prettier reflows the copilot-instructions markdown table (column widths) | Low | Run `pnpm format` (or `prettier --write` on the file) and check with `pnpm format:check`. |
++| The added `ariaLabel` changes the accessible name of the nav landmark | Low (improvement) | Tests query the tab buttons by name, not the nav, so nothing breaks. A new test asserts the label. |
++
++### Prerequisites
++
++- [ ] None. `TabBar`/`TabBarItem` ship in the installed `@cloudoperators/juno-ui-components` 9.7.1, and the local mock already seeds security groups with RBAC policies.
++
++### Implementation Steps
++
++#### Step 1: Replace `TabNavigation` with `TabBar` in `SecurityGroupTabs`
++
++**Files to modify/create:**
++
++- `packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/$securityGroupId/-components/-details/SecurityGroupTabs.tsx` — swap the components and add `ariaLabel`
++
++**What to do:**
++
++1. Change the import to `import { TabBar, TabBarItem } from "@cloudoperators/juno-ui-components"`.
++2. Replace `<TabNavigation ...>` with `<TabBar ...>` and keep `className="mt-4"`, `activeItem={activeTab}` and `onActiveItemChange={(key) => isTabType(key) && onTabChange(key)}`. Add `ariaLabel={t\`Security group sections\`}`. Don't pass `appearance`, so the default `"tabs"` applies.
++3. Replace both `TabNavigationItem`s with `TabBarItem`, keeping `value`, `label` and `active` exactly as they are. Keep the `showRBACTab &&` condition.
++4. Update the comment above the JSX to say "TabBar" instead of "TabNavigation". The behavior it describes still holds. Keep `TabType`, `SecurityGroupTabsProps`, `isTabType` and the export unchanged, so `-details/index.ts` and `SecurityGroupDetailsView.tsx` need no edits.
++
++**Expected outcome:**
++
++- The tabs render from `TabBar`/`TabBarItem`, the browser console shows no "TabNavigation is deprecated" warning on the detail page, and the look and behavior stay the same.
++
++**Verification:**
++
++- `pnpm --filter @cobaltcore-dev/aurora typecheck` passes.
++- `grep -n "TabNavigation" packages/aurora/src/client/routes/_auth/projects/\$projectId/network/securitygroups -r` returns nothing.
++
++---
++
++#### Step 2: Extend the colocated tests [CAREFUL]
++
++**Files to modify/create:**
++
++- `.../$securityGroupId/-components/-details/SecurityGroupTabs.test.tsx` — two new cases
++
++**What to do:**
++
++1. Keep all five existing tests unchanged. They must pass as they are, which proves the a11y and DOM behavior is the same.
++2. Add `it("labels the tab navigation", ...)`: render with `activeTab="rules"` and assert `screen.getByRole("navigation", { name: "Security group sections" })` is in the document.
++3. Add `it("does not render deprecated Juno tab components", ...)`: `const warn = vi.spyOn(console, "warn").mockImplementation(() => {})`, render the component, then assert that no call to `warn` received an argument matching `/deprecated/i` (for example `expect(warn.mock.calls.flat().some((a) => /deprecated/i.test(String(a)))).toBe(false)`). Finally call `warn.mockRestore()`. This fails against the old `TabNavigation` code because of Juno's `withDeprecationWarning` `console.warn`.
++
++**Expected outcome:**
++
++- 7 tests pass. The new guard keeps the component from regressing to `TabNavigation`.
++
++**Verification:**
++
++- `pnpm --filter @cobaltcore-dev/aurora test 'src/client/routes/_auth/projects/$projectId/network/securitygroups/$securityGroupId'` is green, including `SecurityGroupDetailsView.test.tsx`.
++
++---
++
++#### Step 3: Regenerate the Lingui catalogs
++
++**Files to modify/create:**
++
++- `packages/aurora/src/locales/en/messages.po`, `en/messages.ts`, `de/messages.po`, `de/messages.ts` — regenerated, not hand-edited
++
++**What to do:**
++
++1. Run `pnpm --filter @cobaltcore-dev/aurora check-i18n`.
++2. Check that the diff only adds `msgid "Security group sections"`: `msgstr` filled in `en`, empty in `de`, which is the normal state for German. Also check the compiled `messages.ts`. If unrelated catalog churn appears, it comes from `--clean` on a stale catalog. Keep it only if it reflects the current source; don't hand-revert generated content.
++
++**Expected outcome:**
++
++- The catalogs contain the new string, and `check-i18n` exits 0.
++
++**Verification:**
++
++- `git diff --stat packages/aurora/src/locales` shows only the four locale files.
++
++---
++
++#### Step 4: Update the Copilot review rule (D1)
++
++**Files to modify/create:**
++
++- `.github/copilot-instructions.md` — row at line 130 of the B.1 "Component Library" table
++
++**What to do:**
++
++1. Change `| Tab navigation | \`TabNavigation\`, \`TabNavigationItem\` |` to `| Tab navigation | \`TabBar\`, \`TabBarItem\` |`. Keep the column padding consistent with the table.
++2. Leave line 184 ("Tab nav tight spacing below `ContentHeader`") and the URL-state table (lines 345-353) unchanged.
++3. Run `pnpm format:check`. If it fails on this file, run `pnpm exec prettier --write .github/copilot-instructions.md`.
++
++**Expected outcome:**
++
++- Copilot's rule names the non-deprecated components.
++
++**Verification:**
++
++- `grep -n "TabNavigation" .github/copilot-instructions.md` returns nothing, and `pnpm format:check` passes.
++
++---
++
++#### Step 5: Add a changeset
++
++**Files to modify/create:**
++
++- `.changeset/security-groups-tabbar.md` — new
++
++**What to do:**
++
++1. Follow the format of `.changeset/resolve-deps-advisories-oct.md`:
++
++   ```
++   ---
++   "@cobaltcore-dev/aurora": patch
++   ---
++
++   Security Groups detail page: render the Rules / RBAC Policies tabs with Juno `TabBar`/`TabBarItem` instead of the deprecated `TabNavigation`, and give the tab bar an accessible label.
++   ```
++
++**Expected outcome:**
++
++- The release workflow picks up a patch bump for `@cobaltcore-dev/aurora`.
++
++**Verification:**
++
++- The file passes `pnpm format:check`.
++
++### Testing Plan
++
++**Unit tests** (vitest, colocated `*.test.ts(x)`):
++
++- [ ] Existing: renders Rules and RBAC Policies as buttons
++- [ ] Existing: the active tab has `aria-current="true"`
++- [ ] Existing: follows `activeTab` after a click and a rerender
++- [ ] Existing: reports the clicked tab through `onTabChange("rbac")`
++- [ ] Existing: hides RBAC when `showRBACTab={false}`
++- [ ] New: the navigation landmark is named "Security group sections"
++- [ ] New: no `console.warn` matching `/deprecated/i` on render
++- [ ] Existing `SecurityGroupDetailsView.test.tsx` "falls back to the Rules tab when the RBAC tab disappears while it is open" still passes
++
++**Manual check on the local mock** (`../local-mock-backend/`, `./run-all.sh`, any credentials, dashboard on `http://localhost:4005`):
++
++1. Open Network → Security Groups → `k8s-nodes` (own group, about 25 rules, 2 RBAC policies). The "Rules" and "RBAC Policies" tabs render with the same spacing, active underline and font as before. Compare with `main`, or with the router detail page, which still uses `TabNavigation`.
++2. Click "RBAC Policies": the 2 policies show and the underline moves. Click "Rules": the table returns, and its toolbar search/sort/filter URL params are unaffected.
++3. Keyboard: Tab focuses each tab button with a visible focus ring, and Enter/Space switches tabs.
++4. DevTools console: no "TabNavigation is deprecated" warning on this page. The Elements panel shows `<nav aria-label="Security group sections">` and `aria-current="true"` on the active button.
++5. Open the shared group `monitoring-shared` (owned by another project): only the "Rules" tab is shown.
++
++### Acceptance Criteria
++
++- [ ] `SecurityGroupTabs.tsx` imports and renders only `TabBar`/`TabBarItem`, and no `TabNavigation*` remains under `network/securitygroups/`
++- [ ] Tab look, click and keyboard behavior, `aria-current`, the RBAC visibility rules and the fallback to Rules are unchanged
++- [ ] The tab bar's navigation landmark has the localized accessible name "Security group sections"
++- [ ] `.github/copilot-instructions.md` names `TabBar`, `TabBarItem` for tab navigation
++- [ ] The Lingui catalogs are regenerated, and `.changeset/security-groups-tabbar.md` exists with a patch bump for `@cobaltcore-dev/aurora`
++- [ ] No regressions in the Security Groups list or detail pages
++- [ ] These pass:
++  - `pnpm --filter @cobaltcore-dev/aurora test`
++  - `pnpm --filter @cobaltcore-dev/aurora typecheck`
++  - `pnpm --filter @cobaltcore-dev/aurora lint`
++  - `pnpm --filter @cobaltcore-dev/aurora check-i18n`
++  - `pnpm format:check`
++  - `pnpm --filter @cobaltcore-dev/aurora build`
++
++### Open Questions
++
++- Wording of the landmark label: "Security group sections" is proposed. The implementer may pick a close equivalent in title/sentence case as `copilot-instructions.md` §language prescribes; the tests must use the same string.
++
++### Follow-ups
++
++- Not filed: Migrate remaining `TabNavigation` users to `TabBar`
++- [FOLLOW-UPS.md → item 54](../FOLLOW-UPS.md) — Sync the Security Group detail tab to the URL
++
++## Round 2 — 2026-10-28 · triple-review
++
++**Base:** `origin/pr/1393` @ `8763f93b`
++**Reviewed:** 2 findings, 2 fixed
++
++### Overview
++
++Issue #1387 asks for the Security Group detail page's "Rules" and "RBAC Policies" tabs to use Juno's `TabBar`/`TabBarItem`. Those components replace the deprecated `TabNavigation`/`TabNavigationItem`. The screenshot in the issue is out of date: it shows the hand-rolled `<button>` tabs that PR #1375 already replaced with `TabNavigation`. So the work left is replacing the deprecated `TabNavigation` with `TabBar`, plus three small additions: a landmark `ariaLabel` on the tab bar, an update to the Copilot review rule that still requires `TabNavigation`, and a patch changeset. Behavior does not change: the tab state stays local, and the look, keyboard handling and `aria-current` semantics stay the same.
++
++### Decisions
++
++- **D1.** Should `.github/copilot-instructions.md:130`, which still names `TabNavigation`, be updated in this change? → **A: yes.** The "Tab navigation" row becomes `TabBar`, `TabBarItem`.
++- **D2.** Should the active tab move into a URL search param? → **A: no.** It stays in local `useState` in `SecurityGroupDetailsView.tsx`. URL sync is proposed as a follow-up.
++- **Small choices (accepted):**
++  - use `TabBar`'s default appearance (`"tabs"`)
++  - add `ariaLabel={t\`Security group sections\`}` and regenerate the catalogs with `check-i18n`
++  - keep the component's public API and existing tests
++  - add a patch changeset
++  - list the other five `TabNavigation` users as one proposed follow-up
++
++### Architecture Analysis
++
++**Current state:**
++
++- `packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/$securityGroupId/-components/-details/SecurityGroupTabs.tsx` renders the tabs with `TabNavigation` (`className="mt-4"`, `activeItem={activeTab}`, `onActiveItemChange` narrowed through `isTabType`). It has two `TabNavigationItem`s:
++  - `value="rules"`, `label={t\`Rules\`}`
++  - `value="rbac"`, `label={t\`RBAC Policies\`}`, rendered only when `showRBACTab`
++
++  Each item also gets `active={activeTab === "<value>"}`. Exports: `SecurityGroupTabs` and `TabType = "rules" | "rbac"`, re-exported from `-details/index.ts`.
++- `.../$securityGroupId/-components/SecurityGroupDetailsView.tsx` owns the state:
++  - `useState<TabType>("rules")`
++  - `showRBACTab = isOwner && permissions.canViewRBAC`
++  - `currentTab` falls back to `"rules"` when the RBAC tab is hidden
++
++  It renders `<SecurityGroupTabs activeTab={currentTab} onTabChange={setActiveTab} showRBACTab={showRBACTab} />`. This file needs no change.
++- Tests:
++  - `SecurityGroupTabs.test.tsx` already asserts `getByRole("button", { name })`, `aria-current="true"`, that the component follows `activeTab` after a click, `onTabChange("rbac")`, and that the RBAC tab is hidden when `showRBACTab={false}`.
++  - `SecurityGroupDetailsView.test.tsx:176-198` covers the fallback to Rules when the RBAC tab disappears.
++- **Juno at the installed 9.7.1** (`packages/aurora/package.json`; checked in `node_modules/.../build/index.d.ts:86-89` and the `@cloudoperators/juno-ui-components@9.7.1` tag sources):
++  - `TabBar` and `TabBarItem` are exported, and their props are a superset of what we pass (`activeItem`, `ariaLabel`, `className`, `onActiveItemChange: (activeItem: ReactNode) => void`, `appearance`; item: `value`, `label`, `active`, `onClick`, ...).
++  - `TabNavigation` is `withDeprecationWarning(TabNavigationBackwardsCompat)`, i.e. `<TabBar appearance="main" className="juno-tabnavigation ...">`. Mounting it calls `console.warn("TabNavigation is deprecated ...")`.
++  - Both wrap the same `Navigation`/`NavigationItem`: `<nav role="navigation">` → `<li>` → `<button aria-current>`, and `activeItem` is synced through a `useEffect` on `activeItem`. The DOM, the a11y semantics and the activeItem-sync quirk documented in the current code comment are therefore unchanged.
++  - Item styles for `"main"` and `"tabs"` are identical (`tabBarItemStyles`). No CSS targets the `juno-tabbar-*`/`juno-tabnavigation-*` class names, so the default `"tabs"` appearance looks the same as today.
++  - The ui-components skills (`node_modules/@cloudoperators/juno-ui-components/skills/`, consumed since c65b36d0) cover only DataGrid. They have no TabBar guidance.
++- Other `TabNavigation` users (out of scope; see Proposed follow-ups): `client/components/ListToolbar/index.tsx`, `network/routers/-components/RouterDetailsView.tsx`, `storage/-components/Ceph/Buckets/BucketDetailTabs.tsx`, `storage/-components/Ceph/Objects/ObjectBrowserView.tsx`, `compute/images/-components/List.tsx`.
++- `.github/copilot-instructions.md` B.1 table, line 130: `| Tab navigation | \`TabNavigation\`, \`TabNavigationItem\` |`.
++- i18n:
++  - `check-i18n` = `lingui extract --clean && lingui compile --typescript`.
++  - Catalogs are committed in `packages/aurora/src/locales/{en,de}/messages.{po,ts}`.
++  - The German catalog has hundreds of untranslated `msgstr ""` entries, so an untranslated new string is normal.
++
++**Proposed changes:**
++
++- Swap the imports and JSX in `SecurityGroupTabs.tsx` to `TabBar`/`TabBarItem` and add `ariaLabel`. Keep the props, the `TabType` export and the `isTabType` guard.
++- Extend the colocated test with an aria-label check and a no-deprecation-warning guard.
++- Update the Copilot rule row, regenerate the Lingui catalogs, and add a changeset.
++- No server, route, state or data-flow changes, which fits the "Juno components for UI primitives" rule (copilot-instructions B.1).
++
++### Potential Problems & Mitigations
++
++| Risk | Severity | Mitigation |
++| --- | --- | --- |
++| Visual difference between the old default `appearance="main"` and the new default `"tabs"` | Low | Verified in the 9.7.1 sources: same item styles, and no CSS keyed on the class names. Confirm visually on the mock (Testing Plan). |
++| `activeItem` stops re-syncing after a click (the quirk the existing comment describes) | Low | Same `Navigation` underneath. The existing test "follows activeTab after a tab has been clicked" and the details-view fallback test guard it. Keep both `activeItem` and per-item `active`. |
++| New Lingui string not extracted, so CI `check-i18n` fails or the catalog diff is stale | Medium | Run `pnpm --filter @cobaltcore-dev/aurora check-i18n` and keep the regenerated `locales/{en,de}/messages.{po,ts}`. |
++| Copilot rule now names `TabBar` while five files still use `TabNavigation` | Low | Accepted under D1. Copilot reviews only changed lines, and the migration of the other scopes is a follow-up. |
++| Prettier reflows the copilot-instructions markdown table (column widths) | Low | Run `pnpm format` (or `prettier --write` on the file) and check with `pnpm format:check`. |
++| The added `ariaLabel` changes the accessible name of the nav landmark | Low (improvement) | Tests query the tab buttons by name, not the nav, so nothing breaks. A new test asserts the label. |
++
++### Prerequisites
++
++- [ ] None. `TabBar`/`TabBarItem` ship in the installed `@cloudoperators/juno-ui-components` 9.7.1, and the local mock already seeds security groups with RBAC policies.
++
++### Implementation Steps
++
++#### Step 1: Replace `TabNavigation` with `TabBar` in `SecurityGroupTabs`
++
++**Files to modify/create:**
++
++- `packages/aurora/src/client/routes/_auth/projects/$projectId/network/securitygroups/$securityGroupId/-components/-details/SecurityGroupTabs.tsx` — swap the components and add `ariaLabel`
++
++**What to do:**
++
++1. Change the import to `import { TabBar, TabBarItem } from "@cloudoperators/juno-ui-components"`.
++2. Replace `<TabNavigation ...>` with `<TabBar ...>` and keep `className="mt-4"`, `activeItem={activeTab}` and `onActiveItemChange={(key) => isTabType(key) && onTabChange(key)}`. Add `ariaLabel={t\`Security group sections\`}`. Don't pass `appearance`, so the default `"tabs"` applies.
++3. Replace both `TabNavigationItem`s with `TabBarItem`, keeping `value`, `label` and `active` exactly as they are. Keep the `showRBACTab &&` condition.
++4. Update the comment above the JSX to say "TabBar" instead of "TabNavigation". The behavior it describes still holds. Keep `TabType`, `SecurityGroupTabsProps`, `isTabType` and the export unchanged, so `-details/index.ts` and `SecurityGroupDetailsView.tsx` need no edits.
++
++**Expected outcome:**
++
++- The tabs render from `TabBar`/`TabBarItem`, the browser console shows no "TabNavigation is deprecated" warning on the detail page, and the look and behavior stay the same.
++
++**Verification:**
++
++- `pnpm --filter @cobaltcore-dev/aurora typecheck` passes.
++- `grep -n "TabNavigation" packages/aurora/src/client/routes/_auth/projects/\$projectId/network/securitygroups -r` returns nothing.
++
++---
++
++#### Step 2: Extend the colocated tests [CAREFUL]
++
++**Files to modify/create:**
++
++- `.../$securityGroupId/-components/-details/SecurityGroupTabs.test.tsx` — two new cases
++
++**What to do:**
++
++1. Keep all five existing tests unchanged. They must pass as they are, which proves the a11y and DOM behavior is the same.
++2. Add `it("labels the tab navigation", ...)`: render with `activeTab="rules"` and assert `screen.getByRole("navigation", { name: "Security group sections" })` is in the document.
++3. Add `it("does not render deprecated Juno tab components", ...)`: `const warn = vi.spyOn(console, "warn").mockImplementation(() => {})`, render the component, then assert that no call to `warn` received an argument matching `/deprecated/i` (for example `expect(warn.mock.calls.flat().some((a) => /deprecated/i.test(String(a)))).toBe(false)`). Finally call `warn.mockRestore()`. This fails against the old `TabNavigation` code because of Juno's `withDeprecationWarning` `console.warn`.
++
++**Expected outcome:**
++
++- 7 tests pass. The new guard keeps the component from regressing to `TabNavigation`.
++
++**Verification:**
++
++- `pnpm --filter @cobaltcore-dev/aurora test 'src/client/routes/_auth/projects/$projectId/network/securitygroups/$securityGroupId'` is green, including `SecurityGroupDetailsView.test.tsx`.
++
++---
++
++#### Step 3: Regenerate the Lingui catalogs
++
++**Files to modify/create:**
++
++- `packages/aurora/src/locales/en/messages.po`, `en/messages.ts`, `de/messages.po`, `de/messages.ts` — regenerated, not hand-edited
++
++**What to do:**
++
++1. Run `pnpm --filter @cobaltcore-dev/aurora check-i18n`.
++2. Check that the diff only adds `msgid "Security group sections"`: `msgstr` filled in `en`, empty in `de`, which is the normal state for German. Also check the compiled `messages.ts`. If unrelated catalog churn appears, it comes from `--clean` on a stale catalog. Keep it only if it reflects the current source; don't hand-revert generated content.
++
++**Expected outcome:**
++
++- The catalogs contain the new string, and `check-i18n` exits 0.
++
++**Verification:**
++
++- `git diff --stat packages/aurora/src/locales` shows only the four locale files.
++
++---
++
++#### Step 4: Update the Copilot review rule (D1)
++
++**Files to modify/create:**
++
++- `.github/copilot-instructions.md` — row at line 130 of the B.1 "Component Library" table
++
++**What to do:**
++
++1. Change `| Tab navigation | \`TabNavigation\`, \`TabNavigationItem\` |` to `| Tab navigation | \`TabBar\`, \`TabBarItem\` |`. Keep the column padding consistent with the table.
++2. Leave line 184 ("Tab nav tight spacing below `ContentHeader`") and the URL-state table (lines 345-353) unchanged.
++3. Run `pnpm format:check`. If it fails on this file, run `pnpm exec prettier --write .github/copilot-instructions.md`.
++
++**Expected outcome:**
++
++- Copilot's rule names the non-deprecated components.
++
++**Verification:**
++
++- `grep -n "TabNavigation" .github/copilot-instructions.md` returns nothing, and `pnpm format:check` passes.
++
++---
++
++#### Step 5: Add a changeset
++
++**Files to modify/create:**
++
++- `.changeset/security-groups-tabbar.md` — new
++
++**What to do:**
++
++1. Follow the format of `.changeset/resolve-deps-advisories-oct.md`:
++
++   ```
++   ---
++   "@cobaltcore-dev/aurora": patch
++   ---
++
++   Security Groups detail page: render the Rules / RBAC Policies tabs with Juno `TabBar`/`TabBarItem` instead of the deprecated `TabNavigation`, and give the tab bar an accessible label.
++   ```
++
++**Expected outcome:**
++
++- The release workflow picks up a patch bump for `@cobaltcore-dev/aurora`.
++
++**Verification:**
++
++- The file passes `pnpm format:check`.
++
++### Testing Plan
++
++**Unit tests** (vitest, colocated `*.test.ts(x)`):
++
++- [ ] Existing: renders Rules and RBAC Policies as buttons
++- [ ] Existing: the active tab has `aria-current="true"`
++- [ ] Existing: follows `activeTab` after a click and a rerender
++- [ ] Existing: reports the clicked tab through `onTabChange("rbac")`
++- [ ] Existing: hides RBAC when `showRBACTab={false}`
++- [ ] New: the navigation landmark is named "Security group sections"
++- [ ] New: no `console.warn` matching `/deprecated/i` on render
++- [ ] Existing `SecurityGroupDetailsView.test.tsx` "falls back to the Rules tab when the RBAC tab disappears while it is open" still passes
++
++**Manual check on the local mock** (`../local-mock-backend/`, `./run-all.sh`, any credentials, dashboard on `http://localhost:4005`):
++
++1. Open Network → Security Groups → `k8s-nodes` (own group, about 25 rules, 2 RBAC policies). The "Rules" and "RBAC Policies" tabs render with the same spacing, active underline and font as before. Compare with `main`, or with the router detail page, which still uses `TabNavigation`.
++2. Click "RBAC Policies": the 2 policies show and the underline moves. Click "Rules": the table returns, and its toolbar search/sort/filter URL params are unaffected.
++3. Keyboard: Tab focuses each tab button with a visible focus ring, and Enter/Space switches tabs.
++4. DevTools console: no "TabNavigation is deprecated" warning on this page. The Elements panel shows `<nav aria-label="Security group sections">` and `aria-current="true"` on the active button.
++5. Open the shared group `monitoring-shared` (owned by another project): only the "Rules" tab is shown.
++
++### Acceptance Criteria
++
++- [ ] `SecurityGroupTabs.tsx` imports and renders only `TabBar`/`TabBarItem`, and no `TabNavigation*` remains under `network/securitygroups/`
++- [ ] Tab look, click and keyboard behavior, `aria-current`, the RBAC visibility rules and the fallback to Rules are unchanged
++- [ ] The tab bar's navigation landmark has the localized accessible name "Security group sections"
++- [ ] `.github/copilot-instructions.md` names `TabBar`, `TabBarItem` for tab navigation
++- [ ] The Lingui catalogs are regenerated, and `.changeset/security-groups-tabbar.md` exists with a patch bump for `@cobaltcore-dev/aurora`
++- [ ] No regressions in the Security Groups list or detail pages
++- [ ] These pass:
++  - `pnpm --filter @cobaltcore-dev/aurora test`
++  - `pnpm --filter @cobaltcore-dev/aurora typecheck`
++  - `pnpm --filter @cobaltcore-dev/aurora lint`
++  - `pnpm --filter @cobaltcore-dev/aurora check-i18n`
++  - `pnpm format:check`
++  - `pnpm --filter @cobaltcore-dev/aurora build`
++
++### Open Questions
++
++- Wording of the landmark label: "Security group sections" is proposed. The implementer may pick a close equivalent in title/sentence case as `copilot-instructions.md` §language prescribes; the tests must use the same string.
++
++### Follow-ups
++
++- [FOLLOW-UPS.md → item 55](../FOLLOW-UPS.md) — Migrate remaining `TabNavigation` users to `TabBar`
++- Not filed: Sync the Security Group detail tab to the URL
++
++<!-- related:auto — generated from pr/issue properties by tools/update-related.py; do not edit by hand -->
++## Related
++
++- pr-report · 2026-10-25 · [1393-key-manager-core-plugin](../aurora-dashboard-kb/prs/1393-key-manager-core-plugin.md)
++- plan · 2026-10-27 · [2026-10-27-security-group-empty-state-copy](2026-10-27-security-group-empty-state-copy.md)
+--- base/plans/README.md
++++ now/plans/README.md
+@@ -8,4 +8,5 @@
+ | Date | Task | Risks | Status | File |
+ | --- | --- | --- | --- | --- |
++| 2026-10-28 | PR #1393 fixes, round 2: second round; 5 steps | 1 Medium, 5 Low | not implemented | [2026-10-28-pr-1393-fixes.md](./2026-10-28-pr-1393-fixes.md) |
+ | 2026-10-27 | Swap deprecated Juno `TabNavigation` for `TabBar`/`TabBarItem` on the Security Group detail tabs (issue #1387), plus aria label and Copilot rule; 5 steps | 1 Medium, 5 Low: new Lingui string needs `check-i18n` | not implemented | [2026-10-27-security-groups-tabbar.md](./2026-10-27-security-groups-tabbar.md) |
+ | 2026-10-27 | Title-case empty states with specific bodies on the Security Group detail page (issue #1388): RBAC empty + search miss, Rules empty; 4 steps | 1 Medium, 5 Low: old strings asserted in 6 unit tests | not implemented | [2026-10-27-security-group-empty-state-copy.md](./2026-10-27-security-group-empty-state-copy.md) |

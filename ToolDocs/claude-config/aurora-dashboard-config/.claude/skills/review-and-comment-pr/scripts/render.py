@@ -88,8 +88,9 @@ def resolve_refs(text, nums):
 
 
 COMMENT_URLS = {}   # comment id -> (author, url) from discussion.json; filled by load_comment_urls(ctx)
-# a bare comment id in text: "comment 6293554974", "issuecomment-6293554974", "r4360389025"
-BARE_COMMENT = re.compile(r"\b(?:([Cc]omment) (\d{8,})|issuecomment-(\d{8,})|r(\d{8,}))\b")
+# a bare comment id in text: "comment 6293554974", "issuecomment-6293554974", "r4360389025",
+# "pullrequestreview-5670107878" (a review's own body)
+BARE_COMMENT = re.compile(r"\b(?:([Cc]omment) (\d{8,})|issuecomment-(\d{8,})|r(\d{8,})|pullrequestreview-(\d{8,}))\b")
 # left alone: code spans, Markdown links, bare URLs
 NOT_PLAIN = re.compile(r"(`[^`\n]*`|\[[^\]\n]*\]\([^)\s]*\)|https?://\S+)")
 
@@ -110,8 +111,8 @@ def load_comment_urls(ctx):
             walk(r)
     for c in d.get("threads") or []:
         walk(c)
-    for c in d.get("comments") or []:
-        m = re.search(r"issuecomment-(\d+)", c.get("url") or "")
+    for c in (d.get("comments") or []) + (d.get("reviews") or []):  # a review body: …#pullrequestreview-<id>
+        m = re.search(r"(?:issuecomment|pullrequestreview)-(\d+)", c.get("url") or "")
         if m:
             COMMENT_URLS[m.group(1)] = (c.get("author") or "?", c["url"])
     return COMMENT_URLS
@@ -123,10 +124,10 @@ def link_comments(text):
         return text
 
     def sub(m):
-        i = m.group(2) or m.group(3) or m.group(4)
+        i = m.group(2) or m.group(3) or m.group(4) or m.group(5)
         if i not in COMMENT_URLS:
             return m.group(0)
-        label = f"r{i}" if m.group(4) else (m.group(1) or "comment")
+        label = f"r{i}" if m.group(4) else "review" if m.group(5) else (m.group(1) or "comment")
         return f"[{label}]({COMMENT_URLS[i][1]})"
     return "".join(p if NOT_PLAIN.fullmatch(p) else BARE_COMMENT.sub(sub, p) for p in NOT_PLAIN.split(text))
 
@@ -252,7 +253,7 @@ class Checker:
         self.text(f, "fix", where)
 
 
-EARLIER_STATUS = ("fixed", "partly", "open", "dropped")   # dropped: a merge-conflict finding — no longer reviewed
+EARLIER_STATUS = ("fixed", "partly", "open", "dropped")   # dropped: merge conflicts, draft, or reversed by a maintainer — no longer reviewed
 
 
 def number_key(n):
@@ -389,9 +390,6 @@ def default_process(item, ctx):
     pkgs = sorted({m.group(1) for f in ctx["pr"]["files"]
                    for m in [re.match(r"^packages/([^/]+)/src/", f["path"])] if m})
     base = {
-        "draft": {"title": "PR is still a draft", "issue": "PR is still a draft", "location": "PR state",
-                  "explanation": "The PR is marked as a draft, so the author doesn't consider it ready to merge yet.",
-                  "fix": "Mark it ready for review once the Required Changes are addressed."},
         "no-linked-issue": {
             "title": "No linked issue", "issue": "The PR description links no issue", "location": "PR body",
             "explanation": (f"The description links no issue. Acceptance was graded against #{supplied['number']}, "
@@ -422,6 +420,8 @@ def layout(ctx, fd, start=None, ctx_process=True):
     imp = [f for _, f in found if f["severity"] not in REQUIRED_SEVERITIES]
     procs = []
     for p in (ctx.get("process", []) if ctx_process else []):
+        if p.get("id") == "draft":  # older run folders: draft state is no longer an item
+            continue
         d = default_process(p, ctx)
         d.update((fd.get("process_overrides") or {}).get(p["id"], {}))
         procs.append(d)
@@ -541,7 +541,9 @@ def short(text, limit, first_sentence=True):
     if m and len(m.group(1)) <= limit:
         t = m.group(1)
     elif len(t) > limit:
-        t = t[:limit].rsplit(" ", 1)[0] + "…"
+        # keep whole sentences when they fit (a cut mid-phrase loses the point); else cut at a word
+        ends = [m.end(1) for m in re.finditer(r"(?<!\be\.g)(?<!\bi\.e)([.!?])(?=\s+[A-Z`\"(\[0-9])", t[:limit + 2])]
+        t = t[:ends[-1]] + " …" if ends and ends[-1] >= limit // 3 else t[:limit].rsplit(" ", 1)[0] + "…"
     if t.count("`") % 2:
         t = t[:t.rfind("`")].rstrip() + "…"
     parts = re.split(r"(`[^`]*`)", t)  # escape HTML-like text outside code spans
@@ -570,17 +572,18 @@ def _discussion(ctx):
 def not_taken_up(ctx, items):
     """Dismissed candidates that a reviewer's comment raised: a short answer in the posted review, so a
     comment (e.g. Copilot's) we checked and disagree with isn't left looking ignored. The thread is found
-    by the comment id the finder cited in `discussion` (r<id> or issuecomment-<id>) in discussion.json."""
+    by the comment id find-discussion cited in `discussion` (r<id>, issuecomment-<id> or pullrequestreview-<id>) in
+    discussion.json."""
     by_id = load_comment_urls(ctx)
     own = {u for c in (_discussion(ctx).get("comments") or []) if c.get("own_report") for u in [c.get("url")]}
     rows = []
     for it in items:
         # "r4360389025", "issuecomment-…", or a full thread URL ("…#discussion_r4360389025")
-        ids = re.findall(r"(?:\br|discussion_r|issuecomment-)(\d{6,})\b", it.get("discussion") or "")
-        refs = list(dict.fromkeys(f"{by_id[i][0]} [{'r' + i if 'discussion_r' in by_id[i][1] else 'comment'}]"
+        ids = re.findall(r"(?:\br|discussion_r|issuecomment-|pullrequestreview-)(\d{6,})\b", it.get("discussion") or "")
+        refs = list(dict.fromkeys(f"{by_id[i][0]} [{'r' + i if 'discussion_r' in by_id[i][1] else 'review' if 'pullrequestreview' in by_id[i][1] else 'comment'}]"
                                   f"({by_id[i][1]})" for i in ids if i in by_id and by_id[i][1] not in own))
         if refs:
-            rows.append([", ".join(refs), link_comments(short(it["claim"], 300, False)),
+            rows.append([", ".join(refs), link_comments(short(it["claim"], 450, False)),
                          link_comments(short(it["reason"], 400, False))])
     if not rows:
         return []

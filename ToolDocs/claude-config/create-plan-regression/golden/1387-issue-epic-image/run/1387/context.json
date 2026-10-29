@@ -1,0 +1,16 @@
+{
+ "mode": "A",
+ "issue": [
+  1387
+ ],
+ "pr": [],
+ "kind": "issue",
+ "number": 1387,
+ "title": "[Task](context): use ui-components for Tabs",
+ "epic": 1327,
+ "run": "<SAP>/aurora-dashboard/.claude/runs/create-plan/1387",
+ "fetch_ok": true,
+ "behind": 0,
+ "kb_pin": "5b7bea1e",
+ "kb_lag": 7
+}

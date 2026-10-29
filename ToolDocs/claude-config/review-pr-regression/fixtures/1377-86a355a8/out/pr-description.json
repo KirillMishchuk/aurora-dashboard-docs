@@ -1,0 +1,12 @@
+{
+ "mismatches": [
+  {
+   "kind": "not described",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/-components/RoutersList.tsx:105",
+   "issue": "The Routers list UI changes (403 message, row menu toggle, Status column order) are not in the description",
+   "explanation": "The description mentions Routers only for the shared BFF helpers and the details tab, but the Routers list now shows a 403 as an \"Insufficient Permissions\" info message (`packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/-components/RoutersList.tsx:105`), has a visible `PopupMenuToggle` on the row menu (`packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/-components/RouterTableRow.tsx:85`) and moves Status to the second column.",
+   "fix": "Add a short UI bullet for the Routers list changes (403 message, row menu toggle, Status column order).",
+   "evidence": "git grep -n 'Insufficient Permissions\\|PopupMenuToggle' 86a355a8 -- packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/ -> RoutersList.tsx:105, RouterTableRow.tsx:85; the description has no UI bullet for the Routers list"
+  }
+ ]
+}

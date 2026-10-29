@@ -24,7 +24,9 @@ These candidates point at the same place. For each, set `same_as` (see the resul
 
 ## Earlier findings of this report
 
-This is an Update: the report it extends already raised the findings below. A candidate that objects to the PR doing what one of them asked (it moved a column, renamed a string, restructured code as an earlier finding requested) is not a new problem: score it 0 and name the earlier finding in the reason. If the change was made badly — it breaks something or does only half of it — score that as usual.
+This is an Update: the report it extends already raised the findings below. A candidate that objects to the PR doing what one of them asked (it moved a column, renamed a string, restructured code as an earlier finding requested) is not a new problem: score it 0 and name the earlier finding in the reason. If the change was made badly — it breaks something or does only half of it — score that as usual. Exception: when a reviewer other than the PR's author (not a bot) asked for it in the review discussion — the candidate's `discussion` quotes them — score it as usual: their call outranks this report's earlier finding. Name the earlier finding it reverses in the reason.
+
+A candidate raised in the review discussion (it has a `discussion`) about a file the new commits don't touch (not in `delta.diff`) is outside this Update: score it 0 and say so in the reason — "Outside this update's changes" plus what happened to it in the thread (e.g. the author deferred it to a follow-up, with the url). It is then answered under "Review comments not taken up". `save.py` refuses 50 or more for it.
 
 - CR1 🟡 Moderate — Ports list reads one Neutron page only; ports and search hits beyond it silently disappear — `packages/aurora/src/server/Network/routers/portsRouter.ts:65`
 - CR2 🟡 Moderate — 401/403 rendered inline on the details page and as a list error (B.6 Reject) — `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/$portId.tsx:64`
@@ -45,7 +47,7 @@ This is an Update: the report it extends already raised the findings below. A ca
 
 The evidence is as the finders reported it, unchanged.
 
-### C8 — from finder-e
+### C8 — from find-code-comments
 - **Claim:** The delta rewrites the Port error tables to say the message ends in `{Neutron message}`, but the shared ErrorHandler appends the HTTP `statusText` (or "Unknown error"), not the Neutron response body message. The docs therefore describe behaviour the code does not have.
 - **Location:** `packages/aurora/docs/0017_ports_bff.md:105`
 - **Evidence:**
@@ -53,14 +55,14 @@ The evidence is as the finders reported it, unchanged.
 errorHandling.ts at 86a355a8: `message: `Unauthorized access to ${resourceLabel}: ${response.statusText || "Unknown error"}``, same for 400/403/default (Failed to process). errorHandling.ts is not changed in the PR, and requestOrThrow passes the response to the handler, so no Neutron body message is used. delta.diff lines 41-142 add `{Neutron message}` to the 401/403/default/412 rows.
 - **Precedent:** The pre-existing 400 rows for create/update already said {Neutron message}, so the doc inaccuracy was present before and this delta extends it to more rows.
 
-### C10 — from finder-f
+### C10 — from find-api-contract
 - **Claim:** Pagination follows `next` by reusing only the query string of the absolute href against the BFF base path, and the list schemas accept `ports_links`/`routers_links` as optional arrays. Reference documents the links field as `*_links` with rel next/previous; consistent. However the guard `visited` silently stops and returns a partial list (no error) if Neutron returns a repeating next URL, so the user sees a truncated list without any signal.
 - **Location:** `packages/aurora/src/server/Network/routers/portsRouter.ts:73`
 - **Evidence:**
 
 Code: `while (nextUrl && !visited.has(nextUrl)) { visited.add(nextUrl) ...`; same loop in routersRouter.ts. Reference https://docs.openstack.org/api-ref/network/v2/#pagination: 'The last page in the list requested with page_reverse=False will not contain next link' - the documented termination is the absence of `next`; the code adds a silent cut-off on a repeated URL instead of failing. Also no `limit` is sent, so the page size is the deployment default/maximum (doc: 'the server returns the maximum limit number of items'); a project with many ports means many sequential requests (no upper bound on pages) before any response is returned.
 
-### C11 — from finder-g
+### C11 — from find-security
 - **Claim:** The new Neutron pagination loop in ports.list (and routers.list) has no upper bound on pages or accumulated items. The `visited` set only stops a repeated identical URL, so a `next` link whose marker keeps changing (or a very large project) makes one tRPC query issue unbounded sequential Neutron requests and buffer every result in BFF memory before the network/subnet lookups. Any authenticated user can trigger it by opening the list page.
 - **Location:** `packages/aurora/src/server/Network/routers/portsRouter.ts:73`
 - **Evidence:**
@@ -104,7 +106,7 @@ The Ports page no longer sends these to the BFF; the client mirrors the search i
 - One entry per candidate, every candidate exactly once.
 - `score`: 0, 25, 50, 75 or 100. For 50 and up, `severity` (Critical, Major, Moderate, Low, Trivial), `category` (Bug, Security, Accessibility, UI/UX, Code Quality, Performance, Docs, Test coverage) and a `location` that exists at headRefOid (`path:line`, `path | text on that line`, or `PR body` / `PR state` / `PR files` / `CI`). Below 50, leave them out.
 - `precedent`: required for 50 and up — the reader's tag, it never changes the score. `{"kind": "existing", "ref": "path:line"}` when merged code already has the same problem — `ref` is a line that itself breaks the same rule. Sibling code that does it right (e.g. a list that already debounces) is not a precedent: it's evidence for the finding, put it in `reason`. Find that line at baseRefOid (`git grep -n '<pattern>' <baseRefOid> -- <pathspec>`). `{"kind": "deferred", "ref": "<URL>"}` when a maintainer accepted or postponed the same point, on another PR or in `discussion.json`: open the thread, `ref` is the comment's GitHub URL. Both apply → `deferred`. Neither, or you couldn't confirm the candidate's `precedent` → `null`.
-- `same_as`: required for a candidate in a group above — the id of the candidate in the same group that describes the same problem (score that one; this one is then dropped — `score` and `reason` may be left out for it), or `null` if it is a different problem. Elsewhere leave it out.
+- `same_as`: required for a candidate in a group above — the id of the candidate in the same group that describes the same problem (score that one, and leave its own `same_as` null — never point at another duplicate; this one is then dropped — `score` and `reason` may be left out for it), or `null` if it is a different problem. Elsewhere leave it out.
 
 ## Saving your result
 

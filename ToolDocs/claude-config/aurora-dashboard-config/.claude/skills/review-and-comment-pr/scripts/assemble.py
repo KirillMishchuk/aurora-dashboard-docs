@@ -7,7 +7,8 @@ Usage:
 
 Pass 1 reads candidates.json, out/score-*.json and out/describer.json, keeps
 every candidate scored 50 or more that isn't a `same_as` duplicate (the
-duplicate's evidence goes along), flags pairs of kept findings that look
+duplicate's evidence goes along; a duplicate of a dropped candidate is listed
+with it under "Checked and dismissed", never lost), flags pairs of kept findings that look
 alike, and writes compose.md: per finding the claim, evidence and scorer's
 reason, plus a texts.json template. You write <run-dir>/texts.json — the
 wording only (summary, confidence, index line, and issue/title/explanation/
@@ -34,6 +35,23 @@ STOP = {"that", "this", "with", "from", "which", "when", "only", "into", "does",
         "they", "have", "uses", "used", "instead", "should", "because", "both", "also", "each", "page", "list"}
 
 
+DESC_TITLE = {"not in code": "The description claims what the code doesn't do",
+              "not described": "A change the description doesn't mention"}
+PROCESS_KEYS = ("title", "issue", "location", "explanation", "fix")
+
+
+def description_items(run_dir):
+    """The `pr-description` agent's mismatches as Process items desc-1, desc-2 … — they go into the report as written
+    (save.py checked the quote and the location); texts.json may reword one through process_overrides.<id>."""
+    f = run_dir / "out" / "pr-description.json"
+    if not f.exists():
+        return []
+    return [{"id": f"desc-{i}", "title": DESC_TITLE[m["kind"]], "issue": m["issue"],
+             "location": m.get("location") or "PR body" if m["kind"] == "not described" else "PR body",
+             "explanation": m["explanation"], "fix": m["fix"], "_quote": m.get("quote")}
+            for i, m in enumerate(json.loads(f.read_text(encoding="utf-8"))["mismatches"], 1)]
+
+
 def load(run_dir):
     cands = {c["id"]: c for c in json.loads((run_dir / "candidates.json").read_text(encoding="utf-8"))["candidates"]}
     scores = {}
@@ -48,14 +66,23 @@ def load(run_dir):
     return cands, scores, desc
 
 
+def root(cid, scores):
+    """The candidate a `same_as` duplicate stands for: follow the chain to one with no same_as (save.py
+    refuses chains, this is the fallback for older runs). A loop ends at the last id before it repeats."""
+    seen = [cid]
+    while scores[seen[-1]].get("same_as") in scores and scores[seen[-1]]["same_as"] not in seen:
+        seen.append(scores[seen[-1]]["same_as"])
+    return seen[-1]
+
+
 def kept(cands, scores):
     keep = {}
     for cid, s in scores.items():
         if s["score"] >= 50 and not s.get("same_as"):
             keep[cid] = {"c": cands[cid], "s": s, "dups": []}
     for cid, s in scores.items():
-        if s.get("same_as") in keep:
-            keep[s["same_as"]]["dups"].append(cands[cid])
+        if s.get("same_as") and root(cid, scores) in keep:
+            keep[root(cid, scores)]["dups"].append(cands[cid])
     return dict(sorted(keep.items(), key=lambda kv: (ORDER.index(kv[1]["s"]["severity"]), int(kv[0][1:]))))
 
 
@@ -141,14 +168,14 @@ def compose(run_dir):
         L += [f"- {a['status']}: {a['criterion']}" for a in desc["acceptance"]] + [""]
     if update:
         rows = quotes.earlier_rows(ctx["report"]["path"], ctx["pr"]["head"]["short"])
-        agf = run_dir / "out" / "earlier.json"
+        agf = run_dir / "out" / "earlier-findings.json"
         ag = json.loads(agf.read_text(encoding="utf-8"))["earlier"] if agf.exists() else {}
         L += ["## Earlier findings (for `earlier`)", "",
-              ("The `earlier` agent checked each of them at the new head; its status, note and evidence are below "
+              ("The `earlier-findings` agent checked each of them at the new head; its status, note and evidence are below "
                "and already in the template. Keep the statuses — change one only if another agent's result shows "
                "it wrong, and say why in the note — and reword a note only for the reader. Don't open the code "
                "yourself." if ag else
-               "**The `earlier` agent's result is missing (`out/earlier.json`)** — re-launch it as in Step 4 "
+               "**The `earlier-findings` agent's result is missing (`out/earlier-findings.json`)** — re-launch it as in Step 4 "
                "before writing texts.json.")
               + " In a note, name earlier findings by number (`CR2`), this Update's own by `[[ref:<id>]]`. "
               "render.py refuses a list with one left out.", ""]
@@ -170,6 +197,19 @@ def compose(run_dir):
                 "findings": {ref(cid): {k: "" for k in TEXT_KEYS} for cid in keep},
                 "edge_cases": ["scenario behind each Bug finding, citing [[ref:<id>]]"],
                 "merge": {}, "provenance_extra": []}
+    desc_items = description_items(run_dir)
+    L += ["## PR description vs code (Process items)", "",
+          ("These go into the report as Process items as written — you can't drop one. To reword one for the "
+           "reader, put `\"process_overrides\": {\"<id>\": {\"issue\": \"…\", \"explanation\": \"…\", "
+           "\"fix\": \"…\"}}` in texts.json; name one in a text as `[[ref:<id>]]`." if desc_items else
+           ("None — the description matches the code." if (run_dir / "out" / "pr-description.json").exists()
+            else "No result (`out/pr-description.json` is missing — the PR description is empty, or re-launch the "
+                 "`pr-description` agent as in Step 4).")), ""]
+    for d in desc_items:
+        L += [f"- `{d['id']}` — {d['title']} · {d['location']}: {d['issue']}"
+              + (f"\n  - Quote: \"{d['_quote']}\"" if d.get("_quote") else ""),
+              f"  - {d['explanation']}", f"  - _Fix:_ {d['fix']}"]
+    L += [""] if desc_items else []
     L += ["## texts.json shape", "",
           "Optional: `fixes` — exact replacements after the fact-check, copied from `out/factcheck.json`: "
           "`[{\"field\": \"overview.how\", \"old\": \"…\", \"new\": \"…\"}]` (fields as in findings.json: "
@@ -179,10 +219,11 @@ def compose(run_dir):
     (run_dir / "compose.md").write_text("\n".join(L), encoding="utf-8")
     bugs = sum(1 for k in keep.values() if k["s"]["category"] == "Bug")
     print(f"{len(keep)} findings to write ({bugs} Bug), {len(scores) - len(keep)} candidates dropped "
-          f"(below 50 or same_as), {len(pairs)} look-alike pair(s).\n"
+          f"(below 50 or same_as), {len(pairs)} look-alike pair(s), "
+          f"{len(desc_items)} Process item(s) from the PR description check.\n"
           f"Read {run_dir / 'compose.md'}, write {run_dir / 'texts.json'}, then run with --texts."
-          + ("\nWARNING: out/earlier.json is missing — re-launch the `earlier` agent (Step 4) first."
-             if update and not (run_dir / "out" / "earlier.json").exists() else ""))
+          + ("\nWARNING: out/earlier-findings.json is missing — re-launch the `earlier-findings` agent (Step 4) first."
+             if update and not (run_dir / "out" / "earlier-findings.json").exists() else ""))
     return 0
 
 
@@ -267,8 +308,16 @@ def build(run_dir):
                 errors.append(f"{k}: missing or empty")
         if "earlier" in t:
             errors.append("earlier: exists only on an Update")
-    if t.get("confidence") == "High" and (ctx.get("pr") or {}).get("is_draft"):
-        errors.append("confidence: the PR is a draft — Medium or Low (it isn't ready to merge as it stands)")
+    desc_items = {d["id"]: d for d in description_items(run_dir)}
+    overrides = dict(t.get("process_overrides") or {})
+    for pid in [k for k in overrides if k in desc_items]:
+        ov_ = overrides.pop(pid)
+        bad = [k for k in (ov_ if isinstance(ov_, dict) else {"": 0}) if k not in PROCESS_KEYS]
+        if bad:
+            errors.append(f"process_overrides.{pid}: unknown key(s) {', '.join(map(repr, bad))} "
+                          f"(allowed: {', '.join(PROCESS_KEYS)})")
+        else:
+            desc_items[pid].update({k: v for k, v in ov_.items() if isinstance(v, str) and v.strip()})
     if not desc and not t.get("overview"):
         errors.append("overview: no describer result — write overview and qa yourself")
     if errors:
@@ -298,7 +347,10 @@ def build(run_dir):
         print(f"INVALID texts.json — {len(errors)} error(s), findings.json not written:\n  " + "\n  ".join(errors))
         return 1
     fd = {"schema_version": 1, "summary": t.get("summary", ""), "confidence": t.get("confidence", ""),
-          "findings": findings, "process": t.get("process") or [], "process_overrides": t.get("process_overrides") or {},
+          "findings": findings,
+          "process": [{k: v for k, v in d.items() if not k.startswith("_")} for d in desc_items.values()]
+          + (t.get("process") or []),
+          "process_overrides": overrides,
           "overview": ov, "qa": qa, "provenance_extra": t.get("provenance_extra") or [],
           "index_affected": t.get("index_affected", ""),
           "scope": t["scope"] if "scope" in t else (desc or {}).get("scope")}
@@ -306,10 +358,13 @@ def build(run_dir):
         fd["earlier"] = t["earlier"]
     # what the scorers checked and dropped: the full table only in the KB report (never posted); the ones a
     # reviewer raised (`discussion`) are also answered in the comment — render.py, "Review comments not taken up"
+    # a duplicate whose candidate was dropped goes with it: that candidate's score and reason, its own claim
+    # and discussion (a reviewer's comment it cites still gets its answer)
+    keep_ids = set(kept(cands, scores))
+    drop = {cid: scores[root(cid, scores)] for cid in scores if root(cid, scores) not in keep_ids}
     fd["dismissed"] = [{"score": s["score"], "claim": cands[cid]["claim"], "location": cands[cid]["location"],
                         "reason": s["reason"], "discussion": cands[cid].get("discussion") or ""}
-                       for cid, s in sorted(scores.items(), key=lambda kv: (-kv[1]["score"], int(kv[0][1:])))
-                       if s["score"] < 50 and not s.get("same_as")]
+                       for cid, s in sorted(drop.items(), key=lambda kv: (-kv[1]["score"], int(kv[0][1:])))]
     (run_dir / "findings.json").write_text(json.dumps(fd, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
     print(f"findings.json written: {len(findings)} findings ({len(merge)} merged). Now run render.py.")
     return 0

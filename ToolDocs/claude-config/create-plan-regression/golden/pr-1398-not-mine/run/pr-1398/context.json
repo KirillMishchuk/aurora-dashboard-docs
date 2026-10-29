@@ -1,0 +1,18 @@
+{
+ "mode": "A",
+ "issue": [],
+ "pr": [
+  1398
+ ],
+ "kind": "pr",
+ "number": 1398,
+ "title": "fix(deps): restore @fastify/static override to patch route/auth bypass",
+ "head": "8e6df7b25542a860334dc773b70252c00482b461",
+ "author": "andypf",
+ "head_short": "8e6df7b2",
+ "run": "<SAP>/aurora-dashboard/.claude/runs/create-plan/pr-1398",
+ "fetch_ok": true,
+ "behind": 0,
+ "kb_pin": "5b7bea1e",
+ "kb_lag": 7
+}

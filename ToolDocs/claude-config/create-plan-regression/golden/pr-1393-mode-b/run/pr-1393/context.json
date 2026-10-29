@@ -1,0 +1,34 @@
+{
+ "mode": "B",
+ "issue": [],
+ "pr": [
+  1393
+ ],
+ "kind": "pr",
+ "number": 1393,
+ "title": "feat(aurora): add Key Manager (Barbican) in-core plugin",
+ "head": "8763f93bc0ad314073ddc5c69bbbf1e34201029f",
+ "author": "hodanoori",
+ "head_short": "8763f93b",
+ "reviews": [
+  {
+   "source": "review-and-comment-pr report",
+   "path": "<SAP>/DOCS/aurora-dashboard-kb/prs/1393-key-manager-core-plugin.md",
+   "date": "2026-10-25",
+   "size": "578 lines"
+  },
+  {
+   "source": "GitHub comments",
+   "path": "<SAP>/aurora-dashboard/.claude/runs/create-plan/pr-1393/github.md",
+   "date": "2026-10-26",
+   "size": "6 comments, 1 reviews with text, 19 inline threads (16 outdated)"
+  }
+ ],
+ "original_plan_candidates": [],
+ "pr_title": "feat(aurora): add Key Manager (Barbican) in-core plugin",
+ "run": "<SAP>/aurora-dashboard/.claude/runs/create-plan/pr-1393",
+ "fetch_ok": true,
+ "behind": 0,
+ "kb_pin": "5b7bea1e",
+ "kb_lag": 7
+}

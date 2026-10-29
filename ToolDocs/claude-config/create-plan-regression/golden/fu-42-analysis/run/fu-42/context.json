@@ -1,0 +1,13 @@
+{
+ "mode": "A",
+ "issue": [],
+ "pr": [],
+ "kind": "followup",
+ "number": 42,
+ "title": "`TabNavigation` tabs: `tabStyle=\"content\"` and a controlled `activeItem` everywhere",
+ "run": "<SAP>/aurora-dashboard/.claude/runs/create-plan/fu-42",
+ "fetch_ok": true,
+ "behind": 0,
+ "kb_pin": "5b7bea1e",
+ "kb_lag": 7
+}

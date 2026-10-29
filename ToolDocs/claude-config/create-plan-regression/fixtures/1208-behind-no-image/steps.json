@@ -1,0 +1,34 @@
+{
+ "today": "2026-10-28",
+ "steps": [
+  {
+   "args": [
+    "collect",
+    "1208"
+   ]
+  },
+  {
+   "args": [
+    "save",
+    "--run",
+    "{RUNS}/1208"
+   ],
+   "stdin": "plan-1387.md"
+  },
+  {
+   "args": [
+    "write",
+    "--run",
+    "{RUNS}/1208",
+    "--title",
+    "Ceph CLI setup help",
+    "--slug",
+    "ceph-cli-setup-help",
+    "--task",
+    "Stand-in plan to check the header: Base with lag and uncommitted changes",
+    "--reviewed",
+    "3/2"
+   ]
+  }
+ ]
+}

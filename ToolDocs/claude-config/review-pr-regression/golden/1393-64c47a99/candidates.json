@@ -5,7 +5,7 @@
    "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretTableRow.tsx:40",
    "evidence": "B.14 / Quick Reject: \"Icon-only button without `aria-label`\". Code: <Button icon=\"moreVert\" title={t`Secret actions`} /> (same in ContainerTableRow.tsx:39, OrderTableRow.tsx:38). example: packages/aurora/src/client/routes/_auth/projects/$projectId/storage/-components/Ceph/Buckets/BucketHeaderActions.tsx:67",
    "precedent": "FloatingIpDetailsView.tsx:66 also uses title only; Ceph and flavors pair title with aria-label.",
-   "source": "finder-a",
+   "source": "find-standards",
    "id": "C1",
    "group": [
     "C1",
@@ -19,7 +19,7 @@
    "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretTableRow.tsx:40",
    "evidence": "B.19: \"Title case for ... button labels\". example: packages/aurora/src/client/routes/_auth/projects/$projectId/compute/flavors/$flavorId.tsx:227 (\"More Actions\")",
    "precedent": "Ceph BucketHeaderActions.tsx:67 uses lowercase \"Bucket actions\" too.",
-   "source": "finder-a",
+   "source": "find-standards",
    "id": "C2",
    "group": [
     "C1",
@@ -33,7 +33,7 @@
    "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderModals.tsx:43",
    "evidence": "B.11: \"Validate **on blur** by default; always re-validate all fields **on submit**. Validate **as-you-type** only for strict-format fields\"; Algorithm and Bit Length are not strict-format fields. Errors are computed from state at lines 43-46 and passed to errortext (94-107) with no touched/blur tracking. example: packages/aurora/src/client/routes/_auth/projects/$projectId/compute/flavors/-components/CreateFlavorModal.tsx:225",
    "precedent": "Not a Reject-line violation by itself (initial defaults are valid, so nothing shows before interaction).",
-   "source": "finder-a",
+   "source": "find-standards",
    "id": "C3",
    "group": null,
    "batch": 1
@@ -42,7 +42,7 @@
    "claim": "Each list adds a useEffect that calls onPageChange when the current page becomes empty. This is event-driven state sync that could be done in the delete handler or by clamping the page, and it runs in three components.",
    "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx:71",
    "evidence": "A.1: \"Critically evaluate every `useEffect` ... Flag synchronizations, computed states, or event-driven triggers ... that can be handled during rendering or inside event handlers\". Effect: if (!isLoading && !isError && page > 1 && (data?.secrets.length ?? 0) === 0) onPageChange(page - 1). Same in OrdersList.tsx:53 and ContainersList.tsx:48. The trigger is the delete mutation's onSuccess in the Delete*Modal.",
-   "source": "finder-a",
+   "source": "find-standards",
    "id": "C4",
    "group": null,
    "batch": 1
@@ -52,7 +52,7 @@
    "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx:14",
    "evidence": "Quick Reject: \"Import using `../../` traversal beyond one level instead of `@/`\"; B.13: \"No relative `../../` traversal beyond one level\". Lines: import { useKeyManagerPermissions } from \"../../-components/useKeyManagerPermissions\" (also ContainersList.tsx:4, OrdersList.tsx:12, SecretDetailsView.tsx:8). example: packages/aurora/src/client/routes/_auth/projects/$projectId/compute/flavors/-components/CreateFlavorModal.tsx:17",
    "precedent": "The old usePermissions import used the same ../../ path; the PR renamed it but kept it.",
-   "source": "finder-a",
+   "source": "find-standards",
    "id": "C5",
    "group": null,
    "batch": 1
@@ -62,7 +62,7 @@
    "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:110",
    "evidence": "keyManagerRouter.ts lines 100-111 at 64c47a9: request with Accept: application/octet-stream, then `const text = await res.text()` and `return { payload: text, contentType }`. The delta does not touch the read path or base64-encode non-text content types.",
    "precedent": "The raw-text read was already there before this commit; the Accept change is what makes binary bodies reachable.",
-   "source": "finder-b",
+   "source": "find-diff-bugs",
    "id": "C6",
    "group": null,
    "batch": 1
@@ -73,7 +73,7 @@
    "evidence": "At the head commit, keyManagerRouter.ts procedures use projectScopedProcedure and go straight to km.get/post/del with no policy check (e.g. getSecretPayload lines 93-112, deleteSecret 153-162). The permission router is only spread in at index.ts:7-8. The only server-side policy code is in the permissionRouter.ts files and createPermissionRouter.ts, so nothing enforces a decision. The delta did not add a guard.",
    "precedent": "Compute, Network and Storage routers do not enforce policy server-side either. Only their permissionRouter.ts files and createPermissionRouter.ts use the engine, so the pattern is accepted elsewhere.",
    "discussion": "Raised by Copilot in https://github.com/cobaltcore-dev/aurora-dashboard/pull/1393#discussion_r4360389025 (CRITICAL, unanswered). Still applies at 64c47a99. Other Copilot threads were checked at head and look addressed: Accept header and debug:false on payload (keyManagerRouter.ts:98-104), isEnabled on the nav entry (buildNavSections.ts:154), nullable secret_refs name (keyManager.ts:25), canDelete renamed to canDeleteContainer/Secret/Order, hook renamed to useKeyManagerPermissions, payload gating via canRevealPayload (SecretDetailsView.tsx:21-22), bit length validation (OrderModals.tsx:42-46), menu toggle label and separator, and page step-back on an empty page (SecretsList.tsx:70-75). The container-secret DELETE endpoint no longer exists in the router.",
-   "source": "finder-d",
+   "source": "find-discussion",
    "id": "C7",
    "group": null,
    "batch": 1
@@ -83,7 +83,7 @@
    "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:102",
    "evidence": "Code at 64c47a99, keyManagerRouter.ts:100-104: `.get(`v1/secrets/${encodeURIComponent(input.secretId)}/payload`, { headers: { Accept: \"application/octet-stream\" }, debug: false })`. Reference (barbican doc/source/api/reference/secrets.rst, raw github, section 'GET /v1/secrets/{uuid}/payload', rendered at https://docs.openstack.org/barbican/latest/api/reference/secrets.html#get-secrets-uuid-payload): \"When making a request for a secret's payload, you must set the accept header to one of the values listed in the ``content_types`` attribute of a secret's metadata.\" The documented example sends `Accept: text/plain`, and the status table lists `406 | Not Acceptable`. The secret metadata example shows `\"content_types\": {\"default\": \"application/octet-stream\"}` for opaque secrets only. The client already reads secret.content_types (SecretDetailsView.tsx:51), so the server could use content_types.default or fetch the secret first. Barbican source barbican/api/controllers/secrets.py: when there is no Accept header it defaults to 'application/octet-stream', otherwise it uses the header value. In signal-openstack at 64c47a99, grep for 'accept' in packages/signal-openstack/src finds nothing, so the in-code comment claiming a default 'Accept: application/json' is not backed by that client. I could not check what undici/fetch sends by default. Secondary: the body is read with res.text() (line 110), which corrupts binary payloads.",
    "precedent": "Other KM calls (getSecret, listSecrets) send no Accept header; the docs show Accept: application/json on those metadata calls.",
-   "source": "finder-f",
+   "source": "find-api-contract",
    "id": "C8",
    "group": null,
    "batch": 2
@@ -93,7 +93,7 @@
    "location": "packages/aurora/src/server/KeyManager/types/keyManager.ts:25",
    "evidence": "Code: `secret_refs: z.array(z.object({ name: z.string().nullable(), secret_ref: z.string() }))`. Reference (barbican doc/source/api/reference/containers.rst, https://docs.openstack.org/barbican/latest/api/reference/containers.html): 'This type of container holds any number of references to secrets. Each secret reference is accompanied by a name. Unlike other container types, no specific restrictions are enforced on the contents name attribute.' All response examples show `\"name\": \"private_key\"`. I found no doc text saying name may be null. Low severity: the lenient schema is safe at runtime, but the claim in the test title is unverified. I did not check the Barbican source for null names.",
    "precedent": "none",
-   "source": "finder-f",
+   "source": "find-api-contract",
    "id": "C9",
    "group": null,
    "batch": 2
@@ -103,7 +103,7 @@
    "location": "packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:93",
    "evidence": "keyManagerRouter.ts:93-111 getSecretPayload: projectScopedProcedure, input schema, then a km.get of the payload path with no canUser/policy evaluation. The delta (SecretDetailsView.tsx) hides the Reveal Payload UI behind useKeyManagerPermissions only. The policy rule key-manager:secrets:payload exists in apps/dashboard/src/policies/key-manager.json:12 (rule:context_is_keymanager_viewer) and packages/aurora/src/server/KeyManager/routers/permissionRouter.ts:6, but is used only by the canUser query. Barbican enforces its own RBAC with the rescoped token, so this is defense-in-depth rather than a direct bypass. The handler code predates the delta; the delta adds only the client gate and debug:false.",
    "precedent": "Other domains (Compute/Network/Storage) also gate mainly in the UI via canUser; not checked whether any enforces it server-side in mutations.",
-   "source": "finder-g",
+   "source": "find-security",
    "id": "C10",
    "group": null,
    "batch": 2

@@ -59,18 +59,31 @@ review/analysis but deliberately not done in the PR where they came up.
 | 35 | DataGrid header does not follow the Juno pattern in other lists | Lists | open |
 | 47 | Search term is not trimmed in other client-side filters and pickers | Search | open |
 | 2 | "Please" in the rest of the client | UI copy | open |
+| 52 | Sentence-case and trailing-period empty-state titles elsewhere | UI copy | open |
 | 36 | 409 on SG sharing is always shown as "already shared", including when the quota is exhausted | RBAC (SG) | open |
 | 37 | Sharing a security group with several projects at once | RBAC (SG) | open |
 | 38 | SG rules table has no Remote column | Client (SG) | done ([PR #1368](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1368), 2026-10-06) |
 | 39 | Add Rule validation messages are not translated | Client (SG) | open |
 | 42 | `TabNavigation` tabs: `tabStyle="content"` and controlled `activeItem` everywhere | Juno | open |
+| 53 | Remaining `TabNavigation` users → `TabBar`/`TabBarItem` | Juno | open |
 | 43 | SG details page state (tab, search, sorting, rule filters) in the URL | Client (SG) | open |
+| 51 | SG Rules tab has no separate "no search/filter results" state | Client (SG) | open |
 | 44 | Stale package READMEs (config, policy-engine, signal-openstack, e2e) | Documentation | open |
 | 45 | `packages/aurora/README.md` + `.env.example`: removed `crossDomainCookie`, missing `cookieDomain`/`debug` | Documentation | open |
 | 46 | Root `README.md`, `CONTRIBUTING.md`, release docs: stale prerequisites, port, Semantic Release | Documentation | open |
 | 48 | Extend attached (`in-use`) volumes (Cinder 3.42) | Volumes | open |
 | 49 | "Attached Volumes" section on Instance Details | Volumes | open |
 | 50 | Availability-zone selection when creating a volume | Volumes | open |
+| 54 | Ports/Routers docs say `danger` Badge for DOWN/ERROR; code uses `error` | Ports/Routers | open |
+| 55 | Status is a Badge in Ports/Routers lists but plain text in details views | Ports/Routers | open |
+| 56 | Router details answers 403 with an error page, not an info Message | Ports/Routers | open |
+| 57 | Port details does not use the shared `TwoColumnDescriptionList` | Ports/Routers | open |
+| 58 | Inconsistent empty-field placeholder (em dash vs en dash) in Ports views | Ports/Routers | open |
+| 59 | Ports list layout differs from the maintainer's requested layout | Ports/Routers | open |
+| 60 | Routers doc contradicts itself on 403 handling in the details view | Ports/Routers | open |
+| 61 | 401 redirect can loop when only the OpenStack call is unauthorized | Ports/Routers | open |
+| 62 | Ports/Routers by-ID procedures don't check the resource's `project_id` | Ports/Routers | open |
+| 63 | `terminateUserSession` before the 401 redirect has no `.catch` | Ports/Routers | open |
 
 ---
 
@@ -877,6 +890,27 @@ were fixed there).
 
 ---
 
+### 52. Sentence-case and trailing-period empty-state titles elsewhere in the client
+
+**Where:** for example `storage/-components/Ceph/Objects/ObjectsTableView.tsx:389` (`No objects found.` with the generic
+`There are no items to display.`), `storage/-components/Ceph/Objects/ObjectVersionHistoryModal.tsx:133`
+(`No Versions Found for This Object.`), and `CorsRulesTable.tsx:127` / `LifecycleRulesTable.tsx:137` (trailing periods).
+
+**What:** these `Status` titles break the title-case convention that the Juno `Status` prop docs ask for, or repeat the
+generic default body.
+
+**How to fix:** audit the `Status` titles in `packages/aurora/src/client`, change them to "No X Found" title case with
+specific bodies, and run `pnpm check-i18n`. Each msgid change bloats the `.po` diff, so this should be a separate PR
+(as in item 2).
+
+**Why not done right away:** these are in other domains (storage), outside #1388 and epic #1327.
+
+**Source:** plan [2026-10-27-security-group-empty-state-copy.md](./plans/2026-10-27-security-group-empty-state-copy.md) (issue #1388)
+
+**Status:** open.
+
+---
+
 ## I. Security Groups: sharing (RBAC)
 
 ### 36. A 409 when sharing an SG is always shown as "already shared", including when the quota is exhausted
@@ -1005,6 +1039,28 @@ them to the URL is a separate routing task, while PR #1375 is about layout and J
 
 ---
 
+### 51. SG Rules tab has no separate "no search/filter results" state
+
+**Where:** `securitygroups/$securityGroupId/-components/-details/SecurityGroupRulesTable.tsx:242-247`; it receives
+already-filtered `rules` from `SecurityGroupDetailsView.tsx:78-83`.
+
+**What:** when the group has rules but the search or filters hide all of them, the table still says
+"No Rules Found / There are no Rule items to display for this Security Group." (copy from #1388). That is misleading:
+rule B.6 in `.github/copilot-instructions.md` asks for the two cases to be told apart.
+
+**How to fix:** pass a total-rule count or an `isFiltered` flag from `SecurityGroupDetailsView`. When the table is filtered,
+render `<Status status="no-matches">` with a title-case title and a body that suggests adjusting the search or filters,
+mirroring the RBAC tab after #1388.
+
+**Why not done right away:** it needs new data flow between the parent and the table plus new copy, while #1388 is a
+copy-only change.
+
+**Source:** plan [2026-10-27-security-group-empty-state-copy.md](./plans/2026-10-27-security-group-empty-state-copy.md) (issue #1388)
+
+**Status:** open.
+
+---
+
 ## K. Juno: component consistency
 
 ### 42. `TabNavigation` tabs: `tabStyle="content"` and a controlled `activeItem` everywhere
@@ -1038,6 +1094,34 @@ only for Security Groups would introduce a new inconsistency.
 
 **Source:** /triple-review of the PR for the SG details page (branch `kiryl-security-groups-detail-page`),
 2026-10-07.
+
+**Status:** open.
+
+---
+
+### 53. Migrate the remaining `TabNavigation` users to `TabBar`/`TabBarItem`
+
+**Where:** `packages/aurora/src/client`:
+- `components/ListToolbar/index.tsx:7-8,163-167`;
+- `routes/_auth/projects/$projectId/network/routers/-components/RouterDetailsView.tsx:10-11,113-120`;
+- `routes/_auth/projects/$projectId/storage/-components/Ceph/Buckets/BucketDetailTabs.tsx:2,21-58`;
+- `routes/_auth/projects/$projectId/storage/-components/Ceph/Objects/ObjectBrowserView.tsx:11-12,655-686`;
+- `routes/_auth/projects/$projectId/compute/images/-components/List.tsx:20-21,228-232`.
+
+**What:** these still use Juno's deprecated `TabNavigation`/`TabNavigationItem`. In 9.7.1 they are
+`withDeprecationWarning` wrappers around `TabBar`/`TabBarItem`, so each mount logs a `console.warn`, and they will
+break when Juno drops them. After issue #1387 the Copilot rule (`.github/copilot-instructions.md` B.1) names
+`TabBar`, so these files contradict it.
+
+**How:** a one-for-one rename — the props are identical in 9.7.1, and the default `appearance="tabs"` looks the
+same as the wrapper's `"main"`. Add `ariaLabel` where a page has more than one nav landmark. Combine with
+item 42 (`appearance="content"`
+everywhere and controlled `activeItem` in `BucketDetailTabs`/`ObjectBrowserView`) — same files, one pass.
+
+**Why not done right away:** issue #1387 covers Security Groups only; it says the other scopes "will be updated
+at some point soon".
+
+**Source:** plan [2026-10-27-security-groups-tabbar.md](./plans/2026-10-27-security-groups-tabbar.md)
 
 **Status:** open.
 
@@ -1228,4 +1312,148 @@ first.
 **Status:** open.
 
 ---
-Updated: 2026-10-13
+
+## N. Ports and Routers (PR #1377)
+
+### 54. Ports and Routers docs name the wrong Badge variant for DOWN/ERROR
+
+**Where:** `packages/aurora/docs/0017_ports_bff.md:405`, `packages/aurora/docs/0010_routers_bff.md:606`.
+
+**What:** the docs say the status Badge is "danger for DOWN/ERROR", but `PortTableRow.tsx` and `RouterTableRow.tsx` return `"error"`. The code is right (B.4: `error` = system/operation failure, distinct from `danger`). No runtime effect.
+
+**How:** change "danger" to "error" in both docs — or drop the paragraph if item 59 turns the status into plain text.
+
+**Why not done right away:** an Improvement (Low) in the review, not a merge blocker.
+
+**Source:** review-and-comment-pr Update of [PR #1377](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377) at head `25282829`, 2026-10-28 — report `aurora-dashboard-kb/prs/1377-neutron-ports-bff-read-only-ports-page.md`
+
+**Status:** open.
+
+### 55. Status looks different in the list and the details view (Ports, Routers)
+
+**Where:** `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortDetailsView.tsx:70`, `packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/-components/RouterDetailsView.tsx:72`.
+
+**What:** the list rows render status as a `Badge`, the details views as plain text, so the same status looks different on the two pages (B.1 names Badge for status).
+
+**How:** once item 59 is settled, use the same rendering in both places (e.g. Badge as in `storage/-components/Ceph/Buckets/BucketHeader.tsx:47`, or plain text everywhere).
+
+**Why not done right away:** an Improvement (Low) in the review, not a merge blocker.
+
+**Source:** review-and-comment-pr Update of [PR #1377](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377) at head `25282829`, 2026-10-28 — report `aurora-dashboard-kb/prs/1377-neutron-ports-bff-read-only-ports-page.md`
+
+**Status:** open.
+
+### 56. Router details answers 403 with an error page instead of an info Message
+
+**Where:** `packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/$routerId.tsx:88`.
+
+**What:** `case "FORBIDDEN"` goes through `RouteIdLevelDefaultError`; B.6 asks for a page-level info Message on 403, and Ports details (`ports/$portId.tsx`) in the same PR uses one. `0010_routers_bff.md` records the difference on purpose.
+
+**How:** render the 403 as in `ports/$portId.tsx` (`` <Message variant="info" title={t`Insufficient Permissions`}> ``) and drop the "the two differ here" note from the routers doc; then fix item 60 accordingly.
+
+**Why not done right away:** an Improvement (Low) in the review, not a merge blocker.
+
+**Source:** review-and-comment-pr Update of [PR #1377](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377) at head `25282829`, 2026-10-28 — report `aurora-dashboard-kb/prs/1377-neutron-ports-bff-read-only-ports-page.md`
+
+**Status:** open; still open at head `1d4d4c3c` (I14 in the 2026-10-28 Update).
+
+### 57. Port details does not use the shared `TwoColumnDescriptionList`
+
+**Where:** `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortDetailsView.tsx:17`.
+
+**What:** renders Juno `<DescriptionList alignTerms="right">` instead of `packages/aurora/src/client/components/TwoColumnDescriptionList.tsx`, so it misses the two-column layout. Asked for by TilmanHaupt in https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#pullrequestreview-5670107878.
+
+**How:** build `PortDetailsView` from `TwoColumnDescriptionList`.
+
+**Why not done right away:** an Improvement (Low) in the review, not a merge blocker.
+
+**Source:** review-and-comment-pr Update of [PR #1377](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377) at head `25282829`, 2026-10-28 — report `aurora-dashboard-kb/prs/1377-neutron-ports-bff-read-only-ports-page.md`
+
+**Status:** open.
+
+### 58. Inconsistent empty-field placeholder in the Ports views
+
+**Where:** `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortDetailsView.tsx:60-81`, `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortTableRow.tsx:63,81,86,88`.
+
+**What:** details use `—` (em dash), the list `–` (en dash). TilmanHaupt asked for the guideline placeholder in both (same review). Merged code mixes both, and the repo does not document the character.
+
+**How:** confirm the character with the maintainer, then use one shared constant in both files.
+
+**Why not done right away:** an Improvement (Low) in the review, not a merge blocker.
+
+**Source:** review-and-comment-pr Update of [PR #1377](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377) at head `25282829`, 2026-10-28 — report `aurora-dashboard-kb/prs/1377-neutron-ports-bff-read-only-ports-page.md`
+
+**Status:** open.
+
+### 59. Ports list layout differs from the maintainer's requested layout
+
+**Where:** `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortTableRow.tsx:61`, `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortListContainer.tsx:58-63`, `PortDetailsView.tsx:53`.
+
+**What:** status is a Badge in the 2nd column, ID sits under the name, fixed IPs carry `IPv4`/`IPv6` labels. TilmanHaupt asked for plain-text status in the first column, no IP-version labels, ID maybe last (same review). The Badge came from the earlier report's I10 (B.1).
+
+**How:** follow the maintainer's layout, or reply on the review explaining the B.1 Badge choice. Decides items 54 and 55.
+
+**Why not done right away:** an Improvement (Low) in the review, not a merge blocker.
+
+**Source:** review-and-comment-pr Update of [PR #1377](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377) at head `25282829`, 2026-10-28 — report `aurora-dashboard-kb/prs/1377-neutron-ports-bff-read-only-ports-page.md`
+
+**Status:** open.
+
+### 60. Routers doc contradicts itself on 403 in the details view
+
+**Where:** `packages/aurora/docs/0010_routers_bff.md:613` vs the Implementation Status line ("403 info message on both the list and details views").
+
+**What:** line 613 (fixed after Copilot's https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#discussion_r4389368754) says details shows an error page; the status list still says info message on both. Code follows line 613.
+
+**How:** align the Implementation Status line with line 613 — or, if item 56 is done, update line 613 instead.
+
+**Why not done right away:** an Improvement (Low) in the review, not a merge blocker.
+
+**Source:** review-and-comment-pr Update of [PR #1377](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377) at head `25282829`, 2026-10-28 — report `aurora-dashboard-kb/prs/1377-neutron-ports-bff-read-only-ports-page.md`
+
+**Status:** open.
+
+### 61. 401 redirect can loop when only the OpenStack call is unauthorized
+
+**Where:** `.../network/ports/-components/PortsList.tsx` and `.../network/routers/-components/RoutersList.tsx` (`UnauthorizedRedirect`), `.../network/ports/$portId.tsx`, `.../network/routers/$routerId.tsx`.
+
+**What:** on a 401 the page reloads to `/?redirect=<current page>` without ending the session. `getCurrentUserSession` returns the stored token without asking Keystone, so with a revoked token or a failed rescope the landing route sends the user straight back, the query 401s again, and the page reloads in a loop.
+
+**How:** end the session first (`trpcClient.auth.terminateUserSession`, as the expiry handler in `AuthProvider.tsx` does) or stop after one redirect and show "Session Expired"; one shared helper for the four places.
+
+**Why not done right away:** a Required Change (Moderate) in the review; tracked here until the PR fixes it.
+
+**Source:** review-and-comment-pr Update of [PR #1377](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377) at head `25282829`, 2026-10-28 (CR5) — report `aurora-dashboard-kb/prs/1377-neutron-ports-bff-read-only-ports-page.md`
+
+**Status:** open.
+
+### 62. Ports and Routers by-ID procedures don't check the resource's `project_id`
+
+**Where:** `packages/aurora/src/server/Network/routers/portsRouter.ts:107` (`getById`), and `update` / `delete` in the same file; the same pattern in `routersRouter.ts`.
+
+**What:** `getById`, `update` and `delete` call Neutron by `port_id` only and never compare the port's `project_id` with `input.project_id` (`list` does filter by project). A token with cross-project Neutron admin rights, scoped to project A, can read, change or delete project B's port through project A's endpoint. Normal project-scoped users are not affected, since Neutron policy rejects them. Copilot raised it in https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#discussion_r4389368122; the author called it valid defence-in-depth and deferred it in https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#discussion_r4389970447.
+
+**How:** after the fetch, compare `port.project_id` with `input.project_id` in all three procedures and answer `NOT_FOUND` on a mismatch; do the same for Routers.
+
+**Why not done right away:** deferred by the author to one follow-up for Ports and Routers; a team call (Moderate, Security) in the review.
+
+**Source:** review-and-comment-pr Update of [PR #1377](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377) at head `1d4d4c3c`, 2026-10-28 (CR6) — report `aurora-dashboard-kb/prs/1377-neutron-ports-bff-read-only-ports-page.md`
+
+**Status:** open.
+
+### 63. `terminateUserSession` before the 401 redirect has no `.catch`
+
+**Where:** `packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.tsx:121`, `.../network/ports/$portId.tsx:75`, `.../network/routers/-components/RoutersList.tsx:75`, `.../network/routers/$routerId.tsx:77`.
+
+**What:** `trpcClient.auth.terminateUserSession.mutate().finally(...)` has no `.catch`. `terminateUserSession` is a `protectedProcedure`, so when the session is already gone (the usual reason for a 401) it rejects with `UNAUTHORIZED`, and every expired-session redirect logs an unhandled promise rejection. The redirect itself still runs. `AuthProvider.tsx:66` wraps the same call in `try/catch/finally`.
+
+**How:** `.mutate().catch(() => {}).finally(() => window.location.replace(...))`, or one shared helper for the four places.
+
+**Why not done right away:** an Improvement (Low) in the review, not a merge blocker.
+
+**Source:** review-and-comment-pr Update of [PR #1377](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377) at head `1d4d4c3c`, 2026-10-28 (I19) — report `aurora-dashboard-kb/prs/1377-neutron-ports-bff-read-only-ports-page.md`
+
+**Status:** open.
+
+---
+Updated: 2026-10-28

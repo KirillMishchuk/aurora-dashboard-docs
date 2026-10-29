@@ -25,49 +25,49 @@ These candidates point at the same place. For each, set `same_as` (see the resul
 
 The evidence is as the finders reported it, unchanged.
 
-### C1 — from finder-a
+### C1 — from find-standards
 - **Claim:** The detail route's loader already fetches the network via getById, and RouteComponent then fetches the same network again with trpcReact getById.useQuery. The loader only uses the result for the page title, so every detail visit makes two identical requests.
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/$networkId.tsx:124`
 - **Evidence:**
 
 A.3: 'Data critical for rendering a page must be fetched via the route's loader function rather than loading it inside the component body.' Loader line 124 calls context.trpcClient?.network.networks.getById.query; line 149 calls trpcReact.network.networks.getById.useQuery with the same input.
 
-### C2 — from finder-a
+### C2 — from find-standards
 - **Claim:** A 401 is handled inline: NetworkLoadError renders an error message ('The session has expired...') in the page instead of redirecting to Sign-in. 403 also renders a plain error page without the page-level info Message explaining the lack of access.
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/$networkId.tsx:65`
 - **Evidence:**
 
 B.6 Reject: 'a 401/403 handled inline instead of via redirect / page-level info Message'. Lines 63-66 map FORBIDDEN and UNAUTHORIZED to error descriptions in RouteIdLevelDefaultError.
 
-### C3 — from finder-a
+### C3 — from find-standards
 - **Claim:** The UNAUTHORIZED copy says 'Log in again to continue.' The UX writing rule requires 'Sign in', and the recommended 401 copy is 'Authentication failed. Verify your credentials and try again.'
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/$networkId.tsx:66`
 - **Evidence:**
 
 Quick Reject: 'String using ... "Sign In"/"Log in" (use "Sign in")'. B.19: '"Sign in", not "Sign In" or "Log in"'.
 
-### C4 — from finder-a
+### C4 — from find-standards
 - **Claim:** A raw <button> is used for the 'Try Again' action in the subnets error state, where Juno's Button exists. It has no Juno styling or variant.
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkDetailsView.tsx:69`
 - **Evidence:**
 
 B.1 Reject: 'any PR that introduces a plain <table>, <input>, <select>, or <button> where a Juno equivalent exists.' Line 69: action={<button onClick={() => refetch()}>{t`Try Again`}</button>}. Quick Reject: 'Raw HTML element (<div>, <table>, <button>) where a Juno component exists'.
 
-### C5 — from finder-a
+### C5 — from find-standards
 - **Claim:** Raw <div> elements are used as layout wrappers (break-all wrapper in DetailsList, relative wrapper around ErrorBoundary in Networks) where Juno Stack/Container are the primary layout primitive.
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworksList.tsx:223`
 - **Evidence:**
 
 B.1: 'Primary layout primitive | Stack'; Quick Reject: 'Raw HTML element (<div>...) where a Juno component exists'. NetworksList.tsx:223 <div className="relative">; NetworkDetailsView.tsx:38 <div className="break-all">{value}</div>.
 
-### C6 — from finder-a
+### C6 — from find-standards
 - **Claim:** The active detail tab is held in useState instead of the URL search params, so the Subnets tab is not shareable and is lost on refresh.
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkDetailsView.tsx:109`
 - **Evidence:**
 
 B.9: 'All persistent UI state must live in URL search params' with 'Active tab | tab'; 'Reject any useState for state that should survive a page refresh or be shareable via URL.' Line 109: const [activeTab, setActiveTab] = useState<NetworkDetailsTab>("overview"). Quick Reject: 'URL-worthy state held in useState instead of search params'.
 
-### C7 — from finder-a
+### C7 — from find-standards
 - **Claim:** The row action menu uses <PopupMenu> without a PopupMenuToggle trigger (default toggle), contrary to the required pattern <PopupMenuToggle as="div"><Button icon="moreVert" /></PopupMenuToggle>.
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkTableRow.tsx:56`
 - **Evidence:**
@@ -96,7 +96,7 @@ Quick Reject: 'PopupMenu without PopupMenuToggle as trigger'; B.14: 'Context men
 - One entry per candidate, every candidate exactly once.
 - `score`: 0, 25, 50, 75 or 100. For 50 and up, `severity` (Critical, Major, Moderate, Low, Trivial), `category` (Bug, Security, Accessibility, UI/UX, Code Quality, Performance, Docs, Test coverage) and a `location` that exists at headRefOid (`path:line`, `path | text on that line`, or `PR body` / `PR state` / `PR files` / `CI`). Below 50, leave them out.
 - `precedent`: required for 50 and up — the reader's tag, it never changes the score. `{"kind": "existing", "ref": "path:line"}` when merged code already has the same problem — `ref` is a line that itself breaks the same rule. Sibling code that does it right (e.g. a list that already debounces) is not a precedent: it's evidence for the finding, put it in `reason`. Find that line at baseRefOid (`git grep -n '<pattern>' <baseRefOid> -- <pathspec>`). `{"kind": "deferred", "ref": "<URL>"}` when a maintainer accepted or postponed the same point, on another PR or in `discussion.json`: open the thread, `ref` is the comment's GitHub URL. Both apply → `deferred`. Neither, or you couldn't confirm the candidate's `precedent` → `null`.
-- `same_as`: required for a candidate in a group above — the id of the candidate in the same group that describes the same problem (score that one; this one is then dropped — `score` and `reason` may be left out for it), or `null` if it is a different problem. Elsewhere leave it out.
+- `same_as`: required for a candidate in a group above — the id of the candidate in the same group that describes the same problem (score that one, and leave its own `same_as` null — never point at another duplicate; this one is then dropped — `score` and `reason` may be left out for it), or `null` if it is a different problem. Elsewhere leave it out.
 
 ## Saving your result
 

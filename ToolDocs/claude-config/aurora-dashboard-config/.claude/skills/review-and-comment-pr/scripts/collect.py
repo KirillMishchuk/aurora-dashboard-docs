@@ -113,7 +113,7 @@ def is_release(pr):
     return matched
 
 
-def finder_f_files(paths):
+def api_contract_files(paths):
     return [p for p in paths
             if (p.startswith("packages/aurora/src/server/") or p.startswith("packages/signal-openstack/"))
             and not p.endswith(".test.ts")]
@@ -491,12 +491,42 @@ def collect_changeset(base, head, cwd, published):
     return {"files": files, "bumps": bumps, "missing": published and not files}
 
 
+QUOTE_LINE = re.compile(r"^\s*>")
+
+
+def strip_quotes(body):
+    """A reply that quotes a whole report (GitHub "Quote reply") buries its own two lines at the end: keep the
+    reply, replace each run of quoted lines with a short marker."""
+    out, run = [], 0
+    for line in (body or "").replace("\r\n", "\n").split("\n"):
+        if QUOTE_LINE.match(line):
+            run += 1
+            continue
+        if run:
+            out.append(f"[quoted {run} line(s) omitted]")
+            run = 0
+        out.append(line)
+    if run:
+        out.append(f"[quoted {run} line(s) omitted]")
+    return "\n".join(out).strip()
+
+
 def collect_discussion(number, nwo, cwd):
     top = gh_json(["pr", "view", str(number), "--json", "comments,reviews"], cwd) or {}
     comments = [{"author": (c.get("author") or {}).get("login"), "created": c.get("createdAt"),
                  "url": c.get("url"), "body": c.get("body", "")} for c in top.get("comments", [])]
-    reviews = [{"author": (r.get("author") or {}).get("login"), "state": r.get("state"),
-                "submitted": r.get("submittedAt"), "body": r.get("body", "")} for r in top.get("reviews", [])]
+    # reviews from the REST API: they carry an id and a url (…#pullrequestreview-<id>), so a finding or a
+    # "Review comments not taken up" row can link the review a maintainer left; `gh pr view` has neither
+    try:
+        jq = '.[] | {id, user: .user.login, state, submitted_at, url: .html_url, body}'
+        out = run(["gh", "api", "--method", "GET", "--paginate", f"repos/{nwo}/pulls/{number}/reviews",
+                   "--jq", jq], cwd).stdout
+        reviews = [{"id": r["id"], "author": r.get("user"), "state": r.get("state"), "submitted": r.get("submitted_at"),
+                    "url": r.get("url"), "body": r.get("body") or ""}
+                   for r in (json.loads(l) for l in out.splitlines() if l.strip())]
+    except (CollectError, ValueError):
+        reviews = [{"author": (r.get("author") or {}).get("login"), "state": r.get("state"),
+                    "submitted": r.get("submittedAt"), "body": r.get("body", "")} for r in top.get("reviews", [])]
     inline, inline_read = [], True
     try:
         jq = ('.[] | {id, in_reply_to_id, user: .user.login, user_type: .user.type, path, line, '
@@ -506,10 +536,12 @@ def collect_discussion(number, nwo, cwd):
         inline = [json.loads(l) for l in out.splitlines() if l.strip()]
     except CollectError:
         inline_read = False
+    for item in comments + reviews + inline:
+        item["body"] = strip_quotes(item.get("body"))
     for item in comments + reviews:
         item["bot"] = is_bot(item["author"])
         item["own_report"] = bool(OWN_REPORT.match(item["body"] or ""))
-        if item["own_report"]:  # don't anchor finder d on our own earlier verdicts
+        if item["own_report"]:  # don't anchor find-discussion on our own earlier verdicts
             item["own_kind"] = "update" if item["body"].lstrip().startswith("## Update") else "review"
             item["body"] = "(earlier review-and-comment-pr report — omitted; see the url)"
     roots, by_id = [], {}
@@ -625,7 +657,7 @@ def main(argv):
         "flags": {
             "base_not_main": pr["baseRefName"] != "main",
             "release": {"is_release": bool(release), "matched": release},
-            "finder_f": {"needed": bool(finder_f_files(paths)), "files": finder_f_files(paths)},
+            "api_contract": {"needed": bool(api_contract_files(paths)), "files": api_contract_files(paths)},
             "touches_published_src": touches_published_src(paths),
         },
         "mode": mode, "mode_reason": reason,
@@ -653,7 +685,7 @@ def main(argv):
         pr["files"] = changed_files(base, head, cwd)
         paths = [f["path"] for f in pr["files"]]
         ctx["pr"]["files"] = pr["files"]
-        ctx["flags"]["finder_f"] = {"needed": bool(finder_f_files(paths)), "files": finder_f_files(paths)}
+        ctx["flags"]["api_contract"] = {"needed": bool(api_contract_files(paths)), "files": api_contract_files(paths)}
         ctx["flags"]["touches_published_src"] = touches_published_src(paths)
         (run_dir / "pr.diff").write_text(git(["diff", f"{base}...{head}", "--", "."] + list(DIFF_EXCLUDES), cwd).stdout,
                                          encoding="utf-8")
@@ -696,8 +728,6 @@ def main(argv):
         ctx["standards"] = {"copilot_instructions_file": "copilot-instructions.md" if ci_md.returncode == 0 else None,
                             "claude_md": str(claude_md), "claude_md_exists": claude_md.is_file()}
 
-        if pr["isDraft"]:
-            ctx["process"].append({"id": "draft", "where": "PR state", "text": "PR is still a draft"})
         if not linked and not release:
             ctx["process"].append({"id": "no-linked-issue", "where": "PR body",
                                    "text": "PR body links no issue" + (f" (graded against #{supplied['number']} supplied by the reviewer)" if supplied else "")})
@@ -739,10 +769,10 @@ def summary(c):
         L.append(f"Delta: {c['report']['delta']}" + (f" · base-branch changes left out of {len(rm)} file(s)" if rm else "") + ("" if c["report"]["old_head_reachable"]
                                                     else " — old head unreachable (force-push?)"))
     L.append(f"Release PR: {'yes (' + '; '.join(f['release']['matched']) + ')' if f['release']['is_release'] else 'no'}"
-             f" · Finder f: {'yes (' + str(len(f['finder_f']['files'])) + ' files)' if f['finder_f']['needed'] else 'no'}"
+             f" · find-api-contract: {'yes (' + str(len(f['api_contract']['files'])) + ' files)' if f['api_contract']['needed'] else 'no'}"
              f" · Base: {p['base']['ref']}" + (" — NOT main" if f["base_not_main"] else ""))
-    if f["finder_f"]["needed"]:
-        L.append("Finder f files: " + ", ".join(f["finder_f"]["files"]))
+    if f["api_contract"]["needed"]:
+        L.append("find-api-contract files: " + ", ".join(f["api_contract"]["files"]))
     ci = c["ci"]
     if "error" in ci:
         L.append(f"CI: not read — {ci['error']}")

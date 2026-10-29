@@ -40,7 +40,16 @@
    "fix": "Handle `UNAUTHORIZED` in the list the same way as the details page (ideally a redirect to Sign-in, see [[ref:c1]]) and show a generic translated message instead of `error.message` for the remaining errors."
   }
  ],
- "process": [],
+ "process": [
+  {
+   "id": "desc-1",
+   "title": "A change the description doesn't mention",
+   "issue": "The Routers list UI changes (403 message, row menu toggle, Status column order) are not in the description",
+   "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/-components/RoutersList.tsx:105",
+   "explanation": "The description mentions Routers only for the shared BFF helpers and the details tab, but the Routers list now shows a 403 as an \"Insufficient Permissions\" info message (`packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/-components/RoutersList.tsx:105`), has a visible `PopupMenuToggle` on the row menu (`packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/-components/RouterTableRow.tsx:85`) and moves Status to the second column.",
+   "fix": "Add a short UI bullet for the Routers list changes (403 message, row menu toggle, Status column order)."
+  }
+ ],
  "process_overrides": {},
  "overview": {
   "what": "This update covers `512f01b1` to `86a355a8`. The PR is still a draft. CI on the head commit: 18 of 22 checks pass, 4 are skipped, none failed or pending.\n\n**Ports list moves to client-side sorting and search.** The list now fetches the full port list once per project/network and sorts, searches and paginates it in the browser. Sort, search and page changes no longer send a request, and the `useDeferredValue`/stale-result handling is gone. The sort keys offered shrink to `name`, `status` and `device_owner`. Search filtering now runs on the locally typed text on every keystroke, while the URL is still updated with a debounce. The BFF `list` procedure still accepts `sort_key`, `sort_dir` and `searchTerm`, but the page no longer uses them.\n\n**Routers get the same treatment in places the findings did not cover.** The Routers BFF `list` now also follows Neutron pagination through `routers_links`, with a new test. In the Routers list, the Status column moves to second position, the row action menu gets a visible `PopupMenuToggle` button, and a 403 now shows an info message \"Insufficient Permissions\" instead of the \"Failed to Load Routers\" error. The Router tests are updated to match.\n\n**Port details page title is now static.** With the loader removed, the browser tab title is always \"Port Details\" and no longer shows the port name.\n\n**Pagination plumbing.** `nextPageUrl` is a new shared helper in `requestHelpers.ts`, and `PortListResponseSchema` and `RouterListResponseSchema` gain an optional `*_links` field. Both list loops use a `visited` set as a guard against a non-advancing `next` link.",
@@ -133,6 +142,13 @@
    "location": "packages/aurora/src/client/routes/_auth/projects/$projectId/network/ports/-components/PortsList.tsx:60",
    "reason": "PortsList.tsx:59 duplicates the BFF search field list, and the BFF params are unused by the UI. It is a deliberate perf decision the author raised as an open question, and a code-quality opinion with no concrete defect.",
    "discussion": "Raised by the author as the 'Perf' change and open decision 1 in https://github.com/cobaltcore-dev/aurora-dashboard/pull/1377#issuecomment-6295356006 ('BFF still accepts the params for API/tests'); no reviewer response."
+  },
+  {
+   "score": 25,
+   "claim": "The PR now follows `*_links` `next` for the ports and routers lists, but the sibling Neutron list calls that feed the router list (router interface ports by device_id) and the lookups by id (networks, subnets, security-groups) still read only the first page. With a `pagination_max_limit` lower than the 50-id chunk (or a router with several interfaces: 50 routers x N interface ports), results are silently truncated: private networks / names go missing in the router list, and the lookups return a partial list that is treated as complete (best-effort fallback to IDs). The new docs/comments claim the returned list is complete on paginated deployments.",
+   "location": "packages/aurora/src/server/Network/routers/routersRouter.ts:85",
+   "reason": "fetchRouterInterfacePorts (routersRouter.ts:85) and the id-batch lookups do read one Neutron page, but this code already exists at the base commit and the delta does not touch it; the PR's pagination fix and its docs sentence concern the router/port lists. Real, but pre-existing and I can't confirm the PR claims more than that.",
+   "discussion": ""
   },
   {
    "score": 25,

@@ -18,7 +18,9 @@ Two rules scorers have broken before — apply them as written:
 
 ## Earlier findings of this report
 
-This is an Update: the report it extends already raised the findings below. A candidate that objects to the PR doing what one of them asked (it moved a column, renamed a string, restructured code as an earlier finding requested) is not a new problem: score it 0 and name the earlier finding in the reason. If the change was made badly — it breaks something or does only half of it — score that as usual.
+This is an Update: the report it extends already raised the findings below. A candidate that objects to the PR doing what one of them asked (it moved a column, renamed a string, restructured code as an earlier finding requested) is not a new problem: score it 0 and name the earlier finding in the reason. If the change was made badly — it breaks something or does only half of it — score that as usual. Exception: when a reviewer other than the PR's author (not a bot) asked for it in the review discussion — the candidate's `discussion` quotes them — score it as usual: their call outranks this report's earlier finding. Name the earlier finding it reverses in the reason.
+
+A candidate raised in the review discussion (it has a `discussion`) about a file the new commits don't touch (not in `delta.diff`) is outside this Update: score it 0 and say so in the reason — "Outside this update's changes" plus what happened to it in the thread (e.g. the author deferred it to a follow-up, with the url). It is then answered under "Review comments not taken up". `save.py` refuses 50 or more for it.
 
 - CR1 🟠 Major — `getSecretPayload` sends the default `Accept: application/json`, so Barbican answers 406 for most secrets — `packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:98`
 - CR2 🟡 Moderate — Create modals mutate without validation; Bit Length is sent as `NaN` when empty — `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/orders/-components/OrderModals.tsx:52`
@@ -57,7 +59,7 @@ This is an Update: the report it extends already raised the findings below. A ca
 
 The evidence is as the finders reported it, unchanged.
 
-### C8 — from finder-f
+### C8 — from find-api-contract
 - **Claim:** getSecretPayload hardcodes Accept: application/octet-stream. Barbican requires the Accept header on /payload to be one of the values in the secret's content_types, so a secret stored with another type (for example text/plain) can get 406 Not Acceptable. mapKmError turns that into INTERNAL_SERVER_ERROR, and the user sees 'Key Manager get secret payload failed' when revealing the payload. It works only for secrets whose content type is application/octet-stream.
 - **Location:** `packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:102`
 - **Evidence:**
@@ -65,7 +67,7 @@ The evidence is as the finders reported it, unchanged.
 Code at 64c47a99, keyManagerRouter.ts:100-104: `.get(`v1/secrets/${encodeURIComponent(input.secretId)}/payload`, { headers: { Accept: "application/octet-stream" }, debug: false })`. Reference (barbican doc/source/api/reference/secrets.rst, raw github, section 'GET /v1/secrets/{uuid}/payload', rendered at https://docs.openstack.org/barbican/latest/api/reference/secrets.html#get-secrets-uuid-payload): "When making a request for a secret's payload, you must set the accept header to one of the values listed in the ``content_types`` attribute of a secret's metadata." The documented example sends `Accept: text/plain`, and the status table lists `406 | Not Acceptable`. The secret metadata example shows `"content_types": {"default": "application/octet-stream"}` for opaque secrets only. The client already reads secret.content_types (SecretDetailsView.tsx:51), so the server could use content_types.default or fetch the secret first. Barbican source barbican/api/controllers/secrets.py: when there is no Accept header it defaults to 'application/octet-stream', otherwise it uses the header value. In signal-openstack at 64c47a99, grep for 'accept' in packages/signal-openstack/src finds nothing, so the in-code comment claiming a default 'Accept: application/json' is not backed by that client. I could not check what undici/fetch sends by default. Secondary: the body is read with res.text() (line 110), which corrupts binary payloads.
 - **Precedent:** Other KM calls (getSecret, listSecrets) send no Accept header; the docs show Accept: application/json on those metadata calls.
 
-### C9 — from finder-f
+### C9 — from find-api-contract
 - **Claim:** The container secret reference schema was loosened to name nullable, but the Barbican docs only show named references; the docs do not say a null name is allowed. The new test comment 'Barbican allows unnamed references' has no support in the container reference. The docs say a generic container's reference name is not restricted ('no specific restrictions are enforced on the contents name attribute'), but they do not document null.
 - **Location:** `packages/aurora/src/server/KeyManager/types/keyManager.ts:25`
 - **Evidence:**
@@ -73,7 +75,7 @@ Code at 64c47a99, keyManagerRouter.ts:100-104: `.get(`v1/secrets/${encodeURIComp
 Code: `secret_refs: z.array(z.object({ name: z.string().nullable(), secret_ref: z.string() }))`. Reference (barbican doc/source/api/reference/containers.rst, https://docs.openstack.org/barbican/latest/api/reference/containers.html): 'This type of container holds any number of references to secrets. Each secret reference is accompanied by a name. Unlike other container types, no specific restrictions are enforced on the contents name attribute.' All response examples show `"name": "private_key"`. I found no doc text saying name may be null. Low severity: the lenient schema is safe at runtime, but the claim in the test title is unverified. I did not check the Barbican source for null names.
 - **Precedent:** none
 
-### C10 — from finder-g
+### C10 — from find-security
 - **Claim:** The new payload gating (key-manager:secrets:payload via canUser) is client-only. The getSecretPayload procedure is a plain projectScopedProcedure with no server-side canUser/policy check, so anyone calling the tRPC endpoint directly skips the UI gate; only Barbican's own policy then decides. Same holds for the delete/create procedures whose buttons are now hidden by canUser.
 - **Location:** `packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:93`
 - **Evidence:**
@@ -131,7 +133,7 @@ Create and Delete are gated in the three `*List.tsx` files through `useKeyManage
 - One entry per candidate, every candidate exactly once.
 - `score`: 0, 25, 50, 75 or 100. For 50 and up, `severity` (Critical, Major, Moderate, Low, Trivial), `category` (Bug, Security, Accessibility, UI/UX, Code Quality, Performance, Docs, Test coverage) and a `location` that exists at headRefOid (`path:line`, `path | text on that line`, or `PR body` / `PR state` / `PR files` / `CI`). Below 50, leave them out.
 - `precedent`: required for 50 and up — the reader's tag, it never changes the score. `{"kind": "existing", "ref": "path:line"}` when merged code already has the same problem — `ref` is a line that itself breaks the same rule. Sibling code that does it right (e.g. a list that already debounces) is not a precedent: it's evidence for the finding, put it in `reason`. Find that line at baseRefOid (`git grep -n '<pattern>' <baseRefOid> -- <pathspec>`). `{"kind": "deferred", "ref": "<URL>"}` when a maintainer accepted or postponed the same point, on another PR or in `discussion.json`: open the thread, `ref` is the comment's GitHub URL. Both apply → `deferred`. Neither, or you couldn't confirm the candidate's `precedent` → `null`.
-- `same_as`: required for a candidate in a group above — the id of the candidate in the same group that describes the same problem (score that one; this one is then dropped — `score` and `reason` may be left out for it), or `null` if it is a different problem. Elsewhere leave it out.
+- `same_as`: required for a candidate in a group above — the id of the candidate in the same group that describes the same problem (score that one, and leave its own `same_as` null — never point at another duplicate; this one is then dropped — `score` and `reason` may be left out for it), or `null` if it is a different problem. Elsewhere leave it out.
 
 ## Saving your result
 

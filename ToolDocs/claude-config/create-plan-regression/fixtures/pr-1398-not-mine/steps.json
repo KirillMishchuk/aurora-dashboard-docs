@@ -1,0 +1,18 @@
+{
+ "today": "2026-10-28",
+ "steps": [
+  {
+   "args": [
+    "collect",
+    "1398"
+   ]
+  },
+  {
+   "args": [
+    "collect",
+    "https://github.com/cobaltcore-dev/aurora-dashboard/pull/1398",
+    "--not-mine"
+   ]
+  }
+ ]
+}

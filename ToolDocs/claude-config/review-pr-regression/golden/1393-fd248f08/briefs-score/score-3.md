@@ -25,7 +25,7 @@ These candidates point at the same place. For each, set `same_as` (see the resul
 
 The evidence is as the finders reported it, unchanged.
 
-### C11 — from finder-a
+### C11 — from find-standards
 - **Claim:** Reveal Payload button, secret detail and the other detail routes do not check any permission (`key-manager:secrets:payload` / `get`); the control is rendered functional before permissions are known (not fail-closed).
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretDetailsView.tsx:89`
 - **Evidence:**
@@ -33,7 +33,7 @@ The evidence is as the finders reported it, unchanged.
 Quick Reject: "UI control shown before permissions are resolved (not fail-closed)"; B.7/B.8: "Never optimistically show actions before permissions resolve." Code: `<Button variant="subdued" onClick={handleRevealPayload} disabled={payloadFetching}>`; usePermissions is never imported in the *DetailsView files. The `payload` permission is defined in usePermissions.ts:6 and the policy but unused.
 - **Review discussion:** Copilot thread r4360388886 (CRITICAL).
 
-### C29 — from finder-d
+### C29 — from find-discussion
 - **Claim:** Reveal Payload button is rendered and fetches secret material without checking the separately defined key-manager:secrets:payload permission (the key exists in permissionRouter but is never used client-side). Users without the permission see a working control; not fail-closed.
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretDetailsView.tsx:90`
 - **Evidence:**
@@ -41,35 +41,35 @@ Quick Reject: "UI control shown before permissions are resolved (not fail-closed
 git grep at head: SecretDetailsView.tsx has no permission lookup/usePermissions; permissionRouter.ts:6 defines "key-manager:secrets:payload". copilot-instructions B.7/B.8: permissions default false while loading, reject controls shown before permissions confirmed.
 - **Review discussion:** Copilot inline comment r4360388886 (CRITICAL), no replies, not addressed at head.
 
-### C49 — from finder-g
+### C49 — from find-security
 - **Claim:** The Reveal Payload button (and the detail views generally) is not gated by the `key-manager:secrets:payload` permission, which is mapped server-side but never read by any client code. A user without payload rights still sees the button and the server procedure fetches the plaintext secret; only Barbican's own ACLs stop it.
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretDetailsView.tsx:89`
 - **Evidence:**
 
 git grep of usePermissions/permissions[ under key-manager/ (at head) shows usage only in ContainersList, OrdersList and SecretsList (list/create/delete); SecretDetailsView, ContainerDetailsView and OrderDetailsView have none. `key-manager:secrets:payload` appears only in usePermissions.ts type and permissionRouter mappings.
 
-### C12 — from finder-a
+### C12 — from find-standards
 - **Claim:** Detail data is fetched in the component twice (route component and *DetailsView both call the same getX.useQuery) rather than in the route `loader`; the route has no loader, and the breadcrumb is set from a separately fetched copy.
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/$containerId.tsx:19`
 - **Evidence:**
 
 A.3: "Data critical for rendering a page must be fetched via the route's loader function rather than loading it inside the component body." and (task) data the loader already fetched is not fetched again. Code: `$containerId.tsx:19 trpcReact.keyManager.getContainer.useQuery( etc)` and `ContainerDetailsView.tsx:31 trpcReact.keyManager.getContainer.useQuery( etc)`. Same for $secretId.tsx:19 / SecretDetailsView.tsx:24 and $orderId.tsx:19 / OrderDetailsView.tsx:22. B.7 allows tRPC useQuery, so severity is a judgement call.
 
-### C13 — from finder-a
+### C13 — from find-standards
 - **Claim:** Search input navigates on every keystroke (`onInput` -> navigate) with no local mirror state / debounce, producing a router navigation and a server request per character.
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx:104`
 - **Evidence:**
 
 B.9: "Use a local mirror state for debounced search inputs; sync back on external navigation via useEffect." Code: `onInput={(e) => onSearchChange((e.target as HTMLInputElement).value)}` where onSearchChange calls `navigate({ etc search: { search: value || undefined  etc}})`. Same ContainersList.tsx:74.
 
-### C14 — from finder-a
+### C14 — from find-standards
 - **Claim:** Ad-hoc spacing and styling classes outside the approved lists: `my-6` on the detail Stack, `mt-4` wrapper, `p-3`/`rounded`/`max-h-48` and `text-xs opacity-60` on payload/ID text, `items-end pr-0`, `jn:min-w-40`; `opacity-60` is used instead of a `text-theme-light` token.
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretDetailsView.tsx:79`
 - **Evidence:**
 
 B.3: "Reject any use of ad-hoc mt-3, mb-5, px-6, etc. not listed above" (detail top offset is `mt-6`); B.4: "Muted / secondary text | text-theme-light". Code: `className="my-6"` (also ContainerDetailsView.tsx:62, OrderDetailsView.tsx:67), `<p className="text-sm opacity-60">` :97, `<pre className="bg-theme-background-lvl-2 max-h-48 overflow-auto rounded p-3 text-xs">` :98, key-manager.tsx:104 `className="mt-4"`, rows `text-xs opacity-60`.
 
-### C15 — from finder-a
+### C15 — from find-standards
 - **Claim:** Raw HTML elements are used where Juno components exist: `<div>` wrappers (layout, row cells, pagination wrapper), `<p>` bodies in modals and `<pre>` for the payload.
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager.tsx:91`
 - **Evidence:**
@@ -98,7 +98,7 @@ Quick Reject: "Raw HTML element (<div>, <table>, <button>) where a Juno componen
 - One entry per candidate, every candidate exactly once.
 - `score`: 0, 25, 50, 75 or 100. For 50 and up, `severity` (Critical, Major, Moderate, Low, Trivial), `category` (Bug, Security, Accessibility, UI/UX, Code Quality, Performance, Docs, Test coverage) and a `location` that exists at headRefOid (`path:line`, `path | text on that line`, or `PR body` / `PR state` / `PR files` / `CI`). Below 50, leave them out.
 - `precedent`: required for 50 and up — the reader's tag, it never changes the score. `{"kind": "existing", "ref": "path:line"}` when merged code already has the same problem — `ref` is a line that itself breaks the same rule. Sibling code that does it right (e.g. a list that already debounces) is not a precedent: it's evidence for the finding, put it in `reason`. Find that line at baseRefOid (`git grep -n '<pattern>' <baseRefOid> -- <pathspec>`). `{"kind": "deferred", "ref": "<URL>"}` when a maintainer accepted or postponed the same point, on another PR or in `discussion.json`: open the thread, `ref` is the comment's GitHub URL. Both apply → `deferred`. Neither, or you couldn't confirm the candidate's `precedent` → `null`.
-- `same_as`: required for a candidate in a group above — the id of the candidate in the same group that describes the same problem (score that one; this one is then dropped — `score` and `reason` may be left out for it), or `null` if it is a different problem. Elsewhere leave it out.
+- `same_as`: required for a candidate in a group above — the id of the candidate in the same group that describes the same problem (score that one, and leave its own `same_as` null — never point at another duplicate; this one is then dropped — `score` and `reason` may be left out for it), or `null` if it is a different problem. Elsewhere leave it out.
 
 ## Saving your result
 

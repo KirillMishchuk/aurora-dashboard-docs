@@ -26,7 +26,7 @@ These candidates point at the same place. For each, set `same_as` (see the resul
 
 The evidence is as the finders reported it, unchanged.
 
-### C16 — from finder-a
+### C16 — from find-standards
 - **Claim:** Files do not follow the B.12 naming table: the modal files bundle two modals each (`SecretModals.tsx`, `ContainerModals.tsx`, `OrderModals.tsx` instead of `CreateSecretModal.tsx` / `DeleteSecretModal.tsx`), the hook file is a generic `usePermissions.ts` instead of `useKeyManagerPermissions.ts`, and `utils.ts` / `constants.ts` are generic names.
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/-components/usePermissions.ts:21`
 - **Evidence:**
@@ -35,7 +35,7 @@ B.12: "Modal | <Verb><Resource>Modal.tsx"; "Hook | use<PascalCase>.ts (useCephPe
 - **Precedent:** Network plugin has per-modal files.
 - **Review discussion:** Copilot thread r4360389782 asked for useKeyManagerPermissions.
 
-### C38 — from finder-d
+### C38 — from find-discussion
 - **Claim:** Hook is named generically usePermissions though it is Key Manager specific; the convention is use<Feature>Permissions (useKeyManagerPermissions).
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/-components/usePermissions.ts:21`
 - **Evidence:**
@@ -43,14 +43,14 @@ B.12: "Modal | <Verb><Resource>Modal.tsx"; "Hook | use<PascalCase>.ts (useCephPe
 export function usePermissions(...) at line 21; copilot-instructions B.8 line 328.
 - **Review discussion:** Copilot inline r4360389782, no replies, unchanged.
 
-### C17 — from finder-a
+### C17 — from find-standards
 - **Claim:** Import order and path rules are broken: Juno imports come before `@lingui` imports (and `useState` after Juno in SecretModals), and `../../-components/...` relative traversal two levels up is used instead of `@/` aliases.
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretModals.tsx:13`
 - **Evidence:**
 
 B.13: order is react, i18n, tRPC, Juno; "All imports must use @/ path aliases. No relative ../../ traversal beyond one level." Code: SecretModals.tsx imports Juno (l.1-12) then `useState` from react (l.13); key-manager.tsx:2-4 Juno, server, then lingui. `import { uuidFromRef } from "../../-components/utils"` in all *Modals/*TableRow/*DetailsView files and `import { usePermissions } from "../../-components/usePermissions"` in all *List files; secrets/index.tsx:5 `../-components/utils`.
 
-### C18 — from finder-a
+### C18 — from find-standards
 - **Claim:** User-facing strings are not translated: JSX button/placeholder/label literals (`Create Secret`, `Search by name...`, `Sort by`, `Created At`), the permission-denied Messages, and the DataGrid column header arrays in constants.ts (`Name / ID`, `Status`, `Type`, ...) are plain English, so the de locale will show English.
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/constants.ts:1`
 - **Evidence:**
@@ -65,14 +65,14 @@ B.14: "All user-facing strings must be wrapped in <Trans> or t` etc`" (the revie
 
 Secrets list (`secrets/-components/constants.ts:1`) has Name/ID, Status, Type, Content Types. Containers list shows name/ID, status, type. Orders list (`orders/-components/constants.ts:1`) has ID only, with no order name or reference. Column order differs from the spec (Status is second, by design per the PR body).
 
-### C19 — from finder-a
+### C19 — from find-standards
 - **Claim:** Empty-state wording does not distinguish `no data` from `no filter results`: with an active search the secrets/containers list shows `There are no secrets in this project. Create one to get started.`
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretListContainer.tsx:58`
 - **Evidence:**
 
 B.6: "Distinguish empty reasons: 'no data' -> suggest creating; 'no filter results' -> suggest clearing filters." Code shows the same `No Secrets Found` / create body whether or not `search` is set (the list container does not receive `search`). Same in ContainerListContainer.tsx:58, and the empty Create hint is shown even to users without create permission.
 
-### C20 — from finder-a
+### C20 — from find-standards
 - **Claim:** Error states render the raw `error.message` as the Status title (`error?.message ?? t`Failed to Load Secret``), with no retry action or explanatory body.
 - **Location:** `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretListContainer.tsx:33`
 - **Evidence:**
@@ -101,7 +101,7 @@ B.6: "Always communicate the state and a possible course of action (retry link w
 - One entry per candidate, every candidate exactly once.
 - `score`: 0, 25, 50, 75 or 100. For 50 and up, `severity` (Critical, Major, Moderate, Low, Trivial), `category` (Bug, Security, Accessibility, UI/UX, Code Quality, Performance, Docs, Test coverage) and a `location` that exists at headRefOid (`path:line`, `path | text on that line`, or `PR body` / `PR state` / `PR files` / `CI`). Below 50, leave them out.
 - `precedent`: required for 50 and up — the reader's tag, it never changes the score. `{"kind": "existing", "ref": "path:line"}` when merged code already has the same problem — `ref` is a line that itself breaks the same rule. Sibling code that does it right (e.g. a list that already debounces) is not a precedent: it's evidence for the finding, put it in `reason`. Find that line at baseRefOid (`git grep -n '<pattern>' <baseRefOid> -- <pathspec>`). `{"kind": "deferred", "ref": "<URL>"}` when a maintainer accepted or postponed the same point, on another PR or in `discussion.json`: open the thread, `ref` is the comment's GitHub URL. Both apply → `deferred`. Neither, or you couldn't confirm the candidate's `precedent` → `null`.
-- `same_as`: required for a candidate in a group above — the id of the candidate in the same group that describes the same problem (score that one; this one is then dropped — `score` and `reason` may be left out for it), or `null` if it is a different problem. Elsewhere leave it out.
+- `same_as`: required for a candidate in a group above — the id of the candidate in the same group that describes the same problem (score that one, and leave its own `same_as` null — never point at another duplicate; this one is then dropped — `score` and `reason` may be left out for it), or `null` if it is a different problem. Elsewhere leave it out.
 
 ## Saving your result
 

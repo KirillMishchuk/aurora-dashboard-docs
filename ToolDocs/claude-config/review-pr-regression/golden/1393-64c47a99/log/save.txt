@@ -1,33 +1,36 @@
 ## describer: exit 0
 saved out/describer.json: describer result
 
-## earlier: exit 0
-saved out/earlier.json: 32 earlier finding status(es)
+## earlier-findings: exit 0
+saved out/earlier-findings.json: 32 earlier finding status(es)
 
 ## factcheck: exit 1
 INVALID — 1 error(s), nothing saved; fix them and run again:
   findings.json missing — the fact-check runs after assemble.py --texts
 
-## finder-a: exit 0
-saved out/finder-a.json: 5 candidate(s)
+## find-api-contract: exit 0
+saved out/find-api-contract.json: 2 candidate(s)
 
-## finder-b: exit 0
-saved out/finder-b.json: 1 candidate(s)
+## find-code-comments: exit 0
+saved out/find-code-comments.json: 0 candidate(s)
 
-## finder-c: exit 0
-saved out/finder-c.json: 0 candidate(s)
+## find-diff-bugs: exit 0
+saved out/find-diff-bugs.json: 1 candidate(s)
 
-## finder-d: exit 0
-saved out/finder-d.json: 1 candidate(s)
+## find-discussion: exit 0
+saved out/find-discussion.json: 1 candidate(s)
 
-## finder-e: exit 0
-saved out/finder-e.json: 0 candidate(s)
+## find-history: exit 0
+saved out/find-history.json: 0 candidate(s)
 
-## finder-f: exit 0
-saved out/finder-f.json: 2 candidate(s)
+## find-security: exit 0
+saved out/find-security.json: 1 candidate(s)
 
-## finder-g: exit 0
-saved out/finder-g.json: 1 candidate(s)
+## find-standards: exit 0
+saved out/find-standards.json: 5 candidate(s)
+
+## pr-description: exit 0
+saved out/pr-description.json: 1 mismatch(es)
 
 ## score-1: exit 0
 saved out/score-1.json: 8 score(s)

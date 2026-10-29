@@ -1,5 +1,11 @@
 # Report format — review-and-comment-pr
 
+## Contents
+
+- Report template (full report: Verdict, Required Changes, Improvements, Review comments not taken up, Solution Overview, QA Test Plan, Checked and dismissed, footer)
+- Update block
+- Index row
+
 > Reference only: the full report, the Update block and the index row are
 > implemented in `scripts/render.py`. Keep the two in sync when the
 > format changes.
@@ -154,13 +160,30 @@ monorepo, contract changes, anything left inconsistent>
 
 ---
 
-_Analyzed <today, YYYY-MM-DD> · commit `<headRefOid short sha>` · <provenance: "read-only"; add any of "CI from PR API", "review threads not read", "security-reviewer fallback used", "acceptance graded against #N supplied by the reviewer" that applied> · skill: review-and-comment-pr_
+## Checked and dismissed
+
+<KB only, never posted; only if a candidate scored below 50 — render.py builds it>
+
+<details>
+<summary><strong>Candidates scored below 50 (<n>)</strong></summary>
+
+| Score | Candidate | Location | Why |
+| ----- | --------- | -------- | --- |
+| <score> | <claim> | <location> | <scorer's reason> |
+
+</details>
+
+---
+
+_Analyzed <today, YYYY-MM-DD> · commit `<headRefOid short sha>` · <provenance: "read-only"; add any of "CI not read", "review threads not read", "acceptance graded against #N supplied by the reviewer", "<agent> fallback used" that applied> · skill: review-and-comment-pr_
 ```
 
 On an **Update** (Step 2, mode `update`), keep the existing report and
 append the Update block described there, reusing these same Required
 Changes / Improvements tables and severity markers for the delta's
-findings.
+findings. render.py builds it: Verdict, earlier findings by status,
+Required Changes / Improvements, Review comments not taken up, What
+changed — no QA Test Plan and no Checked and dismissed.
 
 ## Index row
 
@@ -178,7 +201,8 @@ type: index
 | [#1270](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1270) | 2026-09-03 → merged 2026-09-04 | fix(aurora): time doesn't match current timezone (#1236) | `formatSwiftDate` helper; Swift tables, sort comparators, `EditObjectMetadataModal`. Verdict: Request Changes — 1 Required Change (🟡), 2 Improvements | [1270-time-doesnt-match-current-timezone.md](./1270-time-doesnt-match-current-timezone.md) |
 ```
 
-If the file doesn't exist yet, create it with this header and one row.
+render.py doesn't create the file or the table: with no rows yet it stops
+("no index table rows found") — add this header and table by hand first.
 Keep the full history — never trim old rows.
 
 - **Date** — exactly one of: `<created> → merged <date>`,
@@ -187,12 +211,15 @@ Keep the full history — never trim old rows.
 - **Affected** — the touched surface only (procedures, routes, components,
   public exports), at most ~40 words, then the verdict and finding counts:
   `Verdict: <Request Changes | Approve with changes | Approve with process to-dos | Approve> — <n> Required Change(s) (<severity
-markers>), <m> Improvement(s)`, or `Verdict: Approve — clean`. Rows
+markers>), <m> Improvement(s)`, or `Verdict: Approve — clean`. Process
+  items add ` + <n> process` to the markers; "Approve with nits" is
+  written as `Approve`. Rows
   written under the old scheme keep their wording. Details live in the
   report.
   After an Update, render.py appends what the latest Update block added:
-  `· Update <date> (`<short sha>`): <n> Required Change(s) (<markers>),
-  <m> Improvement(s)` (or `no new findings`); the next Update replaces
+  `· Update <date> (`<short sha>`): <recommendation> — <n> Required Change(s) (<markers>),
+  <m> Improvement(s)` (or `no new findings`), then `; <k> earlier fixed`;
+  the next Update replaces
   that tail, a full re-run rewrites the whole row.
 - **Order** — newest PR on top by creation date (ties: higher number on
   top). Insert the row where it belongs, not always at the top: analyses

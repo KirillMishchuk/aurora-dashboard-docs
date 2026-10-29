@@ -55,7 +55,16 @@
    "fix": "Either reimplement association with the documented `POST /v1/containers/{id}/secrets` / `DELETE /v1/containers/{id}/secrets` (body with `secret_ref`), or state in the PR body that it's deferred and link a follow-up issue."
   }
  ],
- "process": [],
+ "process": [
+  {
+   "id": "desc-1",
+   "title": "The description claims what the code doesn't do",
+   "issue": "The description lists add/remove secret refs for containers; no procedure implements them",
+   "location": "PR body",
+   "explanation": "The description says the containers API covers adding and removing secret refs, but `keyManagerRouter` has only `listContainers`, `getContainer`, `createContainer` and `deleteContainer` for containers.",
+   "fix": "Drop \"add/remove secret refs\" from the description, or add the two procedures if they belong in this PR."
+  }
+ ],
  "process_overrides": {},
  "overview": {
   "what": "This update covers `fd248f083f89fbe9caca6ad536106ffd08860159..64c47a995507e7e7f9bf4ba02c0cd8ba6d3f3fd7`. The PR is not a draft. On the head commit 13 checks passed, none failed, 4 were skipped and 5 are still pending (build, test, type-check, check-i18n, preview).\n\n**Container secret association.** The server procedure `addContainerSecret` (`POST /v1/containers/{id}/secrets`) was removed together with its unit test. This endpoint is documented by Barbican and is listed in the linked issue's Phase 2 (\"Manage Container Secrets\" / `containers.updateSecrets`). With it gone, the PR has no server procedure for adding or removing secret references on an existing container.\n\n**Translation catalogs.** The English and German `messages.po` files also changed for strings unrelated to Key Manager: the image-service rejection messages, \"No Project Access\", \"Project not found.\", \"This property is reserved and cannot be modified.\" and a removed \"Unnamed\" entry. These look like a catalog re-extract after merging the base branch, not part of the Key Manager work.",

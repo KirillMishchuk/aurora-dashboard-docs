@@ -1,0 +1,106 @@
+$ plan.py collect 1387
+exit 0
+Mode: A — issue #1387: [Task](context): use ui-components for Tabs
+Run folder: <SAP>/aurora-dashboard/.claude/runs/create-plan/1387
+Paths: MAIN_ROOT=<SAP>/aurora-dashboard SAP_DIR=<SAP> DOCS_DIR=<SAP>/DOCS
+Task file: <SAP>/aurora-dashboard/.claude/runs/create-plan/1387/task.md — give the planner this path; don't paste or read it
+Epic: #1327 (in task.md as context)
+Links for write: issue [1387], pr —
+Images: 1 downloaded into <SAP>/aurora-dashboard/.claude/runs/create-plan/1387/images
+git fetch origin main: ok
+Code: main @ 8cd09bfa, 0 commit(s) behind origin/main
+KB: pinned 5b7bea1e, 7 commit(s) behind origin/main in packages/ and apps/
+Planner saves its plan with (put this into its launch prompt):
+  python3 <SCRIPT> save --run <SAP>/aurora-dashboard/.claude/runs/create-plan/1387 <<'PLAN'
+  <the plan>
+  PLAN
+Ask the user: nothing
+
+$ plan.py save --run {RUNS}/1387 < plan-1387.md
+exit 0
+saved <SAP>/aurora-dashboard/.claude/runs/create-plan/1387/plan.md · 5 steps · risks: 1 Medium, 5 Low · open questions: yes · follow-ups: 2
+
+$ plan.py write --run {RUNS}/1387 --title Security Group detail tabs on Juno `TabBar`/`TabBarItem` --slug security-groups-tabbar --task Swap deprecated Juno `TabNavigation` for `TabBar`/`TabBarItem` on the Security Group detail tabs (issue #1387), plus aria label and Copilot rule --top-risk new Lingui string needs `check-i18n`
+exit 0
+Plan: <SAP>/DOCS/plans/2026-10-28-security-groups-tabbar.md
+Index: row added
+Related: ok — related blocks / auto indexes updated in 0 notes
+Summary: 5 steps · risks: 1 Medium, 5 Low · open questions: yes · follow-ups: 2
+Open questions:
+- Wording of the landmark label: "Security group sections" is proposed. The implementer may pick a close equivalent in title/sentence case as `copilot-instructions.md` §language prescribes; the tests must use the same string.
+Follow-up candidates (decide each, then run `plan.py followups`):
+1. Migrate remaining `TabNavigation` users to `TabBar`
+2. Sync the Security Group detail tab to the URL
+FOLLOW-UPS.md sections: A. Version scans and pagination (server); B. Permissions and authorization; C. Client: object browser and modals; D. Procedure contracts, schemas, logs; E. S3 client and transport; F. Bucket policies; G. Lists and search; H. UI copy; I. Security Groups: sharing (RBAC); J. Security Groups: rules; K. Juno: component consistency; L. Documentation; M. Block Storage volumes
+FOLLOW-UPS.md summary (check for duplicates):
+| 3 | Shared `ListObjectVersions` pagination helper | Version scans | open |
+| 4 | Resume marker for `deleteNonCurrentVersions` | Version scans | open |
+| 8 | Truncated page without `NextKeyMarker` deletes an incomplete group | Version scans | open |
+| 9 | `deleteNonCurrentVersions` loses the report on a systemic failure | Version scans | open |
+| 13 | Key order: UTF-16 instead of UTF-8 | Version scans | open |
+| 18 | Move the page→key-group logic into a helper | Version scans | open |
+| 20 | `nextContinuationToken` mixed up with `NextKeyMarker` | Version scans | open |
+| 24 | `deleteNonCurrentVersions` has no page ceiling | Version scans | open |
+| 11 | Empty Bucket without `storage:object_versions:delete` | Permissions | open |
+| 12 | Destructive Ceph mutations are not authorized on the server | Permissions | open |
+| 1 | Deleted tab ignores `isPartialScan` | Client | open |
+| 6 | Memoization of lists in `ObjectBrowserView` | Client | open |
+| 10 | Deleted tab should fail closed | Client | open |
+| 15 | Pagination accumulator duplicates rows | Client | open |
+| 16 | Six modals mounted with no way to open them | Client | open |
+| 22 | `DeleteVersionModal` is titled "Delete Version" for a delete marker | Client | open |
+| 23 | `GetBucketVersioning` called twice per bucket page load | Client | open |
+| 28 | All tab hides live folders that have no placeholder object | Client | open |
+| 5 | Raw `error.message` from the SDK reaches the UI | Contracts | open |
+| 7 | `checkDeletedContentInputSchema.bucket` outside the shared schema | Contracts | open |
+| 17 | `checkDeletedContent` does not limit response size | Contracts | open |
+| 19 | `console.error` logs the entire SDK error object | Contracts | open |
+| 29 | EC2 credential secrets leak into `signal-openstack` debug logs | Contracts | open |
+| 30 | `if (!response.ok)` branches are unreachable, tests mask it | Contracts | open |
+| 31 | `createPermissionRouter` catches the `policy-engine` error by message text | Contracts | open |
+| 32 | Duplicate `GET /v3/credentials` when opening the credentials modal | Contracts | open |
+| 40 | Bucket error screens are chosen by a substring of the server message | Contracts | open |
+| 41 | S3 key metadata (`created_at`, `label`) in the EC2 credential blob | Contracts | open |
+| 33 | Secret auto-reveal orchestration lives in the component, not in a hook | Client | open |
+| 34 | `CephBuckets` rebuilt into a `let content: ReactNode` ladder | Client | open |
+| 14 | `S3Client` and keep-alive agent created on every call | Transport | open |
+| 21 | No `requestTimeout` and no `maxAttempts` tuning | Transport | open |
+| 26 | `set` tests depend on the shared rate limit | Bucket policies | open |
+| 27 | `Deny s3:*` is rejected even with a `Condition` | Bucket policies | open |
+| 25 | Search query is not trimmed in client-side filters | Search | open |
+| 35 | DataGrid header does not follow the Juno pattern in other lists | Lists | open |
+| 47 | Search term is not trimmed in other client-side filters and pickers | Search | open |
+| 2 | "Please" in the rest of the client | UI copy | open |
+| 52 | Sentence-case and trailing-period empty-state titles elsewhere | UI copy | open |
+| 36 | 409 on SG sharing is always shown as "already shared", including when the quota is exhausted | RBAC (SG) | open |
+| 37 | Sharing a security group with several projects at once | RBAC (SG) | open |
+| 38 | SG rules table has no Remote column | Client (SG) | done ([PR #1368](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1368), 2026-10-06) |
+| 39 | Add Rule validation messages are not translated | Client (SG) | open |
+| 42 | `TabNavigation` tabs: `tabStyle="content"` and controlled `activeItem` everywhere | Juno | open |
+| 53 | Remaining `TabNavigation` users → `TabBar`/`TabBarItem` | Juno | open |
+| 43 | SG details page state (tab, search, sorting, rule filters) in the URL | Client (SG) | open |
+| 51 | SG Rules tab has no separate "no search/filter results" state | Client (SG) | open |
+| 44 | Stale package READMEs (config, policy-engine, signal-openstack, e2e) | Documentation | open |
+| 45 | `packages/aurora/README.md` + `.env.example`: removed `crossDomainCookie`, missing `cookieDomain`/`debug` | Documentation | open |
+| 46 | Root `README.md`, `CONTRIBUTING.md`, release docs: stale prerequisites, port, Semantic Release | Documentation | open |
+| 48 | Extend attached (`in-use`) volumes (Cinder 3.42) | Volumes | open |
+| 49 | "Attached Volumes" section on Instance Details | Volumes | open |
+| 50 | Availability-zone selection when creating a volume | Volumes | open |
+
+$ plan.py write --run {RUNS}/1387 --title x --slug security-groups-tabbar --task again
+exit 1
+<SAP>/DOCS/plans/2026-10-28-security-groups-tabbar.md exists — pick another --slug, or --overwrite to replace it (and its index row)
+
+$ plan.py followups --run {RUNS}/1387 --file 1=K
+exit 1
+candidate 2 (Sync the Security Group detail tab to the URL): give exactly one of --file / --ref / --skip
+
+$ plan.py followups --run {RUNS}/1387 --file 1=K --topic 1=Remaining `TabNavigation` users → `TabBar` --ref 2=43
+exit 0
+Filed: item 54 — Migrate remaining `TabNavigation` users to `TabBar` (section K. Juno: component consistency, area Juno)
+Referenced: item 43 for "Sync the Security Group detail tab to the URL"
+Plan: `Follow-ups` section written in 2026-10-28-security-groups-tabbar.md
+
+$ plan.py followups --run {RUNS}/1387 --skip 1
+exit 1
+2026-10-28-security-groups-tabbar.md has no `Proposed follow-ups` section — nothing to file (already done?)

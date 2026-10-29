@@ -6,17 +6,20 @@ Usage:
   briefs.py --run <run-dir> score
   briefs.py --run <run-dir> factcheck
 
-find: the describer and finders a-g (f only when context.json flags it)
-into <run-dir>/briefs/, from references/briefs/*.md. Prints one line per
+find: the describer (on an Update, from the describer-update brief),
+finders find-* (find-api-contract only when context.json flags it),
+`pr-description` (PR description vs code; not when the description is
+empty), plus `earlier-findings` on an Update, into <run-dir>/briefs/, from references/briefs/*.md. Prints one line per
 agent: name, subagent type, brief path. Launch exactly these agents, each
 with the prompt "Read your brief: <path>". Each saves its result with
 save.py into <run-dir>/out/<name>.json.
 
-score: reads out/finder-*.json and out/describer.json (unmet acceptance
+score: reads out/find-*.json and out/describer.json (unmet acceptance
 criteria and stale callers become candidates), numbers the candidates
-C1… (finder a…g, then describer), groups those that point at the same
-place (same file within 3 lines, or the same label), packs them into
-batches of up to 8 without splitting a group, and writes
+C1… (finders in FINDERS order, then describer), groups those that point at the same
+place (same file within 3 lines, same file with no line on either side,
+or the same label), packs them into batches of up to 8 without splitting
+a group (a group larger than 8 gets a batch of its own), and writes
 <run-dir>/candidates.json plus one scorer brief per batch. Each scorer
 saves out/score-<n>.json.
 
@@ -44,13 +47,20 @@ AGENTS_DIR = SKILL_DIR.parent.parent / "agents"
 BATCH = 8
 NEAR_LINES = 3
 LABELS = {"PR body", "PR state", "PR files", "CI"}
-FINDERS = [("finder-a", "pr-reviewer", "Finder a — conventions"),
-           ("finder-b", "pr-reviewer", "Finder b — bug scan"),
-           ("finder-c", "pr-reviewer", "Finder c — history"),
-           ("finder-d", "pr-reviewer", "Finder d — review discussion"),
-           ("finder-e", "pr-reviewer", "Finder e — comment compliance"),
-           ("finder-f", "external-api-checker", "Finder f — external API contract"),
-           ("finder-g", "security-reviewer", "Finder g — security")]
+FINDERS = [("find-standards", "pr-reviewer", "find-standards — conventions"),
+           ("find-diff-bugs", "pr-reviewer", "find-diff-bugs — bug scan of the diff"),
+           ("find-history", "pr-reviewer", "find-history — history"),
+           ("find-discussion", "pr-reviewer", "find-discussion — review discussion"),
+           ("find-code-comments", "pr-reviewer", "find-code-comments — comment compliance"),
+           ("find-api-contract", "external-api-checker", "find-api-contract — external API contract"),
+           ("find-security", "security-reviewer", "find-security — security"),
+           ("find-cross-boundary", "pr-reviewer", "find-cross-boundary — bugs across the PR's boundary")]
+
+
+def api_contract(ctx):
+    """Which server files find-api-contract checks (context.json from before 28.10 calls the flag `finder_f`)."""
+    fl = ctx["flags"]
+    return fl.get("api_contract") or fl.get("finder_f") or {"needed": False, "files": []}
 
 
 def hard_rules():
@@ -95,7 +105,7 @@ def variables(ctx, run):
         "number": str(p["number"]), "run": run, "head": p["head"]["oid"], "base": p["base"]["oid"],
         "issue_files": issue_files, "scope": scope, "acceptance": acceptance,
         "claude_md": (ctx.get("standards") or {}).get("claude_md", "CLAUDE.md"),
-        "finder_f_files": bullets(f"`{x}`" for x in f["finder_f"]["files"]),
+        "api_contract_files": bullets(f"`{x}`" for x in api_contract(ctx)["files"]),
     }
 
 
@@ -119,10 +129,19 @@ def find(ctx, run_dir):
     vals = variables(ctx, run)
     part = {n: (TEMPLATES / f"_{n}.md").read_text(encoding="utf-8") for n in ("header", "output", "candidates")}
     agents = [("describer", "pr-reviewer", "Describer")] + [
-        a for a in FINDERS if a[0] != "finder-f" or ctx["flags"]["finder_f"]["needed"]]
+        a for a in FINDERS if a[0] != "find-api-contract" or api_contract(ctx)["needed"]]
+    body = run_dir / "pr-body.md"
+    if body.exists() and body.read_text(encoding="utf-8").strip():  # nothing to compare with an empty description
+        agents.append(("pr-description", "pr-reviewer", "pr-description — PR description vs code"))
+    vals = dict(vals, update_note="")
     if ctx["mode"] == "update":  # one narrow agent checks every earlier finding at the new head
-        agents.append(("earlier", "pr-reviewer", "Earlier findings"))
-        vals = dict(vals, earlier_list="\n".join(earlier_findings(ctx)) or "- none")
+        agents.append(("earlier-findings", "pr-reviewer", "earlier-findings — status of the earlier findings"))
+        earlier = "\n".join(earlier_findings(ctx)) or "- none"
+        vals = dict(vals, earlier_list=earlier, update_note=(
+            "\n**This is an Update.** `not in code`: check the whole description against the code at headRefOid — "
+            "the author may have edited either. `not described`: only areas the new commits (`delta.diff`) change. "
+            "The report already raised the findings below; leave out a mismatch one of them covers (another agent "
+            "rechecks those):\n\n" + earlier + "\n"))
     (run_dir / "briefs").mkdir(exist_ok=True)
     (run_dir / "out").mkdir(exist_ok=True)
     lines = []
@@ -131,7 +150,7 @@ def find(ctx, run_dir):
         v["header"] = fill(part["header"], v)
         v["output"] = fill(part["output"], v)
         v["candidates"] = part["candidates"]
-        if name == "finder-g":
+        if name == "find-security":
             v["hard_rules"] = hard_rules()
         # on an Update the describer gets its own brief: only what the earlier findings don't cover
         tpl = "describer-update" if name == "describer" and ctx["mode"] == "update" else name
@@ -142,7 +161,7 @@ def find(ctx, run_dir):
         stale = run_dir / "out" / f"{name}.json"
         if stale.exists():
             stale.unlink()
-        lines.append(f"{name:<10} {agent:<21} {path}{fallback_note(agent)}")
+        lines.append(f"{name:<19} {agent:<21} {path}{fallback_note(agent)}")
     print(f"Launch these {len(lines)} agents in ONE message, in the foreground, each with the prompt "
           "\"Read your brief: <path>\" and the subagent type shown:\n" + "\n".join(lines))
     return 0
@@ -261,7 +280,15 @@ def score(ctx, run_dir):
                    "the findings below. A candidate that objects to the PR doing what one of them asked (it moved a "
                    "column, renamed a string, restructured code as an earlier finding requested) is not a new "
                    "problem: score it 0 and name the earlier finding in the reason. If the change was made badly — it "
-                   "breaks something or does only half of it — score that as usual.\n\n"
+                   "breaks something or does only half of it — score that as usual. Exception: when a reviewer "
+                   "other than the PR's author (not a bot) asked for it in the review discussion — the candidate's "
+                   "`discussion` quotes them — score it as usual: their call outranks this report's earlier "
+                   "finding. Name the earlier finding it reverses in the reason.\n\n"
+                   "A candidate raised in the review discussion (it has a `discussion`) about a file the new commits "
+                   "don't touch (not in `delta.diff`) is outside this Update: score it 0 and say so in the reason — "
+                   "\"Outside this update's changes\" plus what happened to it in the thread (e.g. the author "
+                   "deferred it to a follow-up, with the url). It is then answered under \"Review comments not taken "
+                   "up\". `save.py` refuses 50 or more for it.\n\n"
                    + ("\n".join(rows) if rows else "- none") + "\n") if rows else ""
     lines = []
     for n, b in enumerate(batches, 1):
