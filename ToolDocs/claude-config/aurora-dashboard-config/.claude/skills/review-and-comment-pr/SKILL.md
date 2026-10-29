@@ -178,7 +178,9 @@ JSON).
   re-render replaces it), and
   updates the footer, the status and the index row.
 - **`none`** — merged or closed without a report, or already up to
-  date, or the user chose to stop: nothing to document. Say so and stop.
+  date, or the user chose to stop, or the new commits only merge the base
+  branch (the delta holds none of the author's lines): nothing to
+  document. Say so (the `Mode:` line gives the reason) and stop.
 
 **Release PR** (`Release PR: yes`) — it only bumps versions and
 changelogs, and the scripts launch no agents for it. Replace Steps 4–5

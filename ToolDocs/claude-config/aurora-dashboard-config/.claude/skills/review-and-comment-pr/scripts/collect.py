@@ -700,9 +700,13 @@ def main(argv):
             if reachable:
                 ctx["report"]["delta"] = f"{full_old}..{head}"
                 dnote = {}
-                (run_dir / "delta.diff").write_text(delta_diff(full_old, head, pr["files"], cwd, base, dnote),
-                                                    encoding="utf-8")
+                delta = delta_diff(full_old, head, pr["files"], cwd, base, dnote)
+                (run_dir / "delta.diff").write_text(delta, encoding="utf-8")
                 ctx["report"]["delta_base_changes_removed"] = dnote.get("base_changes_removed", [])
+                why = nothing_new(delta, dnote, rep["old_head"], head_short)
+                if why:  # only a merge of the base branch: no agents, the report stays as it is
+                    ctx["mode"], ctx["mode_reason"] = "none", why
+                    return write_context(run_dir, ctx)
             else:
                 ctx["report"]["delta"] = "whole-pr"
             ctx["report"]["footer_new"] = footer_with(rep["footer"], f" · updated for `{head_short}` on {today}")
@@ -741,6 +745,25 @@ def main(argv):
         if "error" in ctx["ci"]:
             ctx["provenance"].append("CI not read")
 
+    return write_context(run_dir, ctx)
+
+
+def nothing_new(delta, note, old_short, head_short):
+    """The reason an Update has nothing to review, or None.
+
+    An empty delta means the commits since the report's head change none of the PR's own lines: what they
+    brought into the PR's files came from the base branch (a merge of main) or is generated. Running the
+    agents on it costs a full Update for an empty block, so the run stops as `none`."""
+    if delta.strip():
+        return None
+    merged = note.get("base_changes_removed") or []
+    return (f"the commits since {old_short} change none of the PR's own lines"
+            + (f" (base-branch changes in {len(merged)} of its file(s) left out)" if merged else "")
+            + f" — only a merge of the base branch or generated files; the report stays current, "
+              f"nothing to review at {head_short}")
+
+
+def write_context(run_dir, ctx):
     out = run_dir / "context.json"
     tmp = out.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(ctx, indent=1, ensure_ascii=False) + "\n", encoding="utf-8")
