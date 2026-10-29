@@ -7,7 +7,7 @@ walkthrough of every script and file (in Russian) see `README.md` next to this
 file. When this spec and the code disagree, the code is right and this file is
 out of date.
 
-Last updated: 2026-10-28 (evening).
+Last updated: 2026-10-29.
 
 ## Contents
 
@@ -101,7 +101,7 @@ convention the skill folder holds only what the agent needs at run time.
 | `rerun` | report is current, user explicitly asked to redo it | as `full`, overwriting the report |
 | `update` | new commits since the report | Steps 4–9 on the delta; an Update block is appended |
 | `status` | draft ↔ ready, merged or closed since the report | `render.py` refreshes status and index; nothing posted |
-| `none` | nothing to document | stop |
+| `none` | nothing to document — including an Update whose delta holds none of the author's lines (the new commits only merge the base branch; `collect.nothing_new`) | stop; no agents, the report is left as it is |
 
 `collect.py` exits 3 with a question when it needs the user (no linked issue;
 report already current). A **release PR** (only version bumps and changelogs)
@@ -263,6 +263,13 @@ does not count.
   kept with a version label; cost and calls are reviewed with
   `cost-audit/audit_session.py`, and findings are checked against the code.
   Typical cost: about $3 for an Update, about $4.7 for a full review.
+- **Live runs on another machine** (`review-run-remote/`): `run_review.py`
+  starts the skill and collects the logs, run folder and `DOCS` changes
+  outside `DOCS`; `sync_install.py` first brings the skill, agents, hook
+  and settings there up to `DOCS`; `check_run.py` lists protocol breaks,
+  `save.py` failures, earlier statuses and text leaks; the agent there
+  verifies findings against the code and writes `ANALYSIS.md`, copied into
+  `review-run-remote/analyses/` (no logs) so it reaches the main machine.
 
 ## 11. Decision log
 
@@ -285,6 +292,8 @@ does not count.
 | Oct 28 | `earlier-findings` reads the replies in the discussion: an Improvement or Process item the author/maintainer kept as is with a reason is `dropped` ("Kept as is by …"); a Required Change needs a maintainer. `collect.py` replaces quoted lines in comments with a marker | the author's "I14 is intentional and documented" sat under a 10k-character quote of our report, and the agent checked only the code |
 | Oct 28 | Roles renamed from letters to descriptive names (`finder-a…h` → `find-*`, `description` → `pr-description`, `earlier` → `earlier-findings`); agent types unchanged | names say what the role does |
 | Oct 28 | Human docs (this spec, the README) live outside the skill folder | Agent Skills convention: the skill folder holds runtime files only |
+| Oct 29 | An Update whose delta is empty (only a merge of the base branch) stops as `none` | #1377 `4e5fa28b` merged `main` only: the agents would have cost a full Update (~$2–3) for an empty block |
+| Oct 29 | Live test runs can be done on another machine with only `DOCS`: `review-run-remote/` collects and checks the run there; logs never go into `DOCS` | the skill is tested where the main machine's session budget isn't spent; fixes are still made on the main machine |
 
 ## 12. Known limitations
 

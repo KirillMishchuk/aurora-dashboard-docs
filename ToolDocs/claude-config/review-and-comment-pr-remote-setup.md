@@ -32,6 +32,11 @@ Answer "no" at the posting step and nothing reaches GitHub.
 
 ## Install
 
+Shortcut for steps 2 and 4 (and for every later update): `python3
+../DOCS/ToolDocs/claude-config/review-run-remote/sync_install.py` shows what
+differs (skill, the three agents, the hook, the settings below) and
+`--apply` copies and merges with backups. The manual steps follow.
+
 Start Claude Code in the repo root and give it access to DOCS:
 `cd <parent>/aurora-dashboard && claude --add-dir ../DOCS`.
 All commands below run from there; DOCS is `../DOCS`.
@@ -74,6 +79,9 @@ All commands below run from there; DOCS is `../DOCS`.
          "Bash(python3 .claude/skills/review-and-comment-pr/scripts/prepare_comment.py *)",
          "Bash(git show *)", "Bash(git grep *)", "Bash(git blame *)",
          "Bash(git fetch *)", "Bash(git rev-parse *)",
+         "Bash(git log *)", "Bash(git diff *)", "Bash(git ls-tree *)",
+         "Bash(git merge-base *)", "Bash(git rev-list *)", "Bash(git --no-pager *)",
+         "Bash(ls *)",
          "Bash(gh pr view *)", "Bash(gh pr diff *)", "Bash(gh pr checks *)",
          "Bash(gh pr list *)", "Bash(gh issue view *)", "Bash(gh api --method GET *)",
          "Bash(gh pr comment *)",
@@ -118,5 +126,8 @@ All commands below run from there; DOCS is `../DOCS`.
 - Don't edit the skill there. It is developed on the main machine; to
   update, `git pull` DOCS and repeat Install step 2. If a fix is needed,
   describe it to the user instead.
-- Known untested paths (report anything odd): Update mode (PR with an
-  existing report and new commits), release PRs.
+- Known untested paths (report anything odd): release PRs; `curl` to the
+  OpenStack API reference in `find-api-contract` (needs a PR with server
+  changes); delta when the base can't be resolved.
+- Test run with log collection and analysis: `review-run-remote/README.md`
+  (`run_review.py` starts the skill and collects logs outside `DOCS`).

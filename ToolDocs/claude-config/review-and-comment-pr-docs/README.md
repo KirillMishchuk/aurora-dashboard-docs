@@ -111,6 +111,7 @@
 | `../DOCS/ToolDocs/claude-config/review-pr-regression/` | регрессионный набор (`run.py`, `fixtures/`, `golden/`) |
 | `../DOCS/ToolDocs/claude-config/review-and-comment-pr-remote-setup.md` | установка на другой машине |
 | `../DOCS/ToolDocs/claude-config/cost-audit/` | аудит стоимости прогона (`audit_session.py`, `PROMPT.md`, `README.md`, эталоны `baseline-1383*.txt`) |
+| `../DOCS/ToolDocs/claude-config/review-run-remote/` | тестовый прогон и его разбор на другой машине: `sync_install.py` (обновление скилла, агентов, hook и `settings.local.json` из DOCS), `run_review.py` (запуск + сбор логов, папки прогона и изменений DOCS вне DOCS), `check_run.py` (механические проверки → `checks.md`), `README.md` (как разобрать прогон и найти ошибки агентов), `PROMPT.md`, `baselines/`, `analyses/` (разборы прогонов, приходят на основную машину через DOCS) |
 
 ---
 
@@ -127,6 +128,7 @@
 | PR открыт, head тот же, статус изменился (draft ↔ ready) | `status` | `render.py --run …` обновляет статус и Date в индексе (футер не меняется — он правится только у закрытого/смёрженного PR) |
 | PR открыт, head тот же, статус тот же | `current` → вопрос (exit 3) | `--rerun` → `rerun`; отказ → `none` |
 | PR открыт, head сдвинулся | `update` | шаги 4–9 по delta, Update-блок в отчёт |
+| PR открыт, head сдвинулся, но в delta нет ни одной строки автора (новые коммиты только сливают `main`; изменения base вычтены, сгенерированные файлы не входят) | `update` → `none` | `collect.nothing_new` после расчёта delta: «the commits since … change none of the PR's own lines …», стоп без агентов, отчёт не меняется. В `context.json` уже есть `pr.diff`, `delta.diff`, `fetch`, нет `issue`/`ci`/`discussion` |
 | PR открыт, отчёт есть, но в футере нет проанализированного коммита | — (exit 1) | «check the report by hand» (у закрытого/смёрженного PR эта проверка не делается) |
 | Несколько отчётов на один PR | — (exit 1) | «merge or remove the extra one first» |
 
