@@ -76,6 +76,9 @@ def delta(S, ctx):
                                    base=ctx["pr"]["base"]["oid"], note=note)
         except TypeError:  # an older collect.py without base/note
             d = collect.delta_diff(old, head, ctx["pr"]["files"], ctx["repo"]["root"])
+        if hasattr(collect, "nothing_new"):  # merge-only Update -> mode none; the empty case is synthetic
+            note["nothing_new"] = collect.nothing_new(d, note, old[:8], head[:8])
+            note["nothing_new_if_empty"] = collect.nothing_new("", note, old[:8], head[:8])
         return d, json.dumps(note, indent=1) + "\n"
     finally:
         sys.path.remove(str(S))

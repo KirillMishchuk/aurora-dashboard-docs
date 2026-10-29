@@ -3,5 +3,7 @@
   "packages/aurora/src/locales/de/messages.po",
   "packages/aurora/src/locales/en/messages.po"
  ],
- "plain": []
+ "plain": [],
+ "nothing_new": null,
+ "nothing_new_if_empty": "the commits since fd248f08 change none of the PR's own lines (base-branch changes in 2 of its file(s) left out) \u2014 only a merge of the base branch or generated files; the report stays current, nothing to review at 64c47a99"
 }
