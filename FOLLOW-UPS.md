@@ -1595,5 +1595,19 @@ Updated: 2026-10-28
 
 **Status:** open.
 
+### 73. Dependency-only PRs run all finders despite having no code changes
+
+**Where:** `review-and-comment-pr` skill behavior for PRs like #1398.
+
+**What:** PR #1398 changed only 3 files (pnpm-lock.yaml, pnpm-workspace.yaml, .changeset) — a pure dependency override with 0 TypeScript code changes (91 lines total). Yet in full mode, the skill launched 9 finders (find-diff-bugs, find-standards, find-code-comments, find-history, find-discussion, find-security, find-cross-boundary, pr-description, describer) + factcheck = 10 agents, costing $5.12 and 18 minutes API time. Seven of those finders (all except pr-description and describer) found nothing because there was no code to analyze. Only describer wrote the overview and pr-description found 2 mismatches (wrong GitHub issue numbers in PR body).
+
+**How:** Detect dependency-only PRs (changed_files all match patterns like `*lock.yaml`, `package.json`, `.changeset/*.md`, `pnpm-workspace.yaml`, `Cargo.lock`, `go.mod`, `go.sum`) and skip code finders (find-diff-bugs, find-standards, find-code-comments, find-history, find-discussion, find-security, find-cross-boundary). Run only pr-description (always), describer (always), and find-api-contract (if api_contract.needed). After describer, skip scoring (no candidates), go straight to assemble → render → factcheck → index. This would cut cost for dependency PRs from $5+ to ~$1-2 and time from 18 min to ~5 min.
+
+**Why not done right away:** Skill optimization — requires collect.py to add a `dependency_only` flag based on file patterns, and SKILL.md Step 2 to conditionally skip finder briefs. Not a correctness issue (the review was accurate), just inefficient.
+
+**Source:** Analysis of review-and-comment-pr run for [PR #1398](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1398) at head `8e6df7b2`, 2026-10-29 — review-runs/1398-v4, checks.md, audit.txt
+
+**Status:** open.
+
 ---
 Updated: 2026-10-29
