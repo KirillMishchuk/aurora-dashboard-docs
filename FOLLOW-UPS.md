@@ -84,6 +84,15 @@ review/analysis but deliberately not done in the PR where they came up.
 | 61 | 401 redirect can loop when only the OpenStack call is unauthorized | Ports/Routers | open |
 | 62 | Ports/Routers by-ID procedures don't check the resource's `project_id` | Ports/Routers | open |
 | 63 | `terminateUserSession` before the 401 redirect has no `.catch` | Ports/Routers | open |
+| 64 | Container search sends `name` filter to Barbican, but Barbican ignores it | Key Manager | open |
+| 65 | CreateContainerModal and DeleteContainerModal missing `disableCloseButton` | Key Manager | open |
+| 66 | PR description claims "add/remove secret refs" but no such procedures exist | Key Manager | open |
+| 67 | Server-side policy enforcement not mentioned in PR description | Key Manager | open |
+| 68 | Navigation inconsistency: Key Manager detail views rely on breadcrumbs alone | Key Manager | open |
+| 69 | Server-side policy enforcement is unique to Key Manager | Key Manager | open |
+| 70 | CRUD acceptance partly met — Update UI missing, Container Edit scope dropped | Key Manager | open |
+| 71 | Permission gating acceptance partly met — Update UI unreachable | Key Manager | open |
+| 72 | Error handling acceptance partly met — Barbican error details dropped | Key Manager | open |
 
 ---
 
@@ -1457,3 +1466,134 @@ first.
 
 ---
 Updated: 2026-10-28
+
+## L. Key Manager (Barbican) plugin
+
+### 64. Container search sends `name` filter to Barbican, but Barbican ignores it
+
+**Where:** `packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:223`, `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainersList.tsx:43`.
+
+**What:** The Containers list shows a search box with placeholder "Search by name or ID". When the user types, the client sends `name` to the server, which forwards it to Barbican as a query parameter. However, Barbican's GET /v1/containers only supports `offset` and `limit` — no name-based filtering. The search appears to work but returns all containers regardless of input, misleading users.
+
+**How:** Either remove the search box from the Containers list (Barbican can't filter), or implement client-side filtering on the fetched results. The Secrets list's search works because Barbican's GET /v1/secrets does support a `name` filter.
+
+**Why not done right away:** Bug discovered during review — requires design decision on approach.
+
+**Source:** review-and-comment-pr Update of [PR #1393](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1393) at head `cfba5b42`, 2026-10-29 (CR12) — report `aurora-dashboard-kb/prs/1393-key-manager-core-plugin.md`
+
+**Status:** open.
+
+### 65. CreateContainerModal and DeleteContainerModal missing `disableCloseButton` during async operations
+
+**Where:** `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainerModals.tsx:132` (Create), `:297` (Delete).
+
+**What:** Both modals disable the Cancel button while a mutation is pending (`disableCancelButton={createMutation.isPending}`), but they don't set `disableCloseButton`, so users can still close via the X button. This bypasses the "wait for the request" pattern and can leave the UI in an inconsistent state if the user closes mid-flight and the mutation completes.
+
+**How:** Add `disableCloseButton={createMutation.isPending}` to CreateContainerModal and `disableCloseButton={deleteMutation.isPending}` to DeleteContainerModal. See `packages/aurora/src/client/routes/_auth/projects/$projectId/compute/flavors/-components/DeleteFlavorModal.tsx:119` for the pattern.
+
+**Why not done right away:** Quick Reject Checklist violation with existing precedent — convention-level fix.
+
+**Source:** review-and-comment-pr Update of [PR #1393](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1393) at head `cfba5b42`, 2026-10-29 (CR13) — report `aurora-dashboard-kb/prs/1393-key-manager-core-plugin.md`
+
+**Status:** open.
+
+### 66. PR description claims "add/remove secret refs" for containers, but no such procedures exist
+
+**Where:** PR #1393 body.
+
+**What:** The description states containers support "add/remove secret refs" as operations, but the keyManagerRouter only has listContainers, getContainer, createContainer, and deleteContainer. There are no addContainerSecret or removeContainerSecret procedures. The createContainer procedure accepts secret_refs in its input, but that's creation-time only, not add/remove operations on existing containers.
+
+**How:** Update the description to say 'containers (list/get/create/delete)' without mentioning add/remove, or note that secret_refs are specified only at creation time.
+
+**Why not done right away:** Process item — description/code mismatch.
+
+**Source:** review-and-comment-pr Update of [PR #1393](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1393) at head `cfba5b42`, 2026-10-29 (P2) — report `aurora-dashboard-kb/prs/1393-key-manager-core-plugin.md`
+
+**Status:** open.
+
+### 67. Server-side policy enforcement not mentioned in PR description
+
+**Where:** `packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:64`.
+
+**What:** The update added a `buildKeyManagerResourceRouter` factory that wraps each procedure with an `enforce()` call, checking the loaded policy engine before allowing any operation. This is a significant security feature where Aurora's policy becomes authoritative, preventing operations the policy denies even when Barbican would permit them. The description mentions the permission router and policy mappings for client-side gating, but not this server-side enforcement.
+
+**How:** Add a bullet noting that all Key Manager operations are now enforced server-side via the loaded policy engine, making Aurora policy authoritative.
+
+**Why not done right away:** Process item — significant feature not documented in PR description.
+
+**Source:** review-and-comment-pr Update of [PR #1393](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1393) at head `cfba5b42`, 2026-10-29 (P3) — report `aurora-dashboard-kb/prs/1393-key-manager-core-plugin.md`
+
+**Status:** open.
+
+### 68. Navigation inconsistency: Key Manager detail views rely on breadcrumbs alone
+
+**Where:** `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretDetailsView.tsx:71`.
+
+**What:** Key Manager detail views removed the "Back to Secrets/Containers/Orders" button, relying on the breadcrumb for navigation. However, Flavors, Images, Floating IPs, Routers, Security Groups and other services still show both a Back button in the ContentHeader and the breadcrumb. Users navigating across services encounter inconsistent navigation patterns.
+
+**How:** Either restore the Back button to Key Manager detail views for consistency with Flavors/Images/etc., or open a follow-up to remove Back buttons from the other services.
+
+**Why not done right away:** UX consistency issue with existing precedent elsewhere — not a functional break.
+
+**Source:** review-and-comment-pr Update of [PR #1393](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1393) at head `cfba5b42`, 2026-10-29 (I25) — report `aurora-dashboard-kb/prs/1393-key-manager-core-plugin.md`
+
+**Status:** open.
+
+### 69. Server-side policy enforcement is unique to Key Manager
+
+**Where:** `packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:71`.
+
+**What:** This update introduces `buildKeyManagerResourceRouter(policyDir)`, which loads the policy engine once and wraps every procedure with an `enforce(ctx, rule)` call. This makes Aurora authoritative. However, Compute, Network and Storage routers still rely solely on client-side `canUser` checks — their procedures remain callable without policy enforcement when the advisory check is bypassed.
+
+**How:** Document the server-side enforcement pattern in the KB or ADR. Consider a follow-up to apply it to Compute/Network/Storage routers.
+
+**Why not done right away:** Architectural divergence, not a blocker — the new pattern is better and other services could adopt it incrementally.
+
+**Source:** review-and-comment-pr Update of [PR #1393](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1393) at head `cfba5b42`, 2026-10-29 (I26) — report `aurora-dashboard-kb/prs/1393-key-manager-core-plugin.md`
+
+**Status:** open.
+
+### 70. CRUD acceptance partly met — Update UI missing, Container Edit scope dropped
+
+**Where:** PR files.
+
+**What:** Server procedures exist for all CRUD operations, and the client UI covers list, view, create and delete. However, `updateSecret` has no client caller (users cannot update secrets through the UI), and Container Edit scope (managing secret associations on existing containers, per issue #1133) was dropped with no scope note.
+
+**How:** Either implement the Update UI, or add a scope note to the PR body clarifying that update is out of scope for this phase.
+
+**Why not done right away:** Partial delivery of stated scope — follow-up work.
+
+**Source:** review-and-comment-pr Update of [PR #1393](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1393) at head `cfba5b42`, 2026-10-29 (I27) — report `aurora-dashboard-kb/prs/1393-key-manager-core-plugin.md`
+
+**Status:** open.
+
+### 71. Permission gating acceptance partly met — Update UI unreachable
+
+**Where:** `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx:50`.
+
+**What:** This update adds comprehensive server-side policy enforcement and client-side gating via `useKeyManagerPermissions`. However, the acceptance criterion asks for all action-triggering UI elements to be gated. The `updateSecret` procedure exists and is enforced server-side, but has no client caller — users cannot exercise it, so its permission gating cannot be verified end-to-end.
+
+**How:** Once the Update UI is added, wire its button to `canUser('key-manager:secrets:update')` and test the full flow.
+
+**Why not done right away:** Blocked by missing Update UI.
+
+**Source:** review-and-comment-pr Update of [PR #1393](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1393) at head `cfba5b42`, 2026-10-29 (I28) — report `aurora-dashboard-kb/prs/1393-key-manager-core-plugin.md`
+
+**Status:** open.
+
+### 72. Error handling acceptance partly met — Barbican error details dropped
+
+**Where:** `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainerModals.tsx:126`.
+
+**What:** Mutations do surface errors in modals, so users see something went wrong. However, `mapKmError` (keyManagerRouter.ts:52) replaces the Barbican error body with a generic "Key Manager … failed" message. Users lose the specific diagnostics Barbican returns — e.g. why a secret name is invalid, why a container type is unsupported, or what's wrong with the payload format.
+
+**How:** Enhance `mapKmError` to preserve or summarize Barbican's error body when present, so users see actionable diagnostics.
+
+**Why not done right away:** Functional but not "comprehensive" as the criterion requires — UX improvement.
+
+**Source:** review-and-comment-pr Update of [PR #1393](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1393) at head `cfba5b42`, 2026-10-29 (I29) — report `aurora-dashboard-kb/prs/1393-key-manager-core-plugin.md`
+
+**Status:** open.
+
+---
+Updated: 2026-10-29

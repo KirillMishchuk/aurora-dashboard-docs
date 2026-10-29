@@ -94,7 +94,18 @@ def facts(r):
 
 def orchestrator(all_rows, name):
     out(f"\n## 2. Orchestrator — {name}")
-    calls = tools(all_rows)
+    # Find skill completion marker: last AskUserQuestion with "FOLLOW-UPS" or "Would you like me to file"
+    # Everything after that is diagnostic work, not part of the skill run
+    skill_end_idx = None
+    for i, row in enumerate(all_rows):
+        if row.get("role") == "assistant":
+            text = (row.get("content") or [{}])[0].get("text", "") if isinstance(row.get("content"), list) else ""
+            if "FOLLOW-UPS" in text or "Would you like me to file" in text:
+                skill_end_idx = i
+
+    # Filter rows to only include skill run (up to skill_end_idx)
+    skill_rows = all_rows[:skill_end_idx + 1] if skill_end_idx is not None else all_rows
+    calls = tools(skill_rows)
     listed = {}  # brief name -> agent type, from briefs.py output
     launched = []
     for b, res, err, ts, _ in calls:
@@ -128,6 +139,8 @@ def orchestrator(all_rows, name):
         else:
             bullet(f"{ts[11:19]} AskUserQuestion")
     out("\nAgents launched vs listed by briefs.py:")
+    if skill_end_idx is not None and skill_end_idx < len(all_rows) - 1:
+        out(f"(Note: filtered to skill run only — {len(all_rows) - skill_end_idx - 1} turns after completion ignored)")
     names = [x[0] for x in launched]
     for brief, typ in listed.items():
         got = [x for x in launched if x[0] == brief]

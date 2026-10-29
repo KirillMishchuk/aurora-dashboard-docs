@@ -68,6 +68,13 @@ python3 run_review.py <pr>                 # e.g. 1393; after `--`: flags for cl
 It opens a normal interactive Claude Code session in `aurora-dashboard` with `/review-and-comment-pr <pr>`
 (DOCS added with `--add-dir`). The user answers the skill's questions (posting: **no** unless told
 otherwise; FOLLOW-UPS: as the user decides), then runs `/cost`, **copies its output**, and quits.
+
+**IMPORTANT:** Quit Claude Code immediately after the skill completes (after answering Step 8 posting
+and Step 9 FOLLOW-UPS). **Do not perform any other work** (running `check_run.py`, copying files,
+diagnostic commands) in the same session — that mixes the skill's log with unrelated tool calls,
+inflates the cost audit, and can cause `check_run.py` to report false problems. Open a fresh Claude
+Code session for analysis work.
+
 The script then collects into `<parent>/review-runs/<pr>-v<N>/`:
 
 ```

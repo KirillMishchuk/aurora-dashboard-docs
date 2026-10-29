@@ -573,6 +573,271 @@ The PR description still lists "add/remove secret refs" among the container proc
 
 </details>
 
+## Update — 2026-10-29, head `cfba5b42`
+
+_Reviewed at head [`cfba5b42`](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1393/commits/cfba5b42f1dbc2382578b02fbe971cc4ba4489bd) · base `main` at `948bd2a1` · 2026-10-29 10:24 UTC_
+
+### ⚖️ &nbsp; Verdict
+
+Recommendation: **🔴 Request Changes** &nbsp;&nbsp;&nbsp;&nbsp; Confidence to Merge: **Medium**
+
+- **Must fix before merge**: CR12
+- **Team call** (convention, existing pattern or deferred by a maintainer): CR13
+- **Still open from the earlier review:** CR3, CR5, CR8, CR11 · P1
+- **Process:** P2, P3
+
+### Fixed since last analysis
+
+- CR1 — getSecretPayload now sets Accept: application/octet-stream instead of default application/json.
+- CR2 — Order modal validates bit length with Number.isInteger and parsedBitLength > 0, disables Create when invalid.
+- CR4 — Reveal Payload is now gated on canRevealPayload from key-manager:secrets:payload permission.
+- CR6 — deleteContainerSecret procedure removed entirely; no undocumented endpoint called.
+- CR7 — Container secret_refs[].name is now nullable: z.string().nullable().
+- CR9 — Key Manager nav entry now checks isEnabled('key-manager') alongside catalog presence.
+- CR10 — listOrders no longer sends sort_key/sort_dir; client removed sort control.
+- I1 — Permission props renamed canDeleteSecret, canDeleteContainer, canDeleteOrder.
+- I2 — PopupMenuToggle with aria-labeled button now present in all three TableRow components.
+- I12 — Hook renamed to useKeyManagerPermissions from usePermissions.
+- I16 — getSecretPayload sets debug: false to keep secret material out of transport logs.
+- I17 — Orders list now has Name / ID column.
+- I22 — Icon-only moreVert toggles now have aria-label in addition to title.
+
+**Still open**
+
+- CR3 — Create and delete mutations still show no confirming toast.
+- CR5 — SearchInput still navigates on every keystroke via onInput handler.
+- CR8 — Delete still invalidates without pagination adjustment; empty final page remains.
+- CR11 — getSecretPayload still hardcodes Accept: application/octet-stream for all secrets.
+- P1 — No .changeset/*.md added in PR commits.
+- I3 — Menu items still lack entity name; separator added but labels remain Show Details / Delete.
+- I4 — Delete modal title includes name; confirm label still bare Delete.
+- I5 — Modals disable Cancel when pending but not the close-X. See CR13.
+- I6 — Create modals still use useState without react-form, autoFocus, or disabled inputs in flight.
+- I7 — Sort still uses raw Select + SortButton, not SortInput; toolbar uses distribution="end".
+- I8 — 403 on list pages still inline Message with hard-coded English (if present).
+- I9 — Detail routes still fetch in component with useQuery, not in route loader.
+- I10 — Ad-hoc spacing/styling classes still present: my-6, p-3, opacity-60.
+- I11 — Raw div, p, pre still used where Juno components exist.
+- I13 — Empty state still suggests creating even when search returned no results.
+- I14 — Error states still show raw error.message as title with no body or retry.
+- I15 — getSecretPayload still decodes binary payloads with res.text().
+- I18 — updateSecret, addContainerSecret, deleteContainerSecret still have no client caller.
+- I19 — mapKmError still drops Barbican error body; returns generic 'Key Manager ... failed'.
+- I20 — Some tests added (6 test files) but no tests for lists with permissions, modals, detail views, nav, layout guard, or E2E.
+- I21 — Relative imports (../../) still break B.13 import order convention.
+- I23 — Order validation errors still show as user types (computed on every render), not on blur/submit.
+- I24 — Container Edit scope (issue #1133) dropped with no scope note in PR body or commits.
+
+### 🔧 &nbsp; Required Changes
+
+| #    | Severity    | Category | Precedent     | Issue                                                                                                 | Location                                                                                                                               |
+| ---- | ----------- | -------- | ------------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| CR12 | 🟠 Major    | Bug      | —             | Container search sends `name` filter to Barbican, but Barbican ignores it                             | `packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:223`                                                                |
+| CR13 | 🟡 Moderate | UI/UX    | existing code | CreateContainerModal doesn't disable the close-X during the mutation                                  | `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainerModals.tsx:132` |
+| P2   | —           | Process  | —             | The description lists add/remove secret refs as container operations, but no such procedures exist.   | PR body                                                                                                                                |
+| P3   | —           | Process  | —             | Server-side policy enforcement on every Key Manager operation is not mentioned in the PR description. | `packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:64`                                                                 |
+
+<details><summary><strong>Explanation &amp; Fix</strong></summary>
+
+**CR12 — `listContainers` sends `name` query parameter, but Barbican's GET /v1/containers doesn't support filtering** · Bug · `packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:223`
+The Containers list shows a search box with placeholder "Search by name or ID". When the user types, the client sends `name` to the server, which forwards it to Barbican as a query parameter. However, [Barbican's GET /v1/containers](https://docs.openstack.org/barbican/latest/api/reference/containers.html) only supports `offset` and `limit` — no name-based filtering. The search appears to work but returns all containers regardless of input, misleading users.
+
+```ts
+params.set("offset", String(input.offset))
+params.set("limit", String(input.limit))
+if (input.name) params.set("name", input.name)
+const res = await km.get(`v1/containers?${params}`).catch((e: unknown) => {
+  throw mapKmError(e, "list containers")
+```
+_Fix:_ Either remove the search box from the Containers list (Barbican can't filter), or implement client-side filtering on the fetched results. The Secrets list's search works because Barbican's GET /v1/secrets does support a `name` filter.
+
+**CR13 — CreateContainerModal and DeleteContainerModal are missing `disableCloseButton` during async operations** · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainerModals.tsx:132`
+Both modals disable the Cancel button while a mutation is pending (`disableCancelButton={createMutation.isPending}`), but they don't set `disableCloseButton`, so users can still close via the X button. This bypasses the "wait for the request" pattern and can leave the UI in an inconsistent state if the user closes mid-flight and the mutation completes.
+
+Quick Reject Checklist item: "Modal without disableCancelButton / disableCloseButton during async operations". B.5 requires explicit `disableCloseButton` on `<Modal>` when using custom footer actions.
+_Precedent:_ the same pattern is already in merged code — `packages/aurora/src/client/routes/_auth/projects/$projectId/compute/flavors/-components/DeleteFlavorModal.tsx:119`.
+_Fix:_ Add `disableCloseButton={createMutation.isPending}` to CreateContainerModal and `disableCloseButton={deleteMutation.isPending}` to DeleteContainerModal. See `packages/aurora/src/client/routes/_auth/projects/$projectId/compute/flavors/-components/DeleteFlavorModal.tsx:119` for the pattern.
+
+**P2 — The description claims what the code doesn't do** · Process · PR body
+The PR description states containers support 'add/remove secret refs' as operations, but the keyManagerRouter at cfba5b42f1dbc2382578b02fbe971cc4ba4489bd:packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:244-273 only has listContainers, getContainer, createContainer, and deleteContainer. There are no addContainerSecret or removeContainerSecret procedures. The createContainer procedure accepts secret_refs in its input, but that's creation-time only, not add/remove operations on existing containers.
+_Fix:_ Update the description to say 'containers (list/get/create/delete)' without mentioning add/remove, or note that secret_refs are specified only at creation time.
+
+**P3 — A change the description doesn't mention** · Process · `packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:64`
+The update added a buildKeyManagerResourceRouter factory that wraps each procedure with an enforce() call, checking the loaded policy engine before allowing any operation (commit 8763f93b). This is a significant security feature where Aurora's policy becomes authoritative, preventing operations the policy denies even when Barbican would permit them. The description mentions the permission router and policy mappings for client-side gating, but not this server-side enforcement.
+_Fix:_ Add a bullet noting that all Key Manager operations are now enforced server-side via the loaded policy engine, making Aurora policy authoritative.
+
+</details>
+
+### 💡 &nbsp; Improvements
+
+| #   | Severity | Category      | Precedent     | Issue                                                                        | Location                                                                                                                               |
+| --- | -------- | ------------- | ------------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| I25 | 🟢 Low   | UI/UX         | existing code | Key Manager detail views remove the Back button, but other services keep it  | `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretDetailsView.tsx:71`   |
+| I26 | 🟢 Low   | Code Quality  | —             | Server-side policy enforcement is unique to Key Manager                      | `packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:71`                                                                 |
+| I27 | 🟢 Low   | Code Quality  | —             | CRUD acceptance partly met — Update UI missing, Container Edit scope dropped | PR files                                                                                                                               |
+| I28 | 🟢 Low   | Test coverage | —             | Permission gating acceptance partly met — Update UI unreachable              | `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx:50`         |
+| I29 | 🟢 Low   | UI/UX         | —             | Error handling acceptance partly met — Barbican error details dropped        | `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainerModals.tsx:126` |
+
+<details><summary><strong>Explanation &amp; Fix</strong></summary>
+
+**I25 — Navigation inconsistency: Key Manager relies on breadcrumbs alone while other services have both Back button and breadcrumbs** · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretDetailsView.tsx:71`
+Commit c473f4c4 removed the "Back to Secrets/Containers/Orders" button from Key Manager detail views, relying on the breadcrumb for navigation. However, Flavors, Images, Floating IPs, Routers, Security Groups and other services still show both a Back button in the ContentHeader and the breadcrumb. Users navigating across services encounter inconsistent navigation patterns — some detail pages offer a quick back button, others require using the breadcrumb.
+
+This is a UX consistency issue, not a functional break. The Back button in other services provides a one-click return to the list, which is slightly faster than clicking the breadcrumb.
+_Precedent:_ the same pattern is already in merged code — `packages/aurora/src/client/routes/_auth/projects/$projectId/compute/flavors/$flavorId.tsx:40`.
+_Fix:_ Either restore the Back button to Key Manager detail views for consistency with Flavors/Images/etc., or (if this is the intended new pattern) open a follow-up to remove Back buttons from the other services.
+
+**I26 — New authorization pattern: server-side policy guard via `loadPolicyEngine` and `enforce()`** · Code Quality · `packages/aurora/src/server/KeyManager/routers/keyManagerRouter.ts:71`
+This update introduces `buildKeyManagerResourceRouter(policyDir)`, which loads the policy engine once and wraps every procedure with an `enforce(ctx, rule)` call. This makes Aurora authoritative: an operation Aurora's policy denies cannot reach Barbican, even if Barbican would permit it.
+
+This is a significant security improvement. However, Compute, Network and Storage routers still rely solely on client-side `canUser` checks — their procedures remain callable without policy enforcement when the advisory check is bypassed. The pattern divergence means Key Manager is more secure than the other services.
+
+This is an architectural note, not a blocker: the new pattern is better, and other services could adopt it incrementally.
+_Fix:_ Document the server-side enforcement pattern in the KB or ADR. Consider a follow-up to apply it to Compute/Network/Storage routers.
+
+**I27 — Acceptance criterion (list/view/create/update/delete) is partly met** · Code Quality · PR files
+Server procedures exist for all CRUD operations, and the client UI covers list, view, create and delete for all three resources. However:
+
+- `updateSecret` has no client caller (I18): users cannot update secrets through the UI.
+- Container Edit scope (managing secret associations on existing containers, per issue #1133) was dropped with no scope note (I24).
+
+The missing Update UI means the PR delivers read + create + delete, but not update.
+_Fix:_ Either implement the Update UI, or add a scope note to the PR body clarifying that update is out of scope for this phase.
+
+**I28 — Permission gating partly met: server-side enforcement added, but Update UI absent** · Test coverage · `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/secrets/-components/SecretsList.tsx:50`
+This update adds comprehensive server-side policy enforcement (`enforce()` in every procedure) and client-side gating via `useKeyManagerPermissions`. The Reveal Payload button is now properly gated on `key-manager:secrets:payload`.
+
+However, the acceptance criterion asks for all action-triggering UI elements to be gated. The `updateSecret` procedure exists and is enforced server-side, but has no client caller — users cannot exercise it, so its permission gating cannot be verified end-to-end.
+_Fix:_ Once the Update UI is added, wire its button to `canUser('key-manager:secrets:update')` and test the full flow.
+
+**I29 — Error handling partly met: mutations surface errors, but `mapKmError` drops Barbican's body** · UI/UX · `packages/aurora/src/client/routes/_auth/projects/$projectId/authorization/key-manager/containers/-components/ContainerModals.tsx:126`
+Mutations do surface errors in modals (e.g. `ContainerModals.tsx:288`), so users see something went wrong. However, `mapKmError` (keyManagerRouter.ts:52) replaces the Barbican error body with a generic "Key Manager … failed" message. Users lose the specific diagnostics Barbican returns — e.g. why a secret name is invalid, why a container type is unsupported, or what's wrong with the payload format.
+
+The feedback is functional but not "comprehensive" as the criterion requires.
+_Fix:_ Enhance `mapKmError` to preserve or summarize Barbican's error body when present, so users see actionable diagnostics.
+
+</details>
+
+### What changed
+
+<details>
+<summary><strong>What was done</strong></summary>
+
+The update covers commits 64c47a99..cfba5b42. CI passed (18/22 checks, 4 skipping, 0 failed). The new commits introduce breadcrumb parent routes for secrets/containers/orders, suppress the plugin title and tabs on detail pages, enhance container creation with full secret association UI (RSA/certificate field sets, generic add/remove flow, validation), add a Name field to the Create Order modal, remove the non-functional sort UI from Orders, add a Name/ID column to the Orders table, link generated secrets from order detail views, add server-side policy enforcement on every Key Manager procedure, and add aria-label to moreVert row-action buttons.
+
+</details>
+
+<details>
+<summary><strong>How it is implemented</strong></summary>
+
+```tsx
+const KeyManagerErrorComponent = () => {
+  const { t } = useLingui()
+  const navigate = useNavigate()
+  const { projectId } = Route.useParams()
+
+  return (
+    <RouteIdLevelDefaultError
+      action={
+        <Button
+          variant="primary"
+          onClick={() =>
+            navigate({
+              to: "/projects/$projectId/authorization/key-manager/secrets",
+```
+
+The layout now checks `isDetailRoute` (true when any of the three detail matches succeed) and wraps the title + tabs in `{!isDetailRoute && <> … </>}`, suppressing them on detail pages so the breadcrumb alone identifies the context.
+
+```tsx
+            setNamedRefs((prev) => ({
+              ...prev,
+              [field.name]: typeof v === "string" ? v : "",
+            }))
+            setValidationError(null)
+          }}
+        >
+          <SelectOption value="" label={field.required ? t`Select a secret...` : t`-- None --`} />
+          {secrets.map((secret) => {
+            const secretId = uuidFromRef(secret.secret_ref)
+            return (
+              <SelectOption key={secret.secret_ref} value={secret.secret_ref} label={secret.name ?? secretId} />
+            )
+          })}
+        </Select>
+      </FormRow>
+    ))}
+  </FormSection>
+)}
+
+{/* Generic: add arbitrary named secret references */}
+{type === "generic" && (
+  <FormSection>
+    <FormRow>
+```
+
+Create Container now fetches the secrets list, renders type descriptions, and for RSA/certificate types exposes fixed named fields (private_key, public_key, certificate, etc.) as dropdowns over the fetched secrets. Generic containers get an add/remove flow: the user fills a name + secret dropdown and clicks Add; the pairs accumulate in `genericRefs`. Validation errors for required RSA/certificate fields block submission with a user-facing message.
+
+```ts
+const enforce = (ctx: AuroraPortalContext, rule: string) => {
+  const token = ctx.openstack?.getToken()
+  if (!token) {
+    throw new TRPCError({ code: "UNAUTHORIZED", message: "No valid OpenStack token found" })
+  }
+  const policy = engine.policy(token.tokenData, {
+    defaultParams: { project_id: token.tokenData.project?.id },
+  })
+  let allowed: boolean
+  try {
+    allowed = policy.check(rule)
+  } catch (error) {
+    // A rule the loaded policy file doesn't define is treated as a denial rather than a crash:
+    // operators supply their own policy files and may be a rule behind. Logged so it stays
+    // diagnosable. Any other evaluator error is a real fault and is rethrown.
+    if (error instanceof Error && MISSING_RULE_MESSAGE.test(error.message)) {
+      console.warn(`Key Manager rule '${rule}' is not defined in the loaded policy file; denying.`)
+      allowed = false
+    } else {
+      throw error
+    }
+  }
+  if (!allowed) {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "You are not authorized to perform this Key Manager operation.",
+    })
+  }
+```
+
+The router is now built by `buildKeyManagerResourceRouter(policyDir)`. An `enforce(ctx, rule)` closure loads the policy engine once, checks the token against the supplied rule, and throws FORBIDDEN when denied. Every procedure calls `enforce` before reaching the service. Missing rules (when the loaded policy lacks a key the PR references) log a warning and deny rather than crash.
+
+```tsx
+const generatedSecretId = order.secret_ref ? uuidFromRef(order.secret_ref) : null
+const generatedSecretName = typeof order.meta?.name === "string" ? order.meta.name : null
+
+const detailItems: DetailListItem[] = [
+  { label: t`ID`, value: <ClipboardText text={orderId} /> },
+  { label: t`Reference`, value: <ClipboardText text={order.order_ref} /> },
+  { label: t`Type`, value: order.type },
+  { label: t`Status`, value: order.status },
+  { label: t`Sub Status`, value: subStatus },
+  {
+    label: t`Secret`,
+    value: generatedSecretId ? (
+      <Link
+        to="/projects/$projectId/authorization/key-manager/secrets/$secretId"
+        params={{ projectId, secretId: generatedSecretId }}
+        className="text-theme-link hover:text-theme-default"
+      >
+        {generatedSecretName ?? generatedSecretId}
+      </Link>
+    ) : (
+      "- -"
+```
+
+The Secret field in order detail views is now a Link to the secrets detail route when `generatedSecretId` is present, showing the secret's name or ID as link text.
+
+</details>
+
 ---
 
-_Analyzed 2026-10-25 · commit `fd248f08` · read-only · updated for `64c47a99` on 2026-10-26 · skill: review-and-comment-pr_
+_Analyzed 2026-10-25 · commit `fd248f08` · read-only · updated for `64c47a99` on 2026-10-26 · updated for `cfba5b42` on 2026-10-29 · skill: review-and-comment-pr_

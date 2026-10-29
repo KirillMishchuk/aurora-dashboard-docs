@@ -84,8 +84,20 @@ def collect(logs, label, command):
         tag = "session" if len(logs) == 1 else f"session-{chr(ord('a') + i)}"
         shutil.copy2(log, dest / f"{tag}.jsonl")
         folder = log.with_suffix("")
+        subagents_folder = folder / "subagents"
+
+        # Check for subagents folder and wait briefly if the session just ended
+        if not subagents_folder.exists() and folder.is_dir():
+            # Race condition: subagents might still be writing
+            time.sleep(1)
+
         if folder.is_dir():
+            if not subagents_folder.exists() or not any(subagents_folder.iterdir()):
+                print(f"warning: {folder} exists but subagents/ is missing or empty — copy manually from {folder}")
             shutil.copytree(folder, dest / tag)
+        else:
+            print(f"warning: session folder {folder} not found — subagent logs will be missing")
+
         first, last = time_span(log)
         sessions.append({"file": f"{tag}.jsonl", "session_id": log.stem, "started": first, "ended": last,
                          "subagent_folder": folder.is_dir()})
