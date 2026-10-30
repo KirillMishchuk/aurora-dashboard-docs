@@ -164,12 +164,15 @@ def run(argv):
         sys.exit(f"skill not installed in {REPO}/.claude/skills/{SKILL} — see ../review-and-comment-pr-remote-setup.md")
     label = next_label(argv[0])
     command = f"/{SKILL} {argv[0]}"
-    print(f"run {label}: claude \"{command}\" in {REPO} (collected when you quit Claude Code)", flush=True)
+    print(f"run {label}: claude in {REPO}")
+    print(f"  1. (optional) /model to change model")
+    print(f"  2. run: {command}")
+    print(f"  3. quit when done — logs collected automatically", flush=True)
     t0 = time.time() - 1
     try:
-        # Pass command via stdin - claude doesn't auto-run commands from argv
-        subprocess.run(["claude", "--add-dir", str(DOCS), *extra], cwd=REPO,
-                       input=f"{command}\n", text=True)
+        # Launch interactive session - user runs the command manually after optional /model
+        # Default to Opus (ignore ANTHROPIC_MODEL env var)
+        subprocess.run(["claude", "--model", "opus", "--add-dir", str(DOCS), *extra], cwd=REPO)
     except FileNotFoundError:
         sys.exit("`claude` not found on PATH")
     logs = logs_since(t0)

@@ -93,6 +93,16 @@ review/analysis but deliberately not done in the PR where they came up.
 | 70 | CRUD acceptance partly met — Update UI missing, Container Edit scope dropped | Key Manager | open |
 | 71 | Permission gating acceptance partly met — Update UI unreachable | Key Manager | open |
 | 72 | Error handling acceptance partly met — Barbican error details dropped | Key Manager | open |
+| 73 | Network list lacks pagination — users see only the first page | Networks | open |
+| 74 | Network list excludes external networks that aren't shared | Networks | open |
+| 75 | Network table row menu lacks `PopupMenuToggle` trigger | Networks | open |
+| 76 | PR description claims router-details fix that was already merged | Networks | open |
+| 77 | All-caps `UP`/`DOWN` for admin state in Networks views | Networks | open |
+| 78 | Wrong context property name in Networks spec | Networks (spec) | open |
+| 79 | Incomplete router interface device owners in Networks spec | Networks (spec) | open |
+| 80 | Incorrect refetch-on-window-focus claim in Networks spec | Networks (spec) | open |
+| 81 | Incorrect ListToolbar timestamp format claim in Networks spec | Networks (spec) | open |
+| 82 | Inconsistent menu item capitalization in Networks BRD/spec | Networks (spec) | open |
 
 ---
 
@@ -1610,4 +1620,152 @@ Updated: 2026-10-28
 **Status:** open.
 
 ---
-Updated: 2026-10-29
+
+## O. Networks (PR #1385)
+
+### 73. Network list lacks pagination — users see only the first page
+
+**Where:** `packages/aurora/src/server/Network/routers/networksRouter.ts:65`, `packages/aurora/src/server/Network/types/network.ts:106`.
+
+**What:** The `list` procedure does not implement Neutron's pagination parameters (`limit`, `marker`, `page_reverse`). When there are more networks than Neutron's configured page size (typically 1000), users see only the first page with no way to retrieve subsequent pages. The `NetworkQueryParametersSchema` lacks these fields. Additionally, the list merges two parallel requests (own and shared networks), which complicates pagination since each would need separate marker tracking.
+
+**How:** Add `limit`, `marker`, and `page_reverse` to `NetworkQueryParametersSchema`, pass them to both own/shared requests, and return the pagination links so the client can implement "Load more" or marker-based navigation.
+
+**Why not done right away:** Required Change (Moderate) — affects large deployments; needs design decision on how to handle dual-request pagination.
+
+**Source:** review-and-comment-pr of [PR #1385](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1385) at head `9ed42505`, 2026-10-30 (CR1) — report `aurora-dashboard-kb/prs/1385-neutron-networks-bff-read-only-networks-page.md`
+
+**Status:** open.
+
+### 74. Network list excludes external networks that aren't shared
+
+**Where:** `packages/aurora/src/server/Network/routers/networksRouter.ts:74-78`.
+
+**What:** The list procedure filters by `project_id` (own) or `shared=true`, which excludes external networks (`router:external=True`) that are not marked as shared. Neutron's default policy (`rule:external` in `get_network`) allows users to see external networks, but this filter hides them. The BFF documentation states this is intentional — external networks are served by `network.floatingIp.listExternalNetworks`. However, a user looking at the Networks page cannot discover external networks they could attach ports to.
+
+**How:** Document this limitation in the UI (e.g., a note in the empty state or filters) or add a third scope that fetches `router:external=true` networks. If the current design is intentional, consider linking to the floating-IP external-networks endpoint from the Networks page.
+
+**Why not done right away:** Required Change (Moderate) — architectural decision documented in BFF docs; needs product decision on visibility approach.
+
+**Source:** review-and-comment-pr of [PR #1385](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1385) at head `9ed42505`, 2026-10-30 (CR2) — report `aurora-dashboard-kb/prs/1385-neutron-networks-bff-read-only-networks-page.md`
+
+**Status:** open.
+
+### 75. Network table row menu lacks `PopupMenuToggle` trigger
+
+**Where:** `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkTableRow.tsx:68-72`.
+
+**What:** The action menu uses `PopupMenu` directly without a `PopupMenuToggle` wrapper. Per B.14, context menus require `<PopupMenuToggle as="div"><Button icon="moreVert" /></PopupMenuToggle>` as the trigger for keyboard navigation and screen reader support. Currently the menu has no visible trigger button and cannot be activated via keyboard.
+
+**How:** Wrap with `PopupMenuToggle` and add a `Button` trigger, following `packages/aurora/src/client/routes/_auth/projects/$projectId/storage/-components/Ceph/Buckets/BucketTableView.tsx:240`.
+
+**Why not done right away:** Required Change (Moderate, Accessibility) — precedent exists in `FlavorListContainer.tsx:147`.
+
+**Source:** review-and-comment-pr of [PR #1385](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1385) at head `9ed42505`, 2026-10-30 (CR3) — report `aurora-dashboard-kb/prs/1385-neutron-networks-bff-read-only-networks-page.md`
+
+**Status:** open.
+
+### 76. PR description claims router-details fix that was already merged
+
+**Where:** PR #1385 body.
+
+**What:** The PR description lists a "Router details route: use a literal route id in `createFileRoute`" fix under "Changes Made", but the router details route file (`packages/aurora/src/client/routes/_auth/projects/$projectId/network/routers/$routerId.tsx`) was not modified between the base commit (a21ba3ec) and head commit (9ed42505). The fix already exists at the base commit.
+
+**How:** Remove this item from the "Fix" section of the PR description, or clarify that this fix was already merged separately and mention it only for context (not as a change made by this PR).
+
+**Why not done right away:** Process item — description/code mismatch.
+
+**Source:** review-and-comment-pr of [PR #1385](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1385) at head `9ed42505`, 2026-10-30 (P1) — report `aurora-dashboard-kb/prs/1385-neutron-networks-bff-read-only-networks-page.md`
+
+**Status:** open.
+
+### 77. All-caps `UP`/`DOWN` for admin state in Networks views
+
+**Where:** `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkTableRow.tsx:50`, `packages/aurora/src/client/routes/_auth/projects/$projectId/network/networks/-components/NetworkDetailsView.tsx:78`.
+
+**What:** The network table row and details view display admin state as `` t`UP` `` / `` t`DOWN` ``. B.19 UX Writing states "Never all-caps (ever)" — status values are not an exception.
+
+**How:** Use sentence-case labels like `Enabled` / `Disabled` or `Active` / `Inactive`, matching other status displays.
+
+**Why not done right away:** Improvement (Low) — precedent exists in `RouterDetailsView.tsx:63` and `RouterInterfacesTable.tsx:84`.
+
+**Source:** review-and-comment-pr of [PR #1385](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1385) at head `9ed42505`, 2026-10-30 (I1) — report `aurora-dashboard-kb/prs/1385-neutron-networks-bff-read-only-networks-page.md`
+
+**Status:** open.
+
+---
+
+## P. Networks read-only BRD/spec (PR #1406)
+
+### 78. Wrong context property name in Networks spec
+
+**Where:** `docs/specs/networks/networks-readonly-spec.md:99`.
+
+**What:** The spec instructs implementers to access the auth token via `ctx.openstackSession?.getToken()?.authToken`, but the actual context property exposed by the procedure builders is `ctx.openstack`, not `ctx.openstackSession`. When an implementer copies this code, the token lookup returns `undefined` because the property does not exist, breaking authentication for all Neutron API calls.
+
+**How:** Replace `ctx.openstackSession` with `ctx.openstack` at line 99.
+
+**Why not done right away:** Required Change (Major) in the review — documentation accuracy issue.
+
+**Source:** review-and-comment-pr of [PR #1406](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1406) at head `fd75255a`, 2026-10-30 (CR1) — report `aurora-dashboard-kb/prs/1406-read-only-networks-brd-spec-project-guardrails.md`
+
+**Status:** open.
+
+### 79. Incomplete router interface device owners in Networks spec
+
+**Where:** `docs/specs/networks/networks-readonly-brd.md:145`, `docs/specs/networks/networks-readonly-spec.md:212`.
+
+**What:** The BRD and spec instruct filtering attached routers by checking only `device_owner === 'network:router_interface'`. The existing codebase in `packages/aurora/src/server/Network/helpers/routerHelpers.ts:224` already recognizes three types: `'network:router_interface'`, `'network:router_interface_distributed'`, and `'network:ha_router_replicated_interface'`. In deployments with distributed (DVR) or high-availability (HA) routers, the attached-routers list will show no routers even when router interfaces exist, breaking router discovery and deep-link features.
+
+**How:** Reference the existing `ROUTER_INTERFACE_DEVICE_OWNERS` set from routerHelpers.ts or list all three device owner types at BRD lines 145, 173 and spec lines 212, 234.
+
+**Why not done right away:** Required Change (Major) in the review — documentation accuracy issue.
+
+**Source:** review-and-comment-pr of [PR #1406](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1406) at head `fd75255a`, 2026-10-30 (CR2) — report `aurora-dashboard-kb/prs/1406-read-only-networks-brd-spec-project-guardrails.md`
+
+**Status:** open.
+
+### 80. Incorrect refetch-on-window-focus claim in Networks spec
+
+**Where:** `docs/specs/networks/networks-readonly-spec.md:25`.
+
+**What:** Engineering decision E1 states data loads 'via TanStack Query's default refetch-on-window-focus'. However, Aurora globally disables this at `packages/aurora/src/client/App.tsx:77` with `refetchOnWindowFocus: false`. When implementers rely on this stated behavior, expecting data to refresh when the user returns to the browser tab, the network/port status remains stale until manual navigation.
+
+**How:** Remove the refetch-on-window-focus claim from E1, or note that implementers would need to override the global default.
+
+**Why not done right away:** Required Change (Moderate) in the review — documentation accuracy issue.
+
+**Source:** review-and-comment-pr of [PR #1406](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1406) at head `fd75255a`, 2026-10-30 (CR3) — report `aurora-dashboard-kb/prs/1406-read-only-networks-brd-spec-project-guardrails.md`
+
+**Status:** open.
+
+### 81. Incorrect ListToolbar timestamp format claim in Networks spec
+
+**Where:** `docs/specs/networks/networks-readonly-spec.md:134`, `docs/specs/networks/networks-readonly-spec.md:25`.
+
+**What:** The spec at line 25 requires the timestamp be 'rendered relative', and at line 134 states ListToolbar provides 'the count + last-updated row... out of the box'. However, `packages/aurora/src/client/components/ListToolbar/index.tsx:68` formats timestamps with `toLocaleString()`, producing absolute timestamps like '10/30/2026, 9:20:25 AM' rather than relative ones like '2 minutes ago'.
+
+**How:** Either remove the relative timestamp claim, note that ListToolbar extension is required, or add relative timestamp support to scope.
+
+**Why not done right away:** Required Change (Moderate) in the review — documentation accuracy issue.
+
+**Source:** review-and-comment-pr of [PR #1406](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1406) at head `fd75255a`, 2026-10-30 (CR4) — report `aurora-dashboard-kb/prs/1406-read-only-networks-brd-spec-project-guardrails.md`
+
+**Status:** open.
+
+### 82. Inconsistent menu item capitalization in Networks BRD/spec
+
+**Where:** `docs/specs/networks/networks-readonly-brd.md:130`, `docs/specs/networks/networks-readonly-spec.md:18`.
+
+**What:** The BRD and spec document 'View details' (lowercase) instead of 'View Details' (Title Case). This violates B.19 which mandates Title Case for button labels, and is inconsistent with the PR's own guardrails.md which correctly uses 'View Details' at `docs/guardrails/guardrails.md:9`. When implementers copy this string, the UI will be inconsistent with existing menu items like 'Edit Metadata' and 'Manage Access'.
+
+**How:** Change 'View details' to 'View Details' at BRD lines 130, 204 and spec lines 18, 123.
+
+**Why not done right away:** Improvement (Low) in the review — documentation consistency issue.
+
+**Source:** review-and-comment-pr of [PR #1406](https://github.com/cobaltcore-dev/aurora-dashboard/pull/1406) at head `fd75255a`, 2026-10-30 (I1) — report `aurora-dashboard-kb/prs/1406-read-only-networks-brd-spec-project-guardrails.md`
+
+**Status:** open.
+
+---
+Updated: 2026-10-30

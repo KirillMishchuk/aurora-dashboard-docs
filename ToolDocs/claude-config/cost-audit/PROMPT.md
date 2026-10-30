@@ -9,6 +9,12 @@ claude --add-dir ../DOCS
 ```
 
 ```text
+⚠️ **STOP if this session just completed a review run.** This audit MUST run
+in a separate session from the review being audited. If you just finished
+`/review-and-comment-pr` in this session, tell the user to close this
+session first, then start a new one for the audit. The review session's log
+must be complete and closed before analysis.
+
 Read ../DOCS/ToolDocs/claude-config/cost-audit/README.md in full and follow it:
 audit the cost of my earlier run of `/review-and-comment-pr 1383` in this
 project. It cost about €10; the baseline on my main machine is $2.60
@@ -30,6 +36,12 @@ Work step by step and reply in Russian, briefly. At the end write
 ## Follow-up: detailed audit (after the first report)
 
 ```text
+⚠️ **STOP if this session just completed a review run.** This audit MUST run
+in a separate session from the review being audited. If you just finished
+`/review-and-comment-pr` in this session, tell the user to close this
+session first, then start a new one for the audit. The review session's log
+must be complete and closed before analysis.
+
 Pull DOCS (git -C ../DOCS pull) and read
 ../DOCS/ToolDocs/claude-config/cost-audit/README.md again — the script and
 the checks were extended. Your first report is
